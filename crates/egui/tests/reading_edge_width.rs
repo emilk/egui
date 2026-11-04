@@ -6,11 +6,18 @@
 //! The setters claim their span with the layout-derived anchor
 //! ([`egui::Layout::horizontal_align`]): a vertical body claims from its
 //! `cross_align` edge, and the anchor does not depend on the interface
-//! direction, so measured sizes are direction-independent. These tests pin
-//! that decision: a vertical `Align::Min` body measures the claim (never the
-//! offered span) in both directions, and bodies whose layout is
+//! direction, so measured sizes (widths) are direction-independent. These
+//! tests pin that decision: a vertical `Align::Min` body measures the claim
+//! (never the offered span) in both directions, and bodies whose layout is
 //! reading-start-pinned under a right-to-left interface (the `Align::Max`
 //! bodies popups and menus use) cap at the reading edge.
+//!
+//! Since the default `Area` pivot follows the reading direction (a fresh
+//! `Area` roots on its reading-start edge: `LEFT_TOP` under LTR, `RIGHT_TOP`
+//! under RTL), the fresh-Area measurements mirror in position: the
+//! reading-start edge pins at the fixed pos in both directions, and the RTL
+//! rect is the LTR rect mirrored about it. The width claims themselves stay
+//! direction-independent.
 //!
 //! Every mirrored case carries its LTR control; several tests assert
 //! LTR-rect == RTL-rect (direction independence) rather than absolute
@@ -43,30 +50,33 @@ fn run(ctx: &Context, input: RawInput, run_ui: impl FnMut(&mut Ui)) {
 }
 
 /// Runs `body` inside a fresh `Area` at [`FIXED_POS`] on a 1300-wide screen
-/// for two frames (`run_ui` twice) and returns the area's measured
-/// `min_rect` and `max_rect` after each frame.
+/// for two frames (`run_ui` twice) and returns the area's surface rect plus
+/// the measured `min_rect` and `max_rect` after each frame.
 ///
-/// The pivot stays `Align2::LEFT_TOP`; the left edge is pinned at 600 ONLY
-/// because the guessed 600-wide sizing-pass rect (600..1200) fits the
-/// 1300-wide constrain rect: `Area::begin` runs
+/// The default pivot follows the reading direction: `LEFT_TOP` under LTR (the
+/// left edge is pinned at 600), `RIGHT_TOP` under RTL (the right edge is
+/// pinned at 600). In both directions the pinned edge survives ONLY because
+/// the guessed 600-wide sizing-pass rect fits the 1300-wide constrain rect:
+/// LTR spans 600..1200, RTL 0..600 — `Area::begin` runs
 /// `Context::constrain_window_rect_to_area` every frame and would otherwise
-/// move the pivot (to ≈200 on an 800-wide screen). Do not shrink the screen
-/// below `FIXED_POS.x + 600`.
+/// move the pivot. Keep `FIXED_POS.x >= 600` and the screen wider than
+/// `FIXED_POS.x + 600`.
 ///
 /// Frame 1 is the Area's sizing pass over the guessed `default_area_size`
 /// span, frame 2 the show pass over the persisted size (which `Prepared::end`
 /// persists every frame).
-fn area_rects(ctx: &Context, body: impl FnMut(&mut Ui) + Clone) -> [(Rect, Rect); 2] {
+fn area_rects(ctx: &Context, body: impl FnMut(&mut Ui) + Clone) -> [(Rect, Rect, Rect); 2] {
     let id = Id::unique("reading_edge_width_area");
-    let mut rects = [(Rect::NOTHING, Rect::NOTHING); 2];
-    for (min_rect, max_rect) in &mut rects {
+    let mut rects = [(Rect::NOTHING, Rect::NOTHING, Rect::NOTHING); 2];
+    for (area, min_rect, max_rect) in &mut rects {
         let mut body = body.clone();
         run(ctx, input(SCREEN), |ui| {
-            Area::new(id).fixed_pos(FIXED_POS).show(ui, |ui| {
+            let response = Area::new(id).fixed_pos(FIXED_POS).show(ui, |ui| {
                 body(ui);
                 *min_rect = ui.min_rect();
                 *max_rect = ui.max_rect();
             });
+            *area = response.response.rect;
         });
     }
     rects
@@ -76,9 +86,9 @@ fn area_rects(ctx: &Context, body: impl FnMut(&mut Ui) + Clone) -> [(Rect, Rect)
 /// the offered span — identically under LTR and RTL.
 #[test]
 fn min_width_measures_the_claim_in_both_directions() {
-    // (a) Fresh Area at a fixed pos: every frame measures the 220-wide claim
-    // with its left edge pinned at the pos (see `area_rects`), and the LTR
-    // rects equal the RTL rects frame by frame.
+    // (a) Fresh Area at a fixed pos: every frame measures the 220-wide claim,
+    // and the area surface roots on its reading-start edge — the left edge
+    // under LTR, the right edge under RTL (see `area_rects`).
     let ltr_ctx = Context::default();
     let ltr = area_rects(&ltr_ctx, |ui| ui.set_min_width(220.0));
 
@@ -86,32 +96,29 @@ fn min_width_measures_the_claim_in_both_directions() {
     rtl_ctx.set_right_to_left(true);
     let rtl = area_rects(&rtl_ctx, |ui| ui.set_min_width(220.0));
 
-    for (frame, (ltr_rects, rtl_rects)) in zip(ltr, rtl).enumerate() {
-        for (name, (min_rect, _max_rect)) in [("LTR", ltr_rects), ("RTL", rtl_rects)] {
-            assert!(
-                (min_rect.left() - FIXED_POS.x).abs() <= 0.5,
-                "{name} frame {frame}: the measured left edge should stay at the fixed pos, \
-                 got {min_rect:?}"
-            );
+    for (frame, ((ltr_area, ltr_min, _), (rtl_area, rtl_min, _))) in zip(ltr, rtl).enumerate() {
+        assert!(
+            (ltr_min.left() - FIXED_POS.x).abs() <= 0.5,
+            "LTR frame {frame}: the measured left edge should stay at the fixed pos, \
+             got {ltr_min:?}"
+        );
+        assert!(
+            (rtl_area.right() - FIXED_POS.x).abs() <= 0.5,
+            "RTL frame {frame}: the area should root on its reading-start (right) edge at the \
+             fixed pos, got {rtl_area:?}"
+        );
+        for (name, min_rect) in [("LTR", ltr_min), ("RTL", rtl_min)] {
             assert!(
                 (min_rect.width() - 220.0).abs() <= 0.5,
                 "{name} frame {frame}: the measured width should be the 220-wide claim, \
                  not the offered span, got {min_rect:?}"
             );
         }
-        let (ltr_min, ltr_max) = ltr_rects;
-        let (rtl_min, rtl_max) = rtl_rects;
         assert!(
-            (ltr_min.left() - rtl_min.left()).abs() <= 0.5
-                && (ltr_min.right() - rtl_min.right()).abs() <= 0.5,
-            "frame {frame}: the measurement must be direction-independent \
-             (LTR {ltr_min:?}, RTL {rtl_min:?})"
-        );
-        assert!(
-            (ltr_max.left() - rtl_max.left()).abs() <= 0.5
-                && (ltr_max.right() - rtl_max.right()).abs() <= 0.5,
-            "frame {frame}: the offered rect must be direction-independent \
-             (LTR {ltr_max:?}, RTL {rtl_max:?})"
+            (rtl_area.right() - ltr_area.left()).abs() <= 0.5
+                && (rtl_area.width() - ltr_area.width()).abs() <= 0.5,
+            "frame {frame}: the area surface should mirror about the reading-start edge \
+             (LTR {ltr_area:?}, RTL {rtl_area:?})"
         );
     }
 
@@ -162,8 +169,10 @@ fn width_range_measures_min_and_max_in_both_directions() {
     rtl_ctx.set_right_to_left(true);
     let rtl = area_rects(&rtl_ctx, |ui| ui.set_width_range(120.0..=300.0));
 
-    for (frame, (ltr_rects, rtl_rects)) in zip(ltr, rtl).enumerate() {
-        for (name, (min_rect, max_rect)) in [("LTR", ltr_rects), ("RTL", rtl_rects)] {
+    for (frame, ((ltr_area, ltr_min, ltr_max), (rtl_area, rtl_min, rtl_max))) in
+        zip(ltr, rtl).enumerate()
+    {
+        for (name, min_rect, max_rect) in [("LTR", ltr_min, ltr_max), ("RTL", rtl_min, rtl_max)] {
             assert!(
                 (min_rect.width() - 120.0).abs() <= 0.5,
                 "{name} frame {frame}: min_rect should measure the 120-wide minimum, \
@@ -179,15 +188,21 @@ fn width_range_measures_min_and_max_in_both_directions() {
                 "{name} frame {frame}: max_rect {max_rect:?} should contain min_rect {min_rect:?}"
             );
         }
-        let (ltr_min, ltr_max) = ltr_rects;
-        let (rtl_min, rtl_max) = rtl_rects;
         assert!(
-            (ltr_min.left() - rtl_min.left()).abs() <= 0.5
-                && (ltr_min.right() - rtl_min.right()).abs() <= 0.5
-                && (ltr_max.left() - rtl_max.left()).abs() <= 0.5
-                && (ltr_max.right() - rtl_max.right()).abs() <= 0.5,
-            "frame {frame}: the measurement must be direction-independent \
-             (LTR min {ltr_min:?} max {ltr_max:?}, RTL min {rtl_min:?} max {rtl_max:?})"
+            (ltr_area.left() - FIXED_POS.x).abs() <= 0.5,
+            "LTR frame {frame}: the area should root on its left edge at the fixed pos, \
+             got {ltr_area:?}"
+        );
+        assert!(
+            (rtl_area.right() - FIXED_POS.x).abs() <= 0.5,
+            "RTL frame {frame}: the area should root on its reading-start (right) edge at the \
+             fixed pos, got {rtl_area:?}"
+        );
+        assert!(
+            (rtl_area.right() - ltr_area.left()).abs() <= 0.5
+                && (rtl_area.width() - ltr_area.width()).abs() <= 0.5,
+            "frame {frame}: the area surface should mirror about the reading-start edge \
+             (LTR {ltr_area:?}, RTL {rtl_area:?})"
         );
     }
 }
@@ -208,8 +223,10 @@ fn max_width_guard_keeps_the_minimum_in_both_directions() {
     rtl_ctx.set_right_to_left(true);
     let rtl = area_rects(&rtl_ctx, clamp);
 
-    for (frame, (ltr_rects, rtl_rects)) in zip(ltr, rtl).enumerate() {
-        for (name, (min_rect, max_rect)) in [("LTR", ltr_rects), ("RTL", rtl_rects)] {
+    for (frame, ((ltr_area, ltr_min, ltr_max), (rtl_area, rtl_min, rtl_max))) in
+        zip(ltr, rtl).enumerate()
+    {
+        for (name, min_rect, max_rect) in [("LTR", ltr_min, ltr_max), ("RTL", rtl_min, rtl_max)] {
             assert!(
                 (max_rect.width() - 200.0).abs() <= 0.5,
                 "{name} frame {frame}: the 200-wide minimum must survive the \
@@ -220,15 +237,21 @@ fn max_width_guard_keeps_the_minimum_in_both_directions() {
                 "{name} frame {frame}: max_rect {max_rect:?} should contain min_rect {min_rect:?}"
             );
         }
-        let (ltr_min, ltr_max) = ltr_rects;
-        let (rtl_min, rtl_max) = rtl_rects;
         assert!(
-            (ltr_min.left() - rtl_min.left()).abs() <= 0.5
-                && (ltr_min.right() - rtl_min.right()).abs() <= 0.5
-                && (ltr_max.left() - rtl_max.left()).abs() <= 0.5
-                && (ltr_max.right() - rtl_max.right()).abs() <= 0.5,
-            "frame {frame}: the guard result must be direction-independent \
-             (LTR min {ltr_min:?} max {ltr_max:?}, RTL min {rtl_min:?} max {rtl_max:?})"
+            (ltr_area.left() - FIXED_POS.x).abs() <= 0.5,
+            "LTR frame {frame}: the area should root on its left edge at the fixed pos, \
+             got {ltr_area:?}"
+        );
+        assert!(
+            (rtl_area.right() - FIXED_POS.x).abs() <= 0.5,
+            "RTL frame {frame}: the area should root on its reading-start (right) edge at the \
+             fixed pos, got {rtl_area:?}"
+        );
+        assert!(
+            (rtl_area.right() - ltr_area.left()).abs() <= 0.5
+                && (rtl_area.width() - ltr_area.width()).abs() <= 0.5,
+            "frame {frame}: the area surface should mirror about the reading-start edge \
+             (LTR {ltr_area:?}, RTL {rtl_area:?})"
         );
     }
 }

@@ -509,10 +509,12 @@ fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
 
     /// The window is placed so the wide state fits on screen in both directions:
     /// under RTL the window grows leftward (placed near the right edge), under
-    /// LTR rightward (placed near the left edge).
+    /// LTR rightward (placed near the left edge). `default_pos` roots the
+    /// window on its reading-start edge — under RTL that is the right edge, so
+    /// the position leaves ~650 points of room for the window to widen into.
     fn frame(ctx: &Context, rtl: bool, wide: bool, screen_w: f32) -> Rect {
         let pos = if rtl {
-            pos2(450.0, 50.0)
+            pos2(650.0, 50.0)
         } else {
             pos2(100.0, 50.0)
         };
