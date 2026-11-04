@@ -1,0 +1,168 @@
+	✨ Demos	✨ العروض التوضيحية
+	📝 EasyMark editor	📝 محرر EasyMark
+	⬇️ HTTP	⬇️ HTTP
+	🕑 Fractal Clock	🕑 ساعة الفركتال
+	🖼️ Image Viewer	🖼️ عارض الصور
+	🔺 3D painting	🔺 الرسم ثلاثي الأبعاد
+	🎨 Rendering test	🎨 اختبار التصيير
+	💻 Backend	💻 الواجهة الخلفية
+	Reset egui	إعادة تعيين egui
+	Forget scroll, positions, sizes etc	نسيان التمرير والمواضع والأحجام وما إلى ذلك
+	Reset everything	إعادة تعيين كل شيء
+	Dropping files:\n	إفلات الملفات:\n
+	Dropped files	الملفات التي تم إفلاتها
+	🌐 Language	🌐 اللغة
+	egui windows:	نوافذ egui:
+	Press down all modifiers and hover a widget to see a callstack for it	اضغط على جميع المفاتيح المعدِّلة معًا وأشر إلى أحد العناصر لعرض حزمة الاستدعاء الخاصة به
+	🔈 Screen reader	🔈 قارئ الشاشة
+	Experimental feature: checking this will turn on the screen reader on supported platforms	ميزة تجريبية: تحديد هذا الخيار يشغّل قارئ الشاشة على الأنظمة المدعومة
+	Quit	إنهاء
+	Mode:	الوضع:
+	Reactive	تفاعلي
+	Repaint when there are animations or input (e.g. mouse movement)	إعادة الرسم عند وجود حركات أو إدخال (مثل تحريك الفأرة)
+	Continuous	مستمر
+	Repaint everything each frame	إعادة رسم كل شيء في كل إطار
+	Repainting the UI each frame. FPS: {fps}	إعادة رسم واجهة المستخدم في كل إطار. FPS: {fps}
+	Only running UI code when there are animations or input.	تشغيل شيفرة واجهة المستخدم فقط عند وجود حركات أو إدخال.
+	More…	المزيد…
+	Total ui frames:	إجمالي إطارات واجهة المستخدم:
+	Total ui passes:	إجمالي تمريرات واجهة المستخدم:
+	Wait 2s, then request repaint after another 3s	انتظر ثانيتين، ثم اطلب إعادة الرسم بعد 3 ثوانٍ أخرى
+	Request discard	طلب الاستبعاد
+	Discard denied!	تم رفض الاستبعاد!
+	egui running inside {eframe}.	يعمل egui داخل {eframe}.
+	Web info (location)	معلومات الويب (الموقع)
+	Renderer:	المصيّر:
+	Backend:	الواجهة الخلفية:
+	Device Type:	نوع الجهاز:
+	Name:	الاسم:
+	Driver:	المشغّل:
+	Driver info:	معلومات المشغّل:
+	Vendor:	المصنّع:
+	Device:	الجهاز:
+	PCI Bus ID:	معرّف ناقل PCI:
+	Subgroup size:	حجم المجموعة الفرعية:
+	Transient saves memory:	التخزين المؤقت يوفر الذاكرة:
+	Limit bucket:	فئة الحدود:
+	Others:	أخرى:
+	🔳 Fullscreen (F11)	🔳 ملء الشاشة (F11)
+	Fullscreen the window	ملء الشاشة بالنافذة
+	Resize to…	تغيير الحجم إلى…
+	Present mode:	وضع العرض:
+	Desired max frame latency:	أقصى زمن انتقال مطلوب للإطار:
+	Default	افتراضي
+	Lower value = lower latency	القيمة الأقل = زمن انتقال أقل
+	Higher value = higher throughput/FPS	القيمة الأعلى = إنتاجية/FPS أعلى
+	🔧 Settings	🔧 الإعدادات
+	🔍 Inspection	🔍 الفحص
+	📝 Memory	📝 الذاكرة
+	📤 Output Events	📤 أحداث المخرجات
+	Mean CPU usage: {cpu} ms / frame	متوسط استخدام المعالج: {cpu} مللي ثانية / إطار
+	Includes all app logic, egui layout, tessellation, and rendering.\nDoes not include waiting for vsync.	يشمل كل منطق التطبيق وتخطيط egui والتثلث والتصيير.\nلا يشمل انتظار المزامنة الرأسية.
+	📊 CPU usage history	📊 سجل استخدام المعالج
+	egui CPU usage history	سجل استخدام المعالج في egui
+	Demos	العروض التوضيحية
+	Tests	الاختبارات
+	Continue to the demo!	تابع إلى العرض التوضيحي!
+	⏷ demos	⏷ العروض التوضيحية
+	Organize windows	ترتيب النوافذ
+	File	ملف
+	Current zoom: {zoom}%	التكبير الحالي: {zoom}%
+	The UI zoom level, on top of the operating system's default value	مستوى تكبير واجهة المستخدم، إضافة إلى القيمة الافتراضية لنظام التشغيل
+	Organize Windows	ترتيب النوافذ
+	Reset egui memory	إعادة تعيين ذاكرة egui
+	About egui	نبذة عن egui
+	〰 Band	〰 الحزام
+	〰️ Bézier Curve	〰️ منحنى بيزييه
+	⌨️ Code Editor	⌨️ محرر الشيفرة
+	⌨️ Code Example	⌨️ مثال شيفرة
+	😀 Completion	😀 الإكمال
+	♫ Dancing Strings	♫ أوتار راقصة
+	✋ Drag and Drop	✋ السحب والإفلات
+	🖥️ Extra Viewport	🖥️ منفذ عرض إضافي
+	🔤 Font Book	🔤 دليل الخطوط
+	▣ Frame	▣ إطار
+	✨ Highlighting	✨ التمييز
+	⃣ Interactive Container	⃣ حاوية تفاعلية
+	✨ Misc Demos	✨ عروض متنوعة
+	💭 Modals	💭 نوافذ مشروطة
+	👌 Multi Touch	👌 اللمس المتعدد
+	🖊️ Painting	🖊️ الرسم
+	📰 Panels	📰 اللوحات
+	❕ Popups	❕ القوائم المنبثقة
+	🔍 Scene	🔍 المشهد
+	📷 Screenshot	📷 لقطة الشاشة
+	↕️ Scrolling	↕️ التمرير
+	↔️ Sliders	↔️ أشرطة التمرير
+	▣ Strip	▣ الشريط
+	☰ Table	☰ جدول
+	✏️ TextEdit	✏️ تحرير النص
+	📄 Text Layout	📄 تخطيط النص
+	💬 Tooltips	💬 تلميحات الأدوات
+	⟲ Undo Redo	⟲ تراجع وإعادة
+	🗄️ Widget Gallery	🗄️ معرض العناصر
+	🔲 Window Options	🔲 خيارات النافذة
+	Clipboard Test	اختبار الحافظة
+	Cursor Test	اختبار المؤشر
+	Grid Test	اختبار الشبكة
+	ID Test	اختبار المعرّفات
+	Input Event History	سجل أحداث الإدخال
+	Input Test	اختبار الإدخال
+	Layout Test	اختبار التخطيط
+	Manual Layout Test	اختبار التخطيط اليدوي
+	SVG Test	اختبار SVG
+	Tessellation Test	اختبار التثلث
+	Window Resize Test	اختبار تغيير حجم النافذة
+	egui is an immediate mode GUI library written in Rust. egui runs natively on {os}, and on the web it is compiled to WebAssembly and rendered with WebGL or WebGPU.	egui مكتبة واجهات رسومية فورية مكتوبة بلغة Rust. يعمل egui محليًا على {os}، وعلى الويب يُترجم إلى WebAssembly ويُصيَّر بواسطة WebGL أو WebGPU.
+	 Everything you see is rendered as textured triangles. There is no DOM, HTML, JS or CSS. Just Rust.	 كل ما تراه يُصيَّر كمثلثات مكسوّة بأنسجة. لا يوجد DOM ولا HTML ولا JS ولا CSS. فقط Rust.
+	egui is easy to use, portable, and fast.	egui سهل الاستخدام، قابل للنقل، وسريع.
+	This is how you create a button in egui:	هكذا تنشئ زرًا في egui:
+	There are no callbacks or messages, and no button state to store. 	لا توجد دوال رد نداء ولا رسائل، ولا حالة للزر تُخزَّن. 
+	Read more about immediate mode {here}.	اقرأ المزيد عن الوضع الفوري {here}.
+	here	هنا
+	egui development is sponsored by {rerun}, a startup building a data platform for robotics. 	تطوير egui برعاية {rerun}، وهي شركة ناشئة تبني منصة بيانات للروبوتات. 
+	For an example of a professional egui app, run {viewer} (in your browser!).	لمشاهدة مثال على تطبيق egui احترافي، شغّل {viewer} (في متصفحك!).
+	Links	روابط
+	egui documentation	توثيق egui
+	Source code of the widget gallery	الشيفرة المصدرية لمعرض العناصر
+	Label	تسمية
+	Welcome to the widget gallery!	مرحبًا بك في معرض العناصر!
+	 egui on GitHub	 egui على GitHub
+	Hyperlink	ارتباط تشعبي
+	TextEdit	تحرير النص
+	Write something here	اكتب شيئًا هنا
+	Button	زر
+	Click me!	انقرني!
+	Link	رابط
+	Checkbox	خانة اختيار
+	RadioButton	زر اختيار
+	First	الأول
+	Second	الثاني
+	Third	الثالث
+	SelectableLabel	تسمية قابلة للاختيار
+	ComboBox	قائمة منسدلة
+	Take your pick	اختر ما شئت
+	Slider	شريط تمرير
+	RangeSlider	شريط تمرير مدى
+	DragValue	قيمة سحب
+	ProgressBar	شريط تقدم
+	The progress bar can be animated!	يمكن تحريك شريط التقدم!
+	Color picker	منتقي الألوان
+	Image	صورة
+	Button with image	زر مع صورة
+	DatePickerButton	زر اختيار التاريخ
+	Separator	فاصل
+	CollapsingHeader	رأس قابل للطي
+	Click to see what is hidden!	انقر لرؤية ما هو مخفي!
+	It's a 	إنه 
+	Spinner	مؤشر دوّار
+	Custom widget	عنصر مخصص
+	It's easy to create your own widgets!\nThis toggle switch is just 15 lines of code.	من السهل إنشاء عناصر واجهة خاصة بك!\nمفتاح التبديل هذا لا يزيد عن 15 سطرًا من الشيفرة.
+	Visible	مرئي
+	Uncheck to hide all the widgets.	أزل التحديد لإخفاء جميع العناصر.
+	Interactive	قابل للتفاعل
+	Uncheck to inspect how the widgets look when disabled.	أزل التحديد لمعرفة شكل العناصر عند تعطيلها.
+	Opacity	العتامة
+	Reduce this value to make widgets semi-transparent	قلّل هذه القيمة لجعل العناصر شبه شفافة
+	The full egui documentation.\nYou can also click the different widgets names in the left column.	توثيق egui الكامل.\nيمكنك أيضًا النقر على أسماء العناصر المختلفة في العمود الأيسر.
+	Search egui docs for	ابحث في توثيق egui عن

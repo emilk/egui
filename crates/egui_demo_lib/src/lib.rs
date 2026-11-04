@@ -12,6 +12,7 @@
 
 mod demo;
 pub mod easy_mark;
+pub mod i18n;
 mod rendering_test;
 
 pub use demo::{Demo, DemoWindows, View, WidgetGallery};
