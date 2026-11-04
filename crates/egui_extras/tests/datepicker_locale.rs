@@ -275,4 +275,3 @@ fn kittest_arabic_locale_renders_arabic_names_and_saturday_first() {
         "Saturday-first locale should place السبت before الجمعة"
     );
 }
-

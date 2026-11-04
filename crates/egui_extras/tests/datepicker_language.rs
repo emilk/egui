@@ -8,8 +8,8 @@
 
 use egui::vec2;
 use egui_extras::{DateLocale, DatePickerButton};
-use egui_kittest::kittest::{By, Queryable as _};
 use egui_kittest::Harness;
+use egui_kittest::kittest::{By, Queryable as _};
 use jiff::civil::Date;
 
 /// A fixed selection so button labels are deterministic.
