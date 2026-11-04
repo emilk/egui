@@ -187,6 +187,19 @@ impl Label {
             valign,
         ));
         layout_job.language = layout_job.language.take().or_else(|| ui.language());
+        // Stamp the interface reading direction, like
+        // [`WidgetText::into_galley_impl`] does for the galley path, so a
+        // Latin-first label still reads as a right-to-left row. Skipped when the
+        // user pinned an explicit halign or job direction: epaint anchors
+        // right-to-left rows at the reading start, which would re-anchor an
+        // explicit halign, and an explicit direction already decides.
+        if layout_job.direction.is_none()
+            && self.halign.is_none()
+            && ui.is_rtl()
+            && epaint::text::TextDirection::infer(&layout_job.text).is_some()
+        {
+            layout_job.direction = Some(epaint::text::TextDirection::RightToLeft);
+        }
 
         let available_width = ui.available_width();
 

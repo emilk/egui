@@ -842,6 +842,11 @@ impl WidgetText {
     ///
     /// `language` is the BCP 47 language tag the text should be laid out in, if known;
     /// it is stamped onto the job unless the job carries an explicit one.
+    ///
+    /// The reading direction is stamped from [`Style::right_to_left`] the same way:
+    /// in a right-to-left interface the job gets a right-to-left base direction even
+    /// when the text starts with a left-to-right character, unless the job carries an
+    /// explicit one.
     pub fn into_galley_impl(
         self,
         ctx: &crate::Context,
@@ -851,6 +856,10 @@ impl WidgetText {
         default_valign: Align,
         language: Option<String>,
     ) -> Arc<Galley> {
+        // Stamp the reading direction from the style, mirroring the language stamp
+        // below: an explicit per-job direction still wins.
+        let direction = ambient_direction(style, self.text());
+
         match self {
             Self::Text(text) => {
                 let color = style
@@ -875,6 +884,7 @@ impl WidgetText {
                 );
                 layout_job.wrap = text_wrapping;
                 layout_job.language = language;
+                layout_job.direction = layout_job.direction.or(direction);
                 ctx.fonts_mut(|f| f.layout_job(layout_job))
             }
             Self::RichText(text) => {
@@ -885,17 +895,31 @@ impl WidgetText {
                 );
                 layout_job.wrap = text_wrapping;
                 layout_job.language = language;
+                layout_job.direction = layout_job.direction.or(direction);
                 ctx.fonts_mut(|f| f.layout_job(layout_job))
             }
             Self::LayoutJob(job) => {
                 let mut job = Arc::unwrap_or_clone(job);
                 job.wrap = text_wrapping;
                 job.language = job.language.or(language);
+                job.direction = job.direction.or(direction);
                 ctx.fonts_mut(|f| f.layout_job(job))
             }
             Self::Galley(galley) => galley,
         }
     }
+}
+
+/// The ambient base direction for widget text in a right-to-left interface:
+/// right-to-left, but only for text first-strong has an opinion about. For
+/// direction-agnostic runs (like the menu check mark) the ambient direction
+/// has no bidi effect, and first-strong's fallback keeps their anchoring
+/// unchanged. An explicit per-job direction still wins everywhere.
+fn ambient_direction(style: &Style, text: &str) -> Option<epaint::text::TextDirection> {
+    style
+        .right_to_left
+        .then_some(epaint::text::TextDirection::RightToLeft)
+        .filter(|_| epaint::text::TextDirection::infer(text).is_some())
 }
 
 impl From<&str> for WidgetText {
