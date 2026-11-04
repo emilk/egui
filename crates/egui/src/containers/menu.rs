@@ -10,10 +10,10 @@
 
 use crate::style::StyleModifier;
 use crate::{
-    Atom, AtomKind, AtomPaintArgs, Button, Color32, Context, FocusDirection, Frame, Id,
-    InnerResponse, IntoAtoms, IntoSizedResult, Layout, PointerButton, Popup, PopupCloseBehavior,
-    PopupKind, Response, SetOpenCommand, SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack,
-    UiStackInfo, Widget as _,
+    Atom, AtomExt as _, AtomKind, AtomPaintArgs, Button, Color32, Context, FocusDirection, Frame,
+    Id, InnerResponse, IntoAtoms, IntoSizedResult, Layout, PointerButton, Popup,
+    PopupCloseBehavior, PopupKind, Response, SetOpenCommand, SizedAtomKind, Style, TextStyle, Ui,
+    UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _, WidgetText,
 };
 use alloc::sync::Arc;
 use emath::{Align, Rect, RectAlign, Vec2, vec2};
@@ -29,6 +29,46 @@ pub fn menu_style(style: &mut Style) {
     style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
     style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
     style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
+}
+
+/// The checkmark column's content: mark plus a trailing space, so the column
+/// covers the gap between mark and label.
+const CHECK_MARK_COLUMN: &str = "✔ ";
+
+/// A menu item row: the label behind a fixed-width checkmark column at the
+/// reading start, an optional shortcut at the reading end.
+///
+/// The column is measured in the button font, so every row of a menu reserves
+/// the same width and check and no-check rows align. It is only reserved when
+/// the item is checked or the interface is right-to-left; otherwise the row is
+/// pixel-identical to a plain [`Button`].
+pub fn menu_item_button<'a>(
+    ui: &Ui,
+    label: impl Into<WidgetText>,
+    checked: bool,
+    shortcut: Option<impl IntoAtoms<'a>>,
+) -> Button<'a> {
+    let label = label.into();
+    let with_shortcut = |button: Button<'a>| match shortcut {
+        Some(shortcut) => button.shortcut_text(shortcut),
+        None => button,
+    };
+    if !checked && !ui.is_rtl() {
+        return with_shortcut(Button::new(label));
+    }
+
+    let font_id = TextStyle::Button.resolve(ui.style());
+    let column_width = ui
+        .painter()
+        .layout_no_wrap(CHECK_MARK_COLUMN.to_owned(), font_id, Color32::PLACEHOLDER)
+        .size()
+        .x;
+    let column = if checked {
+        Atom::from(CHECK_MARK_COLUMN)
+    } else {
+        Atom::default().atom_size(vec2(column_width, 0.0))
+    };
+    with_shortcut(Button::new((column, label)))
 }
 
 /// Find the root [`UiStack`] of the menu.
