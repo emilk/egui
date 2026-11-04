@@ -418,11 +418,12 @@ impl Resize {
                 // Grow-only re-pin, on idle frames only: while a drag is in flight the
                 // user asked for a (possibly smaller) size and the clamp above it in
                 // `begin` already bounded it, so re-pinning to `last_content_size` would
-                // feed the shrink back up — on the sizing-pass frame to the stale
-                // pre-drag size, on later drag frames to the previous (larger) frame.
-                // The sizing pass only ever runs on an actively resizing frame, so this
-                // gate also keeps the stale measurement off that frame. Idle frames keep
-                // growing to fit the content.
+                // feed the shrink back up — on the later drag frames the fresh
+                // measurement at the requested rect can exceed the request (e.g. wrapped
+                // content growing taller while narrowing), and re-pinning would grow the
+                // container back mid-drag. On the sizing-pass frame the seed above pins
+                // `last_content_size` at the request, so the re-pin is a no-op there
+                // either way. Idle frames keep growing to fit the content.
                 if !actively_resizing {
                     state.desired_size[d] = state.desired_size[d].max(state.last_content_size[d]);
                 }
