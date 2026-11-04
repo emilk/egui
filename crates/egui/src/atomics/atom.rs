@@ -49,6 +49,9 @@ pub struct Atom<'a> {
     /// See [`crate::AtomExt::atom_align`]
     pub align: Align2,
 
+    /// See [`crate::AtomExt::atom_main_axis_end`]
+    pub main_axis_end: bool,
+
     /// The atom type / content
     pub kind: AtomKind<'a>,
 }
@@ -62,6 +65,7 @@ impl Default for Atom<'_> {
             grow: false,
             shrink: false,
             align: Align2::CENTER_CENTER,
+            main_axis_end: false,
             kind: AtomKind::Empty,
         }
     }
@@ -197,6 +201,7 @@ impl<'a> Atom<'a> {
             intrinsic_size: intrinsic_size.at_least(self.size.unwrap_or_default()),
             grow: self.grow,
             align: self.align,
+            main_axis_end: self.main_axis_end,
             kind: sized,
         }
     }

@@ -56,6 +56,18 @@ pub(crate) fn atoms_direction(ui: &Ui) -> Direction {
     }
 }
 
+/// The logical main-axis-END counterpart of `align` under `direction`: the
+/// reading-end edge of the atom's cell (the far end of the row, whichever side
+/// that is). The cross-axis component of `align` is kept.
+fn main_axis_end_align(align: Align2, direction: Direction) -> Align2 {
+    match direction {
+        Direction::LeftToRight => align.with_x(Align::Max),
+        Direction::RightToLeft => align.with_x(Align::Min),
+        Direction::TopDown => align.with_y(Align::Max),
+        Direction::BottomUp => align.with_y(Align::Min),
+    }
+}
+
 /// The custom atom rects collected while painting, keyed by atom salt.
 ///
 /// There should rarely be more than one.
@@ -613,7 +625,12 @@ impl<'atom> SizedContainerAtom<'atom> {
             // The cell spans the cross axis fully and `atom_main` along the main axis.
             let cell = main_cross_rect(direction, aligned_rect, cursor, cursor + atom_main);
             cursor += atom_main + gap;
-            let item_rect = sized.align.align_size_within_rect(size, cell);
+            let item_rect = if sized.main_axis_end {
+                let align = main_axis_end_align(sized.align, direction);
+                align.align_size_within_rect(size, cell)
+            } else {
+                sized.align.align_size_within_rect(size, cell)
+            };
 
             if let Some(id) = sized.id {
                 debug_assert!(
@@ -704,8 +721,36 @@ impl DerefMut for SizedContainerAtom<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::atoms_direction;
-    use crate::{Align, Context, Direction, Layout, RawInput, Rect, placer::Placer, pos2, vec2};
+    use super::{atoms_direction, main_axis_end_align};
+    use crate::{
+        Align, Align2, Context, Direction, Layout, RawInput, Rect, placer::Placer, pos2, vec2,
+    };
+
+    /// The end hint maps to the physical edge the row's direction puts at the
+    /// reading-end, keeping the cross-axis component.
+    #[test]
+    fn main_axis_end_align_picks_the_reading_end_edge() {
+        assert_eq!(
+            main_axis_end_align(Align2::RIGHT_CENTER, Direction::LeftToRight),
+            Align2::RIGHT_CENTER
+        );
+        assert_eq!(
+            main_axis_end_align(Align2::RIGHT_CENTER, Direction::RightToLeft),
+            Align2::LEFT_CENTER
+        );
+        assert_eq!(
+            main_axis_end_align(Align2::CENTER_CENTER, Direction::TopDown),
+            Align2::CENTER_BOTTOM
+        );
+        assert_eq!(
+            main_axis_end_align(Align2::CENTER_CENTER, Direction::BottomUp),
+            Align2::CENTER_TOP
+        );
+        assert_eq!(
+            main_axis_end_align(Align2::LEFT_TOP, Direction::RightToLeft),
+            Align2::LEFT_TOP
+        );
+    }
 
     /// `atoms_direction` must answer the exact question `Placer::prefer_right_to_left`
     /// answers when mirroring nested rows: the same 10-layout truth table, with and
