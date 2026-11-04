@@ -598,6 +598,8 @@ impl SubMenu {
     /// The submenu opens on the parent row's reading-direction side: to the right in a
     /// left-to-right UI, to the left when [`crate::Style::right_to_left`] is set; the body
     /// mirrors accordingly.
+    ///
+    /// A row scrolled out of the visible part of its menu does not open its submenu on hover.
     pub fn show<R>(
         self,
         ui: &Ui,
@@ -650,8 +652,16 @@ impl SubMenu {
             .expand2(ui.style().spacing.item_spacing / 2.0);
 
         // In theory some other widget could cover the button and this check would still pass
-        // But since we check if no other menu is open, nothing should be able to cover the button
-        let is_hovered = hover_pos.is_some_and(|pos| button_rect.contains(pos));
+        // But since we check if no other menu is open, nothing should be able to cover the
+        // button. A row scrolled out of the visible part of its menu (outside
+        // `ui.clip_rect()`) must not open its submenu: the pointer can sit where the hidden
+        // row would be (e.g. over the menu bar above a scrolled popup), and the submenu would
+        // then open for a row the user cannot see and swallow clicks meant for what is on
+        // screen. A submenu that is already open (opened from the keyboard, say) keeps
+        // behaving exactly as before.
+        let is_hovered = hover_pos.is_some_and(|pos| {
+            button_rect.contains(pos) && (was_open || ui.clip_rect().contains(pos))
+        });
 
         // `clicked` includes keyboard and accessibility click actions.
         // Enter/Space on the focused button enters the submenu, an accessibility click toggles it,
