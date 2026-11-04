@@ -1,3 +1,5 @@
+use crate::i18n;
+
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Panels {
@@ -25,7 +27,7 @@ impl crate::Demo for Panels {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        egui::Window::new("Panels")
+        egui::Window::new(i18n::t("Panels"))
             .default_width(600.0)
             .default_height(600.0)
             .vscroll(false)
@@ -52,7 +54,7 @@ impl crate::View for Panels {
             .show_collapsible(ui, top, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical_centered(|ui| {
-                        ui.heading("Expandable Upper Panel");
+                        ui.heading(i18n::t("Expandable Upper Panel"));
                     });
                     lorem_ipsum(ui);
                 });
@@ -64,7 +66,7 @@ impl crate::View for Panels {
             .size_range(80.0..=200.0)
             .show_collapsible(ui, left, |ui| {
                 ui.vertical_centered(|ui| {
-                    ui.heading("Left Panel");
+                    ui.heading(i18n::t("Left Panel"));
                 });
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     lorem_ipsum(ui);
@@ -77,7 +79,7 @@ impl crate::View for Panels {
             .size_range(80.0..=200.0)
             .show_collapsible(ui, right, |ui| {
                 ui.vertical_centered(|ui| {
-                    ui.heading("Right Panel");
+                    ui.heading(i18n::t("Right Panel"));
                 });
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     lorem_ipsum(ui);
@@ -101,14 +103,14 @@ impl crate::View for Panels {
             |ui, expanded| {
                 if expanded {
                     ui.vertical_centered(|ui| {
-                        ui.heading("Bottom panel");
+                        ui.heading(i18n::t("Bottom panel"));
                     });
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         lorem_ipsum(ui);
                     });
                 } else {
                     ui.vertical_centered(|ui| {
-                        ui.label("Bottom panel (collapsed)");
+                        ui.label(i18n::t("Bottom panel (collapsed)"));
                     });
                 }
             },
@@ -117,11 +119,11 @@ impl crate::View for Panels {
         // TODO(emilk): This extra panel is superfluous - just use what's left of `ui` instead
         egui::CentralPanel::default().show(ui, |ui| {
             ui.vertical_centered(|ui| {
-                ui.heading("Central Panel");
+                ui.heading(i18n::t("Central Panel"));
             });
 
             ui.horizontal(|ui| {
-                ui.label("Panel toggles:");
+                ui.label(i18n::t("Panel toggles:"));
                 ui.toggle_value(left, "⬅️");
                 ui.toggle_value(top, "⬆️");
                 ui.toggle_value(bottom, "⬇️");

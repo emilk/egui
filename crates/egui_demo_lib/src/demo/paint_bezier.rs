@@ -169,7 +169,7 @@ impl crate::Demo for PaintBezier {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        Window::new(self.name())
+        Window::new(crate::i18n::t(self.name()))
             .open(open)
             .vscroll(false)
             .resizable(false)

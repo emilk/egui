@@ -745,7 +745,7 @@ mod tests {
         "This demo only works on devices with multitouch support (e.g. mobiles, tablets, and trackpads).",
         "Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.",
         "{num_touches}-finger touch",
-        "Input source: {}",
+        "Input source: {source}",
         "cursor",
         "none",
         // modals.rs
@@ -808,9 +808,9 @@ mod tests {
         "Radiobuttons are similar:",
         "Checkboxes can be in an indeterminate state:",
         "Check/uncheck all",
-        "Item {}",
+        "Item {index}",
         "Columns",
-        "Column {} out of {}",
+        "Column {index} out of {total}",
         "Delete this",
         "Test box rendering",
         "Resize",
@@ -843,7 +843,7 @@ mod tests {
         // misc_demo_window.rs — repaint demo
         "Use this to verify if logic is correctly called while in background.",
         "Reset counts",
-        "`ui`: {}, `logic`: {}",
+        "`ui`: {ui}, `logic`: {logic}",
         "`ui` is incremented in `App::ui` (only runs while visible), `logic` in `App::logic` (runs even while hidden).",
         "Repaint continuously (every frame)",
         "Repaint after",
@@ -1001,6 +1001,8 @@ mod tests {
         "Drag to rotate!",
         // main.rs — window title
         "egui demo app",
+        // lib.rs — the source-code hyperlink macro
+        "(source code)",
     ];
 
     /// Scoped keys whose translation legitimately equals the key (technology names),

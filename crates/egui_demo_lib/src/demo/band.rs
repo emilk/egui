@@ -33,7 +33,7 @@ impl crate::Demo for BandDemo {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .resizable(false)
             .open(open)
             .show(ui.ctx(), |ui| self.ui(ui));

@@ -17,7 +17,7 @@ impl crate::Demo for Screenshot {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .resizable(false)
             .default_width(250.0)

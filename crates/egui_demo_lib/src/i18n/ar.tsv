@@ -435,7 +435,7 @@
 	This demo only works on devices with multitouch support (e.g. mobiles, tablets, and trackpads).	يعمل هذا العرض فقط على الأجهزة الداعمة للمس المتعدد (كالهواتف المحمولة والأجهزة اللوحية ولوحات التتبع).
 	Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.	جرّب إيماءات اللمس: القرص/المدّ، والتدوير، والضغط بإصبعين أو أكثر.
 	{num_touches}-finger touch	لمس بـ {num_touches} أصابع
-	Input source: {}	مصدر الإدخال: {}
+	Input source: {source}	مصدر الإدخال: {source}
 	cursor	المؤشر
 	none	لا شيء
 
@@ -501,9 +501,9 @@
 	Radiobuttons are similar:	أزرار الاختيار مشابهة:
 	Checkboxes can be in an indeterminate state:	يمكن لخانات الاختيار أن تكون في حالة غير محددة:
 	Check/uncheck all	تحديد الكل أو إزالته
-	Item {}	عنصر {}
+	Item {index}	عنصر {index}
 	Columns	الأعمدة
-	Column {} out of {}	العمود {} من {}
+	Column {index} out of {total}	العمود {index} من {total}
 	Delete this	احذف هذا
 	Test box rendering	اختبار رسم الصناديق
 	Resize	تغيير الحجم
@@ -539,7 +539,7 @@
 # misc_demo_window.rs — repaint demo
 	Use this to verify if logic is correctly called while in background.	استخدم هذا للتحقق من أن logic يُستدعى بشكل صحيح أثناء العمل في الخلفية.
 	Reset counts	تصفير العدّادات
-	`ui`: {}, `logic`: {}	`ui`: {}، `logic`: {}
+	`ui`: {ui}, `logic`: {logic}	`ui`: {ui}، `logic`: {logic}
 	`ui` is incremented in `App::ui` (only runs while visible), `logic` in `App::logic` (runs even while hidden).	يزداد `ui` في `App::ui` (لا يعمل إلا أثناء الظهور)، ويزداد `logic` في `App::logic` (يعمل حتى أثناء الإخفاء).
 	Repaint continuously (every frame)	إعادة الرسم باستمرار (في كل إطار)
 	Repaint after	إعادة الرسم بعد
@@ -707,6 +707,9 @@
 	 (Portable Rust graphics API awesomeness)	 (واجهة رسومية محمولة رائعة لـ Rust)
 	It's not a very impressive demo, but it shows you can embed 3D inside of egui.	ليس هذا عرضًا مبهرًا للغاية، لكنه يبيّن أنه يمكن تضمين رسوم ثلاثية الأبعاد داخل egui.
 	Drag to rotate!	اسحب للتدوير!
+
+# lib.rs — the source-code hyperlink macro
+	(source code)	(الشيفرة المصدرية)
 
 # main.rs — window title
 	egui demo app	تطبيق العرض التجريبي لـ egui

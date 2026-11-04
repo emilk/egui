@@ -31,7 +31,8 @@ pub(crate) fn rust_view_ui(ui: &mut egui::Ui, code: &str) {
 #[macro_export]
 macro_rules! egui_github_link_file {
     () => {
-        $crate::egui_github_link_file!("(source code)")
+        // The label goes through the translated-name seam, like the window titles.
+        $crate::egui_github_link_file!($crate::i18n::t("(source code)"))
     };
     ($label: expr) => {
         egui::github_link_file!(
@@ -45,7 +46,8 @@ macro_rules! egui_github_link_file {
 #[macro_export]
 macro_rules! egui_github_link_file_line {
     () => {
-        $crate::egui_github_link_file_line!("(source code)")
+        // The label goes through the translated-name seam, like the window titles.
+        $crate::egui_github_link_file_line!($crate::i18n::t("(source code)"))
     };
     ($label: expr) => {
         egui::github_link_file_line!(

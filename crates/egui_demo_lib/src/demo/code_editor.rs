@@ -28,7 +28,7 @@ impl crate::Demo for CodeEditor {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .default_height(500.0)
             .constrain_to(ui.available_rect_before_wrap())

@@ -29,7 +29,7 @@ impl crate::Demo for CompletionDemo {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .default_width(400.0)
             .constrain_to(ui.available_rect_before_wrap())

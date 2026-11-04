@@ -12,7 +12,7 @@ impl crate::Demo for StripDemo {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .resizable(true)
             .default_width(400.0)
