@@ -959,6 +959,15 @@ pub struct Row {
     pub(crate) section_index_at_start: u32,
 
     /// One for each `char`.
+    ///
+    /// The glyphs are laid out left-to-right (their `pos.x` increases along
+    /// the slice). For paragraphs containing right-to-left text this is the
+    /// *visual* order per UAX #9: rows with bidirectionally reordered runs
+    /// do not list their glyphs in logical string order. Consequence for
+    /// cursors: a cursor column indexes a *visual* glyph slot, so x-based
+    /// hit-testing is correct while mapping a column back to a logical
+    /// string offset needs a logical↔visual map (not yet implemented —
+    /// known gap for bidi text editing).
     pub glyphs: Vec<Glyph>,
 
     /// Logical size based on font heights etc.

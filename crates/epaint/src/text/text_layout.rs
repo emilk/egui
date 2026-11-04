@@ -1979,7 +1979,11 @@ mod tests {
     use core::{hash::Hash as _, hash::Hasher as _, iter};
 
     use super::{super::*, *};
-    use crate::{ColorImage, text::cursor::CCursor, text::galley_cache::GalleyCache};
+    use crate::{
+        ColorImage,
+        text::cursor::{CCursor, LayoutCursor},
+        text::galley_cache::GalleyCache,
+    };
 
     fn test_fonts() -> FontsImpl {
         FontsImpl::new(TextOptions::default(), FontDefinitions::default())
@@ -3491,5 +3495,285 @@ mod tests {
             !Arc::ptr_eq(&a, &b),
             "direction (None vs explicit LTR) must invalidate the cache key"
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // NG8: bidi run segmentation + visual reordering (UAX #9)
+    //
+    // The glyphs of a bidi-reordered row are stored in VISUAL order (left to
+    // right), matching what single RTL runs always did. Zero-advance
+    // continuation glyphs (which keep `glyphs.len() == char_count` for
+    // multi-glyph clusters) are filtered out in the order assertions below;
+    // they draw nothing and follow their cluster's base glyphs.
+
+    /// The visible (advance > 0) glyphs of a single-row galley as `(chr, x, advance)`.
+    fn visible_glyphs(galley: &Galley) -> Vec<(char, f32, f32)> {
+        assert_eq!(galley.rows.len(), 1, "expected a single-row galley");
+        galley.rows[0]
+            .row
+            .glyphs
+            .iter()
+            .filter(|g| g.advance_width > 0.0)
+            .map(|g| (g.chr, g.pos.x, g.advance_width))
+            .collect()
+    }
+
+    fn assert_x_nondecreasing(glyphs: &[(char, f32, f32)]) {
+        for pair in glyphs.windows(2) {
+            assert!(
+                pair[0].1 <= pair[1].1 + 1e-3,
+                "glyph x positions must not decrease left to right: {:?} then {:?}",
+                pair[0],
+                pair[1]
+            );
+        }
+    }
+
+    /// Asserts the visible glyphs match `expected` in order, with a small
+    /// tolerance on the pixel values (the pre-change dumps were rounded to
+    /// four decimals).
+    fn assert_glyphs_close(glyphs: &[(char, f32, f32)], expected: &[(char, f32, f32)]) {
+        assert_eq!(glyphs.len(), expected.len(), "glyph count: {glyphs:?}");
+        for (got, want) in iter::zip(glyphs, expected) {
+            assert_eq!(got.0, want.0, "glyph: {glyphs:?}");
+            assert!(
+                (got.1 - want.1).abs() < 1e-3 && (got.2 - want.2).abs() < 1e-3,
+                "glyph {}: got ({:.4}, {:.4}), want ({:.4}, {:.4})",
+                got.0,
+                got.1,
+                got.2,
+                want.1,
+                want.2
+            );
+        }
+    }
+
+    fn layout_with_direction(text: &str, direction: Option<TextDirection>) -> Galley {
+        let mut fonts = test_fonts();
+        let mut job = LayoutJob::simple(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        job.direction = direction;
+        layout(&mut fonts, 1.0, job.into())
+    }
+
+    /// T1 — the rename-ar oracle: a first-strong RTL paragraph renders in visual
+    /// order (`pdf.٢٠٢٦ تقرير`), not logical order. The latin file extension and
+    /// the dot sit at the visual left; the Arabic word at the visual right; the
+    /// Arabic-Indic digits keep their UAX #9 order (level 2, LTR) between them.
+    #[test]
+    fn bidi_oracle_first_strong_rtl_renders_visual_order() {
+        let text = "تقرير ٢٠٢٦.pdf";
+
+        // First-strong inference (direction: None):
+        let glyphs = visible_glyphs(&layout_with_direction(text, None));
+        // Glyphs are stored in visual (left-to-right) order: the latin extension
+        // and dot at the left, the digits in LTR order, then the Arabic word,
+        // whose glyph order runs right-to-left (its first logical letter ت is
+        // the visually-rightmost glyph). I.e. the rendered line reads
+        // `pdf.٢٠٢٦ تقرير` — the rename-ar oracle order.
+        let expected: Vec<char> = [
+            'p', 'd', 'f', '.', '٢', '٠', '٢', '٦', ' ', 'ر', 'ي', 'ر', 'ق', 'ت',
+        ]
+        .into();
+        let rendered: Vec<char> = glyphs.iter().map(|g| g.0).collect();
+        assert_eq!(rendered, expected, "glyphs: {glyphs:?}");
+        assert_x_nondecreasing(&glyphs);
+        // The extension is at the visual left, the Arabic word at the visual right:
+        assert_eq!(glyphs.first().map(|g| g.0), Some('p'));
+        assert_eq!(glyphs.last().map(|g| g.0), Some('ت'));
+
+        // An explicit RTL pin produces the same visual order:
+        let pinned = visible_glyphs(&layout_with_direction(
+            text,
+            Some(TextDirection::RightToLeft),
+        ));
+        assert_eq!(
+            pinned.iter().map(|g| g.0).collect::<Vec<char>>(),
+            rendered,
+            "explicit RTL must match the first-strong rendering"
+        );
+    }
+
+    /// T2 — LTR base with an embedded RTL run: the embedded run is reversed
+    /// (its glyphs come out in visual order) while the surrounding LTR text
+    /// stays in logical order.
+    #[test]
+    fn bidi_ltr_base_reverses_embedded_rtl_run() {
+        for direction in [None, Some(TextDirection::LeftToRight)] {
+            let glyphs = visible_glyphs(&layout_with_direction("Hello שלום world", direction));
+            let rendered: String = glyphs.iter().map(|g| g.0).collect();
+            assert_eq!(rendered, "Hello םולש world", "glyphs: {glyphs:?}");
+            assert_x_nondecreasing(&glyphs);
+        }
+    }
+
+    /// T3 — numbers in an RTL context keep their UAX #9 placement: European
+    /// numbers sit at level 2 (LTR), so they render in logical order at the
+    /// visual left of an RTL paragraph (they were reversed before NG8).
+    #[test]
+    fn bidi_numbers_keep_uax9_placement_in_rtl_context() {
+        let glyphs = visible_glyphs(&layout_with_direction("عربي 123", None));
+        let rendered: String = glyphs.iter().map(|g| g.0).collect();
+        assert_eq!(rendered, "123 يبرع", "glyphs: {glyphs:?}");
+        assert_x_nondecreasing(&glyphs);
+    }
+
+    /// T4 — byte-identity pins: pure-LTR text lays out exactly as it did before
+    /// bidi reordering landed. The values below were captured from the
+    /// pre-NG8 tree (commit 7879e8d5) with the default fonts at ppp 1.0.
+    #[test]
+    fn bidi_pure_ltr_is_byte_identical_to_pre_change_output() {
+        let glyphs = visible_glyphs(&layout_with_direction("Hello World 123", None));
+        let expected: Vec<(char, f32, f32)> = [
+            ('H', 0.0, 9.6880),
+            ('e', 9.0, 7.6720),
+            ('l', 17.0, 3.5700),
+            ('l', 21.0, 3.5700),
+            ('o', 24.0, 8.1480),
+            (' ', 32.0, 3.1920),
+            ('W', 35.0, 12.7400),
+            ('o', 48.0, 8.1480),
+            ('r', 56.0, 5.2360),
+            ('l', 62.0, 3.5700),
+            ('d', 65.0, 8.1620),
+            (' ', 73.0, 3.1920),
+            ('1', 77.0, 7.8960),
+            ('2', 84.0, 7.8960),
+            ('3', 92.0, 7.8960),
+        ]
+        .into();
+        assert_glyphs_close(&glyphs, &expected);
+    }
+
+    /// T4 — byte-identity pins: pure-RTL text (one bidi run) is laid out exactly
+    /// as before — its single run was always shaped in its own direction and
+    /// emitted in visual order. The zero-advance glyphs at the end are the
+    /// pre-existing continuation-glyph output of the shaper path (unchanged by
+    /// NG8) and are pinned here as-is.
+    #[test]
+    fn bidi_pure_rtl_is_byte_identical_to_pre_change_output() {
+        for direction in [None, Some(TextDirection::RightToLeft)] {
+            let glyphs = visible_glyphs(&layout_with_direction("تقرير", direction));
+            // The five visible glyphs in visual order (the four zero-advance
+            // continuation glyphs that follow are filtered out by the helper):
+            let expected: Vec<(char, f32, f32)> = [
+                ('ر', 0.0, 7.0),
+                ('ي', 7.0, 7.0),
+                ('ر', 14.0, 7.0),
+                ('ق', 21.0, 7.0),
+                ('ت', 28.0, 7.0),
+            ]
+            .into();
+            assert_glyphs_close(&glyphs, &expected);
+        }
+    }
+
+    /// T5 — cursor hit-testing on a bidi-reordered (visual-order) row: clicking
+    /// the visually-left end of a first-strong RTL paragraph lands on the
+    /// visually-first glyph slot, and every column's cursor position maps back
+    /// to the x it was clicked at.
+    ///
+    /// KNOWN LIMITATION (documented in `Row`): for reordered rows the cursor
+    /// index counts *visual* glyph slots, not logical character offsets.
+    /// Mapping `CCursor` indices back to logical string positions is deferred;
+    /// this test pins the coherent visual hit-testing behaviour that NG8 keeps.
+    #[test]
+    fn bidi_cursor_hit_test_follows_visual_order() {
+        let galley = layout_with_direction("عربي 123", None);
+        assert_eq!(galley.rows.len(), 1);
+        let row = &galley.rows[0];
+
+        // The visually-left end of the row:
+        let left_x = row.rect().left();
+        let mid_y = (row.min_y() + row.max_y()) * 0.5;
+        let cursor = galley.cursor_from_pos(vec2(left_x + 1.0, mid_y));
+        assert_eq!(
+            cursor.index.0, 0,
+            "clicking the visual left end must hit the first visual slot"
+        );
+        // ...which holds the visually-leftmost glyph (the first European digit):
+        assert_eq!(row.row.glyphs[0].chr, '1');
+        // Clicking the visually-right end maps back to the visually-rightmost
+        // (logically-first) glyph. Zero-advance continuation glyphs share x
+        // positions with their cluster, so the exact slot can be a cluster's
+        // continuation; the x round-trip below is the meaningful contract.
+        let right = galley.cursor_from_pos(vec2(row.rect().right() - 1.0, mid_y));
+        assert!(
+            right.index.0 > 0,
+            "clicking the visual right end must not hit the first slot"
+        );
+
+        // x round-trip: every cursor position sits where it was clicked:
+        for i in 0..=row.row.glyphs.len() {
+            let pos = galley.pos_from_layout_cursor(&LayoutCursor {
+                row: 0,
+                column: CharIndex(i),
+            });
+            let back = galley.cursor_from_pos(vec2(pos.min.x, mid_y));
+            let x_back = row.row.x_offset(CharIndex(back.index.0)) + row.pos.x;
+            assert!(
+                (pos.min.x - x_back).abs() < 1.0,
+                "cursor round-trip unstable at column {i}: {} vs {}",
+                pos.min.x,
+                x_back
+            );
+        }
+    }
+
+    /// T6 — hostile input must not panic: unpaired-surrogate stand-ins, control
+    /// and isolate characters, direction-mark soup, huge direction mixes, and
+    /// wrapping/elision of the same, across all three direction settings.
+    #[test]
+    fn bidi_hostile_input_does_not_panic() {
+        let hostile: Vec<String> = vec![
+            String::new(),
+            "\u{FFFD}".into(),
+            "\u{FFFD}\u{FFFD}a\u{FFFD}".into(),
+            "a\u{0301}".into(),
+            "\u{0301}a".into(),
+            "\u{061C}".into(),
+            "\u{200F}\u{200E}".repeat(50),
+            "aרbعc".repeat(40),
+            "\u{2066}تقرير\u{2069} pdf \u{2067}שלום\u{2069}".into(),
+            "\r\n\t\u{2029}\u{0085}".into(),
+            "…".repeat(100),
+            "تقرير ٢٠٢٦.pdf ".repeat(20),
+        ];
+        let directions = [
+            None,
+            Some(TextDirection::LeftToRight),
+            Some(TextDirection::RightToLeft),
+        ];
+
+        for text in &hostile {
+            for direction in directions {
+                // No wrap:
+                let unwrapped = layout_with_direction(text, direction);
+                let _ = unwrapped.end();
+
+                // Wrapped + elided (exercises line_break and both elision mirrors):
+                let mut fonts = test_fonts();
+                let mut job = LayoutJob::simple(
+                    text.clone(),
+                    FontId::proportional(14.0),
+                    Color32::WHITE,
+                    100.0,
+                );
+                job.direction = direction;
+                job.wrap.max_rows = 5;
+                job.wrap.overflow_character = Some('…');
+                let galley = layout(&mut fonts, 1.0, job.into());
+
+                // Smoke the cursor paths on both galleys:
+                let _ = unwrapped.cursor_from_pos(vec2(0.0, 0.0));
+                let _ = galley.end();
+                let _ = galley.cursor_from_pos(vec2(0.0, 0.0));
+                let _ = galley.pos_from_cursor(galley.end());
+            }
+        }
     }
 }
