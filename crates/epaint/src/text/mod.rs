@@ -15,11 +15,15 @@ mod glyph_atlas;
 mod glyph_rasterizer;
 mod index;
 mod line_breaker;
+#[cfg(feature = "sea_dictionary")]
+mod line_breaker_dict;
 mod styled_metrics;
 mod text_layout;
 mod text_layout_types;
 mod unicode;
 
+#[cfg(feature = "sea_dictionary")]
+pub use line_breaker::SeaLineBreaker;
 pub use {
     font_data::{Blob, FontData, FontVariationAxis},
     font_definitions::{FontDefinitions, FontInsert, FontPriority, InsertFontFamily},

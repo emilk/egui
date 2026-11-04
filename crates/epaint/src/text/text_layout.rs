@@ -2102,6 +2102,71 @@ mod tests {
         }
     }
 
+    /// The issue's repro: Thai text wraps at word boundaries once the rows are
+    /// wide enough to fit a whole word, and no row overruns `max_width`.
+    #[cfg(feature = "sea_dictionary")]
+    #[test]
+    fn sea_text_wraps_at_word_boundaries() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Tofu);
+        let mut fonts = fonts.with_pixels_per_point(2.0);
+        let font_id = FontId::proportional(14.0);
+        let text = "ภาษาไทยใช้การเขียนต่อเนื่องโดยไม่คั่นคำด้วยช่องว่าง";
+        let one = fonts
+            .layout_no_wrap("ก".to_owned(), font_id.clone(), Color32::WHITE)
+            .size()
+            .x;
+        // Swept from 12: above the longest word in the split (`เนื่อง`, 6
+        // code points), so every break lands on a registered word end.
+        for glyphs in 12..30 {
+            let width = one * glyphs as f32 + 0.5 * one;
+            let galley = fonts.layout(text.to_owned(), font_id.clone(), Color32::WHITE, width);
+            for placed in galley.rows.iter().skip(1) {
+                let first = placed.row.glyphs.first().map(|g| g.chr);
+                if let Some(first) = first {
+                    assert!(
+                        !crate::text::line_breaker::is_sea_extend(first)
+                            && !matches!(first, '\u{0E30}' | '\u{0E32}' | '\u{0EB0}' | '\u{0EB2}'),
+                        "a row starts with the stranded continuation char {first:?} at {glyphs} glyphs wide"
+                    );
+                }
+                assert!(
+                    placed.row.size.x <= width + one,
+                    "row of width {} overruns max width {width} at {glyphs} glyphs wide",
+                    placed.row.size.x
+                );
+            }
+        }
+    }
+
+    /// Khmer kinsoku: closing punctuation (and a coeng) never start a row.
+    #[cfg(feature = "sea_dictionary")]
+    #[test]
+    fn sea_closing_punctuation_never_starts_a_row() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Tofu);
+        let mut fonts = fonts.with_pixels_per_point(2.0);
+        let font_id = FontId::proportional(14.0);
+        let text = "កម្ពុជាមានប្រជាជនច្រើន។ខ្មែរជាភាសា។";
+        let one = fonts
+            .layout_no_wrap("ក".to_owned(), font_id.clone(), Color32::WHITE)
+            .size()
+            .x;
+        // Swept from 12: above the longest words in the split (`កម្ពុជា` /
+        // `ប្រជាជន`, 7 code points each), so every break lands on a word end.
+        for glyphs in 12..30 {
+            let width = one * glyphs as f32 + 0.5 * one;
+            let galley = fonts.layout(text.to_owned(), font_id.clone(), Color32::WHITE, width);
+            for placed in galley.rows.iter().skip(1) {
+                let first = placed.row.glyphs.first().map(|g| g.chr);
+                assert!(
+                    !matches!(first, Some('។' | '\u{17D2}')),
+                    "a row starts with {first:?} at {glyphs} glyphs wide"
+                );
+            }
+        }
+    }
+
     /// With no font at all we still need one glyph per character and rows with height,
     /// or text cursors get clamped to 0 and text edits lose their contents.
     #[test]

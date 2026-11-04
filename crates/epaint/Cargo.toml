@@ -11,7 +11,13 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/epaint"
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
-include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+include = [
+  "../../LICENSE-APACHE",
+  "../../LICENSE-MIT",
+  "**/*.rs",
+  "src/text/dictionaries/*.txt",
+  "Cargo.toml",
+]
 
 [lints]
 workspace = true
