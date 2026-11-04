@@ -1,4 +1,4 @@
-use crate::{Align2, Pos2, Rect, Vec2};
+use crate::{Align2, Pos2, ReadingDirection, Rect, Vec2};
 
 /// Position a child [`Rect`] relative to a parent [`Rect`].
 ///
@@ -115,6 +115,11 @@ impl RectAlign {
     };
 
     /// The 12 most common menu positions as an array, for use with [`RectAlign::find_best_align`].
+    ///
+    /// These constants name the physical sides under the crate's left-to-right
+    /// default. For a right-to-left reading direction, use
+    /// [`Self::menu_aligns`] (or [`Self::mirrored`]) instead of renaming
+    /// or reordering anything: the constants stay stable for existing code.
     pub const MENU_ALIGNS: [Self; 12] = [
         Self::BOTTOM_START,
         Self::BOTTOM_END,
@@ -221,6 +226,55 @@ impl RectAlign {
         self.flipped_x()
     }
 
+    /// Swap the reading-order start and end sides of this alignment,
+    /// keeping the top/bottom position.
+    ///
+    /// `TOP_START` becomes `TOP_END`, `LEFT_START` becomes `RIGHT_START`,
+    /// `BOTTOM_END` becomes `BOTTOM_START`, and so on. The vertical position
+    /// is never touched: reading direction does not mirror the vertical axis.
+    ///
+    /// The `*_START`/`*_END` constants name the physical sides under the
+    /// crate's left-to-right default; [`Self::mirrored`] turns a
+    /// left-to-right placement into the right-to-left placement without
+    /// changing any constant. Mirroring twice is the identity.
+    ///
+    /// See also [`Self::menu_aligns`].
+    #[must_use]
+    #[inline]
+    pub fn mirrored(self) -> Self {
+        Self {
+            parent: self.parent.flipped_x(),
+            child: self.child.flipped_x(),
+        }
+    }
+
+    /// The 12 most common menu positions for the given [`ReadingDirection`],
+    /// for use with [`RectAlign::find_best_align`].
+    ///
+    /// This is [`Self::MENU_ALIGNS`] (the left-to-right default table) with
+    /// the reading-order start and end sides swapped for right-to-left
+    /// reading, so popup/menu/combo placement code can resolve the reading
+    /// direction once, centrally, instead of flipping each placement by hand.
+    ///
+    /// ```
+    /// # use emath::{ReadingDirection, RectAlign};
+    /// // The left-to-right table is byte-identical to the default:
+    /// assert_eq!(RectAlign::menu_aligns(ReadingDirection::Ltr), RectAlign::MENU_ALIGNS);
+    /// // The right-to-left table mirrors every entry of it:
+    /// assert_eq!(
+    ///     RectAlign::menu_aligns(ReadingDirection::Rtl),
+    ///     RectAlign::MENU_ALIGNS.map(RectAlign::mirrored)
+    /// );
+    /// ```
+    #[must_use]
+    #[inline]
+    pub fn menu_aligns(dir: ReadingDirection) -> [Self; 12] {
+        match dir {
+            ReadingDirection::Ltr => Self::MENU_ALIGNS,
+            ReadingDirection::Rtl => Self::MENU_ALIGNS.map(Self::mirrored),
+        }
+    }
+
     /// Flip the alignment on the y-axis.
     #[must_use]
     pub fn flipped_y(self) -> Self {
@@ -289,5 +343,55 @@ impl RectAlign {
         }
 
         first_choice
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mirrored_swaps_start_end_keeps_vertical() {
+        assert_eq!(RectAlign::TOP_START.mirrored(), RectAlign::TOP_END);
+        assert_eq!(RectAlign::TOP_END.mirrored(), RectAlign::TOP_START);
+        assert_eq!(RectAlign::LEFT_START.mirrored(), RectAlign::RIGHT_START);
+        assert_eq!(RectAlign::RIGHT_START.mirrored(), RectAlign::LEFT_START);
+        assert_eq!(RectAlign::BOTTOM_START.mirrored(), RectAlign::BOTTOM_END);
+        assert_eq!(RectAlign::BOTTOM_END.mirrored(), RectAlign::BOTTOM_START);
+        // Edge-centered alignments mirror to the opposite edge...
+        assert_eq!(RectAlign::LEFT.mirrored(), RectAlign::RIGHT);
+        // ...and axis-centered alignments are their own mirror.
+        assert_eq!(RectAlign::TOP.mirrored(), RectAlign::TOP);
+        assert_eq!(RectAlign::BOTTOM.mirrored(), RectAlign::BOTTOM);
+    }
+
+    #[test]
+    fn mirrored_twice_is_identity() {
+        for &align in &RectAlign::MENU_ALIGNS {
+            assert_eq!(align.mirrored().mirrored(), align);
+        }
+    }
+
+    #[test]
+    fn menu_aligns_ltr_matches_default_table() {
+        // Regression gate: the left-to-right table must stay byte-identical
+        // to the pre-existing physical default.
+        assert_eq!(
+            RectAlign::menu_aligns(ReadingDirection::Ltr),
+            RectAlign::MENU_ALIGNS
+        );
+    }
+
+    #[test]
+    fn menu_aligns_rtl_mirrors_default_table() {
+        assert_eq!(
+            RectAlign::menu_aligns(ReadingDirection::Rtl),
+            RectAlign::MENU_ALIGNS.map(RectAlign::mirrored)
+        );
+        // And the RTL table is the LTR table, entry for entry.
+        assert_eq!(
+            RectAlign::menu_aligns(ReadingDirection::Rtl),
+            RectAlign::menu_aligns(ReadingDirection::Ltr).map(RectAlign::mirrored)
+        );
     }
 }
