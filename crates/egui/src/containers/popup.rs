@@ -372,6 +372,9 @@ impl<'a> Popup<'a> {
 
     /// Remember the pointer position at the time of opening the popup, and show the popup
     /// relative to that.
+    ///
+    /// When the popup is opened without a pointer (e.g. from the keyboard), it hangs
+    /// from the anchor widget's rect instead.
     #[inline]
     pub fn at_pointer_fixed(mut self) -> Self {
         self.anchor = PopupAnchor::PointerFixed;
@@ -496,17 +499,49 @@ impl<'a> Popup<'a> {
         self.anchor
     }
 
+    /// The rect to anchor the popup to.
+    ///
+    /// For a [`PopupAnchor::PointerFixed`] popup with no stored pointer position
+    /// (e.g. a keyboard open), this falls back to the anchor widget's rect.
+    fn anchor_rect(&self) -> Option<Rect> {
+        match self.anchor {
+            PopupAnchor::PointerFixed => Popup::position_of_id(&self.ctx, self.id)
+                .map(Rect::from_pos)
+                .or_else(|| self.widget_anchor_rect()),
+            _ => self.anchor.rect(self.id, &self.ctx),
+        }
+    }
+
+    /// The anchor widget's rect in global coordinates.
+    ///
+    /// Returns `None` when the popup has no anchor widget, or the widget has no
+    /// response (destroyed or never laid out).
+    fn widget_anchor_rect(&self) -> Option<Rect> {
+        let widget_id = self.anchor_widget?;
+        let response = self.ctx.read_response(widget_id)?;
+        let mut rect = response.interact_rect;
+        if !rect.is_finite() {
+            return None;
+        }
+        if let Some(to_global) = self.ctx.layer_transform_to_global(response.layer_id) {
+            rect = to_global * rect;
+        }
+        Some(rect)
+    }
+
     /// Return the anchor rect of the popup.
     ///
-    /// Returns `None` if the anchor is [`PopupAnchor::Pointer`] and there is no pointer.
+    /// Returns `None` if the anchor is [`PopupAnchor::Pointer`] and there is no pointer,
+    /// or the pointer-fixed anchor has neither a stored position nor an anchor widget.
     pub fn get_anchor_rect(&self) -> Option<Rect> {
-        self.anchor.rect(self.id, &self.ctx)
+        self.anchor_rect()
     }
 
     /// Get the expected rect the popup will be shown in.
     ///
-    /// Returns `None` if the popup wasn't shown before or anchor is `PopupAnchor::Pointer` and
-    /// there is no pointer.
+    /// Returns `None` if the popup wasn't shown before, anchor is `PopupAnchor::Pointer` and
+    /// there is no pointer, or the pointer-fixed anchor has neither a stored position nor an
+    /// anchor widget.
     pub fn get_popup_rect(&self) -> Option<Rect> {
         let size = self.get_expected_size();
         if let Some(size) = size {
@@ -543,7 +578,7 @@ impl<'a> Popup<'a> {
             .get_expected_size()
             .unwrap_or_else(|| vec2(self.width.unwrap_or(0.0), 0.0));
 
-        let Some(anchor_rect) = self.anchor.rect(self.id, &self.ctx) else {
+        let Some(anchor_rect) = self.anchor_rect() else {
             return self.rect_align;
         };
 
@@ -609,11 +644,12 @@ impl<'a> Popup<'a> {
         }
 
         let best_align = self.get_best_align();
+        let anchor_rect = self.anchor_rect()?;
 
         let Popup {
             id,
             ctx,
-            anchor,
+            anchor: _,
             open_kind,
             close_behavior,
             kind,
@@ -642,8 +678,6 @@ impl<'a> Popup<'a> {
                     .insert(id)
             });
         }
-
-        let anchor_rect = anchor.rect(id, &ctx)?;
 
         let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
 

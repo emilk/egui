@@ -8,8 +8,8 @@
 //! No snapshot assertions; geometry only, read from the popup's area rect.
 
 use egui::{
-    Context, Event, Id, Modifiers, PointerButton, Popup, Pos2, RawInput, Rect, Sense, Ui, pos2,
-    vec2,
+    Context, Event, Id, Modifiers, PointerButton, Popup, Pos2, RawInput, Rect, Sense,
+    SetOpenCommand, Ui, Vec2, pos2, vec2,
 };
 
 /// The context menu popup's area rect after opening it with a secondary click on
@@ -124,5 +124,219 @@ fn context_menu_stays_clamped_inside_the_screen_in_both_directions() {
     assert!(
         (ltr.right() - 790.0).abs() < 0.5,
         "LTR near the right edge: the popup should grow leftward from the pointer: {ltr:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+
+/// Open a [`Popup::menu`] on a widget at `widget_rect` through the pointer-fixed
+/// anchor *without any pointer events* (a keyboard open: the anchor has no stored
+/// position), and return the popup's area rect after the show pass.
+///
+/// Frames: one open frame (the invisible sizing pass) and one settle (the show
+/// pass); geometry is read after the show pass, never from a sizing pass.
+fn keyboard_menu_rect(right_to_left: bool, screen: Vec2, widget_rect: Rect) -> Option<Rect> {
+    let ctx = Context::default();
+    ctx.set_right_to_left(right_to_left);
+
+    let _id = Id::unique("rtl-keyboard-menu-anchor");
+    let mut popup_id = Id::NULL;
+
+    let mut show = |ui: &mut Ui| {
+        let response = ui.allocate_rect(widget_rect, Sense::click());
+        let popup = Popup::menu(&response)
+            .at_pointer_fixed()
+            .open_memory(Some(SetOpenCommand::Bool(true)));
+        popup_id = popup.get_id();
+        popup.show(|ui| {
+            ui.set_min_size(vec2(200.0, 140.0));
+            ui.label("row");
+        });
+    };
+
+    for time in [0.0, 0.1] {
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, screen)),
+                time: Some(time),
+                ..Default::default()
+            },
+            &mut show,
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    ctx.memory(|memory| memory.area_rect(popup_id))
+}
+
+/// The area rect of a [`Popup::menu`] forced open on a widget at `widget_rect`
+/// (the widget-anchored twin of [`keyboard_menu_rect`]).
+fn widget_menu_rect(right_to_left: bool, widget_rect: Rect) -> Rect {
+    let ctx = Context::default();
+    ctx.set_right_to_left(right_to_left);
+
+    let _id = Id::unique("rtl-widget-menu-anchor");
+    let mut popup_id = Id::NULL;
+
+    let mut show = |ui: &mut Ui| {
+        let response = ui.allocate_rect(widget_rect, Sense::click());
+        let popup = Popup::menu(&response).open(true);
+        popup_id = popup.get_id();
+        popup.show(|ui| {
+            ui.set_min_size(vec2(200.0, 140.0));
+            ui.label("row");
+        });
+    };
+
+    for time in [0.0, 0.1] {
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0))),
+                time: Some(time),
+                ..Default::default()
+            },
+            &mut show,
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    ctx.memory(|memory| memory.area_rect(popup_id))
+        .expect("the widget-anchored menu should be shown")
+}
+
+/// A keyboard-opened context menu must render at all: a pointer-fixed popup
+/// opened without a pointer hangs from its anchor widget's rect instead of
+/// silently never showing.
+#[test]
+fn keyboard_opened_context_menu_is_shown() {
+    let rect = keyboard_menu_rect(
+        false,
+        Vec2::new(800.0, 600.0),
+        Rect::from_min_size(pos2(40.0, 40.0), vec2(40.0, 20.0)),
+    );
+    let rect = rect.expect("the keyboard-opened menu should be shown");
+    assert!(rect.is_finite(), "the popup rect must be finite: {rect:?}");
+}
+
+/// The keyboard-opened menu hangs below its anchor widget from the widget's
+/// reading-start edge: its right edge under RTL, its left edge under LTR.
+#[test]
+fn keyboard_opened_menu_hangs_from_the_reading_start_edge() {
+    // Mid-screen so the default reading-start align fits unflipped in both
+    // directions (the 200x140 body plus frame makes the popup ~214 px wide):
+    let widget = Rect::from_min_size(pos2(300.0, 40.0), vec2(40.0, 20.0));
+    let screen = Vec2::new(800.0, 600.0);
+
+    let rtl = keyboard_menu_rect(true, screen, widget).expect("the menu should be shown");
+    assert!(
+        (rtl.right() - widget.right()).abs() < 2.0,
+        "RTL: the popup's reading-start (right) edge should sit at the widget's \
+         right edge (popup {rtl:?}, widget {widget:?})"
+    );
+    assert!(
+        (rtl.top() - widget.bottom()).abs() < 2.0,
+        "RTL: the popup should hang below the widget (popup {rtl:?}, widget {widget:?})"
+    );
+
+    let ltr = keyboard_menu_rect(false, screen, widget).expect("the menu should be shown");
+    assert!(
+        (ltr.left() - widget.left()).abs() < 2.0,
+        "LTR: the popup's reading-start (left) edge should sit at the widget's \
+         left edge (popup {ltr:?}, widget {widget:?})"
+    );
+    assert!(
+        (ltr.top() - widget.bottom()).abs() < 2.0,
+        "LTR: the popup should hang below the widget (popup {ltr:?}, widget {widget:?})"
+    );
+}
+
+/// Near the reading-start screen edge the default side does not fit, so the
+/// best-align fallback flips the growth side; either way the whole popup stays
+/// inside the screen, in both directions.
+#[test]
+fn keyboard_opened_menu_flips_at_screen_edge_in_both_directions() {
+    let screen = Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0));
+
+    // RTL near the reading-start (left) edge: the reading-start side does not
+    // fit, so the popup grows rightward:
+    let rtl_widget = Rect::from_min_size(pos2(10.0, 100.0), vec2(40.0, 20.0));
+    let rtl = keyboard_menu_rect(true, Vec2::new(800.0, 600.0), rtl_widget)
+        .expect("the menu should be shown");
+    assert!(
+        screen.contains_rect(rtl),
+        "RTL near the left edge: the popup should stay inside the screen: {rtl:?}"
+    );
+    assert!(
+        rtl.min.x >= rtl_widget.min.x - 1.0,
+        "RTL near the left edge: the popup should grow rightward from the widget \
+         (popup {rtl:?}, widget {rtl_widget:?})"
+    );
+
+    // LTR near the reading-start (right) edge: the reading-start side does not
+    // fit, so the popup grows leftward:
+    let ltr_widget = Rect::from_min_size(pos2(750.0, 100.0), vec2(40.0, 20.0));
+    let ltr = keyboard_menu_rect(false, Vec2::new(800.0, 600.0), ltr_widget)
+        .expect("the menu should be shown");
+    assert!(
+        screen.contains_rect(ltr),
+        "LTR near the right edge: the popup should stay inside the screen: {ltr:?}"
+    );
+    assert!(
+        ltr.max.x <= ltr_widget.max.x + 1.0,
+        "LTR near the right edge: the popup should grow leftward from the widget \
+         (popup {ltr:?}, widget {ltr_widget:?})"
+    );
+}
+
+/// A keyboard-opened pointer-fixed menu sits exactly where the same widget's
+/// widget-anchored menu sits: the fallback transplants the click-open geometry
+/// (below the widget, reading-start edges aligned) to the keyboard case.
+#[test]
+fn keyboard_opened_menu_matches_the_widget_anchored_menu() {
+    let widget = Rect::from_min_size(pos2(40.0, 40.0), vec2(40.0, 20.0));
+
+    let rtl_keyboard = keyboard_menu_rect(true, Vec2::new(800.0, 600.0), widget)
+        .expect("the keyboard menu should be shown");
+    let rtl_widget_anchored = widget_menu_rect(true, widget);
+    assert!(
+        (rtl_keyboard.min - rtl_widget_anchored.min).length() < 2.0
+            && (rtl_keyboard.max - rtl_widget_anchored.max).length() < 2.0,
+        "RTL: the keyboard-opened menu should sit where the widget-anchored menu \
+         sits (keyboard {rtl_keyboard:?}, anchored {rtl_widget_anchored:?})"
+    );
+
+    let ltr_keyboard = keyboard_menu_rect(false, Vec2::new(800.0, 600.0), widget)
+        .expect("the keyboard menu should be shown");
+    let ltr_widget_anchored = widget_menu_rect(false, widget);
+    assert!(
+        (ltr_keyboard.min - ltr_widget_anchored.min).length() < 2.0
+            && (ltr_keyboard.max - ltr_widget_anchored.max).length() < 2.0,
+        "LTR: the keyboard-opened menu should sit where the widget-anchored menu \
+         sits (keyboard {ltr_keyboard:?}, anchored {ltr_widget_anchored:?})"
+    );
+}
+
+/// A menu wider and taller than a narrow screen still opens: the align fallback
+/// plus the area clamp keep it inside (or at the edge of) the screen, without
+/// panicking or producing NaN.
+#[test]
+fn keyboard_opened_menu_on_a_narrow_screen_stays_finite_and_clamped() {
+    let screen_size = Vec2::new(200.0, 150.0);
+    let screen = Rect::from_min_size(Pos2::ZERO, screen_size);
+
+    let rect = keyboard_menu_rect(
+        false,
+        screen_size,
+        Rect::from_min_size(pos2(20.0, 10.0), vec2(40.0, 20.0)),
+    )
+    .expect("the menu should be shown even when it is wider than the screen");
+    assert!(rect.is_finite(), "the popup rect must be finite: {rect:?}");
+    assert!(
+        rect.min.x >= screen.min.x - 0.5 && rect.min.y >= screen.min.y - 0.5,
+        "the popup should be clamped to the screen (popup {rect:?}, screen {screen:?})"
+    );
+    assert!(
+        rect.intersects(screen),
+        "the popup should overlap the screen (popup {rect:?}, screen {screen:?})"
     );
 }
