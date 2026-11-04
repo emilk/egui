@@ -1403,8 +1403,20 @@ fn halign_and_justify_row(
     let num_glyphs_in_range = glyph_range.1 - glyph_range.0;
     assert!(num_glyphs_in_range > 0, "Should have at least one glyph");
 
-    let original_min_x = row.glyphs[glyph_range.0].logical_rect().min.x;
-    let original_max_x = row.glyphs[glyph_range.1 - 1].logical_rect().max.x;
+    // The ink span of the row, over ALL glyphs in the range — not just the
+    // endpoints. Shaped complex scripts (e.g. Arabic ligature glyphs with
+    // negative offsets, plus the zero-advance continuation placeholders at
+    // both ends of the glyph vector) make the glyph vector non-monotonic in
+    // x, so the first and last glyph do not bracket the ink. `f32::min`/`max`
+    // ignore NaN, so a stray NaN position cannot poison the span.
+    let original_min_x = row.glyphs[glyph_range.0..glyph_range.1]
+        .iter()
+        .map(|glyph| glyph.logical_rect().min.x)
+        .fold(f32::INFINITY, f32::min);
+    let original_max_x = row.glyphs[glyph_range.0..glyph_range.1]
+        .iter()
+        .map(|glyph| glyph.logical_rect().max.x)
+        .fold(f32::NEG_INFINITY, f32::max);
     let original_width = original_max_x - original_min_x;
 
     let target_width = if justify && num_glyphs_in_range > 1 {
@@ -3965,5 +3977,185 @@ mod tests {
                 let _ = galley.pos_from_cursor(galley.end());
             }
         }
+    }
+
+    /// Shaped complex scripts emit glyph vectors that are NOT sorted by x:
+    /// zero-advance continuation placeholders at both ends and real glyphs
+    /// with negative x offsets in between. `halign_and_justify_row` used to
+    /// take the ink span from only the first and last glyph, so a right- or
+    /// center-aligned row (what an RTL label gets) computed a too-narrow
+    /// width and left its ink positioned outside the allocated rect —
+    /// button hover fills then failed to cover the ink.
+    ///
+    /// No Arabic font is bundled (fonts are never committed), so this test
+    /// builds a row by hand with the geometry measured from shaping the
+    /// Arabic word "ملف" with a real Arabic font (Noto Sans Arabic, 14 px):
+    /// a placeholder at 0, the ligature glyph drawn 10 px left of the pen,
+    /// the remaining glyphs, and trailing placeholders at the natural width.
+    #[test]
+    fn halign_uses_full_ink_span_of_non_monotonic_glyph_vector() {
+        /// Only self-consistent metrics are needed: `logical_rect` spans
+        /// `[pos.x, pos.x + advance_width]` around the baseline.
+        fn glyph(chr: char, x: f32, advance: f32) -> Glyph {
+            Glyph {
+                chr,
+                pos: pos2(x, 0.0),
+                advance_width: advance,
+                line_height: 16.0,
+                font_ascent: 13.0,
+                font_height: 16.0,
+                font_face_ascent: 13.0,
+                font_face_height: 16.0,
+                uv_rect: Default::default(),
+                is_color: false,
+                section_index: 0,
+                first_vertex: 0,
+            }
+        }
+
+        fn placed_row(glyphs: Vec<Glyph>, natural_width: f32) -> PlacedRow {
+            PlacedRow {
+                pos: pos2(0.0, 0.0),
+                row: Arc::new(Row {
+                    section_index_at_start: 0,
+                    glyphs,
+                    size: vec2(natural_width, 16.0),
+                    visuals: RowVisuals::default(),
+                }),
+                ends_with_newline: false,
+            }
+        }
+
+        fn assert_close(got: f32, want: f32) {
+            assert!((got - want).abs() < 1e-3, "got {got:.4}, want {want:.4}");
+        }
+
+        fn ink_span(row: &Row) -> (f32, f32) {
+            (
+                row.glyphs
+                    .iter()
+                    .map(|glyph| glyph.logical_rect().min.x)
+                    .fold(f32::INFINITY, f32::min),
+                row.glyphs
+                    .iter()
+                    .map(|glyph| glyph.logical_rect().max.x)
+                    .fold(f32::NEG_INFINITY, f32::max),
+            )
+        }
+
+        /// The measured row-relative geometry of an Arabic "ملف" label,
+        /// in visual (left-to-right) order: a zero-advance placeholder,
+        /// the ligature glyph drawn left of the pen (negative offset),
+        /// the remaining glyphs, trailing zero-advance continuations.
+        fn shaped_arabic() -> Vec<Glyph> {
+            vec![
+                glyph('ف', 0.0, 0.0),
+                glyph('ف', -10.0, 15.37),
+                glyph('ل', 5.0, 4.2),
+                glyph('م', 9.0, 7.35),
+                glyph('ل', 17.0, 0.0),
+                glyph('ف', 17.0, 0.0),
+            ]
+        }
+
+        let natural_width: f32 = shaped_arabic().iter().map(|g| g.advance_width).sum();
+        // The first glyph starts at 0 and the last ends at 17, but the real
+        // ink spans [-10, 17]: the vector is non-monotonic and the endpoints
+        // do not bracket it. Sanity-check the premise:
+        let (ink_min, ink_max) = ink_span(&Row {
+            section_index_at_start: 0,
+            glyphs: shaped_arabic(),
+            size: vec2(natural_width, 16.0),
+            visuals: RowVisuals::default(),
+        });
+        assert_close(ink_min, -10.0);
+        assert_close(ink_max, 17.0);
+
+        let point_scale = PointScale::new(1.0);
+
+        // `Align::Max` is what a right-to-left label is laid out with. The
+        // row must be anchored as if 27 wide (the true ink span), not 17:
+        let mut placed = placed_row(shaped_arabic(), natural_width);
+        halign_and_justify_row(
+            point_scale,
+            &mut placed,
+            Align::Max,
+            f32::INFINITY,
+            false,
+            false,
+        );
+        assert_close(placed.pos.x, -27.0);
+        // The ink is repositioned to end at the galley origin (right
+        // alignment) and to start exactly at the row's left edge — before
+        // the fix it extended 10 px to the left of the allocated rect:
+        let (ink_min, ink_max) = ink_span(&placed.row);
+        assert_close(ink_min + placed.pos.x, placed.pos.x);
+        assert_close(ink_max + placed.pos.x, 0.0);
+        // The allocation keeps the natural width (trailing-whitespace
+        // semantics), so inter-widget spacing is unchanged:
+        assert_close(placed.row.size.x, natural_width);
+
+        // Centered rows must center the true ink on the galley origin:
+        let mut placed = placed_row(shaped_arabic(), natural_width);
+        halign_and_justify_row(
+            point_scale,
+            &mut placed,
+            Align::Center,
+            f32::INFINITY,
+            false,
+            false,
+        );
+        assert_close(placed.pos.x, -14.0); // round_to_pixel(-13.5)
+        let (ink_min, ink_max) = ink_span(&placed.row);
+        // Centered on the galley origin, up to pixel rounding:
+        assert!(((ink_min + ink_max) * 0.5 + placed.pos.x).abs() <= 0.5);
+
+        // A monotonic row (endpoints bracket the ink) is laid out exactly as
+        // before the fix:
+        let mut placed = placed_row(vec![glyph('a', 0.0, 17.0)], 17.0);
+        halign_and_justify_row(
+            point_scale,
+            &mut placed,
+            Align::Max,
+            f32::INFINITY,
+            false,
+            false,
+        );
+        assert_close(placed.pos.x, -17.0);
+        assert_close(placed.row.size.x, 17.0);
+        assert_close(placed.row.glyphs[0].pos.x, 0.0);
+
+        // Composition with the trailing-whitespace semantics: a trailing
+        // space is trimmed from the ink range (the row stays anchored on the
+        // ink, at -27) while the allocation keeps counting it:
+        let mut with_trailing_space = shaped_arabic();
+        with_trailing_space.push(glyph(' ', 17.0, 3.0));
+        let natural_with_space = natural_width + 3.0;
+
+        let mut placed = placed_row(with_trailing_space.clone(), natural_with_space);
+        halign_and_justify_row(
+            point_scale,
+            &mut placed,
+            Align::Max,
+            f32::INFINITY,
+            false,
+            false,
+        );
+        assert_close(placed.pos.x, -27.0);
+        assert_close(placed.row.size.x, natural_with_space);
+
+        // With `keep_trailing_whitespace` the space is part of the aligned
+        // span, so the row is anchored on [-10, 20] and sized to it:
+        let mut placed = placed_row(with_trailing_space, natural_with_space);
+        halign_and_justify_row(
+            point_scale,
+            &mut placed,
+            Align::Max,
+            f32::INFINITY,
+            false,
+            true,
+        );
+        assert_close(placed.pos.x, -30.0);
+        assert_close(placed.row.size.x, 30.0);
     }
 }
