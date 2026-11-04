@@ -296,7 +296,10 @@ impl eframe::App for WrapApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        i18n::set_current(i18n::Lang::from_code(&self.state.language).unwrap_or(i18n::Lang::EN));
+        let lang = i18n::Lang::from_code(&self.state.language).unwrap_or(i18n::Lang::EN);
+        i18n::set_current(lang);
+        // The interface direction follows the language (Arabic reads right-to-left).
+        ui.ctx().set_right_to_left(lang.is_rtl());
 
         #[cfg(target_arch = "wasm32")]
         if let Some(anchor) = frame

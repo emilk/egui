@@ -9,7 +9,7 @@
 //! # Adding a language
 //! 1. Add `xx.tsv` next to `ar.tsv` (copy its header; translate from the *meaning* of the English
 //!    text, clean-room).
-//! 2. Add one row to [`LANGUAGES`] (code, native name, catalogue, plural rule).
+//! 2. Add one row to [`LANGUAGES`] (code, native name, catalogue, plural rule, direction).
 //!
 //! # Looking strings up
 //! - [`t`]: a plain string in the current language. [`tr`]: for a specific language (tests).
@@ -36,6 +36,9 @@ pub struct LangInfo {
     /// Plural-form index for a count. English: 0 = one, 1 = other. Arabic uses the six CLDR
     /// forms (0 zero, 1 one, 2 two, 3 few, 4 many, 5 other).
     pub plural: fn(u64) -> usize,
+    /// Whether the language reads right-to-left, so the app can mirror the interface direction
+    /// (through [`egui::Context::set_right_to_left`]) when it is selected.
+    pub rtl: bool,
     /// Parsed catalogue, built once on first use.
     catalog: OnceLock<Catalog>,
 }
@@ -65,6 +68,7 @@ pub static LANGUAGES: [LangInfo; 2] = [
         name: "English",
         source: "",
         plural: plural_one_other,
+        rtl: false,
         catalog: OnceLock::new(),
     },
     LangInfo {
@@ -72,6 +76,7 @@ pub static LANGUAGES: [LangInfo; 2] = [
         name: "العربية",
         source: include_str!("i18n/ar.tsv"),
         plural: plural_arabic,
+        rtl: true,
         catalog: OnceLock::new(),
     },
 ];
@@ -125,6 +130,12 @@ impl Lang {
     #[must_use]
     pub fn name(self) -> &'static str {
         self.0.name
+    }
+
+    /// Whether the language reads right-to-left.
+    #[must_use]
+    pub fn is_rtl(self) -> bool {
+        self.0.rtl
     }
 
     fn catalog(self) -> &'static Catalog {
