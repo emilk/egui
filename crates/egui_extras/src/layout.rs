@@ -1,4 +1,4 @@
-use egui::{IdSalt, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
+use egui::{Align, IdSalt, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -14,16 +14,34 @@ pub(crate) enum CellSize {
 /// In a strip there's only one line which goes in the direction of the strip:
 ///
 /// In a horizontal strip, a [`StripLayout`] with horizontal [`CellDirection`] is used.
-/// Its cells go from left to right inside this [`StripLayout`].
+/// Its cells advance from the reading-start edge (the right under RTL) toward the
+/// reading end inside this [`StripLayout`].
 ///
 /// In a table there's a [`StripLayout`] for each table row with a horizontal [`CellDirection`].
-/// Its cells go from left to right. And the lines go from top to bottom.
+/// Its cells advance from the reading-start edge toward the reading end.
+/// And the lines go from top to bottom.
+#[derive(Clone, Copy, PartialEq)]
 pub(crate) enum CellDirection {
-    /// Cells go from left to right.
+    /// Cells advance from the reading-start edge (the right under RTL) toward
+    /// the reading end.
     Horizontal,
 
     /// Cells go from top to bottom.
     Vertical,
+}
+
+/// Should horizontal cells be placed from the right edge, following the reading direction?
+///
+/// Cells are placed with explicit cursor arithmetic rather than through the
+/// `Placer`, so the whole-UI mirroring doesn't reach them; this applies the
+/// same terms as the private `egui` `Placer::prefer_right_to_left` (the
+/// convention `GridLayout` uses): the layout itself runs right-to-left (or is
+/// vertical with `Align::Max` cross alignment), or the interface direction
+/// ([`Ui::is_rtl`]) is set inside a vertical `Align::Min` body.
+pub(crate) fn prefer_right_to_left(ui: &Ui) -> bool {
+    let layout = ui.layout();
+    layout.prefer_right_to_left()
+        || ui.is_rtl() && layout.is_vertical() && layout.cross_align == Align::Min
 }
 
 /// Flags used by [`StripLayout::add`].
@@ -43,11 +61,20 @@ pub(crate) struct StripLayoutFlags {
 pub struct StripLayout<'l> {
     pub(crate) ui: &'l mut Ui,
     direction: CellDirection,
+
+    /// Cells advance from the right edge toward the left (the reading
+    /// direction is right-to-left)?
+    rtl: bool,
+
     pub(crate) rect: Rect,
     pub(crate) cursor: Pos2,
 
     /// Keeps track of the max used position,
     /// so we know how much space we used.
+    ///
+    /// Under `rtl` this is mirrored: `max.x` keeps track of the *min* used x
+    /// instead, since cells extend leftward from the reading-start (right)
+    /// edge.
     max: Pos2,
 
     cell_layout: egui::Layout,
@@ -62,11 +89,22 @@ impl<'l> StripLayout<'l> {
         sense: Sense,
     ) -> Self {
         let rect = ui.available_rect_before_wrap();
-        let pos = rect.left_top();
+
+        // Cells are placed with explicit cursor arithmetic rather than through
+        // the `Placer`, so mirror the reading direction here the way
+        // `GridLayout` does. Only horizontal cells advance along x; vertical
+        // cells span the full width in both directions:
+        let rtl = direction == CellDirection::Horizontal && prefer_right_to_left(ui);
+        let pos = if rtl {
+            rect.right_top()
+        } else {
+            rect.left_top()
+        };
 
         Self {
             ui,
             direction,
+            rtl,
             rect,
             cursor: pos,
             max: pos,
@@ -76,13 +114,29 @@ impl<'l> StripLayout<'l> {
     }
 
     fn cell_rect(&self, width: &CellSize, height: &CellSize) -> Rect {
+        let (min_x, max_x) = match width {
+            CellSize::Absolute(width) => {
+                if self.rtl {
+                    (self.cursor.x - width, self.cursor.x)
+                } else {
+                    (self.cursor.x, self.cursor.x + width)
+                }
+            }
+            CellSize::Remainder => {
+                if self.rtl {
+                    (self.rect.left(), self.cursor.x)
+                } else {
+                    (self.cursor.x, self.rect.right())
+                }
+            }
+        };
         Rect {
-            min: self.cursor,
+            min: Pos2 {
+                x: min_x,
+                y: self.cursor.y,
+            },
             max: Pos2 {
-                x: match width {
-                    CellSize::Absolute(width) => self.cursor.x + width,
-                    CellSize::Remainder => self.rect.right(),
-                },
+                x: max_x,
                 y: match height {
                     CellSize::Absolute(height) => self.cursor.y + height,
                     CellSize::Remainder => self.rect.bottom(),
@@ -92,12 +146,20 @@ impl<'l> StripLayout<'l> {
     }
 
     fn set_pos(&mut self, rect: Rect) {
-        self.max.x = self.max.x.max(rect.right());
+        if self.rtl {
+            self.max.x = self.max.x.min(rect.left());
+        } else {
+            self.max.x = self.max.x.max(rect.right());
+        }
         self.max.y = self.max.y.max(rect.bottom());
 
         match self.direction {
             CellDirection::Horizontal => {
-                self.cursor.x = rect.right() + self.ui.spacing().item_spacing.x;
+                self.cursor.x = if self.rtl {
+                    rect.left() - self.ui.spacing().item_spacing.x
+                } else {
+                    rect.right() + self.ui.spacing().item_spacing.x
+                };
             }
             CellDirection::Vertical => {
                 self.cursor.y = rect.bottom() + self.ui.spacing().item_spacing.y;
@@ -184,7 +246,11 @@ impl<'l> StripLayout<'l> {
         match self.direction {
             CellDirection::Horizontal => {
                 self.cursor.y = self.max.y + self.ui.spacing().item_spacing.y;
-                self.cursor.x = self.rect.left();
+                self.cursor.x = if self.rtl {
+                    self.rect.right()
+                } else {
+                    self.rect.left()
+                };
             }
             CellDirection::Vertical => {
                 self.cursor.x = self.max.x + self.ui.spacing().item_spacing.x;
@@ -252,7 +318,11 @@ impl<'l> StripLayout<'l> {
     /// Allocate the rect in [`Self::ui`] so that the scrollview knows about our size
     pub fn allocate_rect(&mut self) -> Response {
         let mut rect = self.rect;
-        rect.set_right(self.max.x);
+        if self.rtl {
+            rect.set_left(self.max.x);
+        } else {
+            rect.set_right(self.max.x);
+        }
         rect.set_bottom(self.max.y);
 
         self.ui.allocate_rect(rect, Sense::hover())
