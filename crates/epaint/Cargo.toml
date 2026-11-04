@@ -133,6 +133,14 @@ criterion.workspace = true
 mimalloc.workspace = true
 similar-asserts.workspace = true
 
+# The text tests (shaping, kerning, wrapping, the byte-identity pins) exercise
+# the bundled fonts. `default_fonts` is not part of the crate's default feature
+# set (an application decides whether to bundle fonts), so this dev-dependency
+# makes the bundled font data available to epaint's own tests, benches and
+# examples without changing what a normal build of epaint or its dependents
+# compiles in. `test_fonts` in `text_layout.rs` installs them for the tests.
+epaint_default_fonts.workspace = true
+
 
 [[bench]]
 name = "benchmark"

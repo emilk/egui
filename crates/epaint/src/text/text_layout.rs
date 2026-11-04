@@ -2033,7 +2033,44 @@ mod tests {
     };
 
     fn test_fonts() -> FontsImpl {
-        FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+        let mut definitions = FontDefinitions::default();
+        if definitions.families.values().all(Vec::is_empty) {
+            // The `default_fonts` feature is off (a plain `cargo test -p epaint`),
+            // so `FontDefinitions::default` installed nothing. Install the bundled
+            // fonts exactly as it does with the feature (see `font_definitions.rs`),
+            // so these tests exercise real shaping either way. With the feature on
+            // the fonts are already installed and this is a no-op.
+            definitions.font_data.insert(
+                "Hack".to_owned(),
+                Arc::new(FontData::from_static(epaint_default_fonts::HACK_REGULAR)),
+            );
+            definitions.font_data.insert(
+                "Ubuntu-Light".to_owned(),
+                Arc::new(FontData::from_static(epaint_default_fonts::UBUNTU_LIGHT)),
+            );
+            definitions.font_data.insert(
+                "egui-icons".to_owned(),
+                Arc::new(
+                    FontData::from_static(epaint_default_fonts::EGUI_ICONS).tweak(FontTweak {
+                        scale: 0.90, // Make smaller
+                        ..Default::default()
+                    }),
+                ),
+            );
+            definitions.families.insert(
+                FontFamily::Monospace,
+                vec![
+                    "Hack".to_owned(),
+                    "Ubuntu-Light".to_owned(), // fallback for √ etc
+                    "egui-icons".to_owned(),
+                ],
+            );
+            definitions.families.insert(
+                FontFamily::Proportional,
+                vec!["Ubuntu-Light".to_owned(), "egui-icons".to_owned()],
+            );
+        }
+        FontsImpl::new(TextOptions::default(), definitions)
     }
 
     fn layout_without_fonts(text: &str, policy: MissingGlyphPolicy) -> Arc<Galley> {
