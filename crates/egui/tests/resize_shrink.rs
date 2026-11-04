@@ -10,6 +10,7 @@
 //! Every case runs an LTR and an RTL twin; the LTR twins double as the
 //! LTR-unchanged regression. No snapshot assertions; geometry only.
 
+use core::cell::Cell;
 use core::num::NonZeroUsize;
 
 use egui::{
@@ -47,6 +48,14 @@ fn same_rect(a: Rect, b: Rect) -> bool {
         && (a.right() - b.right()).abs() <= 0.5
         && (a.top() - b.top()).abs() <= 0.5
         && (a.bottom() - b.bottom()).abs() <= 0.5
+}
+
+/// `inner` inside `outer`, with a point of tolerance on every edge.
+fn rect_within(inner: Rect, outer: Rect, tol: f32) -> bool {
+    inner.left() >= outer.left() - tol
+        && inner.right() <= outer.right() + tol
+        && inner.top() >= outer.top() - tol
+        && inner.bottom() <= outer.bottom() + tol
 }
 
 /// The painted `Resize` container rect: the stroke outline is the container rect
@@ -130,6 +139,33 @@ impl WindowHarness {
         prev
     }
 
+    /// Settle as [`Self::settle`], then run one more idle frame and return that
+    /// frame's full output alongside its window rect, for shape-level
+    /// assertions on a settled layout.
+    fn settled_output(
+        &self,
+        time: f64,
+        win: impl Fn() -> Window<'static> + Copy,
+        content: impl Fn(&mut Ui) + Copy,
+    ) -> (FullOutput, Rect) {
+        let settled = self.settle(time, win, content);
+        let rect = Cell::new(Rect::NOTHING);
+        let output = run(
+            &self.ctx,
+            input_at(self.screen, time + 10.0, vec![]),
+            |_| {
+                if let Some(response) = win().show(&self.ctx, |ui| content(ui)) {
+                    rect.set(response.response.rect);
+                }
+            },
+        );
+        assert!(
+            same_rect(rect.get(), settled),
+            "the extra frame must render the settled window (settled {settled:?})"
+        );
+        (output, rect.get())
+    }
+
     /// Press on a window edge (`press_x` picks the x of the press point from
     /// the settled rect, mid-height, away from the corners), move the pointer
     /// by `delta`, release, settle, and return the before/after rects.
@@ -165,6 +201,88 @@ fn shrink_window(pos: Pos2, size: Vec2) -> Window<'static> {
         .default_size(size)
         .default_pos(pos)
 }
+
+/// The title-less window builder for the content-hug tests: its size follows
+/// the content measurement (no title bar, not user-resizable), placed so its
+/// reading-start edge sits at `pos` in either direction.
+fn title_less_window(pos: Pos2, size: Vec2) -> Window<'static> {
+    Window::new("slack win")
+        .title_bar(false)
+        .resizable(false)
+        .default_size(size)
+        .default_pos(pos)
+}
+
+/// Body content that records its own row rect into the cell: one narrow
+/// mirrored row, right-anchored in the window body under RTL.
+fn narrow_row_content(row: &Cell<Rect>) -> impl Fn(&mut Ui) + Copy {
+    move |ui: &mut Ui| {
+        let response = ui.horizontal(|ui| {
+            ui.label("narrow");
+        });
+        row.set(response.response.rect);
+    }
+}
+
+/// Body content that records its widget rect into the cell: a plain label,
+/// left-anchored in the window body under RTL (plain widgets do not mirror;
+/// only nested rows do).
+fn plain_label_content(label: &Cell<Rect>) -> impl Fn(&mut Ui) + Copy {
+    move |ui: &mut Ui| {
+        let response = ui.label("hi");
+        label.set(response.rect);
+    }
+}
+
+/// The left edge of the leftmost visible painted shape that is not part of the
+/// window frame itself. The frame paints its background rect (spanning the
+/// full window rect) together with its shadow in one shape group; the group is
+/// skipped whole so the shadow (a window-sized rect offset by the shadow
+/// offset) does not count as content. Invisible rects (transparent fill, no
+/// stroke) are skipped, and text galleys measure from their own
+/// halign-anchored rect.
+fn leftmost_content_left(output: &FullOutput, window: Rect) -> Option<f32> {
+    use egui::epaint::Shape;
+
+    fn scan(shape: &Shape, window: Rect, leftmost: &mut Option<f32>) {
+        match shape {
+            Shape::Vec(shapes) => {
+                // The window frame paints shadow + background as one group.
+                let is_frame_group = shapes
+                    .iter()
+                    .any(|s| matches!(s, Shape::Rect(rect) if same_rect(rect.rect, window)));
+                if !is_frame_group {
+                    for shape in shapes {
+                        scan(shape, window, leftmost);
+                    }
+                }
+            }
+            Shape::Rect(rect) => {
+                let visible = rect.fill != egui::Color32::TRANSPARENT || !rect.stroke.is_empty();
+                if visible && !same_rect(rect.rect, window) {
+                    *leftmost =
+                        Some(leftmost.map_or(rect.rect.left(), |l| l.min(rect.rect.left())));
+                }
+            }
+            Shape::Text(text) => {
+                let bounds = text.galley.rect.translate(text.pos.to_vec2());
+                *leftmost = Some(leftmost.map_or(bounds.left(), |l| l.min(bounds.left())));
+            }
+            _ => {}
+        }
+    }
+
+    let mut leftmost = None;
+    for clipped in &output.shapes {
+        scan(&clipped.shape, window, &mut leftmost);
+    }
+    leftmost
+}
+
+/// The window frame's content insets from `Style::default()`: the window
+/// margin on every side, plus the 1-pt frame stroke inset on every side.
+const WINDOW_MARGIN: f32 = 6.0;
+const WINDOW_STROKE: f32 = 1.0;
 
 // ---------------------------------------------------------------------------
 
@@ -1016,4 +1134,174 @@ fn mid_drag_content_outgrowth_stays_at_the_requested_size() {
              (dragging {dragging:?}, released {released:?})"
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+
+/// T10: a title-less RTL window hugs its right-anchored content: the settled
+/// width exceeds the row width by only the frame's margins and stroke insets,
+/// the reading-start (right) edge stays at its placed position from the first
+/// frame through the idle frames, the settled rect fits on screen, and the LTR
+/// twin hugs identically.
+#[test]
+fn title_less_rtl_window_hugs_right_anchored_content_reading_end_slack_zero() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(340.0, 420.0);
+    const POS: Pos2 = pos2(650.0, 50.0);
+
+    // RTL: the window keeps its placed reading-start (right) edge and loses
+    // the reading-end slack:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let row = Cell::new(Rect::NOTHING);
+    let content = narrow_row_content(&row);
+    let win = || title_less_window(POS, START_SIZE);
+    let first = rtl.frame_rect(vec![], 0.0, win, content);
+    let settled = rtl.settle(0.0, win, content);
+    for i in 0..3 {
+        let next = rtl.frame_rect(vec![], 5.0 + f64::from(i), win, content);
+        assert!(
+            same_rect(next, settled),
+            "RTL: idle frames must not move or resize the hugging window \
+             (settled {settled:?}, frame {i} {next:?})"
+        );
+    }
+    assert!(
+        Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(settled),
+        "RTL: the settled window must fit on screen (settled {settled:?})"
+    );
+    assert!(
+        settled.width() - (row.get().width() + 2.0 * WINDOW_MARGIN) <= 2.0 * WINDOW_STROKE + 1.0,
+        "RTL: the title-less window must hug its right-anchored content, with \
+         no reading-end slack beyond the frame's margins and stroke \
+         (settled {settled:?}, row {:?})",
+        row.get()
+    );
+    assert!(
+        (settled.right() - first.right()).abs() <= 1.0,
+        "RTL: the reading-start (right) edge must stay at its placed position \
+         (first {first:?}, settled {settled:?})"
+    );
+
+    // LTR twin: the same content hugs identically:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let row = Cell::new(Rect::NOTHING);
+    let content = narrow_row_content(&row);
+    let win = || title_less_window(POS, START_SIZE);
+    let settled_ltr = ltr.settle(0.0, win, content);
+    assert!(
+        Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(settled_ltr),
+        "LTR: the settled window must fit on screen (settled {settled_ltr:?})"
+    );
+    assert!(
+        settled_ltr.width() - (row.get().width() + 2.0 * WINDOW_MARGIN)
+            <= 2.0 * WINDOW_STROKE + 1.0,
+        "LTR: the title-less window must hug its content \
+         (settled {settled_ltr:?}, row {:?})",
+        row.get()
+    );
+    assert!(
+        (settled.width() - settled_ltr.width()).abs() <= 1.0,
+        "the RTL and LTR twins must settle at the same width \
+         (RTL {settled:?}, LTR {settled_ltr:?})"
+    );
+}
+
+// ---------------------------------------------------------------------------
+
+/// T11: pixel-level pin that nothing paints in the reading-end gap of a
+/// title-less RTL window: on a settled frame, the leftmost painted content
+/// (the mirrored row's text, with the window frame's own background and
+/// shadow shapes excluded) starts within the frame's stroke inset of the
+/// reading-end inner border, in both directions.
+#[test]
+fn title_less_rtl_window_has_no_painted_content_at_the_reading_end_edge() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(340.0, 420.0);
+    const POS: Pos2 = pos2(650.0, 50.0);
+
+    // RTL: the row's text must hug the reading-end (left) inner border:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let row = Cell::new(Rect::NOTHING);
+    let content = narrow_row_content(&row);
+    let win = || title_less_window(POS, START_SIZE);
+    let (output, window) = rtl.settled_output(0.0, win, content);
+    assert!(
+        Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(window),
+        "RTL: the settled window must fit on screen (window {window:?})"
+    );
+    let leftmost = leftmost_content_left(&output, window).unwrap_or(f32::INFINITY);
+    assert!(
+        leftmost - (window.left() + WINDOW_MARGIN) <= WINDOW_STROKE + 1.0,
+        "RTL: the leftmost painted content must start at the reading-end inner \
+         border, not leave a reading-end gap (window {window:?}, leftmost \
+         {leftmost})"
+    );
+
+    // LTR twin: the row's text must hug the reading-start (left) inner border:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let row = Cell::new(Rect::NOTHING);
+    let content = narrow_row_content(&row);
+    let win = || title_less_window(POS, START_SIZE);
+    let (output, window) = ltr.settled_output(0.0, win, content);
+    assert!(
+        Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(window),
+        "LTR: the settled window must fit on screen (window {window:?})"
+    );
+    let leftmost = leftmost_content_left(&output, window).unwrap_or(f32::INFINITY);
+    assert!(
+        leftmost - (window.left() + WINDOW_MARGIN) <= WINDOW_STROKE + 1.0,
+        "LTR: the leftmost painted content must start at the reading-start \
+         inner border (window {window:?}, leftmost {leftmost})"
+    );
+}
+
+// ---------------------------------------------------------------------------
+
+/// T12: composition guard for a plain-label body: a plain `ui.label` stays
+/// left-anchored under RTL (only nested rows mirror), so the title-less RTL
+/// window must keep its full offered width to contain the label, stable across
+/// idle frames, and the LTR twin contains it likewise.
+#[test]
+fn plain_label_content_stays_inside_the_title_less_rtl_window() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(340.0, 420.0);
+    const POS: Pos2 = pos2(650.0, 50.0);
+
+    // RTL: the label paints inside the window, and the window is stable:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let label = Cell::new(Rect::NOTHING);
+    let content = plain_label_content(&label);
+    let win = || title_less_window(POS, START_SIZE);
+    let settled = rtl.settle(0.0, win, content);
+    for i in 0..3 {
+        let next = rtl.frame_rect(vec![], 5.0 + f64::from(i), win, content);
+        assert!(
+            same_rect(next, settled),
+            "RTL: idle frames must not move or resize the window \
+             (settled {settled:?}, frame {i} {next:?})"
+        );
+    }
+    assert!(
+        Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(settled),
+        "RTL: the settled window must fit on screen (settled {settled:?})"
+    );
+    assert!(
+        rect_within(label.get(), settled, 1.0),
+        "RTL: the plain label must paint inside the title-less window \
+         (window {settled:?}, label {:?})",
+        label.get()
+    );
+
+    // LTR twin:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let label = Cell::new(Rect::NOTHING);
+    let content = plain_label_content(&label);
+    let win = || title_less_window(POS, START_SIZE);
+    let settled_ltr = ltr.settle(0.0, win, content);
+    assert!(
+        rect_within(label.get(), settled_ltr, 1.0),
+        "LTR: the plain label must paint inside the title-less window \
+         (window {settled_ltr:?}, label {:?})",
+        label.get()
+    );
 }
