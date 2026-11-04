@@ -526,6 +526,11 @@ impl<'a> Popup<'a> {
         if let Some(to_global) = self.ctx.layer_transform_to_global(response.layer_id) {
             rect = to_global * rect;
         }
+        // The transform comes from the layer, not the widget, so it can still
+        // make the rect non-finite.
+        if !rect.is_finite() {
+            return None;
+        }
         Some(rect)
     }
 
@@ -574,11 +579,17 @@ impl<'a> Popup<'a> {
 
     /// Calculate the best alignment for the popup, based on the last size and screen rect.
     pub fn get_best_align(&self) -> RectAlign {
+        self.best_align_for(self.anchor_rect())
+    }
+
+    /// [`Self::get_best_align`] for an already-computed anchor rect, so callers
+    /// that need the rect anyway don't derive it twice.
+    fn best_align_for(&self, anchor_rect: Option<Rect>) -> RectAlign {
         let expected_popup_size = self
             .get_expected_size()
             .unwrap_or_else(|| vec2(self.width.unwrap_or(0.0), 0.0));
 
-        let Some(anchor_rect) = self.anchor_rect() else {
+        let Some(anchor_rect) = anchor_rect else {
             return self.rect_align;
         };
 
@@ -644,8 +655,8 @@ impl<'a> Popup<'a> {
             return None;
         }
 
-        let best_align = self.get_best_align();
         let anchor_rect = self.anchor_rect();
+        let best_align = self.best_align_for(anchor_rect);
 
         let Popup {
             id,

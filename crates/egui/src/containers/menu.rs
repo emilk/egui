@@ -80,7 +80,10 @@ pub fn menu_item_button<'a>(
             FontSelection::default(),
             ui.text_valign(),
         ));
-        job.direction = Some(epaint::text::TextDirection::RightToLeft);
+        // Only pin jobs that don't carry an explicit direction of their own.
+        if job.direction.is_none() {
+            job.direction = Some(epaint::text::TextDirection::RightToLeft);
+        }
         job.language = job.language.take().or_else(|| ui.language());
         WidgetText::LayoutJob(Arc::new(job))
     } else {
