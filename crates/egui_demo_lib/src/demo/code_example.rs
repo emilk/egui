@@ -112,7 +112,7 @@ impl crate::Demo for CodeExample {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .min_width(375.0)
             .default_size([390.0, 500.0])

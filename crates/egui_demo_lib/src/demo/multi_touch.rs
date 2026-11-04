@@ -1,3 +1,4 @@
+use crate::i18n;
 use egui::{
     Color32, Event, Frame, Pos2, Rect, Sense, Stroke, Vec2,
     emath::{RectTransform, Rot2},
@@ -28,7 +29,7 @@ impl crate::Demo for MultiTouch {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(i18n::t(self.name()))
             .open(open)
             .default_size(vec2(544.0, 512.0))
             .resizable(true)
@@ -45,11 +46,13 @@ impl crate::View for MultiTouch {
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
-        ui.strong(
+        ui.strong(i18n::t(
             "This demo only works on devices with multitouch support (e.g. mobiles, tablets, and trackpads).",
-        );
+        ));
         ui.separator();
-        ui.label("Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.");
+        ui.label(i18n::t(
+            "Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.",
+        ));
 
         let relative_pointer_gesture = ui.input(|i| {
             i.events.iter().any(|event| {
@@ -60,16 +63,24 @@ impl crate::View for MultiTouch {
             })
         });
         let num_touches = ui.input(|i| i.multi_touch().map_or(0, |mt| mt.num_touches));
-        let num_touches_str = format!("{num_touches}-finger touch");
-        ui.label(format!(
-            "Input source: {}",
-            if ui.input(|i| i.multi_touch().is_some()) {
-                num_touches_str.as_str()
-            } else if relative_pointer_gesture {
-                "cursor"
-            } else {
-                "none"
-            }
+        // The `{num_touches}` placeholder is filled by `i18n::fmt`, not by `format!`.
+        #[expect(clippy::literal_string_with_formatting_args)]
+        let touches_str = i18n::fmt(
+            i18n::t("{num_touches}-finger touch"),
+            &[("num_touches", num_touches.to_string().as_str())],
+        );
+        let source = if ui.input(|i| i.multi_touch().is_some()) {
+            touches_str
+        } else if relative_pointer_gesture {
+            i18n::t("cursor").to_owned()
+        } else {
+            i18n::t("none").to_owned()
+        };
+        // The `{source}` placeholder is filled by `i18n::fmt`, not by `format!`.
+        #[expect(clippy::literal_string_with_formatting_args)]
+        ui.label(i18n::fmt(
+            i18n::t("Input source: {source}"),
+            &[("source", source.as_str())],
         ));
 
         let color = if ui.visuals().dark_mode {

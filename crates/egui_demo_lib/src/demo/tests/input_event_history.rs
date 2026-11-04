@@ -71,7 +71,7 @@ impl crate::Demo for InputEventHistory {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .default_width(800.0)
             .open(open)
             .resizable(true)

@@ -20,7 +20,7 @@ impl crate::Demo for DancingStrings {
 
     fn show(&mut self, ui: &mut Ui, open: &mut bool) {
         use crate::View as _;
-        Window::new(self.name())
+        Window::new(crate::i18n::t(self.name()))
             .open(open)
             .default_size(vec2(512.0, 256.0))
             .vscroll(false)

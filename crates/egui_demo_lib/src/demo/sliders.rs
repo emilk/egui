@@ -44,7 +44,7 @@ impl crate::Demo for Sliders {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .resizable(false)
             .constrain_to(ui.available_rect_before_wrap())

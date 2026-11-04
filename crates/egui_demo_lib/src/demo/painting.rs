@@ -79,7 +79,7 @@ impl crate::Demo for Painting {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        Window::new(self.name())
+        Window::new(crate::i18n::t(self.name()))
             .open(open)
             .default_size(vec2(512.0, 512.0))
             .vscroll(false)

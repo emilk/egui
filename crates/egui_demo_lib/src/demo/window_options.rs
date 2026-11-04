@@ -1,3 +1,4 @@
+use crate::i18n;
 use egui::{UiKind, Vec2b, WindowDrag};
 
 #[derive(Clone, PartialEq)]
@@ -68,7 +69,9 @@ impl crate::Demo for WindowOptions {
         }
 
         use crate::View as _;
-        let mut window = egui::Window::new(title)
+        // The editable title field keeps its English value; the window title itself
+        // shows the translated name (the id is pinned, since the title can change).
+        let mut window = egui::Window::new(i18n::t(&title))
             .id(egui::Id::unique("demo_window_options")) // required since we change the title
             .resizable(resizable)
             .constrain_to(ui.available_rect_before_wrap())
@@ -107,7 +110,7 @@ impl crate::View for WindowOptions {
             drag_area,
         } = self;
         ui.horizontal(|ui| {
-            let label = ui.label("title:");
+            let label = ui.label(i18n::t("title:"));
             ui.text_edit_singleline(title).labelled_by(label.id);
         });
 
@@ -118,10 +121,10 @@ impl crate::View for WindowOptions {
                     ui.checkbox(closable, "closable");
                     ui.checkbox(collapsible, "collapsible");
                     ui.checkbox(movable, "movable")
-                        .on_hover_text("Can the window be moved by dragging?");
+                        .on_hover_text(i18n::t("Can the window be moved by dragging?"));
                     ui.checkbox(resizable, "resizable");
                     ui.checkbox(constrain, "constrain")
-                        .on_hover_text("Constrain window to the screen");
+                        .on_hover_text(i18n::t("Constrain window to the screen"));
                     ui.checkbox(&mut scroll2[0], "hscroll");
                     ui.checkbox(&mut scroll2[1], "vscroll");
                 });
@@ -134,53 +137,62 @@ impl crate::View for WindowOptions {
                     }
                     ui.horizontal(|ui| {
                         ui.label("x:");
-                        ui.selectable_value(&mut anchor[0], egui::Align::LEFT, "Left");
-                        ui.selectable_value(&mut anchor[0], egui::Align::Center, "Center");
-                        ui.selectable_value(&mut anchor[0], egui::Align::RIGHT, "Right");
+                        ui.selectable_value(&mut anchor[0], egui::Align::LEFT, i18n::t("Left"));
+                        ui.selectable_value(&mut anchor[0], egui::Align::Center, i18n::t("Center"));
+                        ui.selectable_value(&mut anchor[0], egui::Align::RIGHT, i18n::t("Right"));
                     });
                     ui.horizontal(|ui| {
                         ui.label("y:");
-                        ui.selectable_value(&mut anchor[1], egui::Align::TOP, "Top");
-                        ui.selectable_value(&mut anchor[1], egui::Align::Center, "Center");
-                        ui.selectable_value(&mut anchor[1], egui::Align::BOTTOM, "Bottom");
+                        ui.selectable_value(&mut anchor[1], egui::Align::TOP, i18n::t("Top"));
+                        ui.selectable_value(&mut anchor[1], egui::Align::Center, i18n::t("Center"));
+                        ui.selectable_value(&mut anchor[1], egui::Align::BOTTOM, i18n::t("Bottom"));
                     });
                     ui.horizontal(|ui| {
-                        ui.label("Offset:");
+                        ui.label(i18n::t("Offset:"));
                         ui.add(egui::DragValue::new(&mut anchor_offset.x))
-                            .on_hover_text("Offset x");
+                            .on_hover_text(i18n::t("Offset x"));
                         ui.add(egui::DragValue::new(&mut anchor_offset.y))
-                            .on_hover_text("Offset y");
+                            .on_hover_text(i18n::t("Offset y"));
                     });
                 });
             });
         });
 
         ui.horizontal(|ui| {
-            ui.label("Drag to move:")
-                .on_hover_text("Where the user can grab the window to move it");
-            ui.selectable_value(drag_area, WindowDrag::Off, "Off")
-                .on_hover_text("The window cannot be dragged to move it (same as movable = false)");
+            ui.label(i18n::t("Drag to move:"))
+                .on_hover_text(i18n::t("Where the user can grab the window to move it"));
+            ui.selectable_value(drag_area, WindowDrag::Off, i18n::t("Off"))
+                .on_hover_text(i18n::t(
+                    "The window cannot be dragged to move it (same as movable = false)",
+                ));
             ui.selectable_value(drag_area, WindowDrag::OnTouch, "OnTouch")
-                .on_hover_text("Anywhere on touch screens, title-bar only otherwise (default)");
+                .on_hover_text(i18n::t(
+                    "Anywhere on touch screens, title-bar only otherwise (default)",
+                ));
             ui.selectable_value(drag_area, WindowDrag::TitleBar, "TitleBar")
-                .on_hover_text("Only the title bar moves the window");
-            ui.selectable_value(drag_area, WindowDrag::Anywhere, "Anywhere")
-                .on_hover_text("Drag anywhere on the window to move it");
+                .on_hover_text(i18n::t("Only the title bar moves the window"));
+            ui.selectable_value(drag_area, WindowDrag::Anywhere, i18n::t("Anywhere"))
+                .on_hover_text(i18n::t("Drag anywhere on the window to move it"));
         });
 
         ui.separator();
         let on_top = Some(ui.layer_id()) == ui.ctx().top_layer_id();
-        ui.label(format!("This window is on top: {on_top}."));
+        // The `{on_top}` placeholder is filled by `i18n::fmt`, not by `format!`.
+        #[expect(clippy::literal_string_with_formatting_args)]
+        ui.label(i18n::fmt(
+            i18n::t("This window is on top: {on_top}."),
+            &[("on_top", on_top.to_string().as_str())],
+        ));
 
         ui.separator();
         ui.horizontal(|ui| {
-            if ui.button("Disable for 2 seconds").clicked() {
+            if ui.button(i18n::t("Disable for 2 seconds")).clicked() {
                 self.disabled_time = ui.input(|i| i.time);
             }
-            egui::reset_button(ui, self, "Reset");
+            egui::reset_button(ui, self, i18n::t("Reset"));
             if ui
-                .button("Close")
-                .on_hover_text("You can collapse / close Windows via Ui::close")
+                .button(i18n::t("Close"))
+                .on_hover_text(i18n::t("You can collapse / close Windows via Ui::close"))
                 .clicked()
             {
                 // Calling close would close the collapsible within the window

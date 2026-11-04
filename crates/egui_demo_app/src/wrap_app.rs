@@ -319,6 +319,17 @@ impl eframe::App for WrapApp {
             ui.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!fullscreen));
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // The native window title follows the language too: `main.rs` seeds it in English
+            // before the persisted language is known, so refresh it once it differs.
+            let title = i18n::t("egui demo app");
+            let current_title = ui.input(|i| i.viewport().title.clone());
+            if current_title.as_deref() != Some(title) {
+                ui.send_viewport_cmd(egui::ViewportCommand::Title(title.to_owned()));
+            }
+        }
+
         let mut cmd = Command::Nothing;
         egui::Panel::top("wrap_app_top_bar")
             .frame(egui::Frame::new().inner_margin(4))

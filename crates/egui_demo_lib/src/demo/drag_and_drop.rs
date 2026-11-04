@@ -1,3 +1,4 @@
+use crate::i18n;
 use egui::{Color32, Frame, Id, Ui, Window, vec2};
 
 #[derive(Clone, PartialEq, Eq)]
@@ -29,7 +30,7 @@ impl crate::Demo for DragAndDropDemo {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        Window::new(self.name())
+        Window::new(i18n::t(self.name()))
             .open(open)
             .default_size(vec2(256.0, 256.0))
             .vscroll(false)
@@ -48,8 +49,10 @@ struct Location {
 
 impl crate::View for DragAndDropDemo {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.label("This is a simple example of drag-and-drop in egui.");
-        ui.label("Drag items between columns.");
+        ui.label(i18n::t(
+            "This is a simple example of drag-and-drop in egui.",
+        ));
+        ui.label(i18n::t("Drag items between columns."));
 
         // If there is a drop, store the location of the item being dragged, and the destination for the drop.
         let mut from = None;
@@ -69,9 +72,11 @@ impl crate::View for DragAndDropDemo {
                             col: col_idx,
                             row: row_idx,
                         };
+                        // The stored item names are structural labels, not edited content, so
+                        // they are translated at render time (the id keeps the English name).
                         let response = ui
                             .dnd_drag_source(item_id, item_location, |ui| {
-                                ui.label(item);
+                                ui.label(i18n::t(item));
                             })
                             .response;
 

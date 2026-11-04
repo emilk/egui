@@ -31,7 +31,7 @@ impl crate::Demo for Scrolling {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .resizable(true)
             .hscroll(false)

@@ -125,7 +125,7 @@ impl crate::Demo for TessellationTest {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .resizable(false)
             .open(open)
             .constrain_to(ui.available_rect_before_wrap())
