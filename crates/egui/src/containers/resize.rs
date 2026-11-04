@@ -210,6 +210,14 @@ struct Prepared {
     /// not from `content_ui.min_rect()`, which is anchored on the content's first
     /// widget (and so is wrong whenever the container is wider than its content).
     anchor: Pos2,
+
+    /// Whether a resize drag is in flight this frame: the pointer is dragging the
+    /// corner grip, or a [`crate::Window`] edge drag stored a `requested_size` that
+    /// this frame's `begin` consumed. While it is, `end` must not re-pin
+    /// `desired_size` up to `last_content_size` — the user asked for a smaller size,
+    /// and the stale content size (measured before the drag, or one frame behind it)
+    /// would clamp the shrink back up.
+    actively_resizing: bool,
 }
 
 impl Resize {
@@ -343,6 +351,7 @@ impl Resize {
             content_ui,
             sizing_pass: needs_sizing_pass,
             anchor,
+            actively_resizing: is_actively_resizing,
         }
     }
 
@@ -361,6 +370,7 @@ impl Resize {
             content_ui,
             sizing_pass,
             anchor,
+            actively_resizing,
         } = prepared;
 
         let rtl = ui.is_rtl();
@@ -382,7 +392,17 @@ impl Resize {
                 // We show how large we are,
                 // so we must follow the contents:
 
-                state.desired_size[d] = state.desired_size[d].max(state.last_content_size[d]);
+                // Grow-only re-pin, on idle frames only: while a drag is in flight the
+                // user asked for a (possibly smaller) size and the clamp above it in
+                // `begin` already bounded it, so re-pinning to `last_content_size` would
+                // feed the shrink back up — on the sizing-pass frame to the stale
+                // pre-drag size, on later drag frames to the previous (larger) frame.
+                // The sizing pass only ever runs on an actively resizing frame, so this
+                // gate also keeps the stale measurement off that frame. Idle frames keep
+                // growing to fit the content.
+                if !actively_resizing {
+                    state.desired_size[d] = state.desired_size[d].max(state.last_content_size[d]);
+                }
 
                 // We are as large as we look
                 size[d] = state.desired_size[d];

@@ -728,8 +728,25 @@ impl Window<'_> {
             resize::State::load(ctx, resize_id).is_some_and(|state| state.requested_size.is_some());
         let rtl = area_content_ui.is_rtl();
 
+        // Seed the measured `min_rect` of the two vertical uis that wrap the body on
+        // its reading-start corner. Under RTL the body claims its rect from the
+        // reading-start (right) edge — the `Resize` container is anchored there and the
+        // title-bar atoms mirror — while a vertical `Align::Min` ui seeds its measured
+        // `min_rect` at the left edge, so the measurement would span from the stale left
+        // edge to the content's right edge: the offered width. The window's persisted
+        // size (`Area::end` stores `content_ui.min_size()`) could then never shrink.
+        // Seeding at the reading-start corner makes the measurement hug the
+        // right-anchored content. Measurement only — the content is already laid out
+        // there — and LTR is untouched.
+        if rtl {
+            seed_min_rect_at_reading_start(&mut area_content_ui);
+        }
+
         let content_inner = {
             let outer_response = window_frame.show(&mut area_content_ui, |ui| {
+                if rtl {
+                    seed_min_rect_at_reading_start(ui);
+                }
                 resize.show(ui, |ui| {
                     if with_title_bar {
                         title_ui(
@@ -848,6 +865,21 @@ impl Window<'_> {
         };
         Some(inner_response)
     }
+}
+
+/// Seed the measured `min_rect` of a window-body ui on its reading-start corner.
+///
+/// A vertical `Align::Min` ui starts measuring from a zero-size rect at its
+/// `cross_align` (left) edge, while the window body under RTL claims its rect
+/// from the reading-start (right) edge; left-seeded, the measured size would
+/// span the whole offered width and the window could never shrink. See the
+/// call site for the full picture.
+fn seed_min_rect_at_reading_start(ui: &mut Ui) {
+    let max_rect = ui.max_rect();
+    ui.force_set_min_rect(Rect::from_center_size(
+        pos2(max_rect.right(), max_rect.top()),
+        Vec2::ZERO,
+    ));
 }
 
 fn paint_resize_corner(
