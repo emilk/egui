@@ -26,7 +26,7 @@ impl crate::Demo for SceneDemo {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        egui::Window::new("Scene")
+        egui::Window::new(crate::i18n::t("Scene"))
             .default_width(300.0)
             .default_height(300.0)
             .scroll(false)
@@ -38,13 +38,13 @@ impl crate::Demo for SceneDemo {
 
 impl crate::View for SceneDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.label(
+        ui.label(crate::i18n::t(
             "You can pan by scrolling, and zoom using cmd-scroll. \
             Double click on the background to reset view.",
-        );
+        ));
         ui.checkbox(
             &mut self.scroll_zooms,
-            "Change mousewheel behavior to zoom instead of scroll",
+            crate::i18n::t("Change mousewheel behavior to zoom instead of scroll"),
         );
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
@@ -67,7 +67,7 @@ impl crate::View for SceneDemo {
                 let mut inner_rect = Rect::NAN;
                 let response = scene
                     .show(ui, &mut self.scene_rect, |ui| {
-                        reset_view = ui.button("Reset view").clicked();
+                        reset_view = ui.button(crate::i18n::t("Reset view")).clicked();
 
                         ui.add_space(16.0);
 
@@ -75,7 +75,8 @@ impl crate::View for SceneDemo {
 
                         ui.put(
                             Rect::from_min_size(Pos2::new(0.0, -64.0), Vec2::new(200.0, 16.0)),
-                            egui::Label::new("You can put a widget anywhere").selectable(false),
+                            egui::Label::new(crate::i18n::t("You can put a widget anywhere"))
+                                .selectable(false),
                         );
 
                         inner_rect = ui.min_rect();

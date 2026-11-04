@@ -47,7 +47,7 @@ impl crate::View for StripDemo {
                         0.0,
                         faded_color(Color32::BLUE),
                     );
-                    ui.label("width: 100%\nheight: 50px");
+                    ui.label(crate::i18n::t("width: 100%\nheight: 50px"));
                 });
                 strip.strip(|builder| {
                     builder.sizes(Size::remainder(), 2).horizontal(|mut strip| {
@@ -57,7 +57,7 @@ impl crate::View for StripDemo {
                                 0.0,
                                 faded_color(Color32::RED),
                             );
-                            ui.label("width: 50%\nheight: remaining");
+                            ui.label(crate::i18n::t("width: 50%\nheight: remaining"));
                         });
                         strip.strip(|builder| {
                             builder.sizes(Size::remainder(), 3).vertical(|mut strip| {
@@ -68,7 +68,9 @@ impl crate::View for StripDemo {
                                         0.0,
                                         faded_color(Color32::YELLOW),
                                     );
-                                    ui.label("width: 50%\nheight: 1/3 of the red region");
+                                    ui.label(crate::i18n::t(
+                                        "width: 50%\nheight: 1/3 of the red region",
+                                    ));
                                 });
                                 strip.empty();
                             });
@@ -96,7 +98,7 @@ impl crate::View for StripDemo {
                                                 0.0,
                                                 faded_color(Color32::GOLD),
                                             );
-                                            ui.label("width: 120px\nheight: 60px");
+                                            ui.label(crate::i18n::t("width: 120px\nheight: 60px"));
                                         });
                                     });
                             });
@@ -107,7 +109,9 @@ impl crate::View for StripDemo {
                                     0.0,
                                     faded_color(Color32::GREEN),
                                 );
-                                ui.label("width: 70px\n\nheight: 50%, but at least 60px.");
+                                ui.label(crate::i18n::t(
+                                    "width: 70px\n\nheight: 50%, but at least 60px.",
+                                ));
                             });
                         });
                 });

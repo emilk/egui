@@ -72,7 +72,9 @@ impl crate::View for Sliders {
             handle_shape,
         } = self;
 
-        ui.label("You can click a slider value to edit it with the keyboard.");
+        ui.label(crate::i18n::t(
+            "You can click a slider value to edit it with the keyboard.",
+        ));
 
         let (type_min, type_max) = if *integer {
             ((i32::MIN as f64), (i32::MAX as f64))
@@ -100,7 +102,7 @@ impl crate::View for Sliders {
                     .clamping(*clamping)
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
-                    .text("i32 demo slider")
+                    .text(crate::i18n::t("i32 demo slider"))
                     .step_by(istep)
                     .trailing_fill(*trailing_fill)
                     .handle_shape(*handle_shape),
@@ -113,30 +115,30 @@ impl crate::View for Sliders {
                     .clamping(*clamping)
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
-                    .text("f64 demo slider")
+                    .text(crate::i18n::t("f64 demo slider"))
                     .step_by(istep)
                     .trailing_fill(*trailing_fill)
                     .handle_shape(*handle_shape),
             );
 
-            ui.label(
+            ui.label(crate::i18n::t(
                 "Sliders will intelligently pick how many decimals to show. \
                 You can always see the full precision value by hovering the value.",
-            );
+            ));
 
-            if ui.button("Assign PI").clicked() {
+            if ui.button(crate::i18n::t("Assign PI")).clicked() {
                 self.value = core::f64::consts::PI;
             }
         }
 
         ui.separator();
 
-        ui.label("Slider range:");
+        ui.label(crate::i18n::t("Slider range:"));
         ui.add(
             Slider::new(min, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
-                .text("left")
+                .text(crate::i18n::t("left"))
                 .trailing_fill(*trailing_fill)
                 .handle_shape(*handle_shape),
         );
@@ -144,15 +146,17 @@ impl crate::View for Sliders {
             Slider::new(max, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
-                .text("right")
+                .text(crate::i18n::t("right"))
                 .trailing_fill(*trailing_fill)
                 .handle_shape(*handle_shape),
         );
 
         ui.separator();
 
-        ui.checkbox(trailing_fill, "Toggle trailing color");
-        ui.label("When enabled, trailing color will be painted up until the handle.");
+        ui.checkbox(trailing_fill, crate::i18n::t("Toggle trailing color"));
+        ui.label(crate::i18n::t(
+            "When enabled, trailing color will be painted up until the handle.",
+        ));
 
         ui.separator();
 
@@ -160,8 +164,10 @@ impl crate::View for Sliders {
 
         ui.separator();
 
-        ui.checkbox(use_steps, "Use steps");
-        ui.label("When enabled, the minimal value change would be restricted to a given step.");
+        ui.checkbox(use_steps, crate::i18n::t("Use steps"));
+        ui.label(crate::i18n::t(
+            "When enabled, the minimal value change would be restricted to a given step.",
+        ));
         if *use_steps {
             ui.add(egui::DragValue::new(step).speed(1.0));
         }
@@ -169,41 +175,53 @@ impl crate::View for Sliders {
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.label("Slider type:");
+            ui.label(crate::i18n::t("Slider type:"));
             ui.radio_value(integer, true, "i32");
             ui.radio_value(integer, false, "f64");
         })
         .response
-        .on_hover_text("All numeric types (f32, usize, …) are supported.");
+        .on_hover_text(crate::i18n::t(
+            "All numeric types (f32, usize, …) are supported.",
+        ));
 
         ui.horizontal(|ui| {
-            ui.label("Slider orientation:");
-            ui.radio_value(vertical, false, "Horizontal");
-            ui.radio_value(vertical, true, "Vertical");
+            ui.label(crate::i18n::t("Slider orientation:"));
+            ui.radio_value(vertical, false, crate::i18n::t("Horizontal"));
+            ui.radio_value(vertical, true, crate::i18n::t("Vertical"));
         });
         ui.add_space(8.0);
 
-        ui.checkbox(logarithmic, "Logarithmic");
-        ui.label("Logarithmic sliders are great for when you want to span a huge range, i.e. from zero to a million.");
-        ui.label("Logarithmic sliders can include infinity and zero.");
+        ui.checkbox(logarithmic, crate::i18n::t("Logarithmic"));
+        ui.label(crate::i18n::t(
+            "Logarithmic sliders are great for when you want to span a huge range, i.e. from zero to a million.",
+        ));
+        ui.label(crate::i18n::t(
+            "Logarithmic sliders can include infinity and zero.",
+        ));
         ui.add_space(8.0);
 
         ui.horizontal(|ui| {
-            ui.label("Clamping:");
-            ui.selectable_value(clamping, SliderClamping::Never, "Never");
-            ui.selectable_value(clamping, SliderClamping::Edits, "Edits");
-            ui.selectable_value(clamping, SliderClamping::Always, "Always");
+            ui.label(crate::i18n::t("Clamping:"));
+            ui.selectable_value(clamping, SliderClamping::Never, crate::i18n::t("Never"));
+            ui.selectable_value(clamping, SliderClamping::Edits, crate::i18n::t("Edits"));
+            ui.selectable_value(clamping, SliderClamping::Always, crate::i18n::t("Always"));
         });
-        ui.label("If true, the slider will clamp incoming and outgoing values to the given range.");
-        ui.label("If false, the slider can show values outside its range, and you cannot enter new values outside the range.");
+        ui.label(crate::i18n::t(
+            "If true, the slider will clamp incoming and outgoing values to the given range.",
+        ));
+        ui.label(crate::i18n::t(
+            "If false, the slider can show values outside its range, and you cannot enter new values outside the range.",
+        ));
         ui.add_space(8.0);
 
-        ui.checkbox(smart_aim, "Smart Aim");
-        ui.label("Smart Aim will guide you towards round values when you drag the slider so you you are more likely to hit 250 than 247.23");
+        ui.checkbox(smart_aim, crate::i18n::t("Smart Aim"));
+        ui.label(crate::i18n::t(
+            "Smart Aim will guide you towards round values when you drag the slider so you you are more likely to hit 250 than 247.23",
+        ));
         ui.add_space(8.0);
 
         ui.vertical_centered(|ui| {
-            egui::reset_button(ui, self, "Reset");
+            egui::reset_button(ui, self, crate::i18n::t("Reset"));
             ui.add(crate::egui_github_link_file!());
         });
     }
