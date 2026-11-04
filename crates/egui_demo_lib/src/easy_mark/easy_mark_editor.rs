@@ -1,3 +1,4 @@
+use crate::i18n;
 use egui::{
     Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui, text::CCursorRange,
 };
@@ -47,10 +48,10 @@ impl EasyMarkEditor {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         egui::Grid::new("controls").show(ui, |ui| {
-            let _response = ui.button("Hotkeys").on_hover_ui(nested_hotkeys_ui);
-            ui.checkbox(&mut self.show_rendered, "Show rendered");
-            ui.checkbox(&mut self.highlight_editor, "Highlight editor");
-            egui::reset_button(ui, self, "Reset");
+            let _response = ui.button(i18n::t("Hotkeys")).on_hover_ui(nested_hotkeys_ui);
+            ui.checkbox(&mut self.show_rendered, i18n::t("Show rendered"));
+            ui.checkbox(&mut self.highlight_editor, i18n::t("Highlight editor"));
+            egui::reset_button(ui, self, i18n::t("Reset"));
             ui.end_row();
         });
         ui.separator();
@@ -88,7 +89,7 @@ impl EasyMarkEditor {
 
             ui.add(
                 egui::TextEdit::multiline(code)
-                    .hint_text("EasyMark source")
+                    .hint_text(i18n::t("EasyMark source"))
                     .desired_width(f32::INFINITY)
                     .font(egui::TextStyle::Monospace) // for cursor height
                     .layouter(&mut layouter),
@@ -96,7 +97,7 @@ impl EasyMarkEditor {
         } else {
             ui.add(
                 egui::TextEdit::multiline(code)
-                    .hint_text("EasyMark source")
+                    .hint_text(i18n::t("EasyMark source"))
                     .desired_width(f32::INFINITY),
             )
         };
@@ -134,6 +135,8 @@ fn nested_hotkeys_ui(ui: &mut egui::Ui) {
             ui.end_row();
         };
 
+        // The left column shows the EasyMark markup literals themselves: they are markup, not
+        // chrome, so they stay English (like the source code they illustrate).
         label(SHORTCUT_BOLD, "*bold*");
         label(SHORTCUT_CODE, "`code`");
         label(SHORTCUT_ITALICS, "/italics/");
@@ -141,7 +144,7 @@ fn nested_hotkeys_ui(ui: &mut egui::Ui) {
         label(SHORTCUT_SUPERSCRIPT, "^superscript^");
         label(SHORTCUT_STRIKETHROUGH, "~strikethrough~");
         label(SHORTCUT_UNDERLINE, "_underline_");
-        label(SHORTCUT_INDENT, "two spaces"); // Placeholder for tab indent
+        label(SHORTCUT_INDENT, i18n::t("two spaces")); // Placeholder for tab indent
     });
 }
 
@@ -207,6 +210,8 @@ fn toggle_surrounding(
 
 // ----------------------------------------------------------------------------
 
+/// The `EasyMark` sample document. It is a code sample rendered as content, not chrome, so it
+/// stays English (never passed through [`crate::i18n::t`]).
 const DEFAULT_CODE: &str = r#"
 # EasyMark
 EasyMark is a markup language, designed for extreme simplicity.
