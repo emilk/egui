@@ -217,6 +217,13 @@ struct Prepared {
     /// `desired_size` up to `last_content_size` — the user asked for a smaller size,
     /// and the stale content size (measured before the drag, or one frame behind it)
     /// would clamp the shrink back up.
+    ///
+    /// Accepted trade-off: honoring the requested size means that while the drag is in
+    /// flight, content that outgrows it (e.g. wrapped text getting taller as the container
+    /// narrows) paints past the container rect — the clip rect deliberately still covers the
+    /// previous size — until the release frame's idle re-pin grows the container back.
+    /// Transient and self-healing, and [`crate::Window`]s are unaffected (they render at
+    /// `last_content_size`).
     actively_resizing: bool,
 }
 
@@ -377,8 +384,6 @@ impl Resize {
 
         if sizing_pass {
             // Remember the measured minimum so we can clamp the user's drag on subsequent frames.
-            // Don't touch `last_content_size`, it should keep reflecting the previously
-            // rendered content.
             state.min_content_width = Some(content_ui.min_size().x);
         } else {
             state.last_content_size = content_ui.min_size();
@@ -407,9 +412,26 @@ impl Resize {
                 // We are as large as we look
                 size[d] = state.desired_size[d];
             } else {
-                // Probably a window.
-                size[d] = state.last_content_size[d];
+                // Probably a window. On the sizing pass the freshly measured content size is
+                // the squished sizing layout (see the seed below), not what the window will
+                // present next — present the requested size instead.
+                size[d] = if sizing_pass {
+                    state.desired_size[d]
+                } else {
+                    state.last_content_size[d]
+                };
             }
+        }
+
+        // The sizing pass rendered the content squished (and discarded), so its measurement
+        // must not become the remembered content size. What the container will present next
+        // is `desired_size` as of here — the user's request as clamped by `min_content_width`
+        // and `min_size`/`max_size` (and, ungated, the re-pin above). Record it, so the idle
+        // grow-to-content in `begin` cannot feed the stale pre-drag measurement back over the
+        // requested shrink when the drag ends within the sizing pass (e.g. a window edge drag
+        // whose `requested_size` is consumed on the frame the pointer is released).
+        if sizing_pass {
+            state.last_content_size = state.desired_size;
         }
         // The container rect, anchored on the reading-start edge. `content_ui.min_rect()`
         // is anchored where the content's first widget was seeded (the reading-start edge

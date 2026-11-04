@@ -464,14 +464,28 @@ fn shrink_stops_at_content_minimum_width_anchored_edge_fixed() {
 
 // ---------------------------------------------------------------------------
 
-/// T6: the first drag frame reports the requested shrink even when the
-/// discarded sizing pass is the only pass (`max_passes = 1`, as when the
-/// multi-pass budget is consumed by something else in a real frame): the
-/// grow-only `desired_size` re-pin must not clamp the just-requested shrink
-/// back up to the stale pre-drag content size on the sizing-pass frame — with
-/// the active-resize gate in `Resize::end`, the sizing-pass frame's
-/// `desired_size` is exactly the requested size (clamped to min/max). A plain
-/// `Resize` with a width-filling separator is the smallest reproducible shape.
+/// T6: behavioral pin for the corner-grip drag path with `max_passes = 1` (as
+/// when the multi-pass budget is consumed by something else in a real frame):
+/// with the pointer dragging the corner grip, the first frame after the move
+/// already reports the requested shrink, with the reading-start edge fixed, and
+/// the shrunk size survives the release.
+///
+/// This is a behavioral pin, not a causal one: the frame observed here is NOT
+/// the sizing pass. The press frame is (the drag begins with `min_content_width`
+/// still unset), and by the move frame the minimum is cached and
+/// `last_content_size` was freshly refreshed in `end`, so this frame would be
+/// green even without the active-resize gate in `Resize::end`. The gate's
+/// genuinely observable sizing-pass effect is pinned by the two siblings: T7
+/// (`window_edge_drag_requested_shrink_survives_a_final_sizing_pass`) drives
+/// the window edge-drag path, where the consumed `requested_size` arrives from
+/// the previous frame and the first consuming frame is the sizing pass (there
+/// the stale `last_content_size` re-pins through the window render and the idle
+/// grow-to-content, not through the gated re-pin, which only runs for containers
+/// that show how large they are); T8
+/// (`sizing_pass_final_reports_the_requested_shrink_on_a_plain_resize`) drives a
+/// plain `Resize` whose sizing pass is the final pass, where the gated re-pin
+/// itself is what is observed. A plain `Resize` with a width-filling separator
+/// is the smallest reproducible shape.
 #[test]
 fn first_drag_frame_reports_the_requested_shrink_even_without_a_second_pass() {
     const SCREEN: Vec2 = vec2(400.0, 300.0);
@@ -570,5 +584,266 @@ fn first_drag_frame_reports_the_requested_shrink_even_without_a_second_pass() {
             "rtl = {rtl}: the shrunk size must survive the release \
              (dragging {dragging:?}, released {released:?})"
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// T7: the active-resize gate's observable sizing-pass effect, through the
+/// window edge-drag path with the sizing pass as the final pass (`max_passes =
+/// 1`, as when the multi-pass budget is consumed by something else in a real
+/// frame): pressing a window resize corner and moving the pointer inward within
+/// the same frame makes the press frame itself store the shrunk
+/// `requested_size` (`total_drag_delta` includes the intra-frame move), and the
+/// next frame — the release, since no later drag frame rewrites the request —
+/// consumes it as the sizing pass, because the drag's content minimum has not
+/// been measured yet. On that frame the stale pre-drag `last_content_size` must
+/// NOT re-pin the requested shrink back up: after the release, the idle frames
+/// must keep the shrunk size instead of bouncing back to the pre-drag size.
+/// This test pins the `!actively_resizing` gate in `Resize::end` itself; the
+/// corner-grip behavioral twin is T6.
+#[test]
+fn window_edge_drag_requested_shrink_survives_a_final_sizing_pass() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(400.0, 200.0);
+    // Small enough that the intra-frame move stays within the corner grab
+    // square (corner grab radius 10), so the press frame still starts the
+    // window resize drag; large enough that the stale re-pin's bounce back to
+    // the pre-drag size exceeds the assertion tolerance.
+    const DELTA: f32 = 6.0;
+
+    // LTR: press the far (right) bottom corner and move the pointer inward
+    // (leftward) within the same frame, so the press frame stores the shrunk
+    // request; release the next frame, so the frame consuming the request is
+    // the sizing pass:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let win = || shrink_window(pos2(100.0, 50.0), START_SIZE);
+    let before = ltr.settle(0.0, win, width_filling_content);
+    assert!(
+        before.is_positive(),
+        "LTR: the window should be laid out before the drag (got {before:?})"
+    );
+    // From here every frame runs a single pass, so the sizing pass that
+    // consumes the drag's request is the visible, final pass:
+    ltr.ctx.options_mut(|o| o.max_passes = NonZeroUsize::MIN);
+    let grab = pos2(before.right() - 2.0, before.bottom() - 2.0);
+    let moved = grab + vec2(-DELTA, 0.0);
+    ltr.frame_rect(
+        vec![Event::PointerMoved(grab)],
+        1.0,
+        win,
+        width_filling_content,
+    );
+    ltr.frame_rect(
+        vec![pointer_press(grab, true), Event::PointerMoved(moved)],
+        1.1,
+        win,
+        width_filling_content,
+    );
+    ltr.frame_rect(
+        vec![pointer_press(moved, false)],
+        1.2,
+        win,
+        width_filling_content,
+    );
+    let expected_width = before.width() - DELTA;
+    for i in 0..3 {
+        let idle = ltr.frame_rect(vec![], 2.0 + f64::from(i), win, width_filling_content);
+        assert!(
+            (idle.width() - expected_width).abs() <= 1.0,
+            "LTR: after the release the idle frames must keep the shrunk size, not \
+             bounce back to the stale pre-drag size \
+             (before {before:?}, idle frame {i} {idle:?})"
+        );
+        assert!(
+            (idle.left() - before.left()).abs() <= 1.0,
+            "LTR: the reading-start (left) edge must stay fixed \
+             (before {before:?}, idle frame {i} {idle:?})"
+        );
+        assert!(
+            (idle.top() - before.top()).abs() <= 1.0,
+            "LTR: the top edge must stay fixed (before {before:?}, idle frame {i} {idle:?})"
+        );
+    }
+
+    // RTL: press the far (left) bottom corner and move the pointer inward
+    // (rightward) within the same frame; the right (reading-start) edge stays
+    // fixed. The window is placed with slack on its right so the frame that
+    // still renders at the stale pre-drag size (the sizing pass that consumes
+    // the request, positioned at the moved left edge) fits on screen — the
+    // generic on-screen constrain must not come into play:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let win = || shrink_window(pos2(250.0, 50.0), START_SIZE);
+    let before = rtl.settle(0.0, win, width_filling_content);
+    assert!(
+        before.is_positive(),
+        "RTL: the window should be laid out before the drag (got {before:?})"
+    );
+    rtl.ctx.options_mut(|o| o.max_passes = NonZeroUsize::MIN);
+    let grab = pos2(before.left() + 2.0, before.bottom() - 2.0);
+    let moved = grab + vec2(DELTA, 0.0);
+    rtl.frame_rect(
+        vec![Event::PointerMoved(grab)],
+        1.0,
+        win,
+        width_filling_content,
+    );
+    rtl.frame_rect(
+        vec![pointer_press(grab, true), Event::PointerMoved(moved)],
+        1.1,
+        win,
+        width_filling_content,
+    );
+    rtl.frame_rect(
+        vec![pointer_press(moved, false)],
+        1.2,
+        win,
+        width_filling_content,
+    );
+    let expected_width = before.width() - DELTA;
+    for i in 0..3 {
+        let idle = rtl.frame_rect(vec![], 2.0 + f64::from(i), win, width_filling_content);
+        assert!(
+            (idle.width() - expected_width).abs() <= 1.0,
+            "RTL: after the release the idle frames must keep the shrunk size, not \
+             bounce back to the stale pre-drag size \
+             (before {before:?}, idle frame {i} {idle:?})"
+        );
+        assert!(
+            (idle.right() - before.right()).abs() <= 1.0,
+            "RTL: the reading-start (right) edge must stay fixed \
+             (before {before:?}, idle frame {i} {idle:?})"
+        );
+        assert!(
+            (idle.top() - before.top()).abs() <= 1.0,
+            "RTL: the top edge must stay fixed (before {before:?}, idle frame {i} {idle:?})"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// T8: the active-resize gate itself, on a plain `Resize` whose sizing pass is
+/// the final pass (`max_passes = 1`, as when the multi-pass budget is consumed
+/// by something else in a real frame). Pressing the corner grip and moving the
+/// pointer within the same frame makes that very frame the sizing pass that
+/// consumes the shrunk request (the corner response is kept lag-less for the
+/// widget being interacted with, so `begin` already computes the requested
+/// size from the moved pointer). On the sizing-pass frame the grow-only
+/// `desired_size` re-pin — which runs for containers that show how large they
+/// are — must not clamp the just-requested shrink back up to the stale
+/// pre-drag content size: the sizing-pass frame must already report the
+/// requested shrink, with the reading-start edge fixed, and the shrunk size
+/// must survive the release (the corner response keeps carrying the pointer
+/// through the release frame, which re-applies the request and re-measures).
+/// The corner-grip behavioral twin with a second pass is T6; the window
+/// edge-drag twin is T7.
+#[test]
+fn sizing_pass_final_reports_the_requested_shrink_on_a_plain_resize() {
+    const SCREEN: Vec2 = vec2(400.0, 300.0);
+    const START_SIZE: Vec2 = vec2(200.0, 100.0);
+    // Small enough that the intra-frame move stays within the corner grip's
+    // rect, so the press frame still starts the grip drag; large enough that
+    // the stale re-pin's effect exceeds the assertion tolerance.
+    const DELTA: f32 = 4.0;
+
+    for (rtl, delta) in [(false, vec2(-DELTA, 0.0)), (true, vec2(DELTA, 0.0))] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        // One pass per frame: the discarded sizing pass is the visible output,
+        // so the re-pin (or its absence) is observable on the release frame.
+        ctx.options_mut(|o| o.max_passes = NonZeroUsize::MIN);
+
+        let id = Id::unique("sizing_pass_final_shrink");
+
+        let container = |events: Vec<Event>, time: f64| {
+            let output = run(&ctx, input_at(SCREEN, time, events), |ui| {
+                CentralPanel::default().show(ui, |ui| {
+                    egui::Resize::default()
+                        .id(id)
+                        .default_size(START_SIZE)
+                        .show(ui, width_filling_content);
+                });
+            });
+            container_rect_from_shapes(&output)
+        };
+
+        // Settle at the start size, then grab the grip:
+        let mut time = 0.0;
+        let mut prev = container(vec![], time);
+        for _ in 0..8 {
+            time += 0.1;
+            let next = container(vec![], time);
+            if same_rect(next, prev) {
+                break;
+            }
+            prev = next;
+        }
+        assert!(
+            prev.is_positive(),
+            "rtl = {rtl}: the container should be laid out (got {prev:?})"
+        );
+
+        // The grip sits at the reading-end bottom corner (bottom-right in LTR,
+        // bottom-left in RTL); read its real rect from the corner response.
+        let grip_center = ctx
+            .read_response(id.with("__resize_corner"))
+            .map(|corner| corner.rect.center())
+            .filter(|center| prev.contains(*center))
+            .unwrap_or_else(|| {
+                if rtl {
+                    pos2(prev.left() + 8.0, prev.bottom() - 8.0)
+                } else {
+                    pos2(prev.right() - 8.0, prev.bottom() - 8.0)
+                }
+            });
+        time += 1.0;
+        container(vec![Event::PointerMoved(grip_center)], time);
+        // Press and move within the same frame: the corner response is kept
+        // lag-less for the widget being interacted with, so this frame's
+        // `begin` already computes the shrunk request from the moved pointer
+        // and runs the sizing pass on it — with `max_passes = 1` that sizing
+        // pass is the visible pass, so the re-pin (or its absence) is
+        // observable right here:
+        time += 0.1;
+        let moved = grip_center + delta;
+        let dragging = container(
+            vec![pointer_press(grip_center, true), Event::PointerMoved(moved)],
+            time,
+        );
+        let expected_width = START_SIZE.x - DELTA;
+        assert!(
+            (dragging.width() - expected_width).abs() <= 1.0,
+            "rtl = {rtl}: the sizing-pass frame must report the requested shrink \
+             (expected ~{expected_width}, got {dragging:?})"
+        );
+        if rtl {
+            assert!(
+                (dragging.right() - prev.right()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (right) edge must stay fixed on the \
+                 sizing-pass frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        } else {
+            assert!(
+                (dragging.left() - prev.left()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (left) edge must stay fixed on the \
+                 sizing-pass frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        }
+
+        // Release: the corner response keeps carrying the pointer through the
+        // release frame, which re-applies the request and re-measures, so the
+        // shrunk size must stick across idle frames.
+        for i in 0..3 {
+            time += 0.1;
+            let idle = container(vec![], time);
+            assert!(
+                (idle.width() - expected_width).abs() <= 1.0,
+                "rtl = {rtl}: the shrunk size must survive the release \
+                 (dragging {dragging:?}, idle frame {i} {idle:?})"
+            );
+        }
     }
 }
