@@ -1,6 +1,6 @@
 use crate::{
     Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Role, Sense, Shape, Stroke,
-    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, lerp, pos2, vec2,
+    TextStyle, TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, lerp, pos2, vec2,
 };
 
 enum ProgressBarText {
@@ -215,13 +215,20 @@ impl Widget for ProgressBar {
                     f32::INFINITY,
                     TextStyle::Button,
                 );
-                let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y * 0.5)
-                    + vec2(ui.spacing().item_spacing.x, 0.0)
-                    // The galley paints relative to its own rect, so one with a
-                    // non-`Align::LEFT` halign (e.g. a user-supplied `LayoutJob`) paints
-                    // filling its allocated rect, extending left of this position —
-                    // by design, also under pure LTR.
-                    - vec2(galley.rect.left(), 0.0);
+                // The text anchors on the bar's reading-start edge (left under a
+                // left-to-right interface, right under a right-to-left one), mirroring
+                // the fill; see `CollapsingHeader` for the same pattern. The galley
+                // paints relative to its own rect, so one with a non-`Align::LEFT`
+                // halign (e.g. a user-supplied `LayoutJob`) keeps filling its allocated
+                // rect from the anchor.
+                let text_pos = pos2(
+                    ui.reading_start_x(outer_rect, ui.spacing().item_spacing.x),
+                    outer_rect.center().y - galley.size().y * 0.5,
+                ) - if rtl {
+                    vec2(galley.rect.right(), 0.0)
+                } else {
+                    vec2(galley.rect.left(), 0.0)
+                };
                 let text_color = visuals
                     .override_text_color
                     .unwrap_or(visuals.selection.stroke.color);
