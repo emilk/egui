@@ -1,4 +1,5 @@
 use egui::util::History;
+use egui_demo_lib::i18n;
 
 pub struct FrameHistory {
     frame_times: History<f32>,
@@ -33,18 +34,21 @@ impl FrameHistory {
     }
 
     pub fn ui(&self, ui: &mut egui::Ui) {
-        ui.label(format!(
-            "Mean CPU usage: {:.2} ms / frame",
-            1e3 * self.mean_frame_time()
+        let cpu = format!("{:.2}", 1e3 * self.mean_frame_time());
+        // The `{cpu}` placeholder is filled by `i18n::fmt`, not by `format!`.
+        #[expect(clippy::literal_string_with_formatting_args)]
+        ui.label(i18n::fmt(
+            i18n::t("Mean CPU usage: {cpu} ms / frame"),
+            &[("cpu", cpu.as_str())],
         ))
-        .on_hover_text(
+        .on_hover_text(i18n::t(
             "Includes all app logic, egui layout, tessellation, and rendering.\n\
             Does not include waiting for vsync.",
-        );
+        ));
         egui::warn_if_debug_build(ui);
 
         if !cfg!(target_arch = "wasm32") {
-            egui::CollapsingHeader::new("📊 CPU usage history")
+            egui::CollapsingHeader::new(i18n::t("📊 CPU usage history"))
                 .default_open(false)
                 .show(ui, |ui| {
                     self.graph(ui);
@@ -55,7 +59,7 @@ impl FrameHistory {
     fn graph(&self, ui: &mut egui::Ui) -> egui::Response {
         use egui::{Pos2, Rect, Sense, Shape, Stroke, TextStyle, emath, epaint, pos2, vec2};
 
-        ui.label("egui CPU usage history");
+        ui.label(i18n::t("egui CPU usage history"));
 
         let history = &self.frame_times;
 

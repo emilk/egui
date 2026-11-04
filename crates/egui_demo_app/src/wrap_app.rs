@@ -1,4 +1,4 @@
-use egui_demo_lib::{DemoWindows, is_mobile};
+use egui_demo_lib::{DemoWindows, i18n, is_mobile};
 
 #[cfg(feature = "glow")]
 use eframe::glow;
@@ -174,6 +174,9 @@ pub struct State {
 
     selected_anchor: Anchor,
     backend_panel: super::backend_panel::BackendPanel,
+
+    /// The UI language (a code from [`egui_demo_lib::i18n::LANGUAGES`]); empty means English.
+    pub language: String,
 }
 
 /// Wraps many demo/test apps into one.
@@ -293,6 +296,8 @@ impl eframe::App for WrapApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        i18n::set_current(i18n::Lang::from_code(&self.state.language).unwrap_or(i18n::Lang::EN));
+
         #[cfg(target_arch = "wasm32")]
         if let Some(anchor) = frame
             .info()
@@ -383,7 +388,9 @@ impl WrapApp {
         match cmd {
             Command::Nothing => {}
             Command::ResetEverything => {
+                let language = core::mem::take(&mut self.state.language);
                 self.state = Default::default();
+                self.state.language = language;
                 ctx.memory_mut(|mem| *mem = Default::default());
             }
         }
@@ -401,15 +408,15 @@ impl WrapApp {
 
         ui.horizontal(|ui| {
             if ui
-                .button("Reset egui")
-                .on_hover_text("Forget scroll, positions, sizes etc")
+                .button(i18n::t("Reset egui"))
+                .on_hover_text(i18n::t("Forget scroll, positions, sizes etc"))
                 .clicked()
             {
                 ui.memory_mut(|mem| *mem = Default::default());
                 ui.close();
             }
 
-            if ui.button("Reset everything").clicked() {
+            if ui.button(i18n::t("Reset everything")).clicked() {
                 *cmd = Command::ResetEverything;
                 ui.close();
             }
@@ -432,13 +439,25 @@ impl WrapApp {
 
         ui.separator();
 
+        ui.menu_button(i18n::t("🌐 Language"), |ui| {
+            let mut selected =
+                i18n::Lang::from_code(&self.state.language).unwrap_or(i18n::Lang::EN);
+            for lang in i18n::Lang::all() {
+                // Language names are always shown in their own language.
+                ui.radio_value(&mut selected, lang, lang.name());
+            }
+            self.state.language = selected.code().to_owned();
+        });
+
+        ui.separator();
+
         if is_mobile(ui.ctx()) {
-            ui.menu_button("💻 Backend", |ui| {
+            ui.menu_button(i18n::t("💻 Backend"), |ui| {
                 ui.set_style(ui.global_style()); // ignore the "menu" style set by `menu_button`.
                 self.backend_panel_contents(ui, frame, cmd);
             });
         } else {
-            ui.toggle_value(&mut self.state.backend_panel.open, "💻 Backend");
+            ui.toggle_value(&mut self.state.backend_panel.open, i18n::t("💻 Backend"));
         }
 
         ui.separator();
@@ -446,7 +465,7 @@ impl WrapApp {
         let mut selected_anchor = self.state.selected_anchor;
         for (name, anchor, _app) in self.apps_iter_mut() {
             if ui
-                .selectable_label(selected_anchor == anchor, name)
+                .selectable_label(selected_anchor == anchor, i18n::t(name))
                 .clicked()
             {
                 selected_anchor = anchor;
@@ -479,7 +498,7 @@ impl WrapApp {
         // Preview hovering files:
         if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
             let text = ctx.input(|i| {
-                let mut text = "Dropping files:\n".to_owned();
+                let mut text = i18n::t("Dropping files:\n").to_owned();
                 for file in &i.raw.hovered_files {
                     if let Some(path) = &file.path {
                         write!(text, "\n{}", path.display()).ok();
@@ -518,7 +537,7 @@ impl WrapApp {
         // Show dropped files (if any):
         if !self.dropped_files.is_empty() {
             let mut open = true;
-            egui::Window::new("Dropped files")
+            egui::Window::new(i18n::t("Dropped files"))
                 .open(&mut open)
                 .show(ctx, |ui| {
                     for file in &self.dropped_files {

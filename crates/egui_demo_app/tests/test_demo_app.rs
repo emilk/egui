@@ -75,3 +75,24 @@ fn test_demo_app() {
         results.add(harness.try_snapshot(anchor.to_string()));
     }
 }
+
+/// The demo app runs with Arabic selected. Driving the UI by English kittest labels (as
+/// `test_demo_app` does) requires the language to be `en`, so this test only checks that a few
+/// frames render without panicking; it adds no snapshot, because Arabic glyph shapes are
+/// system-font dependent.
+#[test]
+fn test_demo_app_in_arabic() {
+    let mut harness = egui_kittest::Harness::builder()
+        .with_size(Vec2::new(900.0, 600.0))
+        .wgpu()
+        // Arabic glyphs come from installed system fonts, which the test machine may not
+        // have; tofu boxes are fine here, a panic is not.
+        .allow_missing_glyphs()
+        .build_eframe(|cc| {
+            let mut app = WrapApp::new(cc);
+            app.state.language = "ar".to_owned();
+            app
+        });
+
+    harness.run_steps(5);
+}

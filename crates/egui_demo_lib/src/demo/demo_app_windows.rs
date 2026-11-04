@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use super::About;
 use crate::Demo;
 use crate::View as _;
+use crate::i18n;
 use crate::is_mobile;
 use egui::containers::menu;
 use egui::style::StyleModifier;
@@ -33,7 +34,7 @@ impl DemoGroup {
         for demo in demos {
             if demo.is_enabled(ui.ctx()) {
                 let mut is_open = open.contains(demo.name());
-                ui.toggle_value(&mut is_open, demo.name());
+                ui.toggle_value(&mut is_open, i18n::t(demo.name()));
                 set_open(open, demo.name(), is_open);
             }
         }
@@ -130,7 +131,7 @@ impl DemoGroups {
     pub fn about_egui_checkbox(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
         let Self { about, .. } = self;
         let mut is_open = open.contains(about.name());
-        ui.toggle_value(&mut is_open, about.name());
+        ui.toggle_value(&mut is_open, i18n::t(about.name()));
         set_open(open, about.name(), is_open);
     }
 
@@ -142,14 +143,14 @@ impl DemoGroups {
         } = self;
 
         ui.vertical_centered(|ui| {
-            ui.strong("Demos");
+            ui.strong(i18n::t("Demos"));
         });
         demos.checkboxes(ui, open);
 
         ui.separator();
 
         ui.vertical_centered(|ui| {
-            ui.strong("Tests");
+            ui.strong(i18n::t("Tests"));
         });
         tests.checkboxes(ui, open);
     }
@@ -247,7 +248,9 @@ impl DemoWindows {
                     ui.add_space(12.0);
                     ui.vertical_centered_justified(|ui| {
                         if ui
-                            .button(egui::RichText::new("Continue to the demo!").size(20.0))
+                            .button(
+                                egui::RichText::new(i18n::t("Continue to the demo!")).size(20.0),
+                            )
                             .clicked()
                         {
                             close = true;
@@ -271,9 +274,12 @@ impl DemoWindows {
                 .ui(ui, |ui| {
                     let font_size = 16.5;
 
-                    ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
-                        self.demo_list_ui(ui);
-                    });
+                    ui.menu_button(
+                        egui::RichText::new(i18n::t("⏷ demos")).size(font_size),
+                        |ui| {
+                            self.demo_list_ui(ui);
+                        },
+                    );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         use egui::special_emojis::GITHUB;
@@ -330,7 +336,7 @@ impl DemoWindows {
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
                 self.groups.checkboxes(ui, &mut self.open);
                 ui.separator();
-                if ui.button("Organize windows").clicked() {
+                if ui.button(i18n::t("Organize windows")).clicked() {
                     ui.memory_mut(|mem| mem.reset_areas());
                 }
                 ui.add_space(4.0);
@@ -358,24 +364,29 @@ fn file_menu_button(ui: &mut Ui) {
         ui.memory_mut(|mem| *mem = Default::default());
     }
 
-    ui.menu_button("File", |ui| {
+    ui.menu_button(i18n::t("File"), |ui| {
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
         // On the web the browser controls the zoom
         #[cfg(not(target_arch = "wasm32"))]
         {
             egui::gui_zoom::zoom_menu_buttons(ui);
-            ui.weak(format!(
-                "Current zoom: {:.0}%",
-                100.0 * ui.ctx().zoom_factor()
+            let zoom = format!("{:.0}", 100.0 * ui.ctx().zoom_factor());
+            // The `{zoom}` placeholder is filled by `i18n::fmt`, not by `format!`.
+            #[expect(clippy::literal_string_with_formatting_args)]
+            ui.weak(i18n::fmt(
+                i18n::t("Current zoom: {zoom}%"),
+                &[("zoom", zoom.as_str())],
             ))
-            .on_hover_text("The UI zoom level, on top of the operating system's default value");
+            .on_hover_text(i18n::t(
+                "The UI zoom level, on top of the operating system's default value",
+            ));
             ui.separator();
         }
 
         if ui
             .add(
-                egui::Button::new("Organize Windows")
+                egui::Button::new(i18n::t("Organize Windows"))
                     .shortcut_text(ui.ctx().format_shortcut(&organize_shortcut)),
             )
             .clicked()
@@ -385,10 +396,10 @@ fn file_menu_button(ui: &mut Ui) {
 
         if ui
             .add(
-                egui::Button::new("Reset egui memory")
+                egui::Button::new(i18n::t("Reset egui memory"))
                     .shortcut_text(ui.ctx().format_shortcut(&reset_shortcut)),
             )
-            .on_hover_text("Forget scroll, positions, sizes etc")
+            .on_hover_text(i18n::t("Forget scroll, positions, sizes etc"))
             .clicked()
         {
             ui.memory_mut(|mem| *mem = Default::default());
