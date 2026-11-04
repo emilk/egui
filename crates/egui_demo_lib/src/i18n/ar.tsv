@@ -859,3 +859,65 @@
 	Highlight editor	تمييز المحرر
 	EasyMark source	مصدر EasyMark
 	two spaces	فراغان
+# rendering_test.rs — the Rendering test window (ColorTest): intro, structure and headings
+	This is made to test that the egui rendering backend is set up correctly.	الغرض من هذا الاختبار هو التأكد من إعداد محرّك تصيير egui بشكل صحيح.
+	The texture sampling should be sRGB-aware, and every other color operation should be done in gamma-space (sRGB). All colors should use pre-multiplied alpha	يجب أن يكون أخذ عينات النسيج واعيًا بـ sRGB، وأن تُجرى كل عمليات الألوان الأخرى في فضاء غاما (sRGB)، وأن تستخدم كل الألوان ألفا مضروبة مسبقًا
+	Color test	اختبار الألوان
+	Text rendering	عرض النص
+	Pixel alignment test	اختبار محاذاة البكسل
+	If anything is blurry, then everything will be blurry, including text.	إذا بدا أي شيء ضبابيًا فسيكون كل شيء ضبابيًا، بما في ذلك النص.
+	You might need a magnifying glass to check this test.	قد تحتاج إلى عدسة مكبّرة لفحص هذا الاختبار.
+	Make sure these test pass even when you zoom in/out and resize the browser.	تأكد من نجاح هذه الاختبارات حتى عند التكبير/التصغير وتغيير حجم المتصفح.
+# rendering_test.rs — the color test: gradients, ground truths and blend labels
+	If the rendering is done right, all groups of gradients will look uniform.	إذا كان التصيير صحيحًا فستبدو كل مجموعات التدرجات متجانسة.
+	Vertex gradients	تدرجات الرؤوس
+	Texture gradients	تدرجات النسيج
+	sRGB color test	اختبار ألوان sRGB
+	Use a color picker to ensure this color is (255, 165, 0) / #ffa500	استخدم منتقي الألوان للتأكد من أن هذا اللون هو (255, 165, 0) / #ffa500
+	orange rgb(255, 165, 0) - vertex	برتقالي rgb(255, 165, 0) - رؤوس
+	orange rgb(255, 165, 0) - texture	برتقالي rgb(255, 165, 0) - نسيج
+	Test that vertex color times texture color is done in gamma space:	اختبر أن ضرب لون الرأس في لون النسيج يُجرى في فضاء غاما:
+	texture	نسيج
+	 vertex color =	 لون الرؤوس =
+	Ground truth (vertices)	الحقيقة المرجعية (رؤوس)
+	Ground truth (texture)	الحقيقة المرجعية (نسيج)
+	A texture that is {n} texels wide	نسيج عرضه {n} تكسل
+	GPU result	نتيجة GPU
+	Test that blending is done in gamma space:	اختبر أن المزج يُجرى في فضاء غاما:
+	Background:	الخلفية:
+	, foreground: 	، المقدمة: 
+	Vertex blending	مزج الرؤوس
+	Texture blending	مزج النسيج
+	Gamma interpolation:	استيفاء غاما:
+	Additive blending: add more and more blue to the red background:	المزج الجمعي: إضافة المزيد والمزيد من الأزرق إلى الخلفية الحمراء:
+	Texture interpolation (texture sampling) should be in gamma space:	يجب أن يكون استيفاء النسيج (أخذ عينات النسيج) في فضاء غاما:
+	gradient	تدرج
+	Ground Truth (CPU gradient) - vertices	الحقيقة المرجعية (تدرج CPU) - رؤوس
+	Ground Truth (CPU gradient) - texture	الحقيقة المرجعية (تدرج CPU) - نسيج
+	Ground Truth (CPU gradient, CPU blending) - vertices	الحقيقة المرجعية (تدرج CPU، مزج CPU) - رؤوس
+	Ground Truth (CPU gradient, CPU blending) - texture	الحقيقة المرجعية (تدرج CPU، مزج CPU) - نسيج
+	CPU gradient, GPU blending - vertices	تدرج CPU، مزج GPU - رؤوس
+	CPU gradient, GPU blending - texture	تدرج CPU، مزج GPU - نسيج
+	Texture of width 2 (test texture sampler)	نسيج بعرض 2 (اختبار عيّنات النسيج)
+	Triangle mesh of width 2 (test vertex decode and interpolation)	شبكة مثلثات بعرض 2 (اختبار فك ترميز الرؤوس والاستيفاء)
+	A triangle mesh that is {n} vertices wide	شبكة مثلثات عرضها {n} رأسًا
+# rendering_test.rs — the pixel-alignment explanations
+	The strokes should align to the physical pixel grid.	يجب أن تتواءم الحدود مع شبكة البكسل الفعلية.
+	The first square should be exactly one physical pixel big.	يجب أن يكون حجم المربع الأول بكسلًا فعليًا واحدًا تمامًا.
+	They should be exactly one physical pixel apart.	يجب أن تكون المسافة بينها بكسلًا فعليًا واحدًا تمامًا.
+	Each subsequent square should be one physical pixel larger than the previous.	يجب أن يكون كل مربع تالٍ أكبر من سابقه بمقدار بكسل فعلي واحد.
+	They should be perfectly aligned to the physical pixel grid.	يجب أن تكون محاذاة تمامًا إلى شبكة البكسل الفعلية.
+	The lines should be exactly one physical pixel wide, one physical pixel apart.	يجب أن يكون عرض كل خط بكسلًا فعليًا واحدًا تمامًا، والمسافة بينها بكسلًا فعليًا واحدًا.
+	They should be perfectly white and black.	يجب أن تكون بيضاء وسوداء نقيّتين تمامًا.
+# rendering_test.rs — blending, feathering and the painted opacity/size readouts
+# (the percentages and font sizes are pre-formatted in Rust; the color-component
+# readout "({} {} {}) on ({} {} {})" is numbers only and stays English)
+	The left side shows how lines of different widths look.	يعرض الجانب الأيسر مظهر الخطوط بأعراض مختلفة.
+	The right side tests text rendering at different opacities and sizes.	يختبر الجانب الأيمن عرض النص بشفافيات وأحجام مختلفة.
+	The top and bottom images should look symmetrical in their intensities.	يفترض أن تبدو الصورتان العلوية والسفلية متناظرتين في شدة ألوانهما.
+	▣ The quick brown fox jumps over the lazy dog and runs away.	▣ قفز الثعلب البني السريع فوق الكلب الكسول ثم هرب بعيدًا.
+	{percent}% white	{percent}% أبيض
+	{percent}% gray	{percent}% رمادي
+	{percent}% black	{percent}% أسود
+	{size}px - The quick brown fox jumps over the lazy dog and runs away.	{size}px - قفز الثعلب البني السريع فوق الكلب الكسول ثم هرب بعيدًا.
+	transparent --> opaque	شفاف --> معتم
