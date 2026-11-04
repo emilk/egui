@@ -96,3 +96,24 @@ fn test_demo_app_in_arabic() {
 
     harness.run_steps(5);
 }
+
+/// Picking Arabic turns the interface right-to-left; picking an LTR language turns it back.
+#[test]
+fn test_language_flips_interface_direction() {
+    let mut harness = egui_kittest::Harness::builder()
+        .with_size(Vec2::new(900.0, 600.0))
+        .wgpu()
+        .allow_missing_glyphs()
+        .build_eframe(|cc| WrapApp::new(cc));
+
+    harness.run_steps(2);
+    assert!(!harness.ctx.is_rtl());
+
+    harness.state_mut().state.language = "ar".to_owned();
+    harness.run_steps(2);
+    assert!(harness.ctx.is_rtl());
+
+    harness.state_mut().state.language = "en".to_owned();
+    harness.run_steps(2);
+    assert!(!harness.ctx.is_rtl());
+}
