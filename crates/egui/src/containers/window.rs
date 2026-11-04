@@ -764,6 +764,9 @@ impl Window<'_> {
                     }
                     collapsing
                         .show_body_unindented(ui, |ui| {
+                            if rtl {
+                                seed_min_rect_at_reading_start(ui);
+                            }
                             if scroll.is_any_scroll_enabled() {
                                 scroll
                                     .content_margin(window_content_margin)
@@ -772,7 +775,12 @@ impl Window<'_> {
                             } else {
                                 crate::Frame::NONE
                                     .inner_margin(window_content_margin)
-                                    .show(ui, add_contents)
+                                    .show(ui, |ui| {
+                                        if rtl {
+                                            seed_min_rect_at_reading_start(ui);
+                                        }
+                                        add_contents(ui)
+                                    })
                                     .inner
                             }
                         })
@@ -872,9 +880,10 @@ impl Window<'_> {
 /// A vertical `Align::Min` ui starts measuring from a zero-size rect at its
 /// `cross_align` (left) edge, while the window body under RTL claims its rect
 /// from the reading-start (right) edge; left-seeded, the measured size would
-/// span the whole offered width and the window could never shrink. See the
-/// call site for the full picture.
-fn seed_min_rect_at_reading_start(ui: &mut Ui) {
+/// span the whole offered width and the window could never shrink. Also shared
+/// with `Resize`'s content ui, whose offered rect is anchored on the same
+/// reading-start edge under RTL. See the call sites for the full picture.
+pub(crate) fn seed_min_rect_at_reading_start(ui: &mut Ui) {
     let max_rect = ui.max_rect();
     ui.force_set_min_rect(Rect::from_center_size(
         pos2(max_rect.right(), max_rect.top()),

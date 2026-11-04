@@ -351,6 +351,13 @@ impl Resize {
         let mut content_ui = ui.new_child(ui_builder);
         content_ui.set_clip_rect(content_clip_rect);
 
+        // Under RTL the container's content is measured from its reading-start
+        // corner, so the container's reported size hugs right-anchored content,
+        // mirroring the window-body seeding in the window container.
+        if rtl && !needs_sizing_pass {
+            crate::containers::window::seed_min_rect_at_reading_start(&mut content_ui);
+        }
+
         Prepared {
             id,
             corner_id,
