@@ -69,10 +69,13 @@ impl crate::View for FontBook {
 
         let fonts_in_family = fonts_in_family(ui, &font_id.family);
 
-        egui::CollapsingHeader::new(format!(
-            "The selected family has {} characters, from {} fonts",
-            available_glyphs.len(),
-            fonts_in_family.len()
+        let characters = available_glyphs.len().to_string();
+        let fonts = fonts_in_family.len().to_string();
+        // The `{characters}` / `{fonts}` placeholders are filled by `i18n::fmt`, not by `format!`.
+        #[expect(clippy::literal_string_with_formatting_args)]
+        egui::CollapsingHeader::new(crate::i18n::fmt(
+            crate::i18n::t("The selected family has {characters} characters, from {fonts} fonts"),
+            &[("characters", &characters), ("fonts", &fonts)],
         ))
         .show(ui, |ui| {
             ui.label("In fallback order:");
