@@ -269,6 +269,25 @@ impl Rect {
         *self = self.translate(center - self.center());
     }
 
+    /// Mirror this rect horizontally within the given `container`, keeping its size.
+    ///
+    /// The mirrored rect is as far from the container's right edge as the
+    /// original was from the container's left edge, and vice versa.
+    ///
+    /// This is a pure geometric operation with no direction parameter:
+    /// the result is the same whatever the reading direction
+    /// ([`ReadingDirection`](crate::ReadingDirection)).
+    #[must_use]
+    #[inline]
+    pub fn mirror_horizontally_within(self, container: Self) -> Self {
+        let offset_from_left = self.left() - container.left();
+        let width = self.width();
+        Self::from_min_size(
+            pos2(container.right() - offset_from_left - width, self.top()),
+            self.size(),
+        )
+    }
+
     #[must_use]
     #[inline(always)]
     pub fn contains(&self, p: Pos2) -> bool {
@@ -959,5 +978,33 @@ mod tests {
             pos2(3.0, 1.0),
             "top-right corner ray"
         );
+    }
+
+    #[test]
+    fn test_mirror_horizontally_within() {
+        let container = Rect::from_min_max(pos2(100.0, 0.0), pos2(300.0, 50.0));
+        let r = Rect::from_min_max(pos2(110.0, 10.0), pos2(130.0, 20.0));
+        let mirrored = r.mirror_horizontally_within(container);
+
+        // Exact arithmetic: x' = container.right - (r.left - container.left) - width
+        assert_eq!(mirrored.left(), 300.0 - (110.0 - 100.0) - 20.0);
+        assert_eq!(mirrored.right(), 300.0 - (110.0 - 100.0));
+        assert_eq!(mirrored.width(), r.width(), "width preserved");
+        assert_eq!(mirrored.top(), r.top());
+        assert_eq!(mirrored.bottom(), r.bottom());
+
+        // Cross-check with set_left/set_right arithmetic: the mirrored rect's
+        // distance from the container's right edge equals the original's
+        // distance from the container's left edge, and vice versa.
+        let mut expected = r;
+        expected.set_right(container.right() - (r.left() - container.left()));
+        expected.set_left(expected.right() - r.width());
+        assert_eq!(mirrored, expected);
+
+        // Mirroring twice is the identity.
+        assert_eq!(mirrored.mirror_horizontally_within(container), r);
+
+        // Mirroring the container within itself yields the container.
+        assert_eq!(container.mirror_horizontally_within(container), container);
     }
 }
