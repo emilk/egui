@@ -10,8 +10,8 @@
 //! snapshot assertions; geometry only.
 
 use egui::{
-    Align2, Area, Context, Event, Id, Modifiers, PointerButton, Popup, Pos2, RawInput, Rect, Sense,
-    Ui, Window, pos2, vec2,
+    Align2, Area, Context, CursorIcon, Event, Id, Modifiers, PointerButton, Popup, Pos2, RawInput,
+    Rect, Sense, Ui, Window, pos2, vec2,
 };
 
 fn screen() -> Rect {
@@ -373,5 +373,165 @@ fn two_automatic_areas_cascade_without_overlap_in_both_directions() {
         (second.right() - first.right()).abs() < 0.5,
         "RTL: the second area should align with the first one's reading-start (right) edge: \
          {first:?} {second:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Resize-edge gating (`PossibleInteractions::new`): a *non-movable* window has
+// no drag fallback, so its resize sides are gated on its pivot — the pivot's
+// own edge cannot be dragged (the window would grow from under its root), the
+// opposite edge can. The pivot here is the explicit one when there is one, and
+// otherwise the reading-direction default (`RIGHT_TOP` under RTL,
+// `LEFT_TOP` under LTR).
+
+/// Which window edge the pointer hovers.
+#[derive(Clone, Copy)]
+enum Edge {
+    Left,
+    Right,
+    Bottom,
+}
+
+/// The cursor icon while the pointer rests on the middle of the `edge` side of
+/// a resizable, non-movable window with the given optional explicit pivot.
+/// Two idle frames settle the geometry (the sizing pass is invisible), then a
+/// pointer-move frame, then the recorded frame.
+fn non_movable_window_edge_cursor(rtl: bool, pivot: Option<Align2>, edge: Edge) -> CursorIcon {
+    let ctx = Context::default();
+    ctx.set_right_to_left(rtl);
+
+    /// Show the window once and record its outer rect.
+    fn show(ctx: &Context, rect: &mut Rect, pivot: Option<Align2>) {
+        let mut window = Window::new("edge-gated-window")
+            .current_pos(pos2(300.0, 100.0))
+            .resizable(true)
+            .movable(false)
+            .default_size(vec2(200.0, 100.0));
+        if let Some(pivot) = pivot {
+            window = window.pivot(pivot);
+        }
+        let response = window.show(ctx, |ui| {
+            ui.set_min_size(vec2(200.0, 100.0));
+        });
+        *rect = response.expect("the window should be shown").response.rect;
+    }
+
+    let mut rect = Rect::NOTHING;
+    for _ in 0..2 {
+        run(&ctx, vec![], &mut |ui| show(ui.ctx(), &mut rect, pivot));
+    }
+    assert!(
+        rect.is_positive(),
+        "the window should be laid out: {rect:?}"
+    );
+
+    let pointer = match edge {
+        Edge::Left => pos2(rect.left() - 2.0, rect.center().y),
+        Edge::Right => pos2(rect.right() + 2.0, rect.center().y),
+        Edge::Bottom => pos2(rect.center().x, rect.bottom() + 2.0),
+    };
+
+    // One pointer-move frame, then the frame the cursor is read from (the
+    // same settle-then-record pattern the resize cursor test uses).
+    run(&ctx, vec![pointer_move(pointer)], &mut |ui| {
+        show(ui.ctx(), &mut rect, pivot);
+    });
+    let mut output = ctx.run_ui(input(vec![pointer_move(pointer)]), |ui| {
+        show(ui.ctx(), &mut rect, pivot);
+    });
+    output.textures_delta.clear();
+    output.platform_output.cursor_icon
+}
+
+/// A non-movable, resizable window gates its resize sides on the
+/// reading-direction *default* pivot: under LTR (default `LEFT_TOP`) the left
+/// edge is the root and cannot be dragged, under RTL (default `RIGHT_TOP`) the
+/// right edge cannot — the exact mirror. The bottom edge is enabled in both
+/// directions (the default pivot's y is `TOP` either way).
+#[test]
+fn non_movable_window_resize_gating_follows_the_mirrored_default_pivot() {
+    // LTR: the reading-start (left) edge is the root — gated off; the right
+    // edge resizes:
+    assert_eq!(
+        non_movable_window_edge_cursor(false, None, Edge::Left),
+        CursorIcon::Default,
+        "LTR: the left edge is the window root and must not be draggable"
+    );
+    assert_eq!(
+        non_movable_window_edge_cursor(false, None, Edge::Right),
+        CursorIcon::ResizeHorizontal,
+        "LTR: the right edge should be draggable"
+    );
+
+    // RTL: the mirrored default pivot puts the root on the right edge:
+    assert_eq!(
+        non_movable_window_edge_cursor(true, None, Edge::Right),
+        CursorIcon::Default,
+        "RTL: the right edge is the window root and must not be draggable"
+    );
+    assert_eq!(
+        non_movable_window_edge_cursor(true, None, Edge::Left),
+        CursorIcon::ResizeHorizontal,
+        "RTL: the left edge should be draggable (the mirror of LTR)"
+    );
+
+    // The bottom edge is draggable in both directions (pivot y = `TOP`):
+    assert_eq!(
+        non_movable_window_edge_cursor(false, None, Edge::Bottom),
+        CursorIcon::ResizeVertical,
+        "LTR: the bottom edge should be draggable"
+    );
+    assert_eq!(
+        non_movable_window_edge_cursor(true, None, Edge::Bottom),
+        CursorIcon::ResizeVertical,
+        "RTL: the bottom edge should be draggable"
+    );
+}
+
+/// An *explicit* pivot gates the resize sides of a non-movable, resizable
+/// window in both directions (the pivot's own edge off, the opposite edge on)
+/// — including under LTR, where an explicit non-`LEFT_TOP` pivot therefore
+/// gates differently than the `LEFT_TOP` default did. Recorded as a deliberate
+/// flag-off delta in the NG7 impl report ("Deviations / recorded flag-off
+/// deltas"): gating now matches the pivot the window actually roots on.
+#[test]
+fn explicit_pivot_gates_resize_sides_in_both_directions() {
+    // Baseline, unchanged: LTR with no explicit pivot roots on the left edge:
+    assert_eq!(
+        non_movable_window_edge_cursor(false, None, Edge::Right),
+        CursorIcon::ResizeHorizontal,
+        "LTR default: the right edge should be draggable"
+    );
+    assert_eq!(
+        non_movable_window_edge_cursor(false, None, Edge::Left),
+        CursorIcon::Default,
+        "LTR default: the left edge is the window root and must not be draggable"
+    );
+
+    // LTR with an explicit `RIGHT_TOP` pivot: the window roots on its right
+    // edge, so that edge is gated off and the left edge is draggable (before
+    // the explicit-pivot honor the default `LEFT_TOP` gating applied instead):
+    assert_eq!(
+        non_movable_window_edge_cursor(false, Some(Align2::RIGHT_TOP), Edge::Right),
+        CursorIcon::Default,
+        "LTR explicit RIGHT_TOP: the right edge is the window root and must not be draggable"
+    );
+    assert_eq!(
+        non_movable_window_edge_cursor(false, Some(Align2::RIGHT_TOP), Edge::Left),
+        CursorIcon::ResizeHorizontal,
+        "LTR explicit RIGHT_TOP: the left edge should be draggable"
+    );
+
+    // RTL with the same explicit pivot: honored exactly the same way — the
+    // explicit pivot is never second-guessed in either direction:
+    assert_eq!(
+        non_movable_window_edge_cursor(true, Some(Align2::RIGHT_TOP), Edge::Right),
+        CursorIcon::Default,
+        "RTL explicit RIGHT_TOP: the right edge is the window root and must not be draggable"
+    );
+    assert_eq!(
+        non_movable_window_edge_cursor(true, Some(Align2::RIGHT_TOP), Edge::Left),
+        CursorIcon::ResizeHorizontal,
+        "RTL explicit RIGHT_TOP: the left edge should be draggable"
     );
 }
