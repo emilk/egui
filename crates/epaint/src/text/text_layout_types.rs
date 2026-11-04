@@ -969,12 +969,15 @@ pub struct Row {
     /// string offset needs a logical↔visual map (not yet implemented —
     /// known gap for bidi text editing).
     ///
-    /// Second known gap for bidirectional text: the visual reordering happens
+    /// Second known gap for right-to-left text: the visual reordering happens
     /// per newline-split segment, and wrapping afterwards slices the already
-    /// reordered glyph stream, so for *mixed-direction* text that wraps the
-    /// rows do not follow UAX #9 L1/L2 per rendered line (words can end up on
-    /// the wrong rows). Correct per-line reordering needs logical wrapping
-    /// before the visual reorder. Single-row text is unaffected.
+    /// reordered glyph stream at geometric wrap points, so for *any* RTL text
+    /// that wraps — pure RTL included, not just mixed-direction text — the
+    /// rows do not follow UAX #9 L1/L2 per rendered line: words can end up on
+    /// the wrong rows (e.g. an RTL-base `أول ثاني ثالث` can wrap with the
+    /// logically last word `ثالث` on the first row). Correct per-line
+    /// reordering needs logical wrapping before the visual reorder. Single-row
+    /// text is unaffected.
     pub glyphs: Vec<Glyph>,
 
     /// Logical size based on font heights etc.

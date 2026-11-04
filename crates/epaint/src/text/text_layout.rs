@@ -704,16 +704,23 @@ fn layout_section(
         // RTL run the font runs are therefore emitted in reverse (logical) order too.
         //
         // KNOWN LIMITATION: the reordering is per newline-split segment, and wrapping
-        // (`line_break`) afterwards splits the already-reordered *visual* glyph stream
-        // into rows. For mixed-direction text that wraps, the rows therefore do not
-        // follow UAX #9 L1/L2 per rendered line (which would reorder each line's own
-        // logical text): e.g. an RTL-base `عربي aaa bbb` wrapped after `aaa` must
-        // render row 1 as `aaa يبرع` and row 2 as `bbb`, but slicing the whole-segment
-        // visual stream puts `bbb` on row 1. Correct per-line reordering needs wrapping
-        // to happen on the logical stream before the visual reorder (with x positions
-        // assigned per row afterwards), which is a restructuring of the layout
-        // pipeline; until then, mixed-direction text that wraps can render words on
-        // the wrong rows. Single-row text (no wrap) is unaffected.
+        // (`line_break`) afterwards slices the already-reordered *visual* glyph stream
+        // into rows at geometric wrap points. The rows therefore do not follow UAX #9
+        // L1/L2 per rendered line (which would wrap the *logical* stream and reorder
+        // each rendered line's own text), and this affects ANY right-to-left text that
+        // wraps — pure RTL included, not just mixed-direction text — because slicing
+        // starts at the visually-leftmost (= logically last) end: an RTL-base
+        // `أول ثاني ثالث` wrapped one word per row renders the rows as `ثالث`,
+        // `ثاني`, `أول` (bottom-up; `أول` should lead row 1). Mixed-direction text
+        // corrupts the same way: an RTL-base `عربي aaa bbb` wrapped at the logical
+        // space after `aaa` must render row 1 as `aaa يبرع` and row 2 as `bbb`, but
+        // slicing the whole-segment visual stream (`aaa bbb يبرع`) instead renders
+        // row 1 as `aaa` and row 2 as `bbb يبرع` — the Arabic word on the wrong row.
+        // Correct per-line reordering needs wrapping to happen on the logical stream
+        // before the visual reorder (with x positions assigned per row afterwards),
+        // which is a restructuring of the layout pipeline; until then, any RTL text
+        // that wraps can render words on the wrong rows. Single-row text (no wrap) is
+        // unaffected.
         segment_into_bidi_runs(segment, base_level, &mut bidi_runs);
 
         for bidi_run in &bidi_runs {
@@ -3668,7 +3675,7 @@ mod tests {
     /// emitted in visual order. The zero-advance glyphs at the end are the
     /// pre-existing continuation-glyph output of the shaper path (unchanged by
     /// bidi reordering); the helper filters them out, so they are NOT pinned
-    /// by this test (see the continuation-glyph note in the impl report).
+    /// by this test.
     #[test]
     fn bidi_pure_rtl_is_byte_identical_to_pre_change_output() {
         for direction in [None, Some(TextDirection::RightToLeft)] {
