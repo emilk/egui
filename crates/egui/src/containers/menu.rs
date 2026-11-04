@@ -68,6 +68,19 @@ pub fn menu_item_button<'a>(
     } else {
         Atom::default().atom_size(vec2(column_width, 0.0))
     };
+    let label = if ui.is_rtl() {
+        // Pin the paragraph direction so a Latin-first label still reads as a
+        // right-to-left row.
+        let mut job = Arc::unwrap_or_clone(label.into_layout_job(
+            ui.style(),
+            TextStyle::Button.into(),
+            ui.text_valign(),
+        ));
+        job.direction = Some(epaint::text::TextDirection::RightToLeft);
+        WidgetText::LayoutJob(Arc::new(job))
+    } else {
+        label
+    };
     with_shortcut(Button::new((column, label)))
 }
 

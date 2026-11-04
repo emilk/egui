@@ -359,3 +359,228 @@ fn layout_job_label_flows_through_the_row_surface() {
         label[0]
     );
 }
+
+// ---------------------------------------------------------------------------
+
+/// The painted galley of the first text shape whose job text equals `text`.
+fn painted_galley(output: &FullOutput, text: &str) -> Option<std::sync::Arc<egui::epaint::Galley>> {
+    fn collect(shape: &Shape, text: &str, out: &mut Option<std::sync::Arc<egui::epaint::Galley>>) {
+        match shape {
+            Shape::Text(shape) if shape.galley.job.text == text => {
+                *out = Some(std::sync::Arc::clone(&shape.galley));
+            }
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, text, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = None;
+    for clipped in &output.shapes {
+        collect(&clipped.shape, text, &mut out);
+    }
+    out
+}
+
+/// Under RTL the row's paragraph direction is pinned to right-to-left, so a
+/// Latin-first or digits-then-Latin label reads as a right-to-left row instead
+/// of inferring an LTR paragraph from its first strong character.
+#[test]
+fn rtl_rows_pin_the_paragraph_direction() {
+    let output = popup_output(true, &mut |ui: &mut Ui| {
+        ui.add(menu_item_button(
+            ui,
+            "Layer عام",
+            false,
+            None as Option<&str>,
+        ));
+        ui.add(menu_item_button(
+            ui,
+            "12 layers",
+            false,
+            None as Option<&str>,
+        ));
+    });
+
+    let layer = painted_galley(&output, "Layer عام").expect("the label should paint");
+    assert_eq!(
+        layer.job.direction,
+        Some(egui::text::TextDirection::RightToLeft),
+        "a Latin-first label must be pinned to RTL under the flag"
+    );
+    let digits = painted_galley(&output, "12 layers").expect("the label should paint");
+    assert_eq!(
+        digits.job.direction,
+        Some(egui::text::TextDirection::RightToLeft),
+        "a digits-then-Latin label must be pinned to RTL under the flag"
+    );
+}
+
+/// The pin changes the visual run order: the first logical character sits in
+/// the right half of the galley under the pin, in the left half without it.
+#[test]
+fn pinned_rows_read_from_the_right_unpinned_from_the_left() {
+    for (rtl, want_first_right) in [(true, true), (false, false)] {
+        let output = popup_output(rtl, &mut |ui: &mut Ui| {
+            ui.add(menu_item_button(
+                ui,
+                "Layer عام",
+                false,
+                None as Option<&str>,
+            ));
+            ui.add(menu_item_button(
+                ui,
+                "12 layers",
+                false,
+                None as Option<&str>,
+            ));
+        });
+        for (text, first_char, last_char) in [("Layer عام", 'L', 'م'), ("12 layers", '1', 's')]
+        {
+            let galley =
+                painted_galley(&output, text).unwrap_or_else(|| panic!("{text} should paint"));
+            assert_eq!(galley.rows.len(), 1, "expected a single-row galley");
+            let pos = |chr: char| {
+                galley.rows[0]
+                    .glyphs
+                    .iter()
+                    .find(|glyph| glyph.chr == chr)
+                    .unwrap_or_else(|| panic!("{chr} should lay out: {text}"))
+                    .pos
+                    .x
+            };
+            assert_eq!(
+                pos(first_char) > pos(last_char),
+                want_first_right,
+                "the first logical character of {text:?} should read from the \
+                 reading start (rtl = {rtl}: first at {}, last at {})",
+                pos(first_char),
+                pos(last_char)
+            );
+        }
+    }
+}
+
+/// LTR twin: the row's painted galley is what a plain button label paints —
+/// same resolved direction, same ink bounds.
+#[test]
+fn ltr_rows_paint_like_a_plain_button_label() {
+    let output = popup_output(false, &mut |ui: &mut Ui| {
+        ui.add(menu_item_button(
+            ui,
+            "Layer عام",
+            false,
+            None as Option<&str>,
+        ));
+        let _ = ui.button("Layer عام");
+    });
+
+    let galleys: Vec<_> = painted_galleys_texts(&output);
+    let rows: Vec<_> = galleys
+        .iter()
+        .filter(|(text, _)| text == "Layer عام")
+        .collect();
+    assert_eq!(
+        rows.len(),
+        2,
+        "the row and the plain button should both paint their label"
+    );
+    let (row, plain) = (rows[0], rows[1]);
+    assert_eq!(
+        row.1.job.direction, plain.1.job.direction,
+        "the row should resolve the same direction as a plain button label"
+    );
+    assert_eq!(
+        row.1.job.direction,
+        Some(egui::text::TextDirection::LeftToRight),
+        "an LTR row keeps first-strong inference"
+    );
+    assert_eq!(
+        row.1.mesh_bounds, plain.1.mesh_bounds,
+        "the row's ink bounds should match the plain button label's"
+    );
+}
+
+/// (job text, galley) for every text shape painted this pass.
+fn painted_galleys_texts(
+    output: &FullOutput,
+) -> Vec<(String, std::sync::Arc<egui::epaint::Galley>)> {
+    fn collect(shape: &Shape, out: &mut Vec<(String, std::sync::Arc<egui::epaint::Galley>)>) {
+        match shape {
+            Shape::Text(shape) => out.push((
+                shape.galley.job.text.clone(),
+                std::sync::Arc::clone(&shape.galley),
+            )),
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    for clipped in &output.shapes {
+        collect(&clipped.shape, &mut out);
+    }
+    out
+}
+
+/// The gutter stays at the reading start for a Latin-first label: the mark
+/// paints right of the label's ink under RTL.
+#[test]
+fn gutter_stays_at_the_reading_start_for_a_latin_first_label() {
+    let output = popup_output(true, &mut |ui: &mut Ui| {
+        ui.add(menu_item_button(
+            ui,
+            "Layer عام",
+            true,
+            None as Option<&str>,
+        ));
+    });
+
+    let texts = painted_texts(&output);
+    let label = painted_rects(&texts, "Layer عام");
+    let marks = painted_rects(&texts, "✔ ");
+    assert_eq!(label.len(), 1, "the label should paint once, got {texts:?}");
+    assert_eq!(marks.len(), 1, "the mark should paint once, got {texts:?}");
+    assert!(
+        marks[0].left() > label[0].right(),
+        "RTL: the mark should sit right of its label (mark {:?}, label {:?})",
+        marks[0],
+        label[0]
+    );
+}
+
+/// A digits-then-Arabic label infers RTL on its own (first-strong skips the
+/// weak digits): pinned RTL and reads from the right.
+#[test]
+fn digit_first_arabic_label_reads_rtl_under_rtl() {
+    let output = popup_output(true, &mut |ui: &mut Ui| {
+        ui.add(menu_item_button(ui, "12 عام", false, None as Option<&str>));
+    });
+
+    let galley = painted_galley(&output, "12 عام").expect("the label should paint");
+    assert_eq!(
+        galley.job.direction,
+        Some(egui::text::TextDirection::RightToLeft)
+    );
+    assert_eq!(galley.rows.len(), 1, "expected a single-row galley");
+    let pos = |chr: char| {
+        galley.rows[0]
+            .glyphs
+            .iter()
+            .find(|glyph| glyph.chr == chr)
+            .unwrap_or_else(|| panic!("{chr} should lay out"))
+            .pos
+            .x
+    };
+    assert!(
+        pos('1') > pos('م'),
+        "the digits should read first from the right (first at {}, last at {})",
+        pos('1'),
+        pos('م')
+    );
+}
