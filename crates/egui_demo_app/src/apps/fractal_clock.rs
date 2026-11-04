@@ -74,7 +74,13 @@ impl FractalClock {
         } else {
             ui.label("The fractal_clock clock is not showing the correct time");
         }
-        ui.label(format!("Painted line count: {}", self.line_count));
+        // The `{}` is filled positionally: `i18n::fmt` handles named `{name}` placeholders
+        // only, and the catalogue keeps this readout positional.
+        ui.label(egui_demo_lib::i18n::t("Painted line count: {}").replacen(
+            "{}",
+            &self.line_count.to_string(),
+            1,
+        ));
 
         ui.checkbox(&mut self.paused, "Paused");
         ui.add(Slider::new(&mut self.zoom, 0.0..=1.0).text("zoom"));

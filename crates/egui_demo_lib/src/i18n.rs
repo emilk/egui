@@ -629,6 +629,7 @@ mod tests {
         "Content length",
         "A lot of rows, but only the visible ones are laid out, so performance is still good:",
         "A lot of rows, but only the visible ones are painted, so performance is still good:",
+        "This is row {row}",
         "This is row {}/{}",
         "This is row {}/{}, indented by {} pixels",
         "This shows how you can scroll to a specific item or pixel offset",
