@@ -1101,52 +1101,22 @@ fn replace_last_glyph_with_overflow_character(
         .unwrap_or(row.section_index_at_start);
     loop {
         let section = &job.sections[section_index as usize];
-        let extra_letter_spacing = section.format.extra_letter_spacing;
-        let family = fonts.family_key(&section.format.font_id.family);
-        let font_size = section.format.font_id.size;
-
-        let font_metrics =
-            fonts.family_metrics(family, pixels_per_point, font_size, &section.format.coords);
-
-        // A priority rasterizer may override the overflow character, just like any other glyph:
-        let mut utf8 = [0_u8; 4];
-        let raster = fonts.rasterize_cluster(
-            FontPriority::Highest,
-            family,
-            overflow_character.encode_utf8(&mut utf8),
-            pixels_per_point,
-            font_size,
-        );
-
-        let (face_key, font_face_metrics, glyph_info) = if raster.is_some() {
-            (
-                FontFaceKey::INVALID,
-                font_metrics.clone(),
-                GlyphInfo::INVISIBLE,
-            )
-        } else {
-            let face_key = fonts.resolve_face(family, overflow_character);
-            let font_face_metrics = fonts
-                .face(face_key)
-                .map(|face| {
-                    face.styled_metrics(pixels_per_point, font_size, &section.format.coords)
-                })
-                .unwrap_or_default();
-            let (_, glyph_info) = fonts.glyph_info(family, overflow_character, &font_face_metrics);
-            (face_key, font_face_metrics, glyph_info)
-        };
+        let ResolvedOverflowGlyph {
+            extra_letter_spacing,
+            font_metrics,
+            raster,
+            face_key,
+            font_face_metrics,
+            glyph_info,
+            advance_width_px,
+        } = resolve_overflow_glyph(fonts, pixels_per_point, section, overflow_character);
+        let replacement_glyph_width = advance_width_px / pixels_per_point;
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
             prev_glyph.max_x() + extra_letter_spacing
         } else {
             0.0 // TODO(emilk): heed paragraph leading_space 😬
         };
-
-        let advance_width_px = match &raster {
-            Some(raster) => raster.advance_px,
-            None => glyph_info.advance_width_unscaled.0 * font_face_metrics.px_scale_factor,
-        };
-        let replacement_glyph_width = advance_width_px / pixels_per_point;
 
         // Check if we're within width budget:
         if overflow_glyph_x + replacement_glyph_width <= job.effective_wrap_width()
@@ -1203,6 +1173,79 @@ fn replace_last_glyph_with_overflow_character(
     }
 }
 
+/// The overflow character resolved against one section: the section's font lookups,
+/// the priority-rasterizer probe (which may override the glyph), the plain-face
+/// fallback, and the metrics and advance width needed to place it.
+///
+/// Shared by the LTR and RTL elision paths, which differ only in which end of the
+/// row they trim and where they insert the replacement glyph.
+struct ResolvedOverflowGlyph {
+    extra_letter_spacing: f32,
+    font_metrics: StyledMetrics,
+    raster: Option<RasterGlyphAllocation>,
+    face_key: FontFaceKey,
+    font_face_metrics: StyledMetrics,
+    glyph_info: GlyphInfo,
+    advance_width_px: f32,
+}
+
+/// Resolves the replacement glyph for [`replace_last_glyph_with_overflow_character`]
+/// and [`replace_first_glyph_with_overflow_character`].
+fn resolve_overflow_glyph(
+    fonts: &mut FontsImpl,
+    pixels_per_point: f32,
+    section: &LayoutSection,
+    overflow_character: char,
+) -> ResolvedOverflowGlyph {
+    let extra_letter_spacing = section.format.extra_letter_spacing;
+    let family = fonts.family_key(&section.format.font_id.family);
+    let font_size = section.format.font_id.size;
+
+    let font_metrics =
+        fonts.family_metrics(family, pixels_per_point, font_size, &section.format.coords);
+
+    // A priority rasterizer may override the overflow character, just like any other glyph:
+    let mut utf8 = [0_u8; 4];
+    let raster = fonts.rasterize_cluster(
+        FontPriority::Highest,
+        family,
+        overflow_character.encode_utf8(&mut utf8),
+        pixels_per_point,
+        font_size,
+    );
+
+    let (face_key, font_face_metrics, glyph_info) = if raster.is_some() {
+        (
+            FontFaceKey::INVALID,
+            font_metrics.clone(),
+            GlyphInfo::INVISIBLE,
+        )
+    } else {
+        let face_key = fonts.resolve_face(family, overflow_character);
+        let font_face_metrics = fonts
+            .face(face_key)
+            .map(|face| face.styled_metrics(pixels_per_point, font_size, &section.format.coords))
+            .unwrap_or_default();
+        let (_, glyph_info) = fonts.glyph_info(family, overflow_character, &font_face_metrics);
+        (face_key, font_face_metrics, glyph_info)
+    };
+
+    let advance_width_px = match &raster {
+        Some(raster) => raster.advance_px,
+        None => glyph_info.advance_width_unscaled.0 * font_face_metrics.px_scale_factor,
+    };
+
+    ResolvedOverflowGlyph {
+        extra_letter_spacing,
+        font_metrics,
+        raster,
+        face_key,
+        font_face_metrics,
+        glyph_info,
+        advance_width_px,
+    }
+}
+
 /// Replaces the glyph run at the visual LEFT of the row with the overflow character (e.g. `…`).
 ///
 /// The right-to-left twin of [`replace_last_glyph_with_overflow_character`].
@@ -1235,45 +1278,15 @@ fn replace_first_glyph_with_overflow_character(
             .map(|g| g.section_index)
             .unwrap_or(row.section_index_at_start);
         let section = &job.sections[section_index as usize];
-        let extra_letter_spacing = section.format.extra_letter_spacing;
-        let family = fonts.family_key(&section.format.font_id.family);
-        let font_size = section.format.font_id.size;
-
-        let font_metrics =
-            fonts.family_metrics(family, pixels_per_point, font_size, &section.format.coords);
-
-        // A priority rasterizer may override the overflow character, just like any other glyph:
-        let mut utf8 = [0_u8; 4];
-        let raster = fonts.rasterize_cluster(
-            FontPriority::Highest,
-            family,
-            overflow_character.encode_utf8(&mut utf8),
-            pixels_per_point,
-            font_size,
-        );
-
-        let (face_key, font_face_metrics, glyph_info) = if raster.is_some() {
-            (
-                FontFaceKey::INVALID,
-                font_metrics.clone(),
-                GlyphInfo::INVISIBLE,
-            )
-        } else {
-            let face_key = fonts.resolve_face(family, overflow_character);
-            let font_face_metrics = fonts
-                .face(face_key)
-                .map(|face| {
-                    face.styled_metrics(pixels_per_point, font_size, &section.format.coords)
-                })
-                .unwrap_or_default();
-            let (_, glyph_info) = fonts.glyph_info(family, overflow_character, &font_face_metrics);
-            (face_key, font_face_metrics, glyph_info)
-        };
-
-        let advance_width_px = match &raster {
-            Some(raster) => raster.advance_px,
-            None => glyph_info.advance_width_unscaled.0 * font_face_metrics.px_scale_factor,
-        };
+        let ResolvedOverflowGlyph {
+            extra_letter_spacing,
+            font_metrics,
+            raster,
+            face_key,
+            font_face_metrics,
+            glyph_info,
+            advance_width_px,
+        } = resolve_overflow_glyph(fonts, pixels_per_point, section, overflow_character);
         let replacement_glyph_width = advance_width_px / pixels_per_point;
 
         // Where the overflow glyph would sit: immediately before the first survivor:
@@ -2475,7 +2488,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "default_fonts")]
     /// Each test rasterizer needs its own [`GlyphRasterizer::key`], or they would replace each other.
     fn unique_test_key() -> String {
         static COUNTER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);

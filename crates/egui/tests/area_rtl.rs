@@ -491,9 +491,10 @@ fn non_movable_window_resize_gating_follows_the_mirrored_default_pivot() {
 /// An *explicit* pivot gates the resize sides of a non-movable, resizable
 /// window in both directions (the pivot's own edge off, the opposite edge on)
 /// — including under LTR, where an explicit non-`LEFT_TOP` pivot therefore
-/// gates differently than the `LEFT_TOP` default did. Recorded as a deliberate
-/// flag-off delta in the NG7 impl report ("Deviations / recorded flag-off
-/// deltas"): gating now matches the pivot the window actually roots on.
+/// gates differently than the `LEFT_TOP` default did. That difference is
+/// deliberate: gating follows the pivot the window actually roots on, so
+/// supplying an explicit pivot changes the gated edges even with the
+/// direction flag off.
 #[test]
 fn explicit_pivot_gates_resize_sides_in_both_directions() {
     // Baseline, unchanged: LTR with no explicit pivot roots on the left edge:

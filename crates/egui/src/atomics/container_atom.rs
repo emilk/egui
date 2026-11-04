@@ -625,6 +625,10 @@ impl<'atom> SizedContainerAtom<'atom> {
 
             match sized.kind {
                 SizedAtomKind::Text(galley) => {
+                    // The galley paints relative to its own rect, so one with a
+                    // non-`Align::LEFT` halign (e.g. a user-supplied `LayoutJob`) paints
+                    // filling its allocated rect, extending left of the cell origin —
+                    // by design, also under pure LTR.
                     let paint_pos = item_rect.min - vec2(galley.rect.left(), 0.0);
                     if let Some(response) = selection_response {
                         // Route through the label selection machinery, which also
@@ -704,7 +708,7 @@ mod tests {
     use crate::{Align, Context, Direction, Layout, RawInput, Rect, placer::Placer, pos2, vec2};
 
     /// `atoms_direction` must answer the exact question `Placer::prefer_right_to_left`
-    /// answers when mirroring nested rows: the same 7-layout truth table, with and
+    /// answers when mirroring nested rows: the same 10-layout truth table, with and
     /// without the interface flag.
     #[test]
     fn atoms_direction_matches_placer_truth_table() {
@@ -716,6 +720,9 @@ mod tests {
             Layout::top_down(Align::Max),
             Layout::top_down_justified(Align::Min),
             Layout::top_down_justified(Align::Max),
+            Layout::bottom_up(Align::Min),
+            Layout::bottom_up(Align::Center),
+            Layout::bottom_up(Align::Max),
         ];
 
         for layout in layouts {
@@ -727,8 +734,11 @@ mod tests {
                 let mut output = ctx.run_ui(RawInput::default(), |ui| {
                     ui.with_layout(layout, |ui| {
                         // The comparison side is a locally constructed `Placer` fed the
-                        // surrounding layout and the interface flag; a `Ui`'s own placer
-                        // is private to the `ui` module and is not read here.
+                        // surrounding layout and the interface flag, deliberately not
+                        // the `Ui`'s own placer: reading that instead would let the
+                        // table pass vacuously should `atoms_direction` ever delegate
+                        // to it, while the independent construction pins the policy
+                        // itself.
                         let placer = Placer::new(
                             Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0)),
                             *ui.layout(),

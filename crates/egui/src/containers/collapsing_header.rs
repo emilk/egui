@@ -572,6 +572,9 @@ impl CollapsingHeader {
         let (_, rect) = ui.allocate_space(desired_size);
 
         let mut header_response = ui.interact(rect, id, Sense::click());
+        // The galley paints relative to its own rect, so one with a non-`Align::LEFT`
+        // halign (e.g. a user-supplied `LayoutJob`) paints filling its allocated rect,
+        // extending left of this position — by design, also under pure LTR.
         let text_pos = pos2(
             text_pos.x,
             header_response.rect.center().y - galley.size().y / 2.0,

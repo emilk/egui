@@ -913,6 +913,12 @@ impl ScrollArea {
         // min-rect seed point and the rect, ballooning the measured width (the popup and
         // menu sizing passes measure in the logical, unmirrored layout).
         let rtl_x = rtl && (direction_enabled[0] || current_bar_use.x != 0.0);
+        // NOTE: two known residuals around this predicate: (1) a vertical-only RTL
+        // area with a reserved bar strip right-anchors through the `current_bar_use.x`
+        // term even when the content is narrow and the x axis auto-shrinks; (2) with
+        // `auto_shrink` enabled the RTL scroll window stays full-width where an LTR
+        // one hugs its content — a pre-existing asymmetry, deliberately left
+        // unchanged.
 
         let inner_rect = if rtl && current_bar_use.x != 0.0 {
             // Vertical scroll bar on the reading-end (left) edge under RTL: the exact mirror

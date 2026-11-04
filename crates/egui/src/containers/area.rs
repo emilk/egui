@@ -1089,7 +1089,7 @@ mod tests {
     #[test]
     fn fit_pos_flipped_side_is_clamped_too() {
         // Anchor at the very right edge: flipping alone is not enough, the clamp must pull
-        // the rect back inside (the PhotoCraft brush-picker case).
+        // the rect back inside (an app anchoring a picker at the screen's reading-end edge).
         let rect = shown_rect(pos2(800.0, 300.0), vec2(200.0, 140.0), Align2::LEFT_TOP);
         assert!(
             screen().contains_rect(rect),

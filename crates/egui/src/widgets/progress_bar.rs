@@ -217,6 +217,10 @@ impl Widget for ProgressBar {
                 );
                 let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y * 0.5)
                     + vec2(ui.spacing().item_spacing.x, 0.0)
+                    // The galley paints relative to its own rect, so one with a
+                    // non-`Align::LEFT` halign (e.g. a user-supplied `LayoutJob`) paints
+                    // filling its allocated rect, extending left of this position —
+                    // by design, also under pure LTR.
                     - vec2(galley.rect.left(), 0.0);
                 let text_color = visuals
                     .override_text_color

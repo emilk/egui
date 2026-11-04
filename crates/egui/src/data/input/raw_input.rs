@@ -98,7 +98,11 @@ pub struct RawInput {
     /// for letter shortcuts: with a Russian layout active, the keys the user thinks
     /// of as C / V / X are the physical positions their Latin layout maps them to,
     /// not the Cyrillic letters the active layout types. Backends that know the
-    /// active layout should report it here. See [`Self::latin_layout_chars`].
+    /// active layout should report it here. In egui-winit, report it through
+    /// `State::egui_input_mut` (which the key handling reads): reporting it only on
+    /// the `RawInput` passed to `Context::run` exposes it solely through the
+    /// `InputState` accessors, without activating the letter-shortcut rule.
+    /// See [`Self::latin_layout_chars`].
     #[cfg_attr(feature = "serde", serde(default))]
     pub keyboard_layout_is_latin: Option<bool>,
 
@@ -110,6 +114,11 @@ pub struct RawInput {
     /// position to (report the unshifted character). This lets egui resolve letter
     /// shortcuts against the layout the user actually thinks in, even while a
     /// non-Latin layout is active (e.g. Dvorak + Russian).
+    ///
+    /// In egui-winit, report the data through `State::egui_input_mut` (which the key
+    /// handling reads): reporting it only on the `RawInput` passed to `Context::run`
+    /// exposes it solely through the `InputState` accessors, without activating the
+    /// letter-shortcut rule.
     ///
     /// Empty when the integration provides no Latin-layout data.
     #[cfg_attr(feature = "serde", serde(default))]
