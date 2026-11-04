@@ -20,6 +20,7 @@ use crate::{
 use super::{
     ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
     TextDirection, VariationCoords,
+    bidi::segment_into_bidi_runs,
     family::FamilyKey,
     font_face::{FontFace, GlyphInfo, ShapedGlyph},
     glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
@@ -668,6 +669,14 @@ fn layout_section(
         segment_base: byte_range.as_usize().start,
     };
     let mut runs = Vec::new();
+    let mut bidi_runs = Vec::new();
+
+    // The paragraph's base embedding level (UAX #9 P3): the job's resolved direction.
+    let base_level = if resolved_direction(job) == TextDirection::RightToLeft {
+        unicode_bidi::Level::rtl()
+    } else {
+        unicode_bidi::Level::ltr()
+    };
 
     // Process each paragraph segment (split on newlines — the shaper can't handle them).
     let section_base = byte_range.as_usize().start;
@@ -689,49 +698,94 @@ fn layout_section(
             continue;
         }
 
-        segment_into_runs(fonts, &ctx, segment, &mut runs);
+        // UAX #9: split the segment into maximal directional runs and lay them out in
+        // visual (left-to-right) order. Each run is shaped in its own direction, so an
+        // RTL run's glyphs already come out of the shaper in visual order; within an
+        // RTL run the font runs are therefore emitted in reverse (logical) order too.
+        segment_into_bidi_runs(segment, base_level, &mut bidi_runs);
 
-        let num_runs = runs.len();
-        for (run_idx, run) in runs.iter().enumerate() {
-            let run_text = &segment[run.byte_range.as_usize()];
-            if let Some(raster) = &run.raster {
-                let cluster_start = ctx.segment_base + run.byte_range.as_usize().start;
-                layout_raster_run(&mut ctx, paragraph, run_text, raster, cluster_start);
-                continue;
-            }
-            let Some(font_face) = fonts.face(run.font_key) else {
-                debug_assert!(
-                    false,
-                    "`segment_into_runs` should have turned this fontless cluster into a raster run"
-                );
+        for bidi_run in &bidi_runs {
+            let Some(bidi_text) = segment.get(bidi_run.byte_range.clone()) else {
                 continue;
             };
 
-            let face_metrics =
-                font_face.styled_metrics(pixels_per_point, font_size, &format.coords);
+            // Font runs are segmented per bidi run on the run's own substring, so
+            // `run.byte_range` below is relative to `bidi_text`. Bias the context's
+            // segment base by the bidi run's start: every cluster offset computed
+            // from it (`segment_base + run start + cluster`) then lands on the
+            // right byte in `LayoutJob::text`.
+            ctx.segment_base = segment_base + bidi_run.byte_range.start;
 
-            // Set buffer flags for paragraph boundary context.
-            let mut flags = harfrust::BufferFlags::empty();
-            if run_idx == 0 {
-                flags |= harfrust::BufferFlags::BEGINNING_OF_TEXT;
+            segment_into_runs(fonts, &ctx, bidi_text, &mut runs);
+
+            let num_runs = runs.len();
+
+            // Within an RTL run the font runs are emitted in reverse (logical) order,
+            // because each run's shaper output is already in visual order.
+            for i in 0..num_runs {
+                let run_idx = if bidi_run.is_rtl() {
+                    num_runs - 1 - i
+                } else {
+                    i
+                };
+                let Some(run) = runs.get(run_idx) else {
+                    continue;
+                };
+                let run_text = &bidi_text[run.byte_range.as_usize()];
+                if let Some(raster) = &run.raster {
+                    let cluster_start = ctx.segment_base + run.byte_range.as_usize().start;
+                    layout_raster_run(&mut ctx, paragraph, run_text, raster, cluster_start);
+                    continue;
+                }
+                let Some(font_face) = fonts.face(run.font_key) else {
+                    debug_assert!(
+                        false,
+                        "`segment_into_runs` should have turned this fontless cluster into a raster run"
+                    );
+                    continue;
+                };
+
+                let face_metrics =
+                    font_face.styled_metrics(pixels_per_point, font_size, &format.coords);
+
+                // Set buffer flags for paragraph boundary context. These follow the
+                // *logical* position of the font run within the segment (the emission
+                // order above is the visual order, not the logical one).
+                let mut flags = harfrust::BufferFlags::empty();
+                if run_idx == 0 {
+                    flags |= harfrust::BufferFlags::BEGINNING_OF_TEXT;
+                }
+                if run_idx + 1 == num_runs {
+                    flags |= harfrust::BufferFlags::END_OF_TEXT;
+                }
+
+                let direction = if bidi_run.is_rtl() {
+                    harfrust::Direction::RightToLeft
+                } else {
+                    harfrust::Direction::LeftToRight
+                };
+
+                let glyph_buffer = shape_text(
+                    font_face,
+                    run_text,
+                    &format.coords,
+                    shape_buffer,
+                    flags,
+                    direction,
+                );
+
+                layout_shaped_run(
+                    fonts,
+                    run,
+                    run_text,
+                    &glyph_buffer,
+                    &face_metrics,
+                    &mut ctx,
+                    paragraph,
+                );
+
+                shape_buffer = glyph_buffer.clear();
             }
-            if run_idx + 1 == num_runs {
-                flags |= harfrust::BufferFlags::END_OF_TEXT;
-            }
-
-            let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
-
-            layout_shaped_run(
-                fonts,
-                run,
-                run_text,
-                &glyph_buffer,
-                &face_metrics,
-                &mut ctx,
-                paragraph,
-            );
-
-            shape_buffer = glyph_buffer.clear();
         }
     }
 
@@ -1801,8 +1855,9 @@ impl RowBreakCandidates {
 ///
 /// NOTE: Segmentation is by font face, not by Unicode script. A run may
 /// mix scripts (e.g. Latin + Cyrillic) when they share the same font.
-/// This is acceptable for scripts with similar shaping rules, but would
-/// need script-aware splitting once RTL/bidi support is added.
+/// Directional segmentation (UAX #9) happens one level up, in
+/// [`segment_into_bidi_runs`]: the caller feeds this function one bidi run
+/// at a time, so a run may mix scripts but never directions.
 ///
 /// Results are appended to `out` (which is cleared first) to allow
 /// the caller to reuse the allocation across calls.
@@ -1874,12 +1929,17 @@ fn segment_into_runs(
 /// The caller should iterate `glyph_infos()` / `glyph_positions()` (both
 /// `Copy` slices) and convert font units to pixels using `metrics.px_scale_factor`.
 /// After iteration, recycle the buffer via `glyph_buffer.clear()`.
+///
+/// `direction` is the run's resolved bidi direction (UAX #9): it is pinned on the
+/// buffer so the shaper emits the glyphs in visual order for that run. The script
+/// and language are still guessed from the run's content.
 fn shape_text(
     font_face: &FontFace,
     text: &str,
     coords: &VariationCoords,
     mut buffer: harfrust::UnicodeBuffer,
     flags: harfrust::BufferFlags,
+    direction: harfrust::Direction,
 ) -> harfrust::GlyphBuffer {
     let font_ref = font_face.skrifa_font_ref();
     let tweak = font_face.tweak();
@@ -1904,6 +1964,7 @@ fn shape_text(
         .build();
 
     buffer.set_flags(flags);
+    buffer.set_direction(direction);
     buffer.push_str(text);
     buffer.guess_segment_properties();
 
