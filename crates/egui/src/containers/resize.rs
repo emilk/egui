@@ -391,6 +391,24 @@ impl Resize {
 
         // ------------------------------
 
+        // On the sizing pass the content was measured squished (and the pass discarded), so
+        // that measurement must not become the remembered content size. What the container
+        // will present next is the `desired_size` computed in `begin`: the user's request as
+        // clamped by `min_size`/`max_size` — the `min_content_width` clamp cannot have
+        // applied (its absence is what made this a sizing pass), and the re-pin below is
+        // gated off on this frame (a sizing pass only ever runs while a drag is in flight).
+        // Seeding it here means both the render below and the idle grow-to-content in
+        // `begin` work from the requested size, so the stale pre-drag measurement cannot
+        // feed the requested shrink back up when the drag ends within the sizing pass (e.g.
+        // a window edge drag whose `requested_size` is consumed on the frame the pointer is
+        // released). One-frame consequence: the visible pass right after a sizing pass
+        // computes its clip rect from this seeded size, so content overflowing the requested
+        // size is clipped tighter for that frame; the next frame's fresh measurement
+        // restores the looser clip.
+        if sizing_pass {
+            state.last_content_size = state.desired_size;
+        }
+
         let mut size = state.last_content_size;
         for d in 0..2 {
             if self.with_stroke || self.resizable[d] {
@@ -412,26 +430,10 @@ impl Resize {
                 // We are as large as we look
                 size[d] = state.desired_size[d];
             } else {
-                // Probably a window. On the sizing pass the freshly measured content size is
-                // the squished sizing layout (see the seed below), not what the window will
-                // present next — present the requested size instead.
-                size[d] = if sizing_pass {
-                    state.desired_size[d]
-                } else {
-                    state.last_content_size[d]
-                };
+                // Probably a window: it renders at the remembered content size, which the
+                // seed above pinned to the requested size on sizing-pass frames.
+                size[d] = state.last_content_size[d];
             }
-        }
-
-        // The sizing pass rendered the content squished (and discarded), so its measurement
-        // must not become the remembered content size. What the container will present next
-        // is `desired_size` as of here — the user's request as clamped by `min_content_width`
-        // and `min_size`/`max_size` (and, ungated, the re-pin above). Record it, so the idle
-        // grow-to-content in `begin` cannot feed the stale pre-drag measurement back over the
-        // requested shrink when the drag ends within the sizing pass (e.g. a window edge drag
-        // whose `requested_size` is consumed on the frame the pointer is released).
-        if sizing_pass {
-            state.last_content_size = state.desired_size;
         }
         // The container rect, anchored on the reading-start edge. `content_ui.min_rect()`
         // is anchored where the content's first widget was seeded (the reading-start edge

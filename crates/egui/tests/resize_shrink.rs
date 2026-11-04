@@ -600,8 +600,9 @@ fn first_drag_frame_reports_the_requested_shrink_even_without_a_second_pass() {
 /// been measured yet. On that frame the stale pre-drag `last_content_size` must
 /// NOT re-pin the requested shrink back up: after the release, the idle frames
 /// must keep the shrunk size instead of bouncing back to the pre-drag size.
-/// This test pins the `!actively_resizing` gate in `Resize::end` itself; the
-/// corner-grip behavioral twin is T6.
+/// This test pins the sizing-pass seed in `Resize::end` (the stale measurement
+/// must not re-pin through the window render or the idle grow-to-content); the
+/// gated re-pin itself is pinned by T8.
 #[test]
 fn window_edge_drag_requested_shrink_survives_a_final_sizing_pass() {
     const SCREEN: Vec2 = vec2(700.0, 500.0);
@@ -734,8 +735,10 @@ fn window_edge_drag_requested_shrink_survives_a_final_sizing_pass() {
 /// are — must not clamp the just-requested shrink back up to the stale
 /// pre-drag content size: the sizing-pass frame must already report the
 /// requested shrink, with the reading-start edge fixed, and the shrunk size
-/// must survive the release (the corner response keeps carrying the pointer
-/// through the release frame, which re-applies the request and re-measures).
+/// must survive the release: once the pointer is up, the idle grow-to-content
+/// in `begin` works from the remembered content size, which the sizing-pass
+/// seed pinned at the requested size, so the stale pre-drag measurement
+/// cannot bounce the size back.
 /// The corner-grip behavioral twin with a second pass is T6; the window
 /// edge-drag twin is T7.
 #[test]
@@ -833,9 +836,13 @@ fn sizing_pass_final_reports_the_requested_shrink_on_a_plain_resize() {
             );
         }
 
-        // Release: the corner response keeps carrying the pointer through the
-        // release frame, which re-applies the request and re-measures, so the
-        // shrunk size must stick across idle frames.
+        // Release the pointer: the release frame itself still re-applies the request
+        // (the corner response it reads is from the drag frame), but from the next
+        // frame on the pointer is up and the idle grow-to-content in `begin` runs on
+        // the seeded `last_content_size`, so the shrunk size must stick across idle
+        // frames.
+        time += 0.1;
+        let _release_frame = container(vec![pointer_press(moved, false)], time);
         for i in 0..3 {
             time += 0.1;
             let idle = container(vec![], time);
