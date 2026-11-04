@@ -37,8 +37,10 @@ impl crate::View for DancingStrings {
             Color32::from_black_alpha(240)
         };
 
-        ui.checkbox(&mut self.colors, "Colored")
-            .on_hover_text("Demonstrates how a path can have varying color across its length.");
+        ui.checkbox(&mut self.colors, crate::i18n::t("Colored"))
+            .on_hover_text(crate::i18n::t(
+                "Demonstrates how a path can have varying color across its length.",
+            ));
 
         Frame::canvas(ui.style()).show(ui, |ui| {
             ui.request_repaint();
