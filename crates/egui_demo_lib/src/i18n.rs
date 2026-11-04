@@ -1138,12 +1138,28 @@ mod tests {
         "Type here",
         "↔️ freely resized",
         "This window has empty space that fills up the available space, preventing auto-shrink.",
+        // demo stragglers (exhaustive sweep of crates/egui_demo_lib/src/demo/*.rs)
+        "This demo showcases how to take screenshots via ",
+        "📷 Take Screenshot",
+        "Capture continuously",
+        "No screenshot taken yet.",
+        "Scroll offset: {current_scroll}/{max_scroll} px",
+        "sRGBA: {r} {g} {b} {a}",
+        "sRGBA with premultiplied alpha: {r} {g} {b} {a}",
+        "Linear RGBA: {r} {g} {b} {a}",
+        "Linear RGBA with premultiplied alpha: {r} {g} {b} {a}",
     ];
 
     /// Scoped keys whose translation legitimately equals the key (technology names),
     /// each with its reason inline; every other scoped key must have a real translation.
     fn identity_whitelist() -> &'static [&'static str] {
-        &["⬇️ HTTP"] // a technology name that reads the same in Arabic
+        &[
+            "⬇️ HTTP", // a technology name that reads the same in Arabic
+            // Color-component readouts: a color-model name (kept in Latin) and four numbers
+            // only, so the Arabic text reads the same as the English.
+            "sRGBA: {r} {g} {b} {a}",
+            "Linear RGBA: {r} {g} {b} {a}",
+        ]
     }
 
     /// The Arabic language handle (`unwrap` is fine in tests: it is in the registry).

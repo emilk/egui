@@ -38,14 +38,16 @@ impl crate::View for Screenshot {
 
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            ui.label("This demo showcases how to take screenshots via ");
+            ui.label(crate::i18n::t(
+                "This demo showcases how to take screenshots via ",
+            ));
             ui.code("Context::request_screenshot");
             ui.label(".");
         });
 
         ui.horizontal_top(|ui| {
-            let capture = ui.button("📷 Take Screenshot").clicked();
-            ui.checkbox(&mut self.continuous, "Capture continuously");
+            let capture = ui.button(crate::i18n::t("📷 Take Screenshot")).clicked();
+            ui.checkbox(&mut self.continuous, crate::i18n::t("Capture continuously"));
             if capture || self.continuous {
                 let received = Arc::clone(&self.received);
                 let ctx = ui.ctx().clone();
@@ -72,7 +74,7 @@ impl crate::View for Screenshot {
                 ui.set_width(ui.available_width());
                 ui.set_height(100.0);
                 ui.centered_and_justified(|ui| {
-                    ui.label("No screenshot taken yet.");
+                    ui.label(crate::i18n::t("No screenshot taken yet."));
                 });
             });
         }

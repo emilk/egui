@@ -536,33 +536,58 @@ impl ColorWidgets {
 
         ui.horizontal(|ui| {
             ui.color_edit_button_srgba_unmultiplied(srgba_unmul);
-            ui.label(format!(
-                "sRGBA: {} {} {} {}",
-                srgba_unmul[0], srgba_unmul[1], srgba_unmul[2], srgba_unmul[3],
+            // The component numbers are pre-formatted in Rust (format specs never enter a
+            // catalogue); the translated template is filled by `i18n::fmt`, not by `format!`.
+            ui.label(i18n::fmt(
+                i18n::t("sRGBA: {r} {g} {b} {a}"),
+                &[
+                    ("r", format!("{}", srgba_unmul[0]).as_str()),
+                    ("g", format!("{}", srgba_unmul[1]).as_str()),
+                    ("b", format!("{}", srgba_unmul[2]).as_str()),
+                    ("a", format!("{}", srgba_unmul[3]).as_str()),
+                ],
             ));
         });
 
         ui.horizontal(|ui| {
             ui.color_edit_button_srgba_premultiplied(srgba_premul);
-            ui.label(format!(
-                "sRGBA with premultiplied alpha: {} {} {} {}",
-                srgba_premul[0], srgba_premul[1], srgba_premul[2], srgba_premul[3],
+
+            ui.label(i18n::fmt(
+                i18n::t("sRGBA with premultiplied alpha: {r} {g} {b} {a}"),
+                &[
+                    ("r", format!("{}", srgba_premul[0]).as_str()),
+                    ("g", format!("{}", srgba_premul[1]).as_str()),
+                    ("b", format!("{}", srgba_premul[2]).as_str()),
+                    ("a", format!("{}", srgba_premul[3]).as_str()),
+                ],
             ));
         });
 
         ui.horizontal(|ui| {
             ui.color_edit_button_rgba_unmultiplied(rgba_unmul);
-            ui.label(format!(
-                "Linear RGBA: {:.02} {:.02} {:.02} {:.02}",
-                rgba_unmul[0], rgba_unmul[1], rgba_unmul[2], rgba_unmul[3],
+
+            ui.label(i18n::fmt(
+                i18n::t("Linear RGBA: {r} {g} {b} {a}"),
+                &[
+                    ("r", format!("{:.02}", rgba_unmul[0]).as_str()),
+                    ("g", format!("{:.02}", rgba_unmul[1]).as_str()),
+                    ("b", format!("{:.02}", rgba_unmul[2]).as_str()),
+                    ("a", format!("{:.02}", rgba_unmul[3]).as_str()),
+                ],
             ));
         });
 
         ui.horizontal(|ui| {
             ui.color_edit_button_rgba_premultiplied(rgba_premul);
-            ui.label(format!(
-                "Linear RGBA with premultiplied alpha: {:.02} {:.02} {:.02} {:.02}",
-                rgba_premul[0], rgba_premul[1], rgba_premul[2], rgba_premul[3],
+
+            ui.label(i18n::fmt(
+                i18n::t("Linear RGBA with premultiplied alpha: {r} {g} {b} {a}"),
+                &[
+                    ("r", format!("{:.02}", rgba_premul[0]).as_str()),
+                    ("g", format!("{:.02}", rgba_premul[1]).as_str()),
+                    ("b", format!("{:.02}", rgba_premul[2]).as_str()),
+                    ("a", format!("{:.02}", rgba_premul[3]).as_str()),
+                ],
             ));
         });
     }
@@ -592,8 +617,8 @@ impl Default for BoxPainting {
 
 impl BoxPainting {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text("width"));
-        ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text("height"));
+        ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text(i18n::t("width")));
+        ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text(i18n::t("height")));
         ui.add(Slider::new(&mut self.corner_radius, 0.0..=50.0).text(i18n::t("corner_radius")));
         ui.add(Slider::new(&mut self.stroke_width, 0.0..=10.0).text(i18n::t("stroke_width")));
         ui.add(Slider::new(&mut self.num_boxes, 0..=8).text(i18n::t("num_boxes")));
