@@ -723,3 +723,107 @@ fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
         }
     }
 }
+
+/// A9: a resizable [`Window`] paints its grip in the bottom-right corner under
+/// LTR and the bottom-left corner under RTL — the grip mirrors with the
+/// reading direction, like the `Resize` container's grip (the window's corner
+/// selection always prefers the bottom-right, and a movable window enables
+/// both left and right resize edges, so the choice has to be mirrored). The
+/// grip is identified by the diagonal line segments the window paints near
+/// its corner (the only diagonal lines a plain window paints).
+#[test]
+fn window_grip_corner_mirrors_under_rtl() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+
+    /// The painted grip rect, from the window's diagonal line segments:
+    fn grip_rect(output: &FullOutput) -> Rect {
+        let mut grip = Rect::NOTHING;
+        for clipped in &output.shapes {
+            if let Shape::LineSegment { points: [a, b], .. } = &clipped.shape
+                && (a.x - b.x).abs() > 0.5
+                && (a.y - b.y).abs() > 0.5
+            {
+                grip = grip.union(Rect::from_two_pos(*a, *b));
+            }
+        }
+        grip
+    }
+
+    fn frame(ctx: &Context) -> (Rect, Rect) {
+        let mut window = Rect::NOTHING;
+        let output = run(ctx, input(SCREEN), |_ui| {
+            if let Some(response) = Window::new("grip window")
+                .resizable(true)
+                .default_pos(pos2(100.0, 50.0))
+                .default_size(vec2(300.0, 200.0))
+                .show(ctx, |ui| {
+                    ui.label("Content");
+                })
+            {
+                window = response.response.rect;
+            }
+        });
+        (window, grip_rect(&output))
+    }
+
+    fn settle(ctx: &Context) -> (Rect, Rect) {
+        let mut prev = frame(ctx);
+        for _ in 0..8 {
+            let next = frame(ctx);
+            if same_rect(next.0, prev.0) {
+                return next;
+            }
+            prev = next;
+        }
+        prev
+    }
+
+    // LTR: the grip hugs the window's bottom-right corner:
+    let ctx = Context::default();
+    let (window, grip) = settle(&ctx);
+    assert!(
+        window.is_positive() && grip.is_positive(),
+        "the frame should lay out the window and paint the grip \
+         (window {window:?}, grip {grip:?})"
+    );
+    assert!(
+        (grip.right() - window.right()).abs() <= 8.0,
+        "LTR: the grip must sit on the window's right edge \
+         (window {window:?}, grip {grip:?})"
+    );
+    assert!(
+        (grip.bottom() - window.bottom()).abs() <= 8.0,
+        "LTR: the grip must sit on the window's bottom edge \
+         (window {window:?}, grip {grip:?})"
+    );
+    assert!(
+        grip.center().x > window.center().x && grip.center().y > window.center().y,
+        "LTR: the grip must sit in the window's bottom-right quadrant \
+         (window {window:?}, grip {grip:?})"
+    );
+
+    // RTL: the grip hugs the window's bottom-left (reading-start) corner:
+    let ctx = Context::default();
+    ctx.set_right_to_left(true);
+    let (window, grip) = settle(&ctx);
+    assert!(
+        window.is_positive() && grip.is_positive(),
+        "the frame should lay out the window and paint the grip \
+         (window {window:?}, grip {grip:?})"
+    );
+    assert!(
+        (grip.left() - window.left()).abs() <= 8.0,
+        "RTL: the grip must sit on the window's reading-start (left) edge \
+         (window {window:?}, grip {grip:?})"
+    );
+    assert!(
+        (grip.bottom() - window.bottom()).abs() <= 8.0,
+        "RTL: the grip must sit on the window's bottom edge \
+         (window {window:?}, grip {grip:?})"
+    );
+    assert!(
+        grip.center().x < window.center().x && grip.center().y > window.center().y,
+        "RTL: the grip must sit in the window's bottom-left quadrant \
+         (window {window:?}, grip {grip:?})"
+    );
+}
