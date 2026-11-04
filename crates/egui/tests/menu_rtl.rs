@@ -286,6 +286,140 @@ fn submenu_opens_on_reading_direction_side_under_rtl() {
     );
 }
 
+/// A5.4: a submenu whose rows are drawn inside a vertical `ScrollArea` (how apps
+/// bound tall menus to the window) still opens on the reading-direction side of
+/// its row and hugs its content width. The scroll area must place and measure
+/// itself from the layout cursor on its non-scrolling cross axis: right-anchoring
+/// it under RTL leaves an empty span between the parent layout's min-rect seed
+/// point and the rect, ballooning the popup's measured width to the whole
+/// available span — and a popup that wide can no longer fit on the reading-end
+/// side of its row, so it fell back to another alignment.
+#[test]
+fn submenu_with_a_scroll_area_body_still_opens_on_the_reading_direction_side() {
+    fn submenu_rects(rtl: bool) -> (Rect, Rect) {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+
+        let top_rect = core::cell::RefCell::new(Rect::NOTHING);
+        let sub = core::cell::RefCell::new(None);
+
+        let mut show = |ui: &mut Ui| {
+            ui.vertical_centered(|ui| {
+                *top_rect.borrow_mut() = ui
+                    .menu_button("Top", |ui| {
+                        let response = ui
+                            .menu_button("Sub", |ui| {
+                                // The vertical ScrollArea a menu body bounded by the
+                                // window height is drawn in (vertical-only, and without
+                                // a bar strip while the rows fit):
+                                egui::ScrollArea::vertical()
+                                    .id_salt("menu-level")
+                                    .max_height(400.0)
+                                    .min_scrolled_height(400.0)
+                                    .show(ui, |ui| {
+                                        _ = ui.button("Item in submenu");
+                                    });
+                            })
+                            .response;
+                        *sub.borrow_mut() = Some((response.id, response.rect));
+                    })
+                    .response
+                    .rect;
+            });
+        };
+
+        // One frame to lay out the closed menu and find the "Top" button:
+        run(&ctx, input_at(SCREEN, 0.0, vec![]), &mut show);
+        let top_center = top_rect.borrow().center();
+
+        // The dance, one `run` frame each: hover Top, press Top, release Top (the
+        // release click opens the parent menu — that frame is its invisible sizing
+        // pass), settle (the parent menu re-runs at its real position, so the Sub
+        // row is captured from a parent show frame), hover Sub, press Sub, release
+        // Sub (opens the submenu), settle:
+        run(
+            &ctx,
+            input_at(SCREEN, 1.0, vec![Event::PointerMoved(top_center)]),
+            &mut show,
+        );
+        run(
+            &ctx,
+            input_at(
+                SCREEN,
+                1.1,
+                vec![button_event(top_center, PointerButton::Primary, true)],
+            ),
+            &mut show,
+        );
+        run(
+            &ctx,
+            input_at(
+                SCREEN,
+                1.2,
+                vec![button_event(top_center, PointerButton::Primary, false)],
+            ),
+            &mut show,
+        );
+        run(&ctx, input_at(SCREEN, 1.3, vec![]), &mut show);
+
+        let (sub_id, sub_rect) = sub
+            .borrow()
+            .expect("the parent menu should be open with its Sub row");
+        let sub_center = sub_rect.center();
+
+        run(
+            &ctx,
+            input_at(SCREEN, 1.4, vec![Event::PointerMoved(sub_center)]),
+            &mut show,
+        );
+        run(
+            &ctx,
+            input_at(
+                SCREEN,
+                1.5,
+                vec![button_event(sub_center, PointerButton::Primary, true)],
+            ),
+            &mut show,
+        );
+        run(
+            &ctx,
+            input_at(
+                SCREEN,
+                1.6,
+                vec![button_event(sub_center, PointerButton::Primary, false)],
+            ),
+            &mut show,
+        );
+        run(&ctx, input_at(SCREEN, 1.7, vec![]), &mut show);
+
+        let popup_id = SubMenu::id_from_widget_id(sub_id);
+        (popup_area_rect(&ctx, popup_id), sub_rect)
+    }
+
+    let (rtl_popup, rtl_sub) = submenu_rects(true);
+    assert!(
+        rtl_popup.max.x <= rtl_sub.min.x + 1.0,
+        "RTL: the submenu should open on the reading-end (left) side of its row \
+         (popup {rtl_popup:?}, row {rtl_sub:?})"
+    );
+
+    let (ltr_popup, ltr_sub) = submenu_rects(false);
+    assert!(
+        ltr_popup.min.x >= ltr_sub.max.x - 1.0,
+        "LTR: the submenu should open on the reading-direction (right) side of \
+         its row (popup {ltr_popup:?}, row {ltr_sub:?})"
+    );
+    // The popup hugs its content in both directions (the scroll area followed the
+    // content instead of ballooning to the offered span):
+    assert!(
+        (rtl_popup.width() - ltr_popup.width()).abs() < 2.0,
+        "the scroll-area submenu should measure the same in both directions \
+         (RTL {rtl_popup:?}, LTR {ltr_popup:?})"
+    );
+}
+
 /// Open a context menu by secondary-clicking a full-screen widget at `pointer`,
 /// and return the popup's area rect. Frames: hover, secondary press, secondary
 /// release, settle, settle (the release frame opens the menu as its invisible

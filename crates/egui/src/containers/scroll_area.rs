@@ -903,6 +903,17 @@ impl ScrollArea {
             inner_size
         };
 
+        // The horizontal geometry follows the reading direction only where the reading
+        // direction actually governs it: a horizontally scrolling axis (whose content is
+        // anchored at the reading start and grows reading-forward), or a vertical scroll
+        // bar reserving its strip on the reading-end edge. A vertical-only scroll area
+        // with no bar strip must place and measure itself like any other widget — from
+        // the layout cursor — so its parent measures the same size in both directions:
+        // right-anchoring its rect would leave an empty span between the parent layout's
+        // min-rect seed point and the rect, ballooning the measured width (the popup and
+        // menu sizing passes measure in the logical, unmirrored layout).
+        let rtl_x = rtl && (direction_enabled[0] || current_bar_use.x != 0.0);
+
         let inner_rect = if rtl && current_bar_use.x != 0.0 {
             // Vertical scroll bar on the reading-end (left) edge under RTL: the exact mirror
             // of the LTR expression below — same `inner_size` (which may be capped by
@@ -930,7 +941,7 @@ impl ScrollArea {
             }
         }
 
-        let content_max_rect = if rtl {
+        let content_max_rect = if rtl_x {
             // Right-to-left: the reading start (the content's right edge) is pinned to
             // the viewport's right edge; scrolling forward (offset.x growing towards
             // `max_offset.x`) slides the content rightward, revealing its trailing end.
@@ -1396,6 +1407,10 @@ impl Prepared {
             }
         });
 
+        // Same predicate as in `begin`: only a horizontally scrolling axis or a reserved
+        // vertical bar strip follows the reading direction (see `rtl_x` there).
+        let rtl_x = rtl && (direction_enabled[0] || current_bar_use.x != 0.0);
+
         let inner_rect = {
             // At this point this is the available size for the inner rect.
             let mut inner_size = inner_rect.size();
@@ -1409,7 +1424,7 @@ impl Prepared {
                 };
             }
 
-            if rtl {
+            if rtl_x {
                 // Keep the reading-start (right) edge anchored when the area shrinks.
                 Rect::from_min_max(
                     pos2(inner_rect.max.x - inner_size.x, inner_rect.min.y),
@@ -1420,7 +1435,7 @@ impl Prepared {
             }
         };
 
-        let outer_rect = if rtl {
+        let outer_rect = if rtl_x {
             // Vertical bar (and its reserved space) on the reading-end (left) edge.
             Rect::from_min_max(
                 pos2(inner_rect.min.x - current_bar_use.x, inner_rect.min.y),
