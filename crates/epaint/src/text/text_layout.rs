@@ -702,6 +702,18 @@ fn layout_section(
         // visual (left-to-right) order. Each run is shaped in its own direction, so an
         // RTL run's glyphs already come out of the shaper in visual order; within an
         // RTL run the font runs are therefore emitted in reverse (logical) order too.
+        //
+        // KNOWN LIMITATION: the reordering is per newline-split segment, and wrapping
+        // (`line_break`) afterwards splits the already-reordered *visual* glyph stream
+        // into rows. For mixed-direction text that wraps, the rows therefore do not
+        // follow UAX #9 L1/L2 per rendered line (which would reorder each line's own
+        // logical text): e.g. an RTL-base `عربي aaa bbb` wrapped after `aaa` must
+        // render row 1 as `aaa يبرع` and row 2 as `bbb`, but slicing the whole-segment
+        // visual stream puts `bbb` on row 1. Correct per-line reordering needs wrapping
+        // to happen on the logical stream before the visual reorder (with x positions
+        // assigned per row afterwards), which is a restructuring of the layout
+        // pipeline; until then, mixed-direction text that wraps can render words on
+        // the wrong rows. Single-row text (no wrap) is unaffected.
         segment_into_bidi_runs(segment, base_level, &mut bidi_runs);
 
         for bidi_run in &bidi_runs {
@@ -748,9 +760,10 @@ fn layout_section(
                 let face_metrics =
                     font_face.styled_metrics(pixels_per_point, font_size, &format.coords);
 
-                // Set buffer flags for paragraph boundary context. These follow the
-                // *logical* position of the font run within the segment (the emission
-                // order above is the visual order, not the logical one).
+                // Set buffer flags for text-boundary context. These follow the
+                // *logical* position of the font run within the bidi run (each bidi
+                // run is shaped in isolation; the emission order above is the visual
+                // order, not the logical one).
                 let mut flags = harfrust::BufferFlags::empty();
                 if run_idx == 0 {
                     flags |= harfrust::BufferFlags::BEGINNING_OF_TEXT;
@@ -3498,7 +3511,7 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
-    // NG8: bidi run segmentation + visual reordering (UAX #9)
+    // Bidi run segmentation + visual reordering (UAX #9)
     //
     // The glyphs of a bidi-reordered row are stored in VISUAL order (left to
     // right), matching what single RTL runs always did. Zero-advance
@@ -3613,7 +3626,8 @@ mod tests {
 
     /// T3 — numbers in an RTL context keep their UAX #9 placement: European
     /// numbers sit at level 2 (LTR), so they render in logical order at the
-    /// visual left of an RTL paragraph (they were reversed before NG8).
+    /// visual left of an RTL paragraph (they were reversed before bidi
+    /// reordering landed).
     #[test]
     fn bidi_numbers_keep_uax9_placement_in_rtl_context() {
         let glyphs = visible_glyphs(&layout_with_direction("عربي 123", None));
@@ -3624,7 +3638,7 @@ mod tests {
 
     /// T4 — byte-identity pins: pure-LTR text lays out exactly as it did before
     /// bidi reordering landed. The values below were captured from the
-    /// pre-NG8 tree (commit 7879e8d5) with the default fonts at ppp 1.0.
+    /// pre-bidi tree with the default fonts at ppp 1.0.
     #[test]
     fn bidi_pure_ltr_is_byte_identical_to_pre_change_output() {
         let glyphs = visible_glyphs(&layout_with_direction("Hello World 123", None));
@@ -3653,13 +3667,15 @@ mod tests {
     /// as before — its single run was always shaped in its own direction and
     /// emitted in visual order. The zero-advance glyphs at the end are the
     /// pre-existing continuation-glyph output of the shaper path (unchanged by
-    /// NG8) and are pinned here as-is.
+    /// bidi reordering); the helper filters them out, so they are NOT pinned
+    /// by this test (see the continuation-glyph note in the impl report).
     #[test]
     fn bidi_pure_rtl_is_byte_identical_to_pre_change_output() {
         for direction in [None, Some(TextDirection::RightToLeft)] {
             let glyphs = visible_glyphs(&layout_with_direction("تقرير", direction));
             // The five visible glyphs in visual order (the four zero-advance
-            // continuation glyphs that follow are filtered out by the helper):
+            // continuation glyphs that follow are filtered out by the helper and
+            // therefore unpinned):
             let expected: Vec<(char, f32, f32)> = [
                 ('ر', 0.0, 7.0),
                 ('ي', 7.0, 7.0),
@@ -3680,7 +3696,8 @@ mod tests {
     /// KNOWN LIMITATION (documented in `Row`): for reordered rows the cursor
     /// index counts *visual* glyph slots, not logical character offsets.
     /// Mapping `CCursor` indices back to logical string positions is deferred;
-    /// this test pins the coherent visual hit-testing behaviour that NG8 keeps.
+    /// this test pins the coherent visual hit-testing behaviour that bidi
+    /// reordering keeps.
     #[test]
     fn bidi_cursor_hit_test_follows_visual_order() {
         let galley = layout_with_direction("عربي 123", None);

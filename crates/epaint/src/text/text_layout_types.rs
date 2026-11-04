@@ -968,6 +968,13 @@ pub struct Row {
     /// hit-testing is correct while mapping a column back to a logical
     /// string offset needs a logical↔visual map (not yet implemented —
     /// known gap for bidi text editing).
+    ///
+    /// Second known gap for bidirectional text: the visual reordering happens
+    /// per newline-split segment, and wrapping afterwards slices the already
+    /// reordered glyph stream, so for *mixed-direction* text that wraps the
+    /// rows do not follow UAX #9 L1/L2 per rendered line (words can end up on
+    /// the wrong rows). Correct per-line reordering needs logical wrapping
+    /// before the visual reorder. Single-row text is unaffected.
     pub glyphs: Vec<Glyph>,
 
     /// Logical size based on font heights etc.

@@ -55,8 +55,11 @@ pub(crate) fn segment_into_bidi_runs(segment: &str, base_level: Level, out: &mut
     // Fast path: ASCII text at an LTR base level can only ever resolve to a single
     // level-0 run. ASCII contains no R, AL or AN characters, so no odd level and no
     // reordering can arise (numbers stay at even levels, which shape identically).
-    // This keeps the overwhelmingly common pure-LTR case allocation- and scan-free
-    // and byte-identical to the pre-bidi behaviour.
+    // This keeps the overwhelmingly common pure-LTR case scan-free (the one small
+    // allocation for the single-run vector still happens) and byte-identical to the
+    // pre-bidi behaviour. Non-ASCII pure-LTR text pays full UAX #9 resolution per
+    // layout, but the crate's own `is_pure_ltr` early-return keeps its output
+    // identical, and the galley cache amortizes the cost.
     if base_level == Level::ltr() && segment.is_ascii() {
         out.push(BidiRun {
             level: base_level,
@@ -66,16 +69,15 @@ pub(crate) fn segment_into_bidi_runs(segment: &str, base_level: Level, out: &mut
     }
 
     let info = ParagraphBidiInfo::new(segment, Some(base_level));
-    let (_, runs) = info.visual_runs(0..segment.len());
+    // `visual_runs` returns the L1-adjusted levels alongside the runs; the runs are
+    // maximal in those adjusted levels, so the adjusted level at a run's first byte
+    // is the level the whole run was formed at. (The pre-L1 `info.levels` can differ
+    // on L1-reset characters such as trailing whitespace or isolates.)
+    let (levels, runs) = info.visual_runs(0..segment.len());
 
     out.extend(runs.into_iter().map(|byte_range| {
-        // Each run is maximal in the (L1-adjusted) levels, so the level at its first
-        // byte is the level of the whole run. The range is always within bounds.
-        let level = info
-            .levels
-            .get(byte_range.start)
-            .copied()
-            .unwrap_or(base_level);
+        // The range is always within bounds.
+        let level = levels.get(byte_range.start).copied().unwrap_or(base_level);
         BidiRun { level, byte_range }
     }));
 }
