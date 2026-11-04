@@ -881,6 +881,10 @@ pub struct Galley {
     /// * [`Align::LEFT`]: `rect.left() == 0.0`
     /// * [`Align::Center`]: `rect.center() == 0.0`
     /// * [`Align::RIGHT`]: `rect.right() == 0.0`
+    ///
+    /// The anchors hold for the aligned ink; whitespace that the alignment
+    /// ignores ([`LayoutJob::keep_trailing_whitespace`] is `false`) extends
+    /// the rect reading-forward from the anchored ink.
     pub rect: Rect,
 
     /// Tight bounding box around all the meshes in all the rows.

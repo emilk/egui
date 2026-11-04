@@ -1374,6 +1374,11 @@ fn halign_and_justify_row(
         return;
     }
 
+    // The natural width of the row, whitespace included. Alignment trims the
+    // ink below, but the row keeps this size so the space after (or before,
+    // in right-to-left rows) the text is allocated like in a left-aligned row.
+    let natural_width = row.size.x;
+
     let num_leading_spaces = row
         .glyphs
         .iter()
@@ -1451,8 +1456,17 @@ fn halign_and_justify_row(
         }
     }
 
-    // Note we ignore the leading/trailing whitespace here!
-    row.size.x = target_max_x - target_min_x;
+    // The ink range above is only for positioning: centered and right-anchored
+    // rows align around their ink, so trailing whitespace must not skew them.
+    // The row's allocated size keeps counting the whitespace (except for
+    // justified rows, which fill the wrap width, and rows that
+    // `keep_trailing_whitespace`, whose aligned span is their size), so
+    // inter-widget spacing is the same in both reading directions.
+    row.size.x = if justify || keep_trailing_whitespace {
+        target_max_x - target_min_x
+    } else {
+        natural_width
+    };
 }
 
 /// Calculate the Y positions and tessellate the text.
@@ -3385,6 +3399,109 @@ mod tests {
             "right: {}",
             galley.rect.right()
         );
+    }
+
+    /// A row ending in whitespace allocates the same width in both reading
+    /// directions: the ink is trimmed for alignment, but the row's size keeps
+    /// counting the whitespace, so a widget following at zero item spacing
+    /// keeps its gap under right-to-left layout too.
+    #[test]
+    fn rtl_row_allocates_trailing_whitespace_like_its_ltr_twin() {
+        let mut fonts = tofu_fonts();
+        let pixels_per_point = 2.0;
+        let font_id = FontId::proportional(14.0);
+
+        let mut ltr_job =
+            LayoutJob::simple_singleline("abc ".into(), font_id.clone(), Color32::WHITE);
+        ltr_job.direction = Some(TextDirection::LeftToRight);
+        let ltr = layout(&mut fonts, pixels_per_point, ltr_job.into());
+
+        let mut rtl_job = LayoutJob::simple_singleline("abc ".into(), font_id, Color32::WHITE);
+        rtl_job.direction = Some(TextDirection::RightToLeft);
+        let rtl = layout(&mut fonts, pixels_per_point, rtl_job.into());
+
+        assert_eq!(ltr.rows.len(), 1);
+        assert_eq!(rtl.rows.len(), 1);
+        assert_eq!(
+            rtl.size().x,
+            ltr.size().x,
+            "the rtl row must allocate the same width as its ltr twin"
+        );
+        // The ink still ends at the reading-start anchor, and the row rect
+        // starts at the ink (the `rect.left()` compensation contract); only
+        // the allocated width grows to cover the whitespace:
+        let rtl_ink = ink_rect(&rtl);
+        assert!(rtl_ink.right().abs() <= 0.5 / pixels_per_point);
+        assert!((rtl_ink.left() - rtl.rect.left()).abs() <= 0.5 / pixels_per_point);
+    }
+
+    /// The bounding rect of the non-whitespace glyphs ("the ink"), in galley
+    /// space.
+    fn ink_rect(galley: &Galley) -> Rect {
+        galley
+            .rows
+            .iter()
+            .map(|row| {
+                row.glyphs
+                    .iter()
+                    .filter(|glyph| !glyph.chr.is_whitespace())
+                    .map(|glyph| glyph.logical_rect())
+                    .fold(Rect::NOTHING, Rect::union)
+                    .translate(row.pos.to_vec2())
+            })
+            .fold(Rect::NOTHING, Rect::union)
+    }
+
+    /// Trailing whitespace never skews the ink of centered or right-anchored
+    /// rows: they align around their ink (whitespace excluded), while the
+    /// allocated width still includes it.
+    #[test]
+    fn trailing_whitespace_does_not_skew_center_or_right_ink() {
+        let mut fonts = tofu_fonts();
+        let pixels_per_point = 2.0;
+        let font_id = FontId::proportional(14.0);
+        // Half a physical pixel: glyph positions are pixel-rounded.
+        let tol = 0.5 / pixels_per_point;
+
+        let mut left_job =
+            LayoutJob::simple_singleline("abc ".into(), font_id.clone(), Color32::WHITE);
+        left_job.direction = Some(TextDirection::LeftToRight);
+        let ink_width = ink_rect(&layout(&mut fonts, pixels_per_point, left_job.into())).width();
+
+        for halign in [Align::Center, Align::RIGHT] {
+            let mut job =
+                LayoutJob::simple_singleline("abc ".into(), font_id.clone(), Color32::WHITE);
+            job.direction = Some(TextDirection::LeftToRight);
+            job.halign = halign;
+            let galley = layout(&mut fonts, pixels_per_point, job.into());
+            assert_eq!(galley.rows.len(), 1);
+
+            // The ink, in galley space: the non-whitespace glyphs, offset by
+            // the row position.
+            let ink = ink_rect(&galley);
+            match halign {
+                Align::Center => {
+                    assert!(
+                        (ink.center().x).abs() <= tol,
+                        "center ink skewed: {:?}",
+                        ink.center().x
+                    );
+                }
+                Align::RIGHT => {
+                    assert!(
+                        ink.right().abs() <= tol,
+                        "right ink skewed: {:?}",
+                        ink.right()
+                    );
+                }
+                Align::LEFT => unreachable!(),
+            }
+            assert!(
+                (ink.width() - ink_width).abs() <= tol,
+                "ink width changed: {:?} vs {ink_width:?}",
+                ink.width()
+            );
+        }
     }
 
     #[test]
