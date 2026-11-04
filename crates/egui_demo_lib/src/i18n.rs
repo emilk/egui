@@ -137,6 +137,9 @@ impl Lang {
 #[derive(Default)]
 struct Catalog {
     plain: HashMap<String, String>,
+    /// How many lines were skipped as malformed (the tests insist this stays 0 for the bundled
+    /// catalogues).
+    skipped: usize,
 }
 
 /// `catalog.rs`-style unescaping: `\n`, `\t` and `\\` inside a column; anything else (including a
@@ -169,7 +172,7 @@ impl Catalog {
     fn parse(text: &str) -> Self {
         let mut catalog = Self::default();
         for (n, line) in text.lines().enumerate() {
-            if line.trim().is_empty() || line.starts_with('#') {
+            if line.trim().is_empty() || line.trim_start().starts_with('#') {
                 continue;
             }
             let mut cols = line.split('\t');
@@ -178,6 +181,7 @@ impl Catalog {
                     catalog.plain.insert(unescape(src), unescape(tr));
                 }
                 _ => {
+                    catalog.skipped += 1;
                     log::warn!(
                         "translation catalogue line {}: expected `<TAB>source<TAB>translation` \
                          (an empty context column); line skipped",
@@ -223,14 +227,29 @@ pub fn tr(lang: Lang, s: &str) -> &str {
     lang.catalog().plain(s).unwrap_or(s)
 }
 
-/// Fill `{name}` placeholders in a (possibly translated) template. Unknown placeholders are left
-/// as written, so a catalogue row and its arguments can't silently disagree.
+/// Fill `{name}` placeholders in a (possibly translated) template.
+///
+/// Unknown placeholders are left as written, so a catalogue row and its arguments can't silently
+/// disagree. One pass over the template: a value is inserted verbatim, so a value containing a
+/// later placeholder is never substituted itself.
 #[must_use]
 pub fn fmt(template: &str, args: &[(&str, &str)]) -> String {
-    let mut out = template.to_owned();
-    for (name, value) in args {
-        out = out.replace(&format!("{{{name}}}"), value);
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
+    while let Some(open) = rest.find('{') {
+        let Some(close) = rest[open + 1..].find('}').map(|c| open + 1 + c) else {
+            break;
+        };
+        let name = &rest[open + 1..close];
+        out.push_str(&rest[..open]);
+        match args.iter().find(|(n, _)| *n == name) {
+            Some((_, value)) => out.push_str(value),
+            // Unknown placeholder: left as written.
+            None => out.push_str(&rest[open..=close]),
+        }
+        rest = &rest[close + 1..];
     }
+    out.push_str(rest);
     out
 }
 
@@ -568,6 +587,38 @@ mod tests {
         }
     }
 
+    /// The bundled Arabic catalogue is clean and complete: nothing skipped as malformed, and no
+    /// stray rows — exactly the scoped key set, no more and no less.
+    #[test]
+    fn arabic_catalogue_has_zero_skipped_or_stray_rows() {
+        let catalog = ar().catalog();
+        assert_eq!(catalog.skipped, 0, "malformed lines in ar.tsv");
+        assert_eq!(
+            catalog.plain.len(),
+            SCOPED_KEYS.len(),
+            "stray or missing rows in ar.tsv"
+        );
+    }
+
+    /// `#` comment lines (indented ones too) and blank lines are ignored, so a catalogue can
+    /// carry its header and section comments.
+    #[test]
+    fn comments_and_blank_lines_are_ignored() {
+        let text = concat!(
+            "# Arabic (ar) catalog\n",
+            "\n",
+            "  # an indented section comment\n",
+            "\tDemos\tالعروض\n",
+            "# another section\n",
+            "\tQuit\tإنهاء\n",
+        );
+        let catalog = Catalog::parse(text);
+        assert_eq!(catalog.skipped, 0);
+        assert_eq!(catalog.plain.len(), 2);
+        assert_eq!(catalog.plain("Demos"), Some("العروض"));
+        assert_eq!(catalog.plain("Quit"), Some("إنهاء"));
+    }
+
     #[test]
     fn templates_and_links_round_trip() {
         // Each `fmt()` template filled with sample args yields today's English `format!` output.
@@ -628,6 +679,13 @@ mod tests {
 
         // Unknown placeholders are left as written.
         assert_eq!(fmt("Hello {unknown}", &[("a", "b")]), "Hello {unknown}");
+
+        // A value is inserted verbatim, even when it contains a later placeholder.
+        assert_eq!(fmt("{a} {b}", &[("a", "{b}"), ("b", "two")]), "{b} two");
+        assert_eq!(
+            fmt("{a} {b} {a}", &[("b", "{a}"), ("a", "one")]),
+            "one {a} one"
+        );
     }
 
     #[test]

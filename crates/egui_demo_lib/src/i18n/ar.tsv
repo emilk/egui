@@ -1,3 +1,17 @@
+# Arabic (ar) catalog. Columns, separated by a TAB:  context <TAB> source <TAB> translation
+#
+#   context  empty           a plain UI string; `source` is the English text in the code
+#            anything else   reserved; such a line is malformed and skipped with a warning
+#   escapes  \n  \t  \\  inside a column. `{name}` placeholders must appear in both columns.
+#   lines starting with # and blank lines are ignored.
+#
+# Clean-room: every entry was written from the plain meaning of the English label using ordinary
+# Modern Standard Arabic computing vocabulary. No proprietary localisation resource, string table
+# or product UI was consulted or copied; add entries the same way. Product and technology names
+# (egui, Rust, WebGL, WebGPU, FPS ...) stay in Latin letters; the trailing "…" of dialog commands
+# and load-bearing whitespace are kept exactly.
+
+# App shell (wrap_app.rs): anchor list, reset buttons, drag-and-drop, language picker
 	✨ Demos	✨ العروض التوضيحية
 	📝 EasyMark editor	📝 محرر EasyMark
 	⬇️ HTTP	⬇️ HTTP
@@ -12,6 +26,8 @@
 	Dropping files:\n	إفلات الملفات:\n
 	Dropped files	الملفات التي تم إفلاتها
 	🌐 Language	🌐 اللغة
+
+# Backend panel (backend_panel.rs), its tabs included
 	egui windows:	نوافذ egui:
 	Press down all modifiers and hover a widget to see a callstack for it	اضغط على جميع المفاتيح المعدِّلة معًا وأشر إلى أحد العناصر لعرض حزمة الاستدعاء الخاصة به
 	🔈 Screen reader	🔈 قارئ الشاشة
@@ -57,10 +73,14 @@
 	🔍 Inspection	🔍 الفحص
 	📝 Memory	📝 الذاكرة
 	📤 Output Events	📤 أحداث المخرجات
+
+# Frame history (frame_history.rs)
 	Mean CPU usage: {cpu} ms / frame	متوسط استخدام المعالج: {cpu} مللي ثانية / إطار
 	Includes all app logic, egui layout, tessellation, and rendering.\nDoes not include waiting for vsync.	يشمل كل منطق التطبيق وتخطيط egui والتثلث والتصيير.\nلا يشمل انتظار المزامنة الرأسية.
 	📊 CPU usage history	📊 سجل استخدام المعالج
 	egui CPU usage history	سجل استخدام المعالج في egui
+
+# Demo shell (demo_app_windows.rs): sidebar headings, menus and hovers
 	Demos	العروض التوضيحية
 	Tests	الاختبارات
 	Continue to the demo!	تابع إلى العرض التوضيحي!
@@ -72,6 +92,8 @@
 	Organize Windows	ترتيب النوافذ
 	Reset egui memory	إعادة تعيين ذاكرة egui
 	About egui	نبذة عن egui
+
+# Demo names (demo_app_windows.rs): the sidebar groups and tests
 	〰 Band	〰 الحزام
 	〰️ Bézier Curve	〰️ منحنى بيزييه
 	⌨️ Code Editor	⌨️ محرر الشيفرة
@@ -113,6 +135,8 @@
 	SVG Test	اختبار SVG
 	Tessellation Test	اختبار التثلث
 	Window Resize Test	اختبار تغيير حجم النافذة
+
+# About window (about.rs)
 	egui is an immediate mode GUI library written in Rust. egui runs natively on {os}, and on the web it is compiled to WebAssembly and rendered with WebGL or WebGPU.	egui مكتبة واجهات رسومية فورية مكتوبة بلغة Rust. يعمل egui محليًا على {os}، وعلى الويب يُترجم إلى WebAssembly ويُصيَّر بواسطة WebGL أو WebGPU.
 	 Everything you see is rendered as textured triangles. There is no DOM, HTML, JS or CSS. Just Rust.	 كل ما تراه يُصيَّر كمثلثات مكسوّة بأنسجة. لا يوجد DOM ولا HTML ولا JS ولا CSS. فقط Rust.
 	egui is easy to use, portable, and fast.	egui سهل الاستخدام، قابل للنقل، وسريع.
@@ -124,6 +148,8 @@
 	For an example of a professional egui app, run {viewer} (in your browser!).	لمشاهدة مثال على تطبيق egui احترافي، شغّل {viewer} (في متصفحك!).
 	Links	روابط
 	egui documentation	توثيق egui
+
+# Widget gallery (widget_gallery.rs)
 	Source code of the widget gallery	الشيفرة المصدرية لمعرض العناصر
 	Label	تسمية
 	Welcome to the widget gallery!	مرحبًا بك في معرض العناصر!
