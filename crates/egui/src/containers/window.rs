@@ -1060,7 +1060,13 @@ fn resize_response(
     }
 
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
-    area.state_mut().set_left_top_pos(new_rect.left_top());
+    // The drag moves the window's edges, so the persisted (stale) size must not take
+    // part in the pivot fold: `set_left_top_pos` would land the pivot at
+    // `left + f * old_size`, displacing the un-dragged pivot corner — the
+    // reading-start edge the drag keeps fixed — by the very size the drag changed.
+    // Place the pivot from the dragged rect's own extent instead (identical to
+    // `set_left_top_pos(new_rect.left_top())` whenever the size didn't change).
+    area.state_mut().set_rect_pivot_pos(new_rect);
 
     if resize_interaction.any_dragged()
         && let Some(mut state) = resize::State::load(ctx, resize_id)

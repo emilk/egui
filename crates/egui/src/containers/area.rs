@@ -80,6 +80,21 @@ impl AreaState {
         ));
     }
 
+    /// Place the area so that its pivot corner lands where `rect`'s pivot corner is.
+    ///
+    /// Unlike [`Self::set_left_top_pos`], which folds the given left-top position
+    /// through the persisted (and by then stale) [`Self::size`], this derives the
+    /// pivot position from `rect` itself, so it stays exact when `rect`'s size
+    /// differs from the persisted one — an interactive resize, where the pivot
+    /// corner is the un-dragged reading edge and must stay fixed while the drag
+    /// changes the size.
+    pub fn set_rect_pivot_pos(&mut self, rect: Rect) {
+        self.pivot_pos = Some(pos2(
+            rect.left() + self.pivot.x().to_factor() * rect.width(),
+            rect.top() + self.pivot.y().to_factor() * rect.height(),
+        ));
+    }
+
     /// Where the area is on screen.
     pub fn rect(&self) -> Rect {
         let size = self.size.unwrap_or_default();
