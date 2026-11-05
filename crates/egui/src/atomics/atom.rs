@@ -74,8 +74,9 @@ impl Default for Atom<'_> {
 impl<'a> Atom<'a> {
     /// Create an empty [`Atom`] marked as `grow`.
     ///
-    /// This will expand in size, allowing all preceding atoms to be left-aligned,
-    /// and all following atoms to be right-aligned
+    /// This will expand in size, allowing all preceding atoms to hug the
+    /// reading-start edge and all following atoms the reading-end edge,
+    /// whichever physical sides those are
     pub fn grow() -> Self {
         Atom {
             grow: true,

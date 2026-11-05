@@ -389,7 +389,8 @@ shared_container_builders! {
     /// Set the minimum size of the Widget.
     ///
     /// This will find and expand atoms with `grow: true`.
-    /// If there are no growable atoms then everything will be left-aligned.
+    /// If there are no growable atoms then everything is aligned to the
+    /// reading-start edge.
     fn min_size(self, size: Vec2) {
         self.min_size = size;
     }
@@ -418,8 +419,8 @@ shared_container_builders! {
     /// Set the [`TextWrapMode`] for the [`crate::Atom`] marked as `shrink`.
     ///
     /// Only a single [`crate::Atom`] may shrink. If this (or `ui.wrap_mode()`) is not
-    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (left-most)
-    /// [`AtomKind::Text`] will be set to shrink.
+    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first
+    /// [`AtomKind::Text`] in reading order will be set to shrink.
     fn wrap_mode(self, wrap_mode: TextWrapMode) {
         self.wrap_mode = Some(wrap_mode);
     }
