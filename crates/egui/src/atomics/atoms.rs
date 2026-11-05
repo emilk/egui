@@ -100,8 +100,12 @@ impl<'a> Atoms<'a> {
     }
 
     /// Concatenate and return the text contents.
-    // TODO(lucasmerlin): It might not always make sense to return the concatenated text, e.g.
-    // in a submenu button there is a right text '⏵' which is now passed to the screen reader.
+    // TODO(lucasmerlin): It might not always make sense to return the concatenated text.
+    // Note: the built-in submenu arrow ([`crate::containers::menu::SubMenuButton`]) is a
+    // painted shape (`AtomKind::Paint`), not a text atom, so it is not passed to the
+    // screen reader here; its rtl mirroring lives at the `SubMenuButton::arrow_shape`
+    // call site. A caller that passes a literal '⏵' as a text atom still sends it to
+    // the screen reader, since that is a `AtomKind::Text`.
     pub fn text(&self) -> Option<Cow<'_, str>> {
         let mut string: Option<Cow<'_, str>> = None;
         for atom in &self.0 {
