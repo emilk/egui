@@ -230,6 +230,58 @@ fn left_text_and_right_text_mirror_in_rtl() {
     }
 }
 
+/// Pin for the documented `left_text` semantics: "left" names the reading start of the
+/// button, so under a right-to-left reading direction (the interface flag or an explicit
+/// right-to-left layout) the `left_text` extra paints on the physical RIGHT of the
+/// label; left-to-right keeps it on the physical left. See `Button::left_text`.
+#[test]
+fn button_left_text_lands_on_the_physical_right_under_rtl() {
+    // (interface flag on?, explicit right-to-left layout?, want `L` right of `B`?)
+    for (flag, layout_rtl, want_left_text_right) in [
+        (false, false, false),
+        (true, false, true),
+        (false, true, true),
+    ] {
+        let ctx = Context::default();
+        if flag {
+            ctx.set_right_to_left(true);
+        }
+        let output = run(&ctx, input(SCREEN), |ui| {
+            // Under the flag the flag case mirrors inside a plain horizontal row
+            // (`Ui::horizontal` flips to a right-to-left row there, like
+            // `button_shortcut_follows_the_interface_flag`); the explicit-layout
+            // cases mirror through `row_layout` itself.
+            let add_button = |ui: &mut Ui| {
+                ui.add(Button::new("B").left_text("L"));
+            };
+            if flag {
+                ui.horizontal(add_button);
+            } else {
+                ui.with_layout(row_layout(layout_rtl), add_button);
+            }
+        });
+
+        let texts = painted_texts(&output);
+        let label = painted_rect(&texts, "B");
+        let extra = painted_rect(&texts, "L");
+        assert!(
+            label.is_some() && extra.is_some(),
+            "the label and the extra should both paint (flag = {flag}, layout_rtl = {layout_rtl}), \
+             got {texts:?}"
+        );
+        let (label, extra) = (
+            label.map_or(f32::INFINITY, |rect| rect.center().x),
+            extra.map_or(f32::NEG_INFINITY, |rect| rect.center().x),
+        );
+        assert_eq!(
+            extra > label,
+            want_left_text_right,
+            "left_text sits at the reading start (flag = {flag}, layout_rtl = {layout_rtl}: \
+             'B' at {label}, 'L' at {extra})"
+        );
+    }
+}
+
 /// A3: an explicit `Button::direction` wins over the layout default, in both directions.
 #[test]
 fn explicit_direction_overrides_the_layout() {

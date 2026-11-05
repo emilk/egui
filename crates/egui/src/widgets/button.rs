@@ -105,6 +105,10 @@ impl<'a> Button<'a> {
 
     /// Creates a button with an image to the left of the text.
     ///
+    /// "Left" is the reading start of the button: in a right-to-left layout (or an
+    /// interface with [`crate::Style::right_to_left`] set) the image lands on the
+    /// physical right of the text, mirroring the row.
+    ///
     /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
     /// (using [`crate::AtomExt::atom_max_height_font_size`]).
     pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
@@ -269,6 +273,10 @@ impl<'a> Button<'a> {
     }
 
     /// Show some text on the left side of the button.
+    ///
+    /// "Left" is the reading start of the button: in a right-to-left layout (or an
+    /// interface with [`crate::Style::right_to_left`] set) the text lands on the
+    /// physical right, mirroring the row.
     #[inline]
     pub fn left_text(mut self, left_text: impl IntoAtoms<'a>) -> Self {
         self.layout.push_start(Atom::grow());
@@ -281,6 +289,10 @@ impl<'a> Button<'a> {
     }
 
     /// Show some text on the right side of the button.
+    ///
+    /// "Right" is the reading end of the button: in a right-to-left layout (or an
+    /// interface with [`crate::Style::right_to_left`] set) the text lands on the
+    /// physical left, mirroring the row.
     #[inline]
     pub fn right_text(mut self, right_text: impl IntoAtoms<'a>) -> Self {
         self.layout.push_end(Atom::grow());
