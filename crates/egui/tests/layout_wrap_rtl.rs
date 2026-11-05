@@ -94,8 +94,12 @@ fn wrap_rects(
 /// strictly left of it, its content hugging its own reading-start edge.
 #[test]
 fn vertical_main_wrap_rtl_grows_leftward() {
-    let (region, first, second, spacing) =
-        wrap_rects(true, Layout::top_down(Align::Min).with_main_wrap(true), REGION, WIDGET);
+    let (region, first, second, spacing) = wrap_rects(
+        true,
+        Layout::top_down(Align::Min).with_main_wrap(true),
+        REGION,
+        WIDGET,
+    );
 
     // Column 0 hugs the reading-start (right) edge of the wrap region:
     assert!(
@@ -123,8 +127,12 @@ fn vertical_main_wrap_rtl_grows_leftward() {
 /// region and column 1 grows strictly rightward.
 #[test]
 fn vertical_main_wrap_ltr_still_grows_rightward() {
-    let (region, first, second, _) =
-        wrap_rects(false, Layout::top_down(Align::Min).with_main_wrap(true), REGION, WIDGET);
+    let (region, first, second, _) = wrap_rects(
+        false,
+        Layout::top_down(Align::Min).with_main_wrap(true),
+        REGION,
+        WIDGET,
+    );
 
     assert!(
         (first.left() - region.left()).abs() <= TOL,
@@ -142,8 +150,12 @@ fn vertical_main_wrap_ltr_still_grows_rightward() {
 /// the same term the mirrored columns and `Grid` use.
 #[test]
 fn vertical_main_wrap_ltr_max_grows_leftward() {
-    let (region, first, second, _) =
-        wrap_rects(false, Layout::top_down(Align::Max).with_main_wrap(true), REGION, WIDGET);
+    let (region, first, second, _) = wrap_rects(
+        false,
+        Layout::top_down(Align::Max).with_main_wrap(true),
+        REGION,
+        WIDGET,
+    );
 
     assert!(
         (first.right() - region.right()).abs() <= TOL,
@@ -258,7 +270,8 @@ fn horizontal_first_rect(rtl: bool, mut build: impl FnMut(&mut Ui) -> Rect) -> (
 /// vertical alignment follows the helper (top vs centered), and the wrapped
 /// variant hugs too.
 #[test]
-fn mirrored_horizontal_helpers_follow_the_reading_direction() {    let widget = vec2(50.0, 10.0);
+fn mirrored_horizontal_helpers_follow_the_reading_direction() {
+    let widget = vec2(50.0, 10.0);
 
     for rtl in [false, true] {
         let (panel, centered) = horizontal_first_rect(rtl, |ui| {

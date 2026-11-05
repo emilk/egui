@@ -133,8 +133,11 @@ fn nested_overrides_remirror() {
         });
     });
 
-    assert!(!outer_rtl && inner_rtl, "each boundary resolves against its \
-        parent's effective style, got outer {outer_rtl} inner {inner_rtl}");
+    assert!(
+        !outer_rtl && inner_rtl,
+        "each boundary resolves against its \
+        parent's effective style, got outer {outer_rtl} inner {inner_rtl}"
+    );
     assert!(
         (outer.left() - 8.0).abs() <= TOL,
         "the forced-LTR middle subtree hugs the left edge, got {outer:?}"

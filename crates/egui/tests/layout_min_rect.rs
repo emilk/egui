@@ -267,16 +267,12 @@ fn probe_window_with_mirrored_row_hugs_content_in_all_frames() {
                 egui::CentralPanel::default().show(ui, |ui| {
                     Window::new("probe302").show(ui, |ui| {
                         let body = ui
-                            .allocate_ui_with_layout(
-                                DESIRED,
-                                Layout::top_down(Align::Min),
-                                |ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.allocate_exact_size(WIDGET, Sense::hover());
-                                        ui.allocate_exact_size(WIDGET, Sense::hover());
-                                    });
-                                },
-                            )
+                            .allocate_ui_with_layout(DESIRED, Layout::top_down(Align::Min), |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.allocate_exact_size(WIDGET, Sense::hover());
+                                    ui.allocate_exact_size(WIDGET, Sense::hover());
+                                });
+                            })
                             .response;
                         body_width = body.rect.width();
                     });
