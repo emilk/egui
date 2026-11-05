@@ -350,6 +350,11 @@ pub fn update_accesskit_for_text_widget(
         return;
     };
 
+    // The UI language is stamped on the AccessKit root and inherited by every
+    // node (see `Context::begin_pass`); a text run whose content language is
+    // known AND differs from it re-stamps the property here.
+    let ui_language = ctx.language();
+
     let mut prev_row_ended_with_newline = true;
 
     for (row_index, placed_row) in galley.rows.iter().enumerate() {
@@ -464,6 +469,11 @@ pub fn update_accesskit_for_text_widget(
                 } else {
                     accesskit::TextDirection::LeftToRight
                 });
+                if let Some(language) = &galley.job.language
+                    && ui_language.as_deref() != Some(language.as_str())
+                {
+                    builder.set_language(language.clone());
+                }
                 // TODO(mwcampbell): Set more node fields for the row
                 // once AccessKit adapters expose text formatting info.
 
@@ -801,7 +811,7 @@ mod tests {
         let ids = label(&update, &text).children();
         assert_eq!(
             ids.len(),
-            400usize.div_ceil(MAX_CHARS_PER_TEXT_RUN),
+            300usize.div_ceil(MAX_CHARS_PER_TEXT_RUN),
             "two 255-capped chunks"
         );
         let values: Vec<String> = ids
@@ -822,5 +832,47 @@ mod tests {
         assert_eq!(&chunk0[..3], &[3u8, 6, 9]);
         assert_eq!(chunk1.len(), 15);
         assert_eq!(&chunk1[..3], &[0u8, 3, 6]);
+    }
+
+    /// The UI language is stamped on the AccessKit root (inherited by every
+    /// node); a text run whose content language is known and different
+    /// re-stamps it on its run nodes, content in the UI's language inherits.
+    #[test]
+    fn ui_language_on_the_root_and_content_language_on_text_runs() {
+        let ctx = Context::default();
+        ctx.set_language("ar");
+
+        // A LayoutJob carrying its own language (what per-Ui language plumbing
+        // fills in; plain labels leave it unset):
+        let update = accesskit_update(&ctx, |ui| {
+            ui.label("مرحبا");
+            let mut job = epaint::text::LayoutJob::simple(
+                "Bonjour".to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            job.language = Some("fr".to_owned());
+            ui.add(crate::Label::new(crate::WidgetText::from(job)));
+        });
+
+        let root = node(&update, update.tree.as_ref().expect("tree").root);
+        assert_eq!(root.language(), Some("ar"));
+
+        // Plain label: its job has no language → the run inherits the root's:
+        let arabic = label(&update, "مرحبا");
+        let run = node(&update, arabic.children()[0]);
+        assert_eq!(run.role(), Role::TextRun);
+        assert_eq!(
+            run.language(),
+            None,
+            "the run must inherit the root's language"
+        );
+
+        // Content in another language re-stamps the property on the run:
+        let french = label(&update, "Bonjour");
+        let run = node(&update, french.children()[0]);
+        assert_eq!(run.role(), Role::TextRun);
+        assert_eq!(run.language(), Some("fr"));
     }
 }

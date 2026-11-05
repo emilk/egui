@@ -579,6 +579,14 @@ impl ContextImpl {
             let mut root_node = accesskit::Node::new(accesskit::Role::Window);
             let pixels_per_point = viewport.input.pixels_per_point();
             root_node.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
+            // AccessKit Language is inherited from ancestors, so stamping the
+            // UI language on the root covers every widget and container node
+            // of this viewport. Text content in another language re-stamps the
+            // property on its AccessKit text-run nodes (see
+            // `text_selection::accesskit_text`).
+            if let Some(language) = self.memory.data.get_temp::<String>(language_id()) {
+                root_node.set_language(language);
+            }
             let mut nodes = IdMap::default();
             nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
