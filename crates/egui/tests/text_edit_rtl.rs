@@ -15,7 +15,11 @@
 
 use egui::epaint::Shape;
 use egui::epaint::text::TextDirection;
-use egui::{Align2, Context, FullOutput, Pos2, RawInput, Rect, TextEdit, Ui, Vec2, vec2};
+use egui::{
+    Align2, Context, FullOutput, Id, Pos2, RawInput, Rect, TextEdit, Ui, Vec2,
+    text::{CCursor, CCursorRange},
+    vec2,
+};
 
 const SCREEN: Vec2 = vec2(400.0, 120.0);
 
@@ -244,6 +248,273 @@ fn hint_text_mirrors_the_input() {
                 end_clearance > EDGE_TOL,
                 "the hint should clear the reading-end edge (rtl = {rtl}, hint = {hint:?}: clearance {end_clearance})"
             );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Caret/cursor geometry: the caret and selection layers must follow the
+// reading direction (cursor columns are logical offsets over visual-order
+// glyphs).
+
+fn edit_id() -> Id {
+    Id::unique("text_edit_rtl_caret_test")
+}
+
+fn blink_off(ctx: &Context) {
+    // Deterministic caret: no blinking phase that could hide the segment.
+    ctx.style_mut_of(ctx.theme(), |style| style.visuals.text_cursor.blink = false);
+}
+
+/// All line segments painted this pass, in screen coordinates (the caret is
+/// one).
+fn painted_line_segments(output: &FullOutput) -> Vec<[Pos2; 2]> {
+    fn collect(shape: &Shape, out: &mut Vec<[Pos2; 2]>) {
+        match shape {
+            Shape::LineSegment { points, .. } => out.push([points[0], points[1]]),
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    for clipped in &output.shapes {
+        collect(&clipped.shape, &mut out);
+    }
+    out
+}
+
+/// The near-vertical caret segment painted for the focused widget (a line
+/// segment taller than it is wide).
+fn painted_caret(output: &FullOutput, field: Rect) -> Option<[Pos2; 2]> {
+    // The caret rect is expanded 1.5 px when painted, so tolerate a sliver
+    // outside the field edge:
+    let field = field.expand(2.0);
+    painted_line_segments(output).into_iter().find(|[a, b]| {
+        (a.x - b.x).abs() < 1.0
+            && (a.y - b.y).abs() > 4.0
+            && (field.contains(*a) || field.contains(*b))
+    })
+}
+
+/// Store a single-char caret at `index` on a focused widget, then paint one
+/// frame and return (field rect, output).
+fn run_with_caret(rtl: bool, text: &mut String, index: usize) -> (Rect, FullOutput) {
+    let ctx = Context::default();
+    ctx.set_right_to_left(rtl);
+    blink_off(&ctx);
+    let mut field = Rect::NOTHING;
+    drop(run(&ctx, |ui| {
+        ui.memory_mut(|mem| mem.request_focus(edit_id()));
+        let mut out = TextEdit::singleline(&mut *text).id(edit_id()).show(ui);
+        out.state
+            .cursor
+            .set_char_range(Some(CCursorRange::one(CCursor::new(index))));
+        out.state.store(ui.ctx(), edit_id());
+        field = out.response.rect;
+    }));
+
+    let output = run(&ctx, |ui| {
+        let out = TextEdit::singleline(&mut *text).id(edit_id()).show(ui);
+        field = out.response.rect;
+    });
+    (field, output)
+}
+
+/// The painted text shape's position and resolved direction.
+fn painted_text_shape(output: &FullOutput) -> Option<(Pos2, Option<TextDirection>)> {
+    fn collect(shape: &Shape, out: &mut Option<(Pos2, Option<TextDirection>)>) {
+        match shape {
+            Shape::Text(text) => {
+                *out = Some((text.pos, text.galley.job.direction));
+            }
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = None;
+    for clipped in &output.shapes {
+        collect(&clipped.shape, &mut out);
+    }
+    out
+}
+
+/// The caret at text-start sits at the ink's reading-start edge: the visual
+/// RIGHT edge of a right-to-left galley (the Arabic value reads RTL under
+/// either interface direction — the direction is the galley's, not the
+/// interface's), the visual LEFT edge of a left-to-right galley. The painted
+/// text shape's position is exactly that reading-start edge in both
+/// directions.
+#[test]
+fn caret_at_text_start_sits_at_the_reading_start_edge() {
+    for (rtl_interface, value) in [(true, "سلام عربي"), (false, "سلام عربي"), (false, "Hello")]
+    {
+        let mut text = String::from(value);
+        let (field, output) = run_with_caret(rtl_interface, &mut text, 0);
+        let (ink_start, direction) = painted_text_shape(&output)
+            .unwrap_or_else(|| panic!("no text painted for {value:?} (rtl = {rtl_interface})"));
+        let caret = painted_caret(&output, field)
+            .unwrap_or_else(|| panic!("no caret painted for {value:?} (rtl = {rtl_interface})"));
+        assert!(
+            (caret[0].x - ink_start.x).abs() <= EDGE_TOL,
+            "the caret at text-start must hug the ink's reading-start edge \
+             (value {value:?}, rtl interface = {rtl_interface}, direction {direction:?}: \
+             caret {}, ink start {}, field {field:?})",
+            caret[0].x,
+            ink_start.x
+        );
+        if value == "سلام عربي" {
+            // The Arabic value must lay out right-to-left under either
+            // interface direction, so its reading-start edge (where the caret
+            // hugs) is the ink's visual RIGHT edge:
+            assert_eq!(direction, Some(TextDirection::RightToLeft));
+        } else {
+            assert_eq!(direction, Some(TextDirection::LeftToRight));
+        }
+    }
+}
+
+/// The screen-space bounding box of the painted selection highlight: the
+/// galley-mesh vertices carrying the selection background color.
+fn painted_selection_rect(output: &FullOutput, selection_color: egui::Color32) -> Option<Rect> {
+    fn collect(shape: &Shape, color: egui::Color32, out: &mut Option<Rect>) {
+        match shape {
+            Shape::Text(text) => {
+                for row in &text.galley.rows {
+                    for vertex in &row.visuals.mesh.vertices {
+                        if vertex.color == color {
+                            // Rendered vertex position: shape pos + row pos +
+                            // mesh (row-relative) position:
+                            let pos = text.pos + row.pos.to_vec2() + vertex.pos.to_vec2();
+                            *out = Some(match *out {
+                                Some(rect) => rect.union(Rect::from_min_size(pos, Vec2::ZERO)),
+                                None => Rect::from_min_size(pos, Vec2::ZERO),
+                            });
+                        }
+                    }
+                }
+            }
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, color, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = None;
+    for clipped in &output.shapes {
+        collect(&clipped.shape, selection_color, &mut out);
+    }
+    out
+}
+
+/// Selecting everything highlights exactly the visual ink: under RTL the
+/// highlight hugs the field's right (reading-start) edge and spans the text
+/// width; under LTR it hugs the left edge.
+#[test]
+fn select_all_highlights_the_visual_range() {
+    for (rtl, start_edge) in [(true, "right"), (false, "left")] {
+        let mut text = String::from("سلام عربي");
+        let ctx = Context::default();
+        ctx.set_right_to_left(rtl);
+        let selection_color = ctx.style_of(ctx.theme()).visuals.selection.bg_fill;
+        let mut field = Rect::NOTHING;
+        drop(run(&ctx, |ui| {
+            ui.memory_mut(|mem| mem.request_focus(edit_id()));
+            let mut out = TextEdit::singleline(&mut text).id(edit_id()).show(ui);
+            out.state.cursor.set_char_range(Some(CCursorRange::two(
+                CCursor::new(0),
+                CCursor::new(text.chars().count()),
+            )));
+            out.state.store(ui.ctx(), edit_id());
+            field = out.response.rect;
+        }));
+
+        let output = run(&ctx, |ui| {
+            let out = TextEdit::singleline(&mut text).id(edit_id()).show(ui);
+            field = out.response.rect;
+        });
+
+        let selection = painted_selection_rect(&output, selection_color)
+            .unwrap_or_else(|| panic!("no selection highlight painted (rtl = {rtl})"));
+        let distance_from_start = if rtl {
+            field.right() - selection.right()
+        } else {
+            selection.left() - field.left()
+        };
+        assert!(
+            (0.0..=EDGE_TOL).contains(&distance_from_start),
+            "the select-all highlight must hug the reading-start ({start_edge}) edge \
+             (rtl = {rtl}: selection {selection:?}, field {field:?})"
+        );
+    }
+}
+
+/// An overflowing singleline field scrolls to reveal the caret: an RTL field
+/// slides its text rightward to expose the visually-left reading end, and
+/// returning to text-start re-anchors the text at the reading start. The LTR
+/// behaviour keeps working.
+#[test]
+fn singleline_overflow_scrolls_to_the_caret() {
+    for (rtl, caret_index) in [(true, 40), (true, 0), (false, 40)] {
+        let mut text = "سلام ".repeat(8); // far wider than the narrow field
+        let ctx = Context::default();
+        ctx.set_right_to_left(rtl);
+        blink_off(&ctx);
+        let mut field = Rect::NOTHING;
+        drop(run(&ctx, |ui| {
+            ui.memory_mut(|mem| mem.request_focus(edit_id()));
+            let mut out = ui
+                .allocate_ui(vec2(120.0, 30.0), |ui| {
+                    TextEdit::singleline(&mut text).id(edit_id()).show(ui)
+                })
+                .inner;
+            out.state
+                .cursor
+                .set_char_range(Some(CCursorRange::one(CCursor::new(caret_index))));
+            out.state.store(ui.ctx(), edit_id());
+            field = out.response.rect;
+        }));
+
+        let output = run(&ctx, |ui| {
+            let out = ui
+                .allocate_ui(vec2(120.0, 30.0), |ui| {
+                    TextEdit::singleline(&mut text).id(edit_id()).show(ui)
+                })
+                .inner;
+            field = out.response.rect;
+        });
+
+        let caret = painted_caret(&output, field)
+            .unwrap_or_else(|| panic!("no caret painted (rtl = {rtl}, caret = {caret_index})"));
+        let caret_inside = field.left() - 1.0 <= caret[0].x && caret[0].x <= field.right() + 1.0;
+        match (rtl, caret_index) {
+            (true, 40) => assert!(
+                caret_inside,
+                "an overflowing RTL field must scroll so the caret at the reading end \
+                 stays visible (caret {:?}, field {field:?})",
+                caret[0]
+            ),
+            (true, 0) => assert!(
+                (field.right() - caret[0].x).abs() <= EDGE_TOL,
+                "returning to text-start must re-anchor the text at the reading start \
+                 (caret {:?}, field {field:?})",
+                caret[0]
+            ),
+            (false, 40) => assert!(
+                caret_inside,
+                "the LTR scroll behaviour must keep working (caret {:?}, field {field:?})",
+                caret[0]
+            ),
+            _ => unreachable!(),
         }
     }
 }

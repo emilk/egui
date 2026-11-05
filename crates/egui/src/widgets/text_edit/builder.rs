@@ -988,30 +988,66 @@ impl<'t> TextEdit<'t> {
         };
         let align_offset = inner_rect.left_top() - galley_pos;
 
-        // Visual clipping for singleline text editor with text larger than width
-        if clip_text && align_offset.x == 0.0 {
+        // Visual clipping for singleline text editor with text larger than width.
+        //
+        // A right-to-left galley is anchored on its reading-start (right) edge,
+        // so its `align_offset.x` is never zero when it overflows — engage the
+        // scroll for it as well, measuring the cursor from the reading start
+        // and sliding the galley the other way.
+        let galley_is_rtl = galley.is_rtl();
+        let rtl_overflows = galley_is_rtl && galley.size().x > inner_rect.width();
+        if clip_text && (align_offset.x == 0.0 || rtl_overflows) {
+            let galley_width = galley.size().x;
             let cursor_pos = match (cursor_range, ui.memory(|mem| mem.has_focus(id))) {
                 (Some(cursor_range), true) => galley.pos_from_cursor(cursor_range.primary).min.x,
                 _ => 0.0,
             };
 
-            let mut offset_x = state.text_offset.x;
+            // Distance of the cursor from the reading-start edge: for a
+            // right-to-left galley the painted x runs the other way (and is
+            // offset by the galley's own `rect.left()`), so mirror it:
+            let cursor_reading_pos = if galley_is_rtl {
+                galley_width - (cursor_pos - galley.rect.left())
+            } else {
+                cursor_pos
+            };
+
+            // The stored offset is the (unshifted) galley offset relative to
+            // the field; for right-to-left galleys that runs from the reading
+            // end, so convert it to the scroll distance:
+            let mut offset_x = if galley_is_rtl {
+                (galley_width - inner_rect.width()) - state.text_offset.x
+            } else {
+                state.text_offset.x
+            };
             let visible_range = offset_x..=offset_x + inner_rect.width();
 
-            if !visible_range.contains(&cursor_pos) {
-                if cursor_pos < *visible_range.start() {
-                    offset_x = cursor_pos;
+            if !visible_range.contains(&cursor_reading_pos) {
+                if cursor_reading_pos < *visible_range.start() {
+                    offset_x = cursor_reading_pos;
                 } else {
-                    offset_x = cursor_pos - inner_rect.width();
+                    offset_x = cursor_reading_pos - inner_rect.width();
                 }
             }
 
             offset_x = offset_x
-                .at_most(galley.size().x - inner_rect.width())
+                .at_most(galley_width - inner_rect.width())
                 .at_least(0.0);
 
-            state.text_offset = vec2(offset_x, align_offset.y);
-            galley_pos -= vec2(offset_x, 0.0);
+            if galley_is_rtl {
+                // Scroll toward the reading end: slide the galley rightward to
+                // reveal its visually-left overflow:
+                galley_pos += vec2(offset_x, 0.0);
+                // Store the offset of the *shifted* galley, so pointer
+                // hit-testing stays the exact inverse of the painted position:
+                state.text_offset = vec2(
+                    (galley_width - inner_rect.width()) - offset_x,
+                    align_offset.y,
+                );
+            } else {
+                state.text_offset = vec2(offset_x, align_offset.y);
+                galley_pos -= vec2(offset_x, 0.0);
+            }
         } else {
             state.text_offset = align_offset;
         }
