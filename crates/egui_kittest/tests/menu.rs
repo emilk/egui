@@ -87,6 +87,8 @@ impl TestMenu {
     }
 
     /// [`Self::into_harness`] with mirrored chrome (an RTL UI).
+    // Only its snapshot twin calls it, so it is dead without the feature.
+    #[cfg_attr(not(feature = "snapshot"), expect(dead_code))]
     fn into_rtl_harness(self) -> Harness<'static, Self> {
         Harness::builder()
             .with_right_to_left(true)

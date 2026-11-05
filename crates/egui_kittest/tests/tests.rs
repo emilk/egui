@@ -296,8 +296,8 @@ fn test_button_checkbox_rtl() {
     let mut harness = Harness::builder().with_right_to_left(true).build_ui(|ui| {
         _ = ui.button("Button");
         let mut checked = true;
-        ui.checkbox(&mut checked, "Checkbox");
-        ui.radio(true, "Radio");
+        _ = ui.checkbox(&mut checked, "Checkbox");
+        _ = ui.radio(true, "Radio");
     });
 
     harness.fit_contents();
