@@ -548,11 +548,24 @@ impl ContextImpl {
         }
 
         // Ensure we register the background area so panels and background ui can catch clicks:
+        // The pivot follows the direction-mirrored convention used everywhere
+        // else (see `Align2::LEFT_TOP.flipped_x()` in `default_style`); for the
+        // full-rect background the two flips cancel, so this is a geometric
+        // no-op — but consumers reading the area state get the right sides.
+        let rtl = self.memory.options.style().right_to_left;
         self.memory.areas_mut().set_state(
             LayerId::background(),
             AreaState {
-                pivot_pos: Some(content_rect.left_top()),
-                pivot: Align2::LEFT_TOP,
+                pivot_pos: Some(if rtl {
+                    content_rect.right_top()
+                } else {
+                    content_rect.left_top()
+                }),
+                pivot: if rtl {
+                    Align2::LEFT_TOP.flipped_x()
+                } else {
+                    Align2::LEFT_TOP
+                },
                 size: Some(content_rect.size()),
                 interactable: true,
                 last_became_visible_at: None,
@@ -5520,5 +5533,48 @@ mod test {
             );
             output.drop_without_applying_deltas();
         }
+    }
+
+    /// The background area follows the codebase's mirrored-pivot convention
+    /// (the same rule that drives the default `TextEdit` align): the pivot
+    /// corner flips with `Style::right_to_left`, while the full-rect
+    /// background's geometry is a no-op — pivot position and pivot flip
+    /// cancel, so the rect is identical in both directions.
+    #[test]
+    fn background_area_pivot_follows_the_interface_direction() {
+        use crate::{Align2, LayerId, RawInput, Rect, Vec2, containers::area::AreaState, pos2};
+
+        let screen_rect = Rect::from_min_size(pos2(10.0, 20.0), Vec2::new(800.0, 600.0));
+        let input = || RawInput {
+            screen_rect: Some(screen_rect),
+            ..Default::default()
+        };
+
+        let state = |ctx: &Context| -> (Align2, Rect) {
+            let state: AreaState = ctx
+                .memory(|memory| memory.areas().get(LayerId::background().id).copied())
+                .expect("the background area should be registered every pass");
+            let rect = Rect::from_min_size(state.left_top_pos(), state.size.unwrap_or_default());
+            (state.pivot, rect)
+        };
+
+        // LTR: the historical values.
+        let ctx = Context::default();
+        ctx.begin_pass(input());
+        let (pivot, rect) = state(&ctx);
+        assert_eq!(pivot, Align2::LEFT_TOP);
+        assert_eq!(rect, screen_rect);
+
+        // RTL: the mirrored pivot corner, the same rect (the flips cancel).
+        let ctx = Context::default();
+        ctx.set_right_to_left(true);
+        ctx.begin_pass(input());
+        let (pivot, rect) = state(&ctx);
+        assert_eq!(pivot, Align2::LEFT_TOP.flipped_x());
+        assert_eq!(pivot, Align2::RIGHT_TOP);
+        assert_eq!(
+            rect, screen_rect,
+            "the pivot mirroring must be a geometric no-op"
+        );
     }
 }
