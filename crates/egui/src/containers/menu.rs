@@ -531,12 +531,22 @@ pub struct SubMenuButton<'a> {
 
 impl<'a> SubMenuButton<'a> {
     /// The submenu arrow triangle shape.
-    pub fn arrow_shape(rect: Rect, color: impl Into<Color32>) -> Shape {
+    ///
+    /// The closed triangle points at the reading end: the side the submenu opens
+    /// on (right in a left-to-right interface, left in a right-to-left one).
+    pub fn arrow_shape(ui: &Ui, rect: Rect, color: impl Into<Color32>) -> Shape {
         let rect = Rect::from_center_size(
             rect.center(),
             vec2(rect.width() * 0.55, rect.height() * 0.35),
         );
-        Shape::rotated_triangle(rect, -core::f32::consts::TAU / 4.0, color)
+        // Mirror the arrow in a right-to-left interface, like collapsing headers do:
+        // the triangle points at the reading end, where the submenu opens.
+        let rotation = if ui.is_rtl() {
+            core::f32::consts::TAU / 4.0
+        } else {
+            -core::f32::consts::TAU / 4.0
+        };
+        Shape::rotated_triangle(rect, rotation, color)
     }
 
     /// An [`Atom`] painting the [`Self::arrow_shape`].
@@ -551,7 +561,7 @@ impl<'a> SubMenuButton<'a> {
                 sized: SizedAtomKind::Paint {
                     paint: Arc::new(move |ui: &Ui, args: AtomPaintArgs| {
                         let color = color.unwrap_or(args.fallback_text_color);
-                        ui.painter().add(Self::arrow_shape(args.rect, color));
+                        ui.painter().add(Self::arrow_shape(ui, args.rect, color));
                     }),
                     size,
                 },
@@ -884,5 +894,68 @@ impl SubMenu {
         }
 
         popup_response
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SubMenuButton;
+    use crate::{Color32, Context};
+    use emath::{Pos2, Rect, Vec2};
+    use epaint::Shape;
+
+    /// The submenu arrow's closed triangle points at the reading end — the side
+    /// the submenu opens on (right under LTR, left under RTL).
+    ///
+    /// The three polygon points are discriminated by their horizontal extent
+    /// around their centroid: under a ±TAU/4 rotation the tip sits `2h/3` from
+    /// the centroid on one side and both base vertices `h/3` on the other
+    /// (`h = 0.35 * rect.height()`), for every input aspect ratio.
+    #[test]
+    fn submenu_arrow_points_at_the_reading_end() {
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::splat(20.0));
+        let color = Color32::WHITE;
+
+        // (extent to the right of the centroid, extent to the left of it).
+        let tip_extents = |shape: &Shape| {
+            let Shape::Path(path) = shape else {
+                panic!("arrow_shape should return a `Shape::Path`");
+            };
+            let mut centroid_x = 0.0;
+            let mut max_x = f32::MIN;
+            let mut min_x = f32::MAX;
+            for point in &path.points {
+                centroid_x += point.x;
+                max_x = max_x.max(point.x);
+                min_x = min_x.min(point.x);
+            }
+            centroid_x /= path.points.len() as f32;
+            (max_x - centroid_x, centroid_x - min_x)
+        };
+
+        let ctx = Context::default();
+
+        // LTR: the tip extends right, toward the reading end.
+        ctx.run_ui(Default::default(), |ui| {
+            let (right, left) = tip_extents(&SubMenuButton::arrow_shape(ui, rect, color));
+            assert!(
+                right > left,
+                "the LTR submenu arrow should point right, toward the reading end \
+                 (right extent {right}, left extent {left})"
+            );
+        })
+        .drop_without_applying_deltas();
+
+        // RTL: mirrored — the tip extends left, toward the reading end.
+        ctx.set_right_to_left(true);
+        ctx.run_ui(Default::default(), |ui| {
+            let (right, left) = tip_extents(&SubMenuButton::arrow_shape(ui, rect, color));
+            assert!(
+                left > right,
+                "the RTL submenu arrow should point left, toward the reading end \
+                 (right extent {right}, left extent {left})"
+            );
+        })
+        .drop_without_applying_deltas();
     }
 }
