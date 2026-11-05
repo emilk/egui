@@ -745,13 +745,30 @@ fn parse(custom_parser: Option<&NumParser<'_>>, value_text: &str) -> Option<f64>
 /// The default egui parser of numbers.
 ///
 /// It ignored whitespaces anywhere in the input, and treats the special minus character (U+2212) as a normal minus.
+///
+/// It also folds the Arabic-Indic digits (U+0660-U+0669), their Persian extensions
+/// (U+06F0-U+06F9), the Arabic decimal separator (U+066B) and the Arabic thousands
+/// separator (U+066C) onto their ASCII equivalents, so values typed on a localized
+/// keyboard parse the same way (ICU/Chromium precedent). None of these code points can
+/// occur in a string that previously parsed, so Latin input is unchanged; the ASCII
+/// comma is deliberately still not accepted as a separator.
 fn default_parser(text: &str) -> Option<f64> {
     let text: String = text
         .chars()
         // Ignore whitespace (trailing, leading, and thousands separators):
         .filter(|c| !c.is_whitespace())
+        // Ignore the Arabic thousands separator (U+066C), like whitespace:
+        .filter(|&c| c != '\u{066C}')
         // Replace special minus character with normal minus (hyphen):
         .map(|c| if c == '−' { '-' } else { c })
+        // Fold Arabic-Indic and Persian digits onto the ASCII digits, and the
+        // Arabic decimal separator (U+066B) onto '.':
+        .map(|c| match c {
+            '\u{0660}'..='\u{0669}' => char::from_u32('0' as u32 + c as u32 - 0x0660).unwrap_or(c),
+            '\u{06F0}'..='\u{06F9}' => char::from_u32('0' as u32 + c as u32 - 0x06F0).unwrap_or(c),
+            '\u{066B}' => '.',
+            _ => c,
+        })
         .collect();
 
     text.parse().ok()
@@ -850,5 +867,54 @@ mod tests {
             Some(-1.23),
             "Should handle special minus character (https://www.compart.com/en/unicode/U+2212)"
         );
+    }
+
+    #[test]
+    fn test_default_parser_folds_arabic_indic_digits() {
+        // Arabic-Indic digits (U+0660-U+0669) with the Arabic decimal separator (U+066B):
+        assert_eq!(
+            super::default_parser("١٢٣٫٤٥"),
+            Some(123.45),
+            "Arabic-Indic digits and the Arabic decimal separator should fold onto ASCII"
+        );
+
+        // Persian digits (U+06F0-U+06F9):
+        assert_eq!(
+            super::default_parser("۱۲۳"),
+            Some(123.0),
+            "Persian digits should fold onto ASCII"
+        );
+
+        // The Arabic thousands separator (U+066C) is ignored, like whitespace:
+        assert_eq!(
+            super::default_parser("1٬234"),
+            Some(1_234.0),
+            "The Arabic thousands separator should be ignored"
+        );
+
+        // The special minus character works together with folded digits:
+        assert_eq!(
+            super::default_parser("−٥"),
+            Some(-5.0),
+            "The special minus character (U+2212) should work with Arabic-Indic digits"
+        );
+    }
+
+    #[test]
+    #[expect(clippy::approx_constant)] // the plan pins the literal "3.14" as an invariant
+    fn test_default_parser_ltr_invariants() {
+        assert_eq!(
+            super::default_parser("1 234 567"),
+            Some(1_234_567.0),
+            "We should handle thousands separators using half-space"
+        );
+
+        assert_eq!(super::default_parser("3.14"), Some(3.14));
+
+        assert_eq!(super::default_parser("abc"), None);
+
+        // The ASCII comma is NOT a thousands or decimal separator here (no locale
+        // grouping handling): that accepted-input set is unchanged.
+        assert_eq!(super::default_parser("1,234"), None);
     }
 }
