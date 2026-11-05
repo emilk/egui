@@ -168,7 +168,7 @@ pub use epi::*;
 
 mod native_view;
 
-pub use native_view::{NativeViews, PlaceHook};
+pub use native_view::NativeViews;
 
 pub(crate) mod stopwatch;
 

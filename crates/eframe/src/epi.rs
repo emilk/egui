@@ -292,6 +292,20 @@ pub trait App {
     ///
     /// This function does not return a value. Any changes to the input should be made directly to `_raw_input`.
     fn raw_input_hook(&mut self, _ctx: &egui::Context, _raw_input: &mut egui::RawInput) {}
+
+    /// A hook for inspecting or changing the output of each pass of the root viewport, before
+    /// eframe acts on it and paints the frame.
+    ///
+    /// It is the counterpart of [`Self::raw_input_hook`]. eframe calls it right after the pass,
+    /// before it handles the output's commands and before it paints
+    /// [`egui::FullOutput::shapes`]. It isn't called while the window is hidden, because then
+    /// no pass runs.
+    ///
+    /// Use it to act on output that must be handled before the frame is painted, such as placing
+    /// the native views ([`egui::PlatformOutput::native_views`]) that the pass reserved rects for
+    /// with [`egui::NativeView`]: the code that shows a view moves it there, or hides it when
+    /// its view is missing from the output.
+    fn output_hook(&mut self, _ctx: &egui::Context, _output: &mut egui::FullOutput) {}
 }
 
 /// Options controlling the behavior of a native window.
