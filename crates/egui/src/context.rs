@@ -9,9 +9,10 @@ use epaint::{
     TessellationOptions, TextureId, Vec2,
     emath::{self, TSTransform},
     mutex::RwLock,
+    pos2,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, FontPriority, Fonts, FontsView, ViewportKey},
+    text::{FontId, FontInsert, FontPriority, Fonts, FontsView, ViewportKey},
     vec2,
 };
 
@@ -1456,21 +1457,37 @@ impl Context {
 
             let below = widget_rect.bottom() + 32.0 < content_rect.bottom();
 
-            let text_rect = if below {
-                painter.debug_text(
-                    widget_rect.left_bottom() + vec2(0.0, 2.0),
-                    Align2::LEFT_TOP,
-                    color,
-                    text,
+            // Probe the painted text size (`Painter::debug_text` lays out with the same
+            // `layout_no_wrap` + monospace-12 below, so the probe cannot mis-measure)
+            // and hang the text inward from the widget's right edge when painting it
+            // rightward from the widget's left edge would run past the content rect
+            // (right-hugging widgets, mirrored panels under right-to-left). When the
+            // text fits, the anchors are unchanged.
+            let text_width = painter
+                .layout_no_wrap(text.clone(), FontId::monospace(12.0), color)
+                .size()
+                .x;
+            let overflow = widget_rect.left_bottom().x + text_width > content_rect.max.x;
+
+            let (pos, anchor) = if below {
+                if overflow {
+                    (
+                        pos2(widget_rect.right(), widget_rect.bottom() + 2.0),
+                        Align2::RIGHT_TOP,
+                    )
+                } else {
+                    (widget_rect.left_bottom() + vec2(0.0, 2.0), Align2::LEFT_TOP)
+                }
+            } else if overflow {
+                (
+                    pos2(widget_rect.right(), widget_rect.top() - 2.0),
+                    Align2::RIGHT_BOTTOM,
                 )
             } else {
-                painter.debug_text(
-                    widget_rect.left_top() - vec2(0.0, 2.0),
-                    Align2::LEFT_BOTTOM,
-                    color,
-                    text,
-                )
+                (widget_rect.left_top() - vec2(0.0, 2.0), Align2::LEFT_BOTTOM)
             };
+
+            let text_rect = painter.debug_text(pos, anchor, color, text);
 
             if let Some(pointer_pos) = self.pointer_hover_pos()
                 && text_rect.contains(pointer_pos)
@@ -3203,8 +3220,17 @@ impl Context {
                 }
             });
 
+            // Anchor at the reading-start edge of the interface, so the warning
+            // starts where the user reads (the physical top-left under LTR, the
+            // content rect's top-right under RTL — same convention as the mirrored
+            // theme pivots).
+            let (pos, anchor) = if self.is_rtl() {
+                (self.content_rect().right_top(), Align2::RIGHT_TOP)
+            } else {
+                (Pos2::ZERO, Align2::LEFT_TOP)
+            };
             self.debug_painter()
-                .debug_text(Pos2::ZERO, Align2::LEFT_TOP, Color32::RED, warning);
+                .debug_text(pos, anchor, Color32::RED, warning);
         }
     }
 }

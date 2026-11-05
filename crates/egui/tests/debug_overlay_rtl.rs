@@ -9,7 +9,9 @@
 //! LTR-unchanged regression. No snapshot assertions; painted text geometry only.
 
 use egui::epaint::Shape;
-use egui::{Color32, Context, Event, FullOutput, Pos2, RawInput, Rect, Ui, Vec2, pos2, vec2};
+use egui::{
+    Color32, Context, Event, FullOutput, Pos2, RawInput, Rect, Sense, Ui, Vec2, pos2, vec2,
+};
 
 const SCREEN: Vec2 = vec2(400.0, 300.0);
 
@@ -273,5 +275,169 @@ fn debug_text_entries_flip_to_the_roomier_side_only_on_overflow() {
     assert!(
         (location.right() - 96.0).abs() < INK_TOLERANCE,
         "the location stays left of the pointer, got {location:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+
+/// The id-clash error overlay on a right-hugging widget: the error text anchored at
+/// the widget's left edge would run past the screen, so it must hang inward from the
+/// widget's right edge instead. The tooltip block derives its position from the
+/// returned text rect, so it follows whatever anchor was chosen.
+#[test]
+fn id_clash_error_text_hangs_inward_on_right_edge_widgets() {
+    let ctx = Context::default();
+    // The gate already defaults to true under `debug_assertions`; set it explicitly
+    // so the test is independent of the build profile.
+    ctx.options_mut(|o| o.warn_on_id_clash = true);
+
+    let mut first_rect = Rect::NOTHING;
+    let mut second_rect = Rect::NOTHING;
+    let output = run(&ctx, input(SCREEN), |ui| {
+        // Two widgets sharing an id at the right edge, far enough apart that the clash
+        // is reported as two errors ("First use of" at the old rect, "Second use of"
+        // at the new one). Every widget runs `check_for_id_clash`, which
+        // `Ui::interact` goes through via `Context::create_widget`.
+        let id = ui.scope_id().with("clash-test");
+        first_rect = ui
+            .interact(
+                Rect::from_min_size(pos2(370.0, 20.0), vec2(20.0, 20.0)),
+                id,
+                Sense::click(),
+            )
+            .rect;
+        second_rect = ui
+            .interact(
+                Rect::from_min_size(pos2(370.0, 60.0), vec2(20.0, 20.0)),
+                id,
+                Sense::click(),
+            )
+            .rect;
+    });
+
+    let texts = painted_texts(&output);
+    let first_error = texts
+        .iter()
+        .find(|(text, _)| text.contains("First use of"))
+        .map(|(_, rect)| rect)
+        .expect("the 'First use of' error should paint");
+    let second_error = texts
+        .iter()
+        .find(|(text, _)| text.contains("Second use of"))
+        .map(|(_, rect)| rect)
+        .expect("the 'Second use of' error should paint");
+
+    for (what, error, widget_rect) in [
+        ("first", first_error, first_rect),
+        ("second", second_error, second_rect),
+    ] {
+        assert!(
+            error.max.x <= 400.0,
+            "the {what} error must stay inside the 400 px content rect, got {error:?}"
+        );
+        assert!(
+            (error.max.x - widget_rect.right()).abs() < INK_TOLERANCE,
+            "the {what} error should hang inward from its widget's right edge \
+             (widget {widget_rect:?}), got {error:?}"
+        );
+    }
+
+    // Non-overflow companion: a clash near the left edge keeps today's LEFT_TOP
+    // anchor at the widget's left edge.
+    let ctx = Context::default();
+    ctx.options_mut(|o| o.warn_on_id_clash = true);
+    let mut left_rect = Rect::NOTHING;
+    let output = run(&ctx, input(SCREEN), |ui| {
+        let id = ui.scope_id().with("clash-left");
+        ui.interact(
+            Rect::from_min_size(pos2(10.0, 20.0), vec2(20.0, 20.0)),
+            id,
+            Sense::click(),
+        );
+        left_rect = ui
+            .interact(
+                Rect::from_min_size(pos2(10.0, 60.0), vec2(20.0, 20.0)),
+                id,
+                Sense::click(),
+            )
+            .rect;
+    });
+
+    let texts = painted_texts(&output);
+    let second_error = texts
+        .iter()
+        .find(|(text, _)| text.contains("Second use of"))
+        .map(|(_, rect)| rect)
+        .expect("the 'Second use of' error should paint");
+    assert!(
+        (second_error.left() - left_rect.left()).abs() < INK_TOLERANCE,
+        "a non-overflowing error keeps the LEFT_TOP anchor at the widget's left edge \
+         (widget {left_rect:?}), got {second_error:?}"
+    );
+    assert!(
+        (second_error.top() - (left_rect.bottom() + 2.0)).abs() < INK_TOLERANCE,
+        "a non-overflowing error keeps its top at the widget's bottom + 2 px, \
+         got {second_error:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+
+/// The multi-pass perf warning anchors at the reading-start edge of the interface:
+/// under RTL it hangs from the content rect's top-right instead of the physical
+/// top-left (same convention as the mirrored theme pivots).
+///
+/// The multipass counter is per-frame and lagged: it increments at the END of a frame
+/// that ran more than one pass (`max_passes` defaults to 2), and the warning check
+/// runs during the next frame's `debug_painting`, before that frame's increment. So
+/// after 3 multipass frames the warning paints during the 4th (plain) frame.
+///
+/// Gated on `debug_assertions`: `debug_painting` compiles out without it, so under
+/// `cargo test --release` there is no warning shape to assert on (CI runs tests in
+/// debug).
+#[cfg(debug_assertions)]
+#[test]
+fn perf_warning_anchors_at_the_reading_start_edge() {
+    fn frames(rtl: bool) -> FullOutput {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        // 3 multipass frames bring the counter to 3:
+        for _ in 0..3 {
+            run(&ctx, input(SCREEN), |ui| {
+                ui.ctx().request_discard("rtl debug test");
+            });
+        }
+        // 4th, plain frame: its `debug_painting` sees the counter at 3 and paints the
+        // warning (then the counter resets, so this is the only frame that has it).
+        run(&ctx, input(SCREEN), |_ui| {})
+    }
+
+    // RTL: the warning hangs from the content rect's top-right corner.
+    let output = frames(true);
+    let texts = painted_texts(&output);
+    let warning = texts
+        .iter()
+        .find(|(text, _)| text.contains("PERF WARNING"))
+        .map(|(_, rect)| rect)
+        .expect("the perf warning should paint in the 4th frame");
+    assert!(
+        (warning.max.x - 400.0).abs() < INK_TOLERANCE,
+        "RTL: the perf warning should hang from the content rect's right edge, \
+         got {warning:?}"
+    );
+
+    // LTR: unchanged — the warning starts at the physical top-left corner.
+    let output = frames(false);
+    let texts = painted_texts(&output);
+    let warning = texts
+        .iter()
+        .find(|(text, _)| text.contains("PERF WARNING"))
+        .map(|(_, rect)| rect)
+        .expect("the perf warning should paint in the 4th frame");
+    assert!(
+        (warning.min.x - 0.0).abs() < INK_TOLERANCE,
+        "LTR: the perf warning should start at the physical top-left, got {warning:?}"
     );
 }
