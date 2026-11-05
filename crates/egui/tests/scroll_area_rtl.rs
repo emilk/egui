@@ -1353,7 +1353,8 @@ fn direction_flip_keeps_a_non_center_offset_reading_relative() {
 /// One pass over a vertical-only scroll area with a narrow column of buttons,
 /// capturing the area's geometry and the measured width of the parent `Ui`
 /// after the area (the captures the other helpers don't provide). The area is
-/// `auto_shrink([false, true])`, so the x axis follows the content.
+/// `auto_shrink([true, true])` (the default, spelled out), so the x axis
+/// follows the content.
 fn narrow_column_pass(
     ctx: &Context,
     time: f64,
