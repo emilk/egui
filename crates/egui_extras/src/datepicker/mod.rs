@@ -21,7 +21,7 @@ use jiff::civil::{Date, ISOWeekDate, Weekday};
 /// [`DateLocale::default`] / [`DateLocale::from_language`] and override fields,
 /// but changes the [`DateLocale::new`] signature; prefer updating fields on
 /// `DateLocale::default()`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DateLocale {
     /// Names of the weekdays, indexed Monday-first
     /// (`Weekday::to_monday_zero_offset`): `weekday_names[0]` is Monday.
@@ -41,7 +41,7 @@ pub struct DateLocale {
     /// Whether the locale reads right-to-left. Mirrors the popup anchoring and
     /// the button icon order. This is a stopgap scoped to the date picker for
     /// [`egui::Style::right_to_left`]
-    /// (https://github.com/emilk/egui/pull/8815); once that lands, a follow-up
+    /// (<https://github.com/emilk/egui/pull/8815>); once that lands, a follow-up
     /// reads the style flag instead.
     pub rtl: bool,
 }
@@ -77,7 +77,6 @@ impl DateLocale {
     /// Create a locale from explicit data. Prefer starting from
     /// [`DateLocale::default`] and overriding fields; see also
     /// [`DateLocale::from_language`].
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         weekday_names: [String; 7],
         month_names: [String; 12],
@@ -104,9 +103,9 @@ impl DateLocale {
     /// extension point for richer, data-driven locale resolution (e.g. an
     /// ICU4X/CLDR-backed table, or defaulting from `Ui::language()` once that
     /// exists upstream).
-    pub fn from_language(code: &str) -> DateLocale {
+    pub fn from_language(code: &str) -> Self {
         match code.split('-').next() {
-            Some("ar") => DateLocale {
+            Some("ar") => Self {
                 month_names: [
                     "يناير",
                     "فبراير",
@@ -137,7 +136,7 @@ impl DateLocale {
                 week_label: "الأسبوع".to_owned(),
                 rtl: true,
             },
-            _ => DateLocale::default(),
+            _ => Self::default(),
         }
     }
 }

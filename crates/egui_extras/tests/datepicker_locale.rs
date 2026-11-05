@@ -180,8 +180,10 @@ fn kittest_default_locale_popup_extends_rightward_from_the_button() {
 
 #[test]
 fn kittest_rtl_locale_anchors_popup_at_the_buttons_right_edge() {
-    let mut locale = DateLocale::default();
-    locale.rtl = true;
+    let locale = DateLocale {
+        rtl: true,
+        ..DateLocale::default()
+    };
     let mut harness = harness_with(locale, true);
     open_popup(&mut harness);
 
@@ -204,8 +206,10 @@ fn kittest_rtl_locale_anchors_popup_at_the_buttons_right_edge() {
 
 #[test]
 fn kittest_narrow_viewport_clamps_the_rtl_popup_inside_the_clip_rect() {
-    let mut locale = DateLocale::default();
-    locale.rtl = true;
+    let locale = DateLocale {
+        rtl: true,
+        ..DateLocale::default()
+    };
     let mut harness = Harness::builder()
         .with_size(Vec2::new(360.0, 200.0))
         .allow_missing_glyphs()
@@ -229,8 +233,10 @@ fn kittest_narrow_viewport_clamps_the_rtl_popup_inside_the_clip_rect() {
 
 #[test]
 fn kittest_rtl_locale_puts_the_icon_before_the_date() {
-    let mut locale = DateLocale::default();
-    locale.rtl = true;
+    let locale = DateLocale {
+        rtl: true,
+        ..DateLocale::default()
+    };
     let harness = harness_with(locale, false);
 
     let label = format!("📆 {BUTTON_DATE}");
