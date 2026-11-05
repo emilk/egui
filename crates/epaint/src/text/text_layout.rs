@@ -331,8 +331,18 @@ fn layout_shaped_run(
     ctx.prev_cluster = None;
 
     // Track how many glyphs we emit per cluster so we can add zero-width
-    // continuation glyphs when a cluster has more chars than glyphs.
+    // continuation glyphs when a cluster has more chars than glyphs. The byte
+    // range of the outgoing cluster is derived from its neighbouring cluster
+    // starts: for an ascending run the next cluster starts right after it,
+    // while a right-to-left run emits its clusters in *descending* order, so
+    // the outgoing cluster ends where the previous one began (the next larger
+    // cluster start) — or, for the run's first transition, at the end of the
+    // run text (there is no earlier cluster; the outgoing one is the logically
+    // last). `previous_cluster_start` is therefore seeded only once a cluster
+    // has actually been processed — never from the dummy `cluster_start_byte`
+    // the run starts with:
     let mut cluster_start_byte: usize = 0;
+    let mut previous_cluster_start: Option<usize> = None;
     let mut cluster_glyph_count: usize = 0;
 
     for (info, pos) in iter::zip(glyph_buffer.glyph_infos(), glyph_buffer.glyph_positions()) {
@@ -372,15 +382,28 @@ fn layout_shaped_run(
         let is_new_cluster = ctx.prev_cluster.is_none_or(|pc| pc != cluster);
         if is_new_cluster {
             if ctx.prev_cluster.is_some() {
+                let outgoing_end = if cluster_start_byte < cluster as usize {
+                    // Ascending clusters (a left-to-right run): the outgoing
+                    // cluster ends where this one starts:
+                    cluster as usize
+                } else {
+                    // Descending clusters (a right-to-left run): the outgoing
+                    // cluster ends where the previous one began — the next
+                    // larger cluster start:
+                    previous_cluster_start.unwrap_or(run_text.len())
+                };
                 emit_continuation_glyphs(
                     ctx,
                     paragraph,
                     run_text,
-                    cluster_start_byte..cluster as usize,
+                    cluster_start_byte..outgoing_end,
                     cluster_glyph_count,
                     face_metrics,
                     ctx.segment_base + run.byte_range.as_usize().start + cluster_start_byte,
                 );
+                // The outgoing cluster was really processed, so it may seed the
+                // "previous cluster" for the next transition:
+                previous_cluster_start = Some(cluster_start_byte);
             }
             if !ctx.is_first_glyph_in_section {
                 paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
@@ -483,13 +506,20 @@ fn layout_shaped_run(
         cluster_glyph_count += 1;
     }
 
-    // Emit continuation glyphs for the last cluster in the run.
+    // Emit continuation glyphs for the last cluster in the run. Its byte range
+    // ends where the next larger cluster start begins (a right-to-left run
+    // emits descending, so that is the previous cluster start); an ascending
+    // run's last cluster runs to the end of the run text.
     if ctx.prev_cluster.is_some() {
+        let last_end = match previous_cluster_start {
+            Some(previous) if cluster_start_byte < previous => previous,
+            _ => run_text.len(),
+        };
         emit_continuation_glyphs(
             ctx,
             paragraph,
             run_text,
-            cluster_start_byte..run_text.len(),
+            cluster_start_byte..last_end,
             cluster_glyph_count,
             face_metrics,
             ctx.segment_base + run.byte_range.as_usize().start + cluster_start_byte,
@@ -898,6 +928,7 @@ fn rows_from_paragraphs(
                 pos: pos2(0.0, f32::NAN),
                 row: Arc::new(Row {
                     section_index_at_start: paragraph.section_index_at_start,
+                    base_direction: resolved_direction(job),
                     glyphs: vec![],
                     visuals: Default::default(),
                     size: vec2(0.0, paragraph.empty_paragraph_height),
@@ -915,6 +946,7 @@ fn rows_from_paragraphs(
                     pos: pos2(0.0, f32::NAN),
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
+                        base_direction: resolved_direction(job),
                         glyphs: paragraph.glyphs,
                         visuals: Default::default(),
                         size: vec2(paragraph_width, 0.0),
@@ -971,6 +1003,7 @@ fn line_break(
                     pos: pos2(0.0, f32::NAN),
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
+                        base_direction: resolved_direction(job),
                         glyphs: vec![],
                         visuals: Default::default(),
                         size: Vec2::ZERO,
@@ -997,6 +1030,7 @@ fn line_break(
                     pos: pos2(0.0, f32::NAN),
                     row: Arc::new(Row {
                         section_index_at_start,
+                        base_direction: resolved_direction(job),
                         glyphs,
                         visuals: Default::default(),
                         size: vec2(paragraph_max_x, 0.0),
@@ -1071,6 +1105,7 @@ fn line_break(
                 pos: pos2(paragraph_min_x, 0.0),
                 row: Arc::new(Row {
                     section_index_at_start,
+                    base_direction: resolved_direction(job),
                     glyphs,
                     visuals: Default::default(),
                     size: vec2(paragraph_max_x - paragraph_min_x, 0.0),
@@ -2040,6 +2075,7 @@ mod tests {
     use super::{super::*, *};
     use crate::{
         ColorImage,
+        text::ByteRangeExt,
         text::cursor::{CCursor, LayoutCursor},
         text::galley_cache::GalleyCache,
     };
@@ -3873,57 +3909,346 @@ mod tests {
         }
     }
 
-    /// T5 — cursor hit-testing on a bidi-reordered (visual-order) row: clicking
-    /// the visually-left end of a first-strong RTL paragraph lands on the
-    /// visually-first glyph slot, and every column's cursor position maps back
-    /// to the x it was clicked at.
-    ///
-    /// KNOWN LIMITATION (documented in `Row`): for reordered rows the cursor
-    /// index counts *visual* glyph slots, not logical character offsets.
-    /// Mapping `CCursor` indices back to logical string positions is deferred;
-    /// this test pins the coherent visual hit-testing behaviour that bidi
-    /// reordering keeps.
+    /// T5 — the cursor layer maps *logical* columns over the visual-order glyphs
+    /// of a bidi-reordered row: under a right-to-left base direction the
+    /// text-start caret (logical column 0) sits at the visual RIGHT edge and the
+    /// text-end caret at the visual LEFT edge, clicks map visual x back to the
+    /// logical column (clicking the visual middle of the Arabic word lands
+    /// between the right graphemes), and every column round-trips through its
+    /// caret x.
     #[test]
-    fn bidi_cursor_hit_test_follows_visual_order() {
+    fn bidi_cursor_hit_test_follows_logical_order() {
         let galley = layout_with_direction("عربي 123", None);
         assert_eq!(galley.rows.len(), 1);
         let row = &galley.rows[0];
-
-        // The visually-left end of the row:
-        let left_x = row.rect().left();
+        let n = row.row.char_count_excluding_newline().0;
+        assert_eq!(n, 8, "one cursor column per character");
         let mid_y = (row.min_y() + row.max_y()) * 0.5;
-        let cursor = galley.cursor_from_pos(vec2(left_x + 1.0, mid_y));
-        assert_eq!(
-            cursor.index.0, 0,
-            "clicking the visual left end must hit the first visual slot"
-        );
-        // ...which holds the visually-leftmost glyph (the first European digit):
-        assert_eq!(row.row.glyphs[0].chr, '1');
-        // Clicking the visually-right end maps back to the visually-rightmost
-        // (logically-first) glyph. Zero-advance continuation glyphs share x
-        // positions with their cluster, so the exact slot can be a cluster's
-        // continuation; the x round-trip below is the meaningful contract.
-        let right = galley.cursor_from_pos(vec2(row.rect().right() - 1.0, mid_y));
+
+        // Text start (logical column 0) sits at the visual RIGHT edge, the text
+        // end (logical column n) at the visual LEFT edge:
+        let pos = |column: usize| {
+            galley
+                .pos_from_layout_cursor(&LayoutCursor {
+                    row: 0,
+                    column: CharIndex(column),
+                })
+                .min
+                .x
+        };
         assert!(
-            right.index.0 > 0,
-            "clicking the visual right end must not hit the first slot"
+            pos(0) > galley.rect.center().x,
+            "the text-start caret must sit in the visual right half, got {} (rect {:?})",
+            pos(0),
+            galley.rect
+        );
+        assert!(
+            pos(n) < galley.rect.center().x,
+            "the text-end caret must sit in the visual left half, got {} (rect {:?})",
+            pos(n),
+            galley.rect
         );
 
-        // x round-trip: every cursor position sits where it was clicked:
-        for i in 0..=row.row.glyphs.len() {
-            let pos = galley.pos_from_layout_cursor(&LayoutCursor {
-                row: 0,
-                column: CharIndex(i),
-            });
-            let back = galley.cursor_from_pos(vec2(pos.min.x, mid_y));
-            let x_back = row.row.x_offset(CharIndex(back.index.0)) + row.pos.x;
+        // Caret x decreases as the logical column advances (reading right to
+        // left):
+        for column in 0..n {
             assert!(
-                (pos.min.x - x_back).abs() < 1.0,
-                "cursor round-trip unstable at column {i}: {} vs {}",
-                pos.min.x,
-                x_back
+                pos(column) > pos(column + 1),
+                "caret x must decrease from column {column} to {}: {} vs {}",
+                column + 1,
+                pos(column),
+                pos(column + 1)
             );
         }
+
+        // Clicking the visual middle of the Arabic word: the center of the `ب`
+        // glyph (visual slot 5) puts the caret between `ب` and `ي` (logical
+        // columns 2 and 3), and a click at the word's visual midpoint (the
+        // boundary between `ر` and `ب`) one column earlier:
+        let ba = &row.row.glyphs[5];
+        assert_eq!(ba.chr, 'ب');
+        let ba_center = ba.pos.x + ba.advance_width * 0.5 + row.pos.x;
+        let clicked = galley.cursor_from_pos(vec2(ba_center, mid_y));
+        assert_eq!(
+            clicked.index.0, 3,
+            "clicking the visual center of `ب` must put the caret between the right graphemes"
+        );
+
+        // x round-trip: every caret position maps back to its own column:
+        for column in 0..=n {
+            let back = galley.cursor_from_pos(vec2(pos(column), mid_y));
+            assert_eq!(
+                back.index.0, column,
+                "clicking the caret x of column {column} must return that column"
+            );
+        }
+    }
+
+    /// One glyph slot per character: the continuation-glyph bookkeeping of RTL
+    /// runs (whose shaper output is in descending cluster order) used to
+    /// over-emit zero-advance duplicates for every character but the first,
+    /// breaking the `glyphs.len() == char_count` invariant that all cursor
+    /// code relies on.
+    #[test]
+    fn rtl_rows_have_one_glyph_slot_per_char() {
+        for text in ["تقرير", "عربي 123", "سلام"] {
+            for direction in [None, Some(TextDirection::RightToLeft)] {
+                let galley = layout_with_direction(text, direction);
+                assert_eq!(galley.rows.len(), 1);
+                let count = galley.rows[0].row.glyphs.len();
+                assert_eq!(
+                    count,
+                    text.chars().count(),
+                    "glyph slots must equal the char count for {text:?} (direction {direction:?})"
+                );
+            }
+        }
+    }
+
+    /// Shape `codepoints` — (char, cluster byte offset) pairs in output order —
+    /// with hand-picked cluster values, so a cluster can be given fewer glyphs
+    /// than characters. No bundled font produces a multi-char→fewer-glyphs
+    /// cluster (no lam-alef ligature; flag RIs keep one glyph per char), so the
+    /// continuation-glyph bookkeeping needs a synthetic glyph vector to
+    /// exercise that shape. Non-monotone cluster levels keep the hand-picked
+    /// (descending) values instead of rewriting them.
+    fn shape_synthetic_run(
+        fonts: &mut FontsImpl,
+        codepoints: &[(char, u32)],
+    ) -> (harfrust::GlyphBuffer, FontFaceKey, StyledMetrics) {
+        let family = fonts.family_key(&FontFamily::Proportional);
+        let face_key = fonts.resolve_face(family, 'a');
+        let coords = VariationCoords::default();
+        let face_metrics = fonts
+            .face(face_key)
+            .expect("the test font must resolve 'a'")
+            .styled_metrics(1.0, 14.0, &coords);
+
+        let mut buffer = harfrust::UnicodeBuffer::default();
+        for (chr, cluster) in codepoints {
+            buffer.add(*chr, *cluster);
+        }
+        buffer.set_cluster_level(harfrust::BufferClusterLevel::Characters);
+        buffer.set_direction(harfrust::Direction::LeftToRight);
+        buffer.guess_segment_properties();
+
+        let face = fonts
+            .face(face_key)
+            .expect("the test font must resolve 'a'");
+        let shaper = face.shaper_data().shaper(face.skrifa_font_ref()).build();
+        let glyph_buffer = shaper.shape(buffer, harfrust::ShapeOptions::new());
+        (glyph_buffer, face_key, face_metrics)
+    }
+
+    /// A multi-char cluster with fewer glyphs than chars at the logically-last
+    /// position of a descending-order run keeps its continuation glyph.
+    ///
+    /// The synthetic vector emits two clusters in descending byte order:
+    /// cluster 1 covers the two chars "b" + U+E000 with a single glyph (the
+    /// second codepoint maps to no glyph, like a dropped mark), then cluster 0
+    /// covers "a". The first descending transition's outgoing cluster extends
+    /// to the end of the run text; the previous-cluster bookkeeping used to
+    /// seed itself with the dummy start `0` there, emitting an inverted
+    /// `1..0` range that silently dropped the continuation glyph (2 slots for
+    /// 3 chars).
+    #[test]
+    fn descending_run_first_emitted_cluster_keeps_its_continuation_glyphs() {
+        let run_text = "ab\u{E000}";
+        let mut fonts = test_fonts();
+        let codepoints = [('b', 1), ('\u{E000}', 1), ('a', 0)];
+        let (glyph_buffer, face_key, face_metrics) = shape_synthetic_run(&mut fonts, &codepoints);
+
+        // Precondition: the synthetic vector is what the bookkeeping expects —
+        // three glyphs in descending clusters, the second one unmapped (so the
+        // run emits one glyph for the two-char cluster 1):
+        let infos = glyph_buffer.glyph_infos();
+        assert_eq!(infos.len(), 3, "infos: {infos:?}");
+        let clusters: Vec<u32> = infos.iter().map(|info| info.cluster).collect();
+        assert_eq!(clusters, [1, 1, 0], "infos: {infos:?}");
+        assert_eq!(
+            infos[1].glyph_id, 0,
+            "U+E000 must have no glyph in the test font for this vector to be synthetic"
+        );
+
+        let family = fonts.family_key(&FontFamily::Proportional);
+        let mut ctx = ShapingContext {
+            family,
+            pixels_per_point: 1.0,
+            font_size: 14.0,
+            line_height: face_metrics.row_height,
+            extra_letter_spacing: 0.0,
+            section_index: 0,
+            font_metrics: face_metrics.clone(),
+            is_first_glyph_in_section: true,
+            prev_cluster: None,
+            track_cluster_bytes: true,
+            segment_base: 0,
+        };
+        let run = TextRun {
+            font_key: face_key,
+            byte_range: ByteRangeExt::full(run_text),
+            raster: None,
+        };
+        let mut paragraph = Paragraph::from_section_index(0);
+        layout_shaped_run(
+            &mut fonts,
+            &run,
+            run_text,
+            &glyph_buffer,
+            &face_metrics,
+            &mut ctx,
+            &mut paragraph,
+        );
+
+        let chars = run_text.chars().count();
+        assert_eq!(
+            paragraph.glyphs.len(),
+            chars,
+            "the continuation glyph of the logically-last cluster must not be lost: \
+             glyphs {:?}",
+            paragraph.glyphs.iter().map(|g| g.chr).collect::<Vec<_>>()
+        );
+
+        // The continuation is grouped with its cluster: it carries the cluster's
+        // byte start (1, like the 'b' glyph before it, not 0), zero advance (it
+        // draws nothing), and the char it stands in for:
+        assert_eq!(
+            paragraph.cluster_byte_starts,
+            [1, 1, 0],
+            "the continuation glyph must belong to cluster 1, with 'a' in cluster 0"
+        );
+        let continuation = &paragraph.glyphs[1];
+        assert_eq!(continuation.chr, '\u{E000}');
+        assert_eq!(
+            continuation.advance_width, 0.0,
+            "a continuation glyph is zero-width"
+        );
+        assert!(
+            paragraph.glyphs[2].pos.x >= continuation.pos.x,
+            "the glyph vector stays in visual order: {:?}",
+            paragraph.glyphs.iter().map(|g| g.pos.x).collect::<Vec<_>>()
+        );
+    }
+
+    /// The caret boundaries of a pure-RTL row mirror the reading direction: the
+    /// first column sits at the ink's right edge, the last at the ink's left
+    /// edge, and the LTR twin keeps the historic left-to-right geometry.
+    #[test]
+    fn rtl_caret_positions_mirror_the_reading_direction() {
+        let rtl = layout_with_direction("تقرير", None);
+        assert_eq!(rtl.rows.len(), 1);
+        let row = &rtl.rows[0];
+        let n = row.row.char_count_excluding_newline().0;
+        let ink_min = row
+            .glyphs
+            .iter()
+            .map(|glyph| glyph.pos.x)
+            .fold(f32::INFINITY, f32::min);
+        let ink_max = row
+            .glyphs
+            .iter()
+            .map(|glyph| glyph.max_x())
+            .fold(f32::NEG_INFINITY, f32::max);
+
+        let x = |column: usize| row.row.x_offset(CharIndex(column));
+        assert!(
+            (x(0) - ink_max).abs() < 1.0,
+            "column 0 (reading start) at the ink right edge: {} vs {ink_max}",
+            x(0)
+        );
+        assert!(
+            (x(n) - ink_min).abs() < 1.0,
+            "column {n} (reading end) at the ink left edge: {} vs {ink_min}",
+            x(n)
+        );
+
+        // The LTR twin keeps the historic geometry: column 0 at the ink's left
+        // edge, column n at the row width:
+        let ltr = layout_with_direction("abcde", Some(TextDirection::LeftToRight));
+        let ltr_row = &ltr.rows[0];
+        let ltr_n = ltr_row.row.char_count_excluding_newline().0;
+        let ltr_x = |column: usize| ltr_row.row.x_offset(CharIndex(column));
+        assert!(
+            (ltr_x(0) - ltr_row.glyphs[0].pos.x).abs() < 1e-3,
+            "LTR column 0 keeps its glyph-left caret"
+        );
+        assert!(
+            (ltr_x(ltr_n) - ltr_row.size.x).abs() < 1e-3,
+            "LTR column {ltr_n} keeps the end-of-row caret"
+        );
+    }
+
+    /// A mixed row under an RTL base direction keeps exact caret geometry at
+    /// the reading edges (the base-direction mapping is exact for the RTL run
+    /// and clamped at the row ends), and clicks inside the Arabic run land
+    /// between the right graphemes. Inside embedded left-to-right runs the
+    /// mapping is approximate (documented in `Row`); this pins the edges.
+    #[test]
+    fn mixed_rtl_base_caret_edges() {
+        let galley = layout_with_direction("عربي abc", None);
+        assert_eq!(galley.rows.len(), 1);
+        let row = &galley.rows[0];
+        let n = row.row.char_count_excluding_newline().0;
+        assert_eq!(n, 8);
+        let mid_y = (row.min_y() + row.max_y()) * 0.5;
+
+        let pos = |column: usize| {
+            galley
+                .pos_from_layout_cursor(&LayoutCursor {
+                    row: 0,
+                    column: CharIndex(column),
+                })
+                .min
+                .x
+        };
+        assert!(
+            pos(0) > galley.rect.center().x,
+            "reading start at the visual right"
+        );
+        assert!(
+            pos(n) < galley.rect.center().x,
+            "reading end at the visual left"
+        );
+
+        // Clicking the visual center of `ب` (visual slot 5) puts the caret
+        // between `ب` and `ي`:
+        let ba = &row.glyphs[5];
+        assert_eq!(ba.chr, 'ب');
+        let ba_center = ba.pos.x + ba.advance_width * 0.5 + row.pos.x;
+        let clicked = galley.cursor_from_pos(vec2(ba_center, mid_y));
+        assert_eq!(
+            clicked.index.0, 3,
+            "the click inside the Arabic run must land between the right graphemes"
+        );
+    }
+
+    /// Arrow-key movement is visual: under a right-to-left base direction,
+    /// moving toward the visual left steps to the logically NEXT character and
+    /// vice versa. The LTR twin keeps the historic logical movement.
+    #[test]
+    fn rtl_arrow_keys_move_visually() {
+        let rtl = layout_with_direction("تقرير", None);
+        assert_eq!(rtl.rows.len(), 1);
+        assert_eq!(rtl.end().index.0, 5);
+        assert_eq!(
+            rtl.cursor_left_one_character(&rtl.begin()).index.0,
+            1,
+            "visual left from the reading start enters the text"
+        );
+        assert_eq!(
+            rtl.cursor_right_one_character(&rtl.begin()).index.0,
+            0,
+            "the reading start is the visual right edge"
+        );
+        assert_eq!(
+            rtl.cursor_right_one_character(&rtl.end()).index.0,
+            4,
+            "visual right from the reading end steps back into the text"
+        );
+
+        let ltr = layout_with_direction("abcde", Some(TextDirection::LeftToRight));
+        assert_eq!(ltr.cursor_left_one_character(&ltr.begin()).index.0, 0);
+        assert_eq!(ltr.cursor_right_one_character(&ltr.end()).index.0, 5);
     }
 
     /// T6 — hostile input must not panic: unpaired-surrogate stand-ins, control
@@ -4018,6 +4343,7 @@ mod tests {
                 pos: pos2(0.0, 0.0),
                 row: Arc::new(Row {
                     section_index_at_start: 0,
+                    base_direction: TextDirection::LeftToRight,
                     glyphs,
                     size: vec2(natural_width, 16.0),
                     visuals: RowVisuals::default(),
@@ -4064,6 +4390,7 @@ mod tests {
         // do not bracket it. Sanity-check the premise:
         let (ink_min, ink_max) = ink_span(&Row {
             section_index_at_start: 0,
+            base_direction: TextDirection::LeftToRight,
             glyphs: shaped_arabic(),
             size: vec2(natural_width, 16.0),
             visuals: RowVisuals::default(),

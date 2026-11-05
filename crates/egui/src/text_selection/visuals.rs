@@ -46,34 +46,58 @@ pub fn paint_text_selection(
     for ri in min.row..=max.row {
         let placed_row = &mut galley.rows[ri];
         let row = Arc::make_mut(&mut placed_row.row);
+        let rtl = row.base_direction == epaint::text::TextDirection::RightToLeft;
+        // The row's ink right edge in row-relative coordinates — the reading
+        // start of a right-to-left row (0.0 for an empty row):
+        let ink_max_x = row
+            .glyphs
+            .iter()
+            .map(|glyph| glyph.max_x())
+            .fold(0.0, f32::max);
+
+        let newline_size = if ri != max.row && placed_row.ends_with_newline {
+            row.height() * 0.5 // visualize that we select the newline
+        } else {
+            0.0
+        };
 
         let left = if ri == min.row {
             row.x_offset(min.column)
+        } else if rtl {
+            // Full row: from the reading end (visual left), covering the row's
+            // allocated width and the newline visualization, both of which
+            // extend reading-forward (leftward):
+            ink_max_x - row.size.x - newline_size
         } else {
             0.0
         };
         let right = if ri == max.row {
             row.x_offset(max.column)
+        } else if rtl {
+            ink_max_x
         } else {
-            let newline_size = if placed_row.ends_with_newline {
-                row.height() * 0.5 // visualize that we select the newline
-            } else {
-                0.0
-            };
             row.size.x + newline_size
         };
 
-        let rect = Rect::from_min_max(pos2(left, 0.0), pos2(right, row.size.y));
+        let rect = Rect::from_min_max(
+            pos2(left.min(right), 0.0),
+            pos2(left.max(right), row.size.y),
+        );
         let mesh = &mut row.visuals.mesh;
 
         if !row.glyphs.is_empty() {
             // Change color of the selected text:
-            let first_glyph_index = if ri == min.row { min.column.0 } else { 0 };
-            let last_glyph_index = if ri == max.row {
-                max.column.0
-            } else {
-                row.glyphs.len()
-            };
+            let len = row.glyphs.len();
+            let mut first_glyph_index = if ri == min.row { min.column.0 } else { 0 };
+            let mut last_glyph_index = if ri == max.row { max.column.0 } else { len };
+            if rtl {
+                // Glyphs are stored in visual order while the columns are
+                // logical: mirror the slot range into the visual glyph slots.
+                let start = first_glyph_index.min(len);
+                let end = last_glyph_index.min(len);
+                first_glyph_index = len - end;
+                last_glyph_index = len - start;
+            }
 
             let first_vertex_index = row
                 .glyphs

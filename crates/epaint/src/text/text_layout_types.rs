@@ -962,16 +962,28 @@ pub struct Row {
     /// adjust `section_index` when concatting.
     pub(crate) section_index_at_start: u32,
 
+    /// The paragraph's resolved base reading direction (UAX #9 P2/P3).
+    ///
+    /// The glyphs are stored in *visual* order (see [`Self::glyphs`]); this
+    /// direction is what lets cursor columns — which are *logical* character
+    /// offsets — be mapped onto those glyphs ([`Self::x_offset`] /
+    /// [`Self::char_at`]).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub base_direction: TextDirection,
+
     /// One for each `char`.
     ///
     /// The glyphs are laid out left-to-right (their `pos.x` increases along
     /// the slice). For paragraphs containing right-to-left text this is the
     /// *visual* order per UAX #9: rows with bidirectionally reordered runs
     /// do not list their glyphs in logical string order. Consequence for
-    /// cursors: a cursor column indexes a *visual* glyph slot, so x-based
-    /// hit-testing is correct while mapping a column back to a logical
-    /// string offset needs a logical↔visual map (not yet implemented —
-    /// known gap for bidi text editing).
+    /// cursors: a cursor column is a *logical* character offset, and mapping
+    /// it onto the visual glyphs needs the row's base direction
+    /// ([`Self::base_direction`]). That mapping is exact for the
+    /// base-direction runs and approximate inside runs that counteract the
+    /// base (e.g. embedded left-to-right words in a right-to-left row): a
+    /// fully exact mapping would need a logical↔visual run map stored on the
+    /// row (not yet implemented — known gap for mixed-direction editing).
     ///
     /// Second known gap for right-to-left text: the visual reordering happens
     /// per newline-split segment, and wrapping afterwards slices the already
@@ -1110,6 +1122,9 @@ impl Row {
     /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
     pub fn char_at(&self, desired_x: f32) -> CharIndex {
+        if self.base_direction == TextDirection::RightToLeft {
+            return self.char_at_rtl(desired_x);
+        }
         for (i, glyph) in self.glyphs.iter().enumerate() {
             if desired_x < glyph.logical_rect().center().x {
                 return CharIndex(i);
@@ -1118,12 +1133,122 @@ impl Row {
         self.char_count_excluding_newline()
     }
 
+    /// The closest *logical* column to `desired_x` in a right-to-left row.
+    ///
+    /// The mirror image of the left-to-right [`Self::char_at`]: glyphs are
+    /// stored in visual order while columns count from the reading start (the
+    /// visual right edge), so scan the glyphs from right to left in logical
+    /// order and stop at the first cluster cell whose center the click is
+    /// reading-side (right) of.
+    fn char_at_rtl(&self, desired_x: f32) -> CharIndex {
+        let num_glyphs = self.glyphs.len();
+        let mut best: Option<CharIndex> = None;
+
+        // Walk the glyphs as cluster groups (a base glyph plus the zero-advance
+        // continuation glyphs of its cluster), from the visually left end to
+        // the right; each group covers the next-highest unassigned logical
+        // columns. Keeping the *last* group with a match therefore keeps the
+        // rightmost one — the first in logical order, which is the one the
+        // mirrored left-to-right scan would stop at.
+        let mut remaining = num_glyphs;
+        let mut i = 0;
+        while i < num_glyphs {
+            let mut j = i + 1;
+            while j < num_glyphs && self.glyphs[j].advance_width <= 0.0 {
+                j += 1;
+            }
+            let cells = j - i;
+            let group_lo = remaining.saturating_sub(cells);
+
+            let box_lo = self.glyphs[i..j]
+                .iter()
+                .map(|glyph| glyph.pos.x)
+                .fold(f32::INFINITY, f32::min);
+            let box_hi = self.glyphs[i..j]
+                .iter()
+                .map(|glyph| glyph.max_x())
+                .fold(f32::NEG_INFINITY, f32::max);
+
+            for t in 0..cells {
+                let center = box_hi - (t as f32 + 0.5) * (box_hi - box_lo) / cells as f32;
+                if desired_x > center {
+                    best = Some(CharIndex(group_lo + t));
+                    break;
+                }
+            }
+
+            remaining = group_lo;
+            i = j;
+        }
+
+        best.unwrap_or(CharIndex(num_glyphs))
+    }
+
     pub fn x_offset(&self, column: CharIndex) -> f32 {
+        if self.base_direction == TextDirection::RightToLeft {
+            return self.x_offset_rtl(column);
+        }
         if let Some(glyph) = self.glyphs.get(column.0) {
             glyph.pos.x
         } else {
             self.size.x
         }
+    }
+
+    /// The caret x for a *logical* column of a right-to-left row, in
+    /// row-relative coordinates.
+    ///
+    /// Glyphs are stored in visual order while columns count from the reading
+    /// start (the visual right edge): the caret for a column sits at the
+    /// reading-side (right) edge of the cluster box displaying it, stepping
+    /// leftward through multi-glyph clusters. Past the text end the caret sits
+    /// at the visual left edge of the row.
+    fn x_offset_rtl(&self, column: CharIndex) -> f32 {
+        let num_glyphs = self.glyphs.len();
+        if num_glyphs == 0 {
+            return self.size.x;
+        }
+        if num_glyphs <= column.0 {
+            // Past the text end: the reading end is the visual left edge.
+            return self
+                .glyphs
+                .iter()
+                .map(|glyph| glyph.pos.x)
+                .fold(f32::INFINITY, f32::min);
+        }
+
+        // Walk the glyphs as cluster groups, from the visually left end to the
+        // right; each group covers the next-highest unassigned logical columns.
+        let mut remaining = num_glyphs;
+        let mut i = 0;
+        while i < num_glyphs {
+            let mut j = i + 1;
+            while j < num_glyphs && self.glyphs[j].advance_width <= 0.0 {
+                j += 1;
+            }
+            let cells = j - i;
+            let group_lo = remaining.saturating_sub(cells);
+
+            if group_lo <= column.0 {
+                let t = column.0 - group_lo;
+                let box_lo = self.glyphs[i..j]
+                    .iter()
+                    .map(|glyph| glyph.pos.x)
+                    .fold(f32::INFINITY, f32::min);
+                let box_hi = self.glyphs[i..j]
+                    .iter()
+                    .map(|glyph| glyph.max_x())
+                    .fold(f32::NEG_INFINITY, f32::max);
+                return box_hi - t as f32 * (box_hi - box_lo) / cells as f32;
+            }
+
+            remaining = group_lo;
+            i = j;
+        }
+
+        // `column < num_glyphs` always lands in some group; fall back to the
+        // reading end rather than panicking on unexpected row states.
+        self.glyphs[0].pos.x
     }
 
     #[inline]
@@ -1295,9 +1420,17 @@ impl core::ops::Deref for Galley {
 /// ## Physical positions
 impl Galley {
     /// Zero-width rect past the last character.
+    ///
+    /// The past-the-end caret sits at the reading end: the row's visual right
+    /// edge for a left-to-right row, its visual left edge for a right-to-left
+    /// one.
     fn end_pos(&self) -> Rect {
         if let Some(row) = self.rows.last() {
-            let x = row.rect().right();
+            let x = if row.base_direction == TextDirection::RightToLeft {
+                row.rect().left()
+            } else {
+                row.rect().right()
+            };
             Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
         } else {
             // Empty galley
@@ -1469,10 +1602,26 @@ impl Galley {
 
 /// ## Cursor positions
 impl Galley {
-    #[expect(clippy::unused_self)]
-    pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
-        if cursor.index == CharIndex::ZERO {
-            Default::default()
+    /// Is this galley laid out with a right-to-left base reading direction?
+    ///
+    /// Every row of a galley shares the job's resolved base direction, so the
+    /// first row decides.
+    pub fn is_rtl(&self) -> bool {
+        self.rows
+            .first()
+            .is_some_and(|row| row.base_direction == TextDirection::RightToLeft)
+    }
+
+    /// Step the cursor one character in the given *logical* direction:
+    /// forward (toward the next character) or backward.
+    fn step_one_character(&self, cursor: &CCursor, forward: bool) -> CCursor {
+        if forward {
+            CCursor {
+                index: (cursor.index + 1).min(self.end().index),
+                prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
+            }
+        } else if cursor.index == CharIndex::ZERO {
+            CCursor::default()
         } else {
             CCursor {
                 index: cursor.index - 1,
@@ -1481,11 +1630,20 @@ impl Galley {
         }
     }
 
+    /// Move the cursor one character toward the visual **left**.
+    ///
+    /// Under a right-to-left base direction that is the logically *next*
+    /// character; under a left-to-right one the logically previous one.
+    pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
+        self.step_one_character(cursor, self.is_rtl())
+    }
+
+    /// Move the cursor one character toward the visual **right**.
+    ///
+    /// Under a right-to-left base direction that is the logically *previous*
+    /// character; under a left-to-right one the logically next one.
     pub fn cursor_right_one_character(&self, cursor: &CCursor) -> CCursor {
-        CCursor {
-            index: (cursor.index + 1).min(self.end().index),
-            prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
-        }
+        self.step_one_character(cursor, !self.is_rtl())
     }
 
     pub fn clamp_cursor(&self, cursor: &CCursor) -> CCursor {

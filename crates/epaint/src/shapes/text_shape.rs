@@ -147,6 +147,7 @@ impl TextShape {
 
             let text::Row {
                 section_index_at_start: _,
+                base_direction: _,
                 glyphs: _, // TODO(emilk): would it make sense to transform these?
                 size,
                 visuals,
