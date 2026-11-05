@@ -368,7 +368,7 @@ impl Area {
     /// corner of the area.
     ///
     /// Default: [`Align2::LEFT_TOP`], mirrored to [`Align2::RIGHT_TOP`]
-    /// in a right-to-left interface ([`Style::right_to_left`]),
+    /// in a right-to-left interface ([`crate::Style::right_to_left`]),
     /// so areas widen towards the reading end.
     #[inline]
     pub fn pivot(mut self, pivot: Align2) -> Self {

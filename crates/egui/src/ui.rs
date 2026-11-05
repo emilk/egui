@@ -486,7 +486,7 @@ impl Ui {
     /// The language text in this `Ui` should be laid out in, as a BCP 47 tag:
     /// this subtree's [`UiBuilder::language`] override, else [`Context::language`].
     ///
-    /// Widgets stamp this onto their [`LayoutJob`]s. `None` means unspecified.
+    /// Widgets stamp this onto their [`crate::text::LayoutJob`]s. `None` means unspecified.
     #[inline]
     pub fn language(&self) -> Option<String> {
         self.language.clone().or_else(|| self.ctx().language())

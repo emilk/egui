@@ -2822,7 +2822,7 @@ impl Context {
 
     /// The language text in this UI should be laid out in, as a BCP 47 tag, e.g. `"ar-EG"`.
     ///
-    /// Widgets stamp this onto their text [`LayoutJob`]s so that
+    /// Widgets stamp this onto their text [`crate::text::LayoutJob`]s so that
     /// line-breaking and shaping can be locale-aware.
     ///
     /// Setting the same language again does nothing (no store, no repaint),

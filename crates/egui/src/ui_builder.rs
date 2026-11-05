@@ -1,11 +1,11 @@
 use alloc::sync::Arc;
 
-#[expect(unused_imports)] // Used for doclinks
-use crate::Ui;
 use crate::{
     AsIdSalt, ClosableTag, Id, IdSalt, LayerId, Layout, Rect, Sense, Style, UiStackInfo,
     class::{Classes, HasClasses},
 };
+#[expect(unused_imports)] // Used for doclinks
+use crate::{Context, Ui};
 
 /// The properties specified when creating a top-level or child [`Ui`].
 ///
