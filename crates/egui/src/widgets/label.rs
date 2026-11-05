@@ -260,7 +260,10 @@ impl Label {
 
             if ui.is_grid() {
                 // TODO(emilk): remove special Grid hacks like these
-                layout_job.halign = Align::LEFT;
+                // An explicit halign still wins inside grids; only the default
+                // is pinned to the left (which `normalize_reading_direction`
+                // re-anchors to the reading start for right-to-left rows).
+                layout_job.halign = self.halign.unwrap_or(Align::LEFT);
                 layout_job.justify = false;
             } else {
                 layout_job.halign = self
