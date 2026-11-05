@@ -9,7 +9,7 @@
 
 use egui::{
     Context, Event, Id, Key, LayerId, Modifiers, Order, PointerButton, Popup, PopupAnchor, Pos2,
-    RawInput, Rect, Sense, SetOpenCommand, Ui, Vec2, pos2, vec2,
+    RawInput, Rect, RectAlign, Sense, SetOpenCommand, Ui, Vec2, pos2, vec2,
 };
 
 /// The context menu popup's area rect after opening it with a secondary click on
@@ -474,4 +474,68 @@ fn keyboard_opened_context_menu_opens_a_submenu_on_the_reading_side() {
             );
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+
+/// The best align a widget-anchored open menu reports on a screen where neither
+/// above nor below the anchor fits, but both sides do. The popup's body size is
+/// stored on a first show pass, so the fallback runs against the real size.
+fn fallback_best_align(right_to_left: bool, widget: Rect) -> RectAlign {
+    let ctx = Context::default();
+    ctx.set_right_to_left(right_to_left);
+
+    let screen = Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0));
+    let mut align = RectAlign::BOTTOM_START;
+
+    let mut show = |ui: &mut Ui| {
+        let response = ui.allocate_rect(widget, Sense::click());
+        let popup = Popup::menu(&response).open(true);
+        align = popup.get_best_align();
+        popup.show(|ui| {
+            ui.set_min_size(vec2(200.0, 360.0));
+            ui.label("row");
+        });
+    };
+
+    for time in [0.0, 0.1] {
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(screen),
+                time: Some(time),
+                ..Default::default()
+            },
+            &mut show,
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    align
+}
+
+/// The default fallback table resolves by reading direction: on a mid-screen
+/// anchor where the menu fits neither above nor below but both sides, the
+/// left-to-right chain picks the physical-right candidate (`RIGHT_END`) and the
+/// right-to-left chain picks its mirror (`LEFT_END`). The user's primary and
+/// its symmetries stay physical, so the left-to-right answer is unchanged.
+#[test]
+fn menu_fallback_resolves_by_reading_direction() {
+    // Mid-screen anchor: a ~212x372 menu fits neither above nor below, but
+    // leaves room on both sides:
+    let widget = Rect::from_min_size(pos2(400.0, 360.0), vec2(20.0, 20.0));
+
+    let ltr = fallback_best_align(false, widget);
+    assert_eq!(
+        ltr,
+        RectAlign::RIGHT_END,
+        "the left-to-right fallback order must stay physical (got {ltr:?})"
+    );
+
+    let rtl = fallback_best_align(true, widget);
+    assert_eq!(
+        rtl,
+        ltr.mirrored(),
+        "the right-to-left fallback must be the mirror of the left-to-right one \
+         (rtl {rtl:?}, ltr {ltr:?})"
+    );
 }

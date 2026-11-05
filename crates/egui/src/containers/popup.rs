@@ -1,6 +1,6 @@
 use core::iter::once;
 
-use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
+use emath::{Align, Pos2, ReadingDirection, Rect, RectAlign, Vec2, vec2};
 
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
@@ -319,7 +319,8 @@ impl<'a> Popup<'a> {
 
     /// Set alternative positions to try if the default one doesn't fit. Set to an empty slice to
     /// always use the position you set with [`Self::align`].
-    /// By default, this will try [`RectAlign::symmetries`] and then [`RectAlign::MENU_ALIGNS`].
+    /// By default, this will try [`RectAlign::symmetries`] and then the
+    /// reading-direction menu table ([`RectAlign::menu_aligns`]).
     #[inline]
     pub fn align_alternatives(mut self, alternatives: &'a [RectAlign]) -> Self {
         self.alternative_aligns = Some(alternatives);
@@ -593,6 +594,15 @@ impl<'a> Popup<'a> {
             return self.rect_align;
         };
 
+        // The default fallback table follows the reading direction; the
+        // symmetries of the user's chosen primary stay physical, and explicit
+        // `alternative_aligns` stay authoritative either way.
+        let dir = if self.ctx.is_rtl() {
+            ReadingDirection::Rtl
+        } else {
+            ReadingDirection::Ltr
+        };
+
         RectAlign::find_best_align(
             #[expect(clippy::iter_on_empty_collections)]
             #[expect(clippy::or_fun_call)]
@@ -603,7 +613,7 @@ impl<'a> Popup<'a> {
                     .map(|a| core::iter::chain(a.iter().copied(), [].iter().copied()))
                     .unwrap_or(core::iter::chain(
                         self.rect_align.symmetries().iter().copied(),
-                        RectAlign::MENU_ALIGNS.iter().copied(),
+                        RectAlign::menu_aligns(dir).iter().copied(),
                     )),
             ),
             self.ctx.content_rect(),
