@@ -112,7 +112,8 @@ impl State {
 
     /// The current kinetic scrolling velocity of the offset, in ui points per second.
     ///
-    /// Positive means the offset is increasing, i.e. the content is scrolling down/right.
+    /// Positive means the offset is increasing, i.e. the content is scrolling
+    /// toward the reading end (down/right in left-to-right interfaces).
     pub fn velocity(&self) -> Vec2 {
         self.vel
     }

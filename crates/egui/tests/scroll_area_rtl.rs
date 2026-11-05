@@ -1204,3 +1204,148 @@ fn horizontal_fades_mirror() {
     case(true);
     case(false);
 }
+
+/// A7: flipping the direction flag between frames keeps the persisted offset
+/// reading-relative: a NON-center offset stored under one direction reads back
+/// unchanged after a flip with no builder offset (so `State::load` serves the
+/// persisted offset instead of it being clobbered), and the same reading-relative
+/// span of buttons stays visible. A load-time remap (`x -> max_offset.x - x`)
+/// would teleport the viewport to the opposite end; this pins that none exists.
+///
+/// The assertions describe today's behavior BY DESIGN: there is no fail-before,
+/// this pin guards the refuted deep finding that claimed the persisted offset
+/// flips meaning at a runtime direction toggle. The ltr twin is the flip back
+/// to ltr, asserted in the same test.
+#[test]
+fn direction_flip_keeps_a_non_center_offset_reading_relative() {
+    fn nearest_button_index(buttons: &[Rect], x: f32) -> usize {
+        buttons
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| {
+                (a.center().x - x)
+                    .abs()
+                    .total_cmp(&(b.center().x - x).abs())
+            })
+            .map(|(index, _)| index)
+            .expect("the pass should have captured buttons")
+    }
+
+    let ctx = Context::default();
+    let mut capture = Capture::default();
+
+    // Seed the persisted state (offset 0).
+    row_pass(
+        &ctx,
+        false,
+        0.0,
+        vec![],
+        N_ROW_BUTTONS,
+        None,
+        "flip-offset",
+        ScrollStyle::default(),
+        &mut |area| area.max_width(VIEWPORT_WIDTH),
+        &mut |_, _| {},
+        &mut capture,
+    );
+    let x = (capture.content_size.x - VIEWPORT_WIDTH) / 4.0;
+    assert!(
+        x > PIXEL_TOLERANCE
+            && ((capture.content_size.x - VIEWPORT_WIDTH) / 2.0 - x).abs() > PIXEL_TOLERANCE,
+        "the pin offset must be non-center for this pin to mean anything (x: {x})"
+    );
+
+    // LTR with a builder offset x: the window shows the reading-relative span
+    // `x..x+viewport_width`.
+    row_pass(
+        &ctx,
+        false,
+        0.1,
+        vec![],
+        N_ROW_BUTTONS,
+        Some(x),
+        "flip-offset",
+        ScrollStyle::default(),
+        &mut |area| area.max_width(VIEWPORT_WIDTH),
+        &mut |_, _| {},
+        &mut capture,
+    );
+    let ltr = capture.clone();
+
+    // Flip to RTL WITHOUT a builder offset, so the persisted offset is loaded.
+    ctx.set_right_to_left(true);
+    row_pass(
+        &ctx,
+        true,
+        0.2,
+        vec![],
+        N_ROW_BUTTONS,
+        None,
+        "flip-offset",
+        ScrollStyle::default(),
+        &mut |area| area.max_width(VIEWPORT_WIDTH),
+        &mut |_, _| {},
+        &mut capture,
+    );
+    assert_near(
+        capture.clamped_offset.x,
+        x,
+        PIXEL_TOLERANCE,
+        "RTL: the persisted non-center offset must read back unchanged after the flip \
+         (a remap would read max_offset - x)",
+    );
+    // The button at the reading-start edge of the ltr window is still visible.
+    let index = nearest_button_index(&ltr.buttons, ltr.clip.min.x);
+    assert!(
+        capture.buttons[index].intersects(capture.clip),
+        "RTL: the button at the ltr window's reading-start edge should still be visible \
+         (button {:?}, clip {:?})",
+        capture.buttons[index],
+        capture.clip
+    );
+
+    // Flip back to LTR: store x under rtl, then load it without a builder offset.
+    row_pass(
+        &ctx,
+        true,
+        0.3,
+        vec![],
+        N_ROW_BUTTONS,
+        Some(x),
+        "flip-offset",
+        ScrollStyle::default(),
+        &mut |area| area.max_width(VIEWPORT_WIDTH),
+        &mut |_, _| {},
+        &mut capture,
+    );
+    let rtl = capture.clone();
+    ctx.set_right_to_left(false);
+    row_pass(
+        &ctx,
+        false,
+        0.4,
+        vec![],
+        N_ROW_BUTTONS,
+        None,
+        "flip-offset",
+        ScrollStyle::default(),
+        &mut |area| area.max_width(VIEWPORT_WIDTH),
+        &mut |_, _| {},
+        &mut capture,
+    );
+    assert_near(
+        capture.clamped_offset.x,
+        x,
+        PIXEL_TOLERANCE,
+        "LTR: the persisted non-center offset must read back unchanged after the flip back \
+         (a remap would read max_offset - x)",
+    );
+    let index = nearest_button_index(&rtl.buttons, rtl.clip.max.x);
+    assert!(
+        capture.buttons[index].intersects(capture.clip),
+        "LTR: the button at the rtl window's reading-start edge should still be visible \
+         (button {:?}, clip {:?})",
+        capture.buttons[index],
+        capture.clip
+    );
+}
