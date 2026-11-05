@@ -12,6 +12,10 @@ pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: Box<dyn WebPainter>,
+
+    /// The layer of the views below the canvas, and the routing of the pointer input between
+    /// them and the canvas.
+    pub(crate) web_native_views: super::native_views::WebNativeViews,
     pub(crate) input: super::WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: Arc<NeedRepaint>,
@@ -114,6 +118,7 @@ impl AppRunner {
             i.pixels_per_point = super::native_pixels_per_point();
         });
 
+        let web_native_views = super::native_views::WebNativeViews::new(painter.canvas().clone());
         let native_views = crate::NativeViews::new(painter.canvas().clone());
 
         let cc = epi::CreationContext {
@@ -165,6 +170,7 @@ impl AppRunner {
             frame,
             egui_ctx,
             painter,
+            web_native_views,
             input: Default::default(),
             app,
             needs_repaint,
@@ -292,10 +298,11 @@ impl AppRunner {
             .unwrap_or(true);
 
         if is_visible {
-            let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
+            let mut full_output = self.egui_ctx.run_ui(raw_input, |ui| {
                 self.app.logic(ui.ctx(), &mut self.frame);
                 self.app.ui(ui, &mut self.frame);
             });
+            self.app.output_hook(&self.egui_ctx, &mut full_output);
             let egui::FullOutput {
                 platform_output,
                 textures_delta,
@@ -304,9 +311,8 @@ impl AppRunner {
                 viewport_output,
             } = full_output;
 
-            self.frame
-                .native_views
-                .place(&self.egui_ctx, &platform_output.native_views);
+            self.web_native_views
+                .route_input(&self.egui_ctx, &platform_output.native_views);
 
             if viewport_output.len() > 1 {
                 log::warn!("Multiple viewports not yet supported on the web");
@@ -412,7 +418,7 @@ impl AppRunner {
             accesskit_update: _,        // not currently implemented
             num_completed_passes: _,    // handled by `Context::run`
             request_discard_reasons: _, // handled by `Context::run`
-            native_views: _,            // handled by `NativeViews::place` in `logic`
+            native_views: _,            // handled by `WebNativeViews::route_input` in `logic`
         } = platform_output;
 
         for command in commands {
@@ -431,7 +437,7 @@ impl AppRunner {
         }
 
         super::set_cursor_icon(self.canvas(), cursor_icon);
-        if let Some(input_element) = self.frame.native_views.input_element() {
+        if let Some(input_element) = self.web_native_views.input_element() {
             super::set_cursor_icon(input_element, cursor_icon);
         }
 

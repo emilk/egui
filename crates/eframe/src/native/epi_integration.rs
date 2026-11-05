@@ -347,7 +347,7 @@ impl EpiIntegration {
 
         let is_root_viewport = viewport_ui_cb.is_none();
 
-        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
+        let mut full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
                 profiling::scope!("viewport_callback");
@@ -365,9 +365,8 @@ impl EpiIntegration {
         });
 
         if is_root_viewport {
-            self.frame
-                .native_views
-                .place(&self.egui_ctx, &full_output.platform_output.native_views);
+            profiling::scope!("App::output_hook");
+            app.output_hook(&self.egui_ctx, &mut full_output);
         }
 
         if is_root_viewport && close_requested {
