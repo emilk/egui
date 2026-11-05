@@ -122,9 +122,9 @@ impl Ui {
 
         let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
         let clip_rect = max_rect;
-        let mut layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
+        let mut layout = layout.unwrap_or_else(|| Layout::from_style(&style));
         let sense = sense.unwrap_or_else(Sense::hover);
         let classes = classes.with_class(class::ROOT);
 

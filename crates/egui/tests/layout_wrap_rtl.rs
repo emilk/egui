@@ -258,8 +258,7 @@ fn horizontal_first_rect(rtl: bool, mut build: impl FnMut(&mut Ui) -> Rect) -> (
 /// vertical alignment follows the helper (top vs centered), and the wrapped
 /// variant hugs too.
 #[test]
-fn mirrored_horizontal_helpers_follow_the_reading_direction() {
-    let widget = vec2(50.0, 10.0);
+fn mirrored_horizontal_helpers_follow_the_reading_direction() {    let widget = vec2(50.0, 10.0);
 
     for rtl in [false, true] {
         let (panel, centered) = horizontal_first_rect(rtl, |ui| {
@@ -305,6 +304,58 @@ fn mirrored_horizontal_helpers_follow_the_reading_direction() {
             (centered.center().y - panel.center().y).abs() <= TOL,
             "horizontal_centered: the first widget must be vertically \
              centered, got {centered:?} in {panel:?}"
+        );
+    }
+}
+
+/// `Layout::from_style` is the style-derived default: `top_down(Align::Min)`
+/// under LTR and `top_down(Align::Max)` under RTL. Raw `Layout::default()`
+/// intentionally stays the upstream-compatible LTR default.
+#[test]
+fn from_style_derives_the_default_layout_from_the_style() {
+    assert_eq!(
+        Layout::from_style(&egui::Style::default()),
+        Layout::top_down(Align::Min),
+        "the style-derived default is plain top-down Min under LTR"
+    );
+    let mut rtl_style = egui::Style::default();
+    rtl_style.right_to_left = true;
+    assert_eq!(
+        Layout::from_style(&rtl_style),
+        Layout::top_down(Align::Max),
+        "the style-derived default is top-down Max under RTL"
+    );
+}
+
+/// Behavior-identity pin for `Ui::new`'s style-derived default: a root `Ui`
+/// with no explicit layout anchors bare content on the reading-start edge in
+/// the sizing pass and the steady frame — exactly what the old
+/// `Layout::default()` + mirror chain produced under RTL.
+#[test]
+fn default_layout_under_rtl_anchors_bare_content_on_the_reading_start_edge() {
+    let ctx = Context::default();
+    ctx.set_right_to_left(true);
+    let mut rects: Vec<Rect> = Vec::new();
+    for _ in 0..2 {
+        let mut rect = Rect::NOTHING;
+        run(&ctx, |ui| {
+            CentralPanel::default().show(ui, |ui| {
+                // No explicit layout: `Ui::new` derives it from the style.
+                rect = ui.allocate_exact_size(WIDGET, Sense::hover()).0;
+            });
+        });
+        rects.push(rect);
+    }
+    for (frame, rect) in rects.iter().enumerate() {
+        assert!(
+            (rect.right() - (SCREEN.x - 8.0)).abs() <= TOL,
+            "frame {frame}: bare content with the style-derived default \
+             layout must hug the reading-start (right) edge, got {rect:?}"
+        );
+        assert_eq!(
+            rect.width(),
+            WIDGET.x,
+            "frame {frame}: the bare widget keeps its own width"
         );
     }
 }

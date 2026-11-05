@@ -1,7 +1,7 @@
 use emath::{GuiRounding as _, fast_midpoint};
 
 use crate::{
-    Align, Direction,
+    Align, Direction, Style,
     emath::{Align2, NumExt as _, Pos2, Rect, Vec2, pos2, vec2},
 };
 const INFINITY: f32 = f32::INFINITY;
@@ -127,14 +127,34 @@ pub struct Layout {
 
 impl Default for Layout {
     fn default() -> Self {
-        // TODO(emilk): Get from `Style` instead. (`Style::right_to_left` mirrors nested rows of
-        // vertical `Align::Min` bodies at the `Placer` level; see `Placer::prefer_right_to_left`.)
+        // Upstream-compatible LTR default — a pure `Default` impl cannot read a
+        // `Style`. `Ui::new` therefore derives its layout with
+        // [`Layout::from_style`] instead; under `Style::right_to_left` the
+        // `Ui::new`/`Ui::new_child` mirror re-maps vertical `Align::Min` bodies
+        // to `Align::Max` (see `Placer::prefer_right_to_left`).
         Self::top_down(Align::LEFT) // This is a very euro-centric default.
     }
 }
 
 /// ## Constructors
 impl Layout {
+    /// The style-derived default layout: vertical [`Align::Min`] under an LTR
+    /// interface, [`Align::Max`] (reading-start anchored) under a right-to-left
+    /// one.
+    ///
+    /// This is what [`Ui::new`][crate::Ui::new] binds when no explicit layout
+    /// is given, so the root `Ui` follows [`Style::right_to_left`]. Raw
+    /// [`Layout::default()`] intentionally stays the upstream-compatible LTR
+    /// default. Reads only the style — `Style::right_to_left` is the single
+    /// direction authority.
+    pub fn from_style(style: &Style) -> Self {
+        Self::top_down(if style.right_to_left {
+            Align::Max
+        } else {
+            Align::Min
+        })
+    }
+
     /// Place elements horizontally, left to right.
     ///
     /// The `valign` parameter controls how to align elements vertically.
