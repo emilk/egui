@@ -240,6 +240,7 @@ impl EpiIntegration {
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
             activation_token: None,
+            native_views: crate::NativeViews::new(window.window_handle().map(|h| h.as_raw())),
         };
 
         let icon = native_options
@@ -362,6 +363,12 @@ impl EpiIntegration {
                 }
             }
         });
+
+        if is_root_viewport {
+            self.frame
+                .native_views
+                .place(&self.egui_ctx, &full_output.platform_output.native_views);
+        }
 
         if is_root_viewport && close_requested {
             let canceled = full_output.viewport_output[&ViewportId::ROOT]

@@ -426,6 +426,7 @@ impl<'app> GlowWinitApp<'app> {
                 window: Some(Arc::clone(&window)),
                 raw_display_handle: window.display_handle().map(|h| h.as_raw()),
                 raw_window_handle: window.window_handle().map(|h| h.as_raw()),
+                native_views: integration.frame.native_views().clone(),
             };
             profiling::scope!("app_creator");
             app_creator(&cc).map_err(crate::Error::AppCreation)?

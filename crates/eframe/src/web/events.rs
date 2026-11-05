@@ -63,7 +63,13 @@ fn paint_if_needed(runner: &mut AppRunner) {
 pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
-    let canvas = runner_ref.try_lock().unwrap().canvas().clone();
+    let (canvas, shield) = {
+        let runner = runner_ref.try_lock().unwrap();
+        (
+            runner.canvas().clone(),
+            runner.frame.native_views.shield().cloned(),
+        )
+    };
 
     install_blur_focus(runner_ref, &document)?;
     install_blur_focus(runner_ref, &canvas)?;
@@ -104,6 +110,11 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     install_wheel(runner_ref, &canvas)?;
     install_gesture(runner_ref, &canvas)?;
     install_drag_and_drop(runner_ref, &canvas)?;
+
+    if let Some(shield) = &shield {
+        install_shield(runner_ref, shield)?;
+    }
+
     install_window_events(runner_ref, &window)?;
     install_color_scheme_change_event(runner_ref, &window)?;
     Ok(())
@@ -531,6 +542,25 @@ fn prevent_default_and_stop_propagation(
     Ok(())
 }
 
+/// The shield takes the pointer instead of the canvas while native views are below the canvas.
+/// See [`super::native_views`].
+fn install_shield(runner_ref: &WebRunner, shield: &EventTarget) -> Result<(), JsValue> {
+    prevent_default_and_stop_propagation(runner_ref, shield, &["contextmenu"])?;
+    // The keyboard focus stays on the canvas: a press on the shield would move it off.
+    // eframe focuses the canvas on the `pointerup` instead.
+    runner_ref.add_event_listener(shield, "mousedown", |event: web_sys::MouseEvent, _| {
+        event.prevent_default();
+    })?;
+    install_pointerdown(runner_ref, shield)?;
+    install_mouseleave(runner_ref, shield)?;
+    install_touchstart(runner_ref, shield)?;
+    install_touchcancel(runner_ref, shield)?;
+    install_wheel(runner_ref, shield)?;
+    install_gesture(runner_ref, shield)?;
+    install_drag_and_drop(runner_ref, shield)?;
+    Ok(())
+}
+
 fn install_pointerdown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(
         target,
@@ -625,7 +655,8 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
     )
 }
 
-/// Returns true if the cursor is above the canvas, or if we're dragging something.
+/// Returns true if the cursor is above the canvas (or the shield that takes its pointer input),
+/// or if we're dragging something.
 /// Pass in the position in browser viewport coordinates (usually event.clientX/Y).
 fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
     let root_node = runner.canvas().get_root_node();
@@ -638,7 +669,10 @@ fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
         None
     };
 
-    let is_hovering_canvas = element_at_point.is_some_and(|element| element.eq(runner.canvas()));
+    let shield = runner.frame.native_views.shield();
+    let is_hovering_canvas = element_at_point.is_some_and(|element| {
+        element.eq(runner.canvas()) || shield.is_some_and(|shield| element.eq(shield))
+    });
     let is_pointer_down = runner
         .egui_ctx()
         .input(|i| i.pointer.any_down() || i.any_touches());

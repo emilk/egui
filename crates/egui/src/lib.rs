@@ -412,6 +412,7 @@ pub mod layers;
 mod layout;
 pub mod load;
 mod memory;
+mod native_view;
 pub mod os;
 mod painter;
 mod pass_state;
@@ -512,6 +513,7 @@ pub use self::{
     layout::Layout,
     load::SizeHint,
     memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
+    native_view::{NativeView, NativeViewOutput, NativeViewPlacement},
     painter::Painter,
     plugin::Plugin,
     response::{InnerResponse, Response},
