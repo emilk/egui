@@ -5108,8 +5108,8 @@ mod tests {
     ///   vice-versa of the `Field`-stamp defect shape: visual left from the
     ///   reading start enters the text instead of clamping.
     /// * `"Hello"`, RTL base (an all-even row in an odd base) — the
-    ///   Latin-value-under-RTL-chrome shape every TextEdit field hits:
-    ///   ArrowLeft retreats one character (`left(5) == 4`).
+    ///   Latin-value-under-RTL-chrome shape every `TextEdit` field hits:
+    ///   `ArrowLeft` retreats one character (`left(5) == 4`).
     /// * `"اب١٢"`, LTR base — nested levels (Arabic-Indic digits continue at
     ///   the higher even level inside an RTL run inside an even base): the
     ///   caret steps visually right from the shared ا|ب boundary onto ا's

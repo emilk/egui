@@ -1934,7 +1934,7 @@ impl Galley {
         // per-row prefix accumulation `cursor_from_layout` uses:
         let mut index = CharIndex::ZERO;
         for placed in self.rows.iter().take(layout.row) {
-            index = index + placed.char_count_including_newline().0;
+            index += placed.char_count_including_newline().0;
         }
         Some(CCursor {
             index: index + column.0,
