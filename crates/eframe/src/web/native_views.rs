@@ -131,10 +131,11 @@ impl WebNativeViews {
                 Vec::new()
             } else {
                 let to_css = to_css_pixels(ctx, &self.canvas);
-                below
-                    .flat_map(NativeViewOutput::view_input_areas)
-                    .map(to_css)
-                    .collect()
+                crate::native_view::disjoint_union(
+                    below
+                        .flat_map(NativeViewOutput::view_input_areas)
+                        .map(to_css),
+                )
             };
             input_element_style(&self.canvas, &view_areas)
         });
@@ -175,7 +176,7 @@ fn to_css_pixels(
 }
 
 /// Returns the `style` attribute of the input element: it covers `canvas`, with `view_areas` (in
-/// CSS pixels relative to the canvas) cut out.
+/// CSS pixels relative to the canvas, and not overlapping) cut out.
 fn input_element_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> String {
     let rect = canvas.get_bounding_client_rect();
     // The maximum `z-index` puts the input element in front of the views, whose `z-index` is at
@@ -190,8 +191,7 @@ fn input_element_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> Strin
     );
     if !view_areas.is_empty() {
         // The path is the input element's rect followed by the view areas. The `evenodd` fill rule
-        // cuts out each area, but fills a region again where two areas overlap. The areas of
-        // one view don't overlap, so this only happens where two views overlap.
+        // cuts out each area, as long as no two areas overlap: it would fill an overlap again.
         let mut path = format!("M0 0H{}V{}H0Z", rect.width(), rect.height());
         for Rect { min, max } in view_areas {
             write!(path, "M{} {}H{}V{}H{}Z", min.x, min.y, max.x, max.y, min.x).ok();

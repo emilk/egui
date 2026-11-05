@@ -234,15 +234,52 @@ impl raw_window_handle::HasWindowHandle for NativeViews {
     }
 }
 
+/// Splits the union of `rects` into rects that don't overlap.
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn disjoint_union(rects: impl IntoIterator<Item = egui::Rect>) -> Vec<egui::Rect> {
+    let mut disjoint: Vec<egui::Rect> = Vec::new();
+    for rect in rects {
+        let mut parts = vec![rect];
+        for &other in &disjoint {
+            parts = parts
+                .into_iter()
+                .flat_map(|part| subtract(part, other))
+                .collect();
+        }
+        disjoint.extend(parts);
+    }
+    disjoint
+}
+
+/// Returns `rect` without `other`, as up to four rects that don't overlap.
+#[cfg(any(target_arch = "wasm32", test))]
+fn subtract(rect: egui::Rect, other: egui::Rect) -> Vec<egui::Rect> {
+    let cut = rect.intersect(other);
+    if !cut.is_positive() {
+        return vec![rect];
+    }
+    // The strips above and below the cut span the full width of `rect`, and the strips to its
+    // left and right only the height of the cut.
+    [
+        egui::Rect::from_x_y_ranges(rect.x_range(), rect.min.y..=cut.min.y),
+        egui::Rect::from_x_y_ranges(rect.x_range(), cut.max.y..=rect.max.y),
+        egui::Rect::from_x_y_ranges(rect.min.x..=cut.min.x, cut.y_range()),
+        egui::Rect::from_x_y_ranges(cut.max.x..=rect.max.x, cut.y_range()),
+    ]
+    .into_iter()
+    .filter(egui::Rect::is_positive)
+    .collect()
+}
+
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
 mod tests {
     use core::cell::RefCell;
     use std::rc::Rc;
 
-    use egui::{Context, Id, NativeViewOutput, NativeViewPlacement, Rect};
+    use egui::{Context, Id, NativeViewOutput, NativeViewPlacement, Rect, pos2, vec2};
 
-    use super::NativeViews;
+    use super::{NativeViews, disjoint_union};
 
     fn output(id: Id) -> NativeViewOutput {
         NativeViewOutput {
@@ -282,5 +319,22 @@ mod tests {
 
         assert_eq!(*all.borrow(), vec![1, 2, 1]);
         assert_eq!(*one.borrow(), vec![None, Some(hidden)]);
+    }
+
+    #[test]
+    fn a_disjoint_union_covers_overlaps_once() {
+        let rects = [
+            Rect::from_min_size(pos2(0.0, 0.0), vec2(60.0, 60.0)),
+            Rect::from_min_size(pos2(40.0, 40.0), vec2(60.0, 60.0)),
+            Rect::from_min_size(pos2(50.0, 50.0), vec2(10.0, 10.0)),
+        ];
+        let parts = disjoint_union(rects);
+        let area: f32 = parts.iter().map(Rect::area).sum();
+        assert_eq!(area, 2.0 * 60.0 * 60.0 - 20.0 * 20.0, "{parts:?}");
+        for (i, a) in parts.iter().enumerate() {
+            for b in &parts[i + 1..] {
+                assert!(!a.intersect(*b).is_positive(), "{a:?} overlaps {b:?}");
+            }
+        }
     }
 }
