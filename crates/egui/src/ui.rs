@@ -1574,6 +1574,17 @@ impl Ui {
         self.placer.prefer_right_to_left(self.is_rtl())
     }
 
+    /// A horizontal row layout that follows the reading direction: rightward
+    /// rows under LTR, leftward rows under RTL (the settled predicate), with
+    /// the row's vertical alignment.
+    pub(crate) fn mirrored_horizontal_layout(&self, valign: Align) -> Layout {
+        if self.reading_rtl() {
+            Layout::right_to_left(valign)
+        } else {
+            Layout::left_to_right(valign)
+        }
+    }
+
     /// Allocate a specific part of the [`Ui`].
     ///
     /// Ignore the layout of the [`Ui`]: just put my widget here!
@@ -2667,12 +2678,9 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         let initial_size = self.available_size_before_wrap();
-        let layout = if self.placer.prefer_right_to_left(self.is_rtl()) {
-            Layout::right_to_left(Align::Center)
-        } else {
-            Layout::left_to_right(Align::Center)
-        }
-        .with_cross_align(Align::Center);
+        // `right_to_left`/`left_to_right` put their argument on the cross
+        // axis, so the constructor alone is `Center`-crossed.
+        let layout = self.mirrored_horizontal_layout(Align::Center);
         self.allocate_ui_with_layout_dyn(initial_size, layout, Box::new(add_contents))
     }
 
@@ -2682,12 +2690,7 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         let initial_size = self.available_size_before_wrap();
-        let layout = if self.placer.prefer_right_to_left(self.is_rtl()) {
-            Layout::right_to_left(Align::Center)
-        } else {
-            Layout::left_to_right(Align::Center)
-        }
-        .with_cross_align(Align::Min);
+        let layout = self.mirrored_horizontal_layout(Align::Min);
         self.allocate_ui_with_layout_dyn(initial_size, layout, Box::new(add_contents))
     }
 
@@ -2723,12 +2726,9 @@ impl Ui {
             self.spacing().interact_size.y, // Assume there will be something interactive on the horizontal layout
         );
 
-        let layout = if self.placer.prefer_right_to_left(self.is_rtl()) {
-            Layout::right_to_left(Align::Center)
-        } else {
-            Layout::left_to_right(Align::Center)
-        }
-        .with_main_wrap(main_wrap);
+        let layout = self
+            .mirrored_horizontal_layout(Align::Center)
+            .with_main_wrap(main_wrap);
 
         self.allocate_ui_with_layout_dyn(initial_size, layout, add_contents)
     }

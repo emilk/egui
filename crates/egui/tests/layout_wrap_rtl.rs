@@ -232,3 +232,79 @@ fn vertical_main_wrap_rtl_fitting_columns_stay_content_tight() {
         );
     }
 }
+
+/// One pass: a central panel whose contents are produced by `build`; returns
+/// the panel's max rect and whatever rect `build` captured (the first widget).
+/// Used by the mirrored-horizontal-helper pins so each helper gets a fresh
+/// full-height panel.
+fn horizontal_first_rect(rtl: bool, mut build: impl FnMut(&mut Ui) -> Rect) -> (Rect, Rect) {
+    let ctx = Context::default();
+    if rtl {
+        ctx.set_right_to_left(true);
+    }
+    let mut panel = Rect::NOTHING;
+    let mut widget = Rect::NOTHING;
+    run(&ctx, |ui| {
+        CentralPanel::default().show(ui, |ui| {
+            panel = ui.max_rect();
+            widget = build(ui);
+        });
+    });
+    (panel, widget)
+}
+
+/// The mirrored horizontal constructors share one reading-direction term: the
+/// first widget hugs the reading-start edge under both directions, the row's
+/// vertical alignment follows the helper (top vs centered), and the wrapped
+/// variant hugs too.
+#[test]
+fn mirrored_horizontal_helpers_follow_the_reading_direction() {
+    let widget = vec2(50.0, 10.0);
+
+    for rtl in [false, true] {
+        let (panel, centered) = horizontal_first_rect(rtl, |ui| {
+            ui.horizontal_centered(|ui| ui.allocate_exact_size(widget, Sense::hover()).0)
+                .inner
+        });
+        let (panel_top, top) = horizontal_first_rect(rtl, |ui| {
+            ui.horizontal_top(|ui| ui.allocate_exact_size(widget, Sense::hover()).0)
+                .inner
+        });
+        let (panel_wrapped, wrapped) = horizontal_first_rect(rtl, |ui| {
+            ui.horizontal_wrapped(|ui| ui.allocate_exact_size(widget, Sense::hover()).0)
+                .inner
+        });
+
+        // Reading-start hug for all three helpers, in both directions:
+        for (name, rect, region) in [
+            ("horizontal_centered", centered, panel),
+            ("horizontal_top", top, panel_top),
+            ("horizontal_wrapped", wrapped, panel_wrapped),
+        ] {
+            if rtl {
+                assert!(
+                    (rect.right() - region.right()).abs() <= TOL,
+                    "{name} (rtl): the first widget must hug the reading-start \
+                     (right) edge, got {rect:?} in {region:?}"
+                );
+            } else {
+                assert!(
+                    (rect.left() - region.left()).abs() <= TOL,
+                    "{name} (ltr): the first widget must hug the reading-start \
+                     (left) edge, got {rect:?} in {region:?}"
+                );
+            }
+        }
+
+        // Vertical alignment follows the helper:
+        assert!(
+            (top.top() - panel_top.top()).abs() <= TOL,
+            "horizontal_top: the first widget must hug the top, got {top:?} in {panel_top:?}"
+        );
+        assert!(
+            (centered.center().y - panel.center().y).abs() <= TOL,
+            "horizontal_centered: the first widget must be vertically \
+             centered, got {centered:?} in {panel:?}"
+        );
+    }
+}
