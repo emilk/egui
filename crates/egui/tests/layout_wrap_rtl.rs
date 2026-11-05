@@ -359,3 +359,89 @@ fn default_layout_under_rtl_anchors_bare_content_on_the_reading_start_edge() {
         );
     }
 }
+
+/// The manual-layout helpers are direction-safe by construction: `place`,
+/// `put` and `centered_and_justified` produce identical geometry under RTL
+/// and LTR — their `Align::Center` cross never mirrors and the vertical main
+/// axis never mirrors — and a `columns` cell's content hugs the cell's
+/// reading-start edge under RTL alongside the mirrored enumeration.
+#[test]
+fn manual_layout_helpers_are_direction_neutral() {
+    let slot = Rect::from_min_size(egui::pos2(40.0, 60.0), vec2(120.0, 80.0));
+    let lower_slot = Rect::from_min_size(egui::pos2(40.0, 200.0), vec2(120.0, 80.0));
+    let widget_size = vec2(50.0, 30.0);
+
+    let mut placed: Vec<Rect> = Vec::new();
+    let mut put_rects: Vec<Rect> = Vec::new();
+    let mut centered: Vec<Rect> = Vec::new();
+    for rtl in [false, true] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        let mut p = Rect::NOTHING;
+        let mut q = Rect::NOTHING;
+        let mut c = Rect::NOTHING;
+        run(&ctx, |ui| {
+            CentralPanel::default().show(ui, |ui| {
+                p = ui.place(slot, egui::Button::new("w")).rect;
+                q = ui.put(lower_slot, egui::Button::new("w")).rect;
+                c = ui
+                    .centered_and_justified(|ui| {
+                        ui.allocate_exact_size(widget_size, Sense::hover()).0
+                    })
+                    .inner;
+            });
+        });
+        placed.push(p);
+        put_rects.push(q);
+        centered.push(c);
+    }
+
+    // Identical geometry in both directions (byte-identity pin), centered in
+    // the given rect / available space:
+    assert_eq!(
+        placed[0], placed[1],
+        "place must be direction-neutral, got {placed:?}"
+    );
+    assert_eq!(
+        put_rects[0], put_rects[1],
+        "put must be direction-neutral, got {put_rects:?}"
+    );
+    assert_eq!(
+        centered[0], centered[1],
+        "centered_and_justified must be direction-neutral, got {centered:?}"
+    );
+    assert!(
+        (placed[0].center() - slot.center()).length() <= TOL,
+        "the placed widget must center in its slot, got {:?} in {slot:?}",
+        placed[0]
+    );
+    assert!(
+        (put_rects[0].center() - lower_slot.center()).length() <= TOL,
+        "the put widget must center in its slot, got {:?} in {lower_slot:?}",
+        put_rects[0]
+    );
+
+    // A columns cell's content hugs the cell's reading-start (right) edge
+    // under RTL:
+    let ctx = Context::default();
+    ctx.set_right_to_left(true);
+    let mut cell = Rect::NOTHING;
+    let mut content = Rect::NOTHING;
+    run(&ctx, |ui| {
+        CentralPanel::default().show(ui, |ui| {
+            ui.columns(2, |cols| {
+                cell = cols[0].max_rect();
+                content = cols[0]
+                    .allocate_exact_size(vec2(20.0, 10.0), Sense::hover())
+                    .0;
+            });
+        });
+    });
+    assert!(
+        (content.right() - cell.right()).abs() <= TOL,
+        "rtl: a columns cell's content must hug the cell's reading-start \
+         (right) edge, got {content:?} in {cell:?}"
+    );
+}
