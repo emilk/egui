@@ -131,10 +131,10 @@ impl Ui {
         // `Style` clone per boundary that actually flips; none otherwise. The
         // override is pinned for the subtree's lifetime (see
         // `UiBuilder::right_to_left`).
-        if let Some(rtl) = right_to_left {
-            if rtl != style.right_to_left {
-                Arc::make_mut(&mut style).right_to_left = rtl;
-            }
+        if let Some(rtl) = right_to_left
+            && rtl != style.right_to_left
+        {
+            Arc::make_mut(&mut style).right_to_left = rtl;
         }
         let mut layout = layout.unwrap_or_else(|| Layout::from_style(&style));
         let sense = sense.unwrap_or_else(Sense::hover);
@@ -281,10 +281,10 @@ impl Ui {
         // consumer follows by construction. One `Style` clone per boundary that
         // actually flips; none otherwise. The override is pinned for the
         // subtree's lifetime (see `UiBuilder::right_to_left`).
-        if let Some(rtl) = right_to_left {
-            if rtl != style.right_to_left {
-                Arc::make_mut(&mut style).right_to_left = rtl;
-            }
+        if let Some(rtl) = right_to_left
+            && rtl != style.right_to_left
+        {
+            Arc::make_mut(&mut style).right_to_left = rtl;
         }
         let sense = sense.unwrap_or_else(Sense::hover);
 
