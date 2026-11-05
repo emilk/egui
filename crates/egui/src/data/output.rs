@@ -846,7 +846,7 @@ impl WidgetInfo {
         }
 
         if let Some(label) = label {
-            description = format!("{label}: {description}");
+            description = format!("{}: {description}", isolated(label));
         }
 
         if role == &Role::TextInput {
@@ -859,17 +859,63 @@ impl WidgetInfo {
             } else {
                 "blank".into()
             };
-            description = format!("{text}: {description}");
+            description = format!("{}: {description}", isolated(&text));
         }
 
         if let Some(value) = value {
             description += " ";
-            description += &value.to_string();
+            description += &isolated(&value.to_string());
         }
 
         if !enabled {
             description += ": disabled";
         }
         description.trim().to_owned()
+    }
+}
+
+/// Wraps a dynamically formatted value in Unicode directional isolates (UAX #9
+/// FSI `U+2068` … PDI `U+2069`) unless it is plain ASCII.
+///
+/// The description fragments around an interpolated value are English ("blank",
+/// "disabled", the role word); under an Arabic or Hebrew label or value the
+/// neutrals between them would otherwise resolve against the surrounding
+/// strong types and scramble the reading order of the plain-text description
+/// (screen readers honor or strip the isolates). ASCII-only values — the
+/// overwhelmingly common case — keep today's exact string.
+fn isolated(value: &str) -> String {
+    if value.is_ascii() {
+        value.to_owned()
+    } else {
+        format!("\u{2068}{value}\u{2069}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Role, WidgetInfo};
+
+    #[test]
+    fn arabic_label_is_bidi_isolated_in_the_description() {
+        let info = WidgetInfo::labeled(Role::Button, true, "زر");
+        let description = info.description();
+        assert!(
+            description.contains("\u{2068}زر\u{2069}"),
+            "the RTL label must be wrapped in FSI…PDI: {description:?}"
+        );
+        // The English role word survives outside the isolates:
+        assert!(description.ends_with("button"), "{description:?}");
+    }
+
+    #[test]
+    fn ascii_descriptions_stay_byte_identical() {
+        let info = WidgetInfo::labeled(Role::Button, true, "Save");
+        assert_eq!(info.description(), "Save: button");
+
+        let info = WidgetInfo::labeled(Role::Button, false, "Save");
+        assert_eq!(info.description(), "Save: button: disabled");
+
+        let info = WidgetInfo::labeled(Role::TextInput, true, "Name");
+        assert_eq!(info.description(), "blank: Name: text input");
     }
 }
