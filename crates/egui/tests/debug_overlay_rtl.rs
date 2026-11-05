@@ -7,6 +7,12 @@
 //!
 //! Every mirrored case also asserts its LTR counterpart, so this file doubles as the
 //! LTR-unchanged regression. No snapshot assertions; painted text geometry only.
+//!
+//! Anchors are pinned on the *layout box* of the painted text, which is the exact
+//! geometry the debug code computes from widget/clip rects and does not depend on
+//! glyph bearings. Ink-edge assertions keep a bearing tolerance instead: with no
+//! font installed epaint draws synthetic glyphs with no side bearings, while
+//! `--all-features` bundles fonts whose side bearings shift the ink by ~2 px.
 
 use egui::epaint::Shape;
 use egui::{
@@ -29,18 +35,33 @@ fn run(ctx: &Context, input: RawInput, run_ui: impl FnMut(&mut Ui)) -> FullOutpu
     output
 }
 
-/// (text, absolute ink rect) for every text shape painted this pass.
+/// One painted text shape: its job text, absolute ink rect and absolute layout
+/// box.
 ///
-/// `Galley::mesh_bounds` excludes leading/trailing whitespace, so the rect is the true
-/// ink bounds of the glyphs, translated to their absolute position.
-fn painted_texts(output: &FullOutput) -> Vec<(String, Rect)> {
-    fn collect(shape: &Shape, out: &mut Vec<(String, Rect)>) {
+/// `Galley::mesh_bounds` excludes glyph bearings, so the ink can sit a couple of
+/// px inside the layout box, and by how much depends on the font provider (see
+/// the module docs). The layout box (`galley.rect` translated to absolute
+/// position) is the exact geometry the debug-overlay anchors compute, so
+/// anchor assertions pin it and stay font-provider independent.
+struct PaintedText {
+    text: String,
+    ink: Rect,
+    layout_box: Rect,
+}
+
+/// Every text shape painted this pass, with its ink and layout geometry.
+///
+/// The ink rect is the true ink bounds of the glyphs translated to their
+/// absolute position; the layout box is the box the anchoring code positions.
+fn painted_texts(output: &FullOutput) -> Vec<PaintedText> {
+    fn collect(shape: &Shape, out: &mut Vec<PaintedText>) {
         match shape {
             Shape::Text(text) => {
-                out.push((
-                    text.galley.job.text.clone(),
-                    text.galley.mesh_bounds.translate(text.pos.to_vec2()),
-                ));
+                out.push(PaintedText {
+                    text: text.galley.job.text.clone(),
+                    ink: text.galley.mesh_bounds.translate(text.pos.to_vec2()),
+                    layout_box: text.galley.rect.translate(text.pos.to_vec2()),
+                });
             }
             Shape::Vec(shapes) => {
                 for shape in shapes {
@@ -58,16 +79,33 @@ fn painted_texts(output: &FullOutput) -> Vec<(String, Rect)> {
 }
 
 /// The absolute ink rect of the first painted text equal to `text`, or `None`.
-fn painted_rect<'a>(texts: &'a [(String, Rect)], text: &str) -> Option<&'a Rect> {
+fn painted_rect<'a>(texts: &'a [PaintedText], text: &str) -> Option<&'a Rect> {
     texts
         .iter()
-        .find(|(painted, _)| painted == text)
-        .map(|(_, rect)| rect)
+        .find(|painted| painted.text == text)
+        .map(|painted| &painted.ink)
+}
+
+/// The absolute layout box of the first painted text containing `needle`, or
+/// `None`. Unlike the ink rect this is exact across font providers.
+fn painted_layout<'a>(texts: &'a [PaintedText], needle: &str) -> Option<&'a Rect> {
+    texts
+        .iter()
+        .find(|painted| painted.text.contains(needle))
+        .map(|painted| &painted.layout_box)
 }
 
 /// Tolerance for ink-edge assertions: `mesh_bounds` excludes glyph bearings, so the
-/// ink of an anchored galley can sit a couple of px inside its anchor point.
+/// ink of an anchored galley can sit a couple of px inside its anchor point — and
+/// by how much depends on the font provider (the `default_fonts` bundle shifts the
+/// ink by ~2 px relative to the synthetic glyphs drawn without fonts).
 const INK_TOLERANCE: f32 = 2.0;
+
+/// Tolerance for layout-box (anchor) assertions. The layout box is the exact
+/// geometry the debug anchors compute from widget/clip rects, independent of
+/// glyph bearings and therefore of the font provider; the slack only absorbs
+/// float noise.
+const ANCHOR_TOLERANCE: f32 = 0.5;
 
 // ---------------------------------------------------------------------------
 
@@ -92,17 +130,24 @@ fn debug_rect_label_hangs_inward_only_when_it_overflows_the_clip_rect() {
     let texts = painted_texts(&output);
     let ink =
         painted_rect(&texts, "RCTLABEL").expect("the overflowing debug_rect label should paint");
+    let layout =
+        painted_layout(&texts, "RCTLABEL").expect("the overflowing debug_rect label should paint");
     assert!(
         ink.max.x <= 400.0,
         "the overflowing label must stay inside the 400 px content rect, got {ink:?}"
     );
     assert!(
-        (ink.max.x - 390.0).abs() < INK_TOLERANCE,
-        "the label should hang inward from the widget's right edge (390), got {ink:?}"
+        (layout.right() - 390.0).abs() < ANCHOR_TOLERANCE,
+        "the label should hang inward from the widget's right edge (390), got {layout:?}"
+    );
+    assert!(
+        (layout.top() - 20.0).abs() < ANCHOR_TOLERANCE,
+        "the flipped label keeps its top at the widget's top, got {layout:?}"
     );
 
     // LTR fit companion: a label that fits keeps the LEFT_TOP anchor at rect.min,
-    // i.e. today's geometry exactly.
+    // i.e. today's geometry exactly. Pinned on the layout box, which is exact
+    // across font providers (the ink edges are not).
     let ctx = Context::default();
     let output = run(&ctx, input(SCREEN), |ui| {
         ui.ctx().debug_painter().debug_rect(
@@ -113,14 +158,15 @@ fn debug_rect_label_hangs_inward_only_when_it_overflows_the_clip_rect() {
     });
 
     let texts = painted_texts(&output);
-    let ink = painted_rect(&texts, "RCTLABEL").expect("the fitting debug_rect label should paint");
+    let layout =
+        painted_layout(&texts, "RCTLABEL").expect("the fitting debug_rect label should paint");
     assert!(
-        (ink.left() - 10.0).abs() < INK_TOLERANCE,
-        "a fitting label keeps the LEFT_TOP anchor at rect.min (LTR unchanged), got {ink:?}"
+        (layout.left() - 10.0).abs() < ANCHOR_TOLERANCE,
+        "a fitting label keeps the LEFT_TOP anchor at rect.min (LTR unchanged), got {layout:?}"
     );
     assert!(
-        (ink.top() - 20.0).abs() < INK_TOLERANCE,
-        "a fitting label keeps its top at rect.min.y, got {ink:?}"
+        (layout.top() - 20.0).abs() < ANCHOR_TOLERANCE,
+        "a fitting label keeps its top at rect.min.y, got {layout:?}"
     );
 }
 
@@ -137,11 +183,11 @@ fn input_with_events(size: Vec2, events: Vec<Event>) -> RawInput {
 
 /// The location text `debug_text::print` stamps next to the entry
 /// (`format!("{}:{}", Location::file(), line)` of the test call site).
-fn painted_location(texts: &[(String, Rect)]) -> &Rect {
+fn painted_location(texts: &[PaintedText]) -> &Rect {
     texts
         .iter()
-        .find(|(text, _)| text.contains(".rs:"))
-        .map(|(_, rect)| rect)
+        .find(|painted| painted.text.contains(".rs:"))
+        .map(|painted| &painted.ink)
         .expect("the debug-text location should paint")
 }
 
@@ -258,8 +304,8 @@ fn debug_text_entries_flip_to_the_roomier_side_only_on_overflow() {
     let texts = painted_texts(&output);
     let long_entry = texts
         .iter()
-        .find(|(text, _)| text.starts_with("LONGENTRY"))
-        .map(|(_, rect)| rect)
+        .find(|painted| painted.text.starts_with("LONGENTRY"))
+        .map(|painted| &painted.ink)
         .expect("the long entry text should paint");
     assert!(
         (long_entry.left() - 100.0).abs() < INK_TOLERANCE,
@@ -318,27 +364,39 @@ fn id_clash_error_text_hangs_inward_on_right_edge_widgets() {
     let texts = painted_texts(&output);
     let first_error = texts
         .iter()
-        .find(|(text, _)| text.contains("First use of"))
-        .map(|(_, rect)| rect)
+        .find(|painted| painted.text.contains("First use of"))
+        .map(|painted| &painted.ink)
         .expect("the 'First use of' error should paint");
     let second_error = texts
         .iter()
-        .find(|(text, _)| text.contains("Second use of"))
-        .map(|(_, rect)| rect)
+        .find(|painted| painted.text.contains("Second use of"))
+        .map(|painted| &painted.ink)
+        .expect("the 'Second use of' error should paint");
+    let first_layout = texts
+        .iter()
+        .find(|painted| painted.text.contains("First use of"))
+        .map(|painted| &painted.layout_box)
+        .expect("the 'First use of' error should paint");
+    let second_layout = texts
+        .iter()
+        .find(|painted| painted.text.contains("Second use of"))
+        .map(|painted| &painted.layout_box)
         .expect("the 'Second use of' error should paint");
 
-    for (what, error, widget_rect) in [
-        ("first", first_error, first_rect),
-        ("second", second_error, second_rect),
+    for (what, error, layout, widget_rect) in [
+        ("first", first_error, first_layout, first_rect),
+        ("second", second_error, second_layout, second_rect),
     ] {
         assert!(
             error.max.x <= 400.0,
             "the {what} error must stay inside the 400 px content rect, got {error:?}"
         );
+        // The hang-inward anchor is pinned on the layout box, which is exact
+        // across font providers (the ink edge is not).
         assert!(
-            (error.max.x - widget_rect.right()).abs() < INK_TOLERANCE,
+            (layout.right() - widget_rect.right()).abs() < ANCHOR_TOLERANCE,
             "the {what} error should hang inward from its widget's right edge \
-             (widget {widget_rect:?}), got {error:?}"
+             (widget {widget_rect:?}), got {layout:?}"
         );
     }
 
@@ -364,20 +422,22 @@ fn id_clash_error_text_hangs_inward_on_right_edge_widgets() {
     });
 
     let texts = painted_texts(&output);
-    let second_error = texts
+    // Pinned on the layout box, which is exact across font providers (the ink
+    // edges are not).
+    let layout = texts
         .iter()
-        .find(|(text, _)| text.contains("Second use of"))
-        .map(|(_, rect)| rect)
+        .find(|painted| painted.text.contains("Second use of"))
+        .map(|painted| &painted.layout_box)
         .expect("the 'Second use of' error should paint");
     assert!(
-        (second_error.left() - left_rect.left()).abs() < INK_TOLERANCE,
+        (layout.left() - left_rect.left()).abs() < ANCHOR_TOLERANCE,
         "a non-overflowing error keeps the LEFT_TOP anchor at the widget's left edge \
-         (widget {left_rect:?}), got {second_error:?}"
+         (widget {left_rect:?}), got {layout:?}"
     );
     assert!(
-        (second_error.top() - (left_rect.bottom() + 2.0)).abs() < INK_TOLERANCE,
+        (layout.top() - (left_rect.bottom() + 2.0)).abs() < ANCHOR_TOLERANCE,
         "a non-overflowing error keeps its top at the widget's bottom + 2 px, \
-         got {second_error:?}"
+         got {layout:?}"
     );
 }
 
@@ -419,8 +479,8 @@ fn perf_warning_anchors_at_the_reading_start_edge() {
     let texts = painted_texts(&output);
     let warning = texts
         .iter()
-        .find(|(text, _)| text.contains("PERF WARNING"))
-        .map(|(_, rect)| rect)
+        .find(|painted| painted.text.contains("PERF WARNING"))
+        .map(|painted| &painted.ink)
         .expect("the perf warning should paint in the 4th frame");
     assert!(
         (warning.max.x - 400.0).abs() < INK_TOLERANCE,
@@ -433,8 +493,8 @@ fn perf_warning_anchors_at_the_reading_start_edge() {
     let texts = painted_texts(&output);
     let warning = texts
         .iter()
-        .find(|(text, _)| text.contains("PERF WARNING"))
-        .map(|(_, rect)| rect)
+        .find(|painted| painted.text.contains("PERF WARNING"))
+        .map(|painted| &painted.ink)
         .expect("the perf warning should paint in the 4th frame");
     assert!(
         (warning.min.x - 0.0).abs() < INK_TOLERANCE,

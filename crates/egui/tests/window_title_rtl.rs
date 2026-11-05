@@ -11,7 +11,7 @@
 use egui::epaint::PathShape;
 use egui::{
     Atom, Color32, Context, Event, FullOutput, Id, Modifiers, PointerButton, Pos2, RawInput, Rect,
-    Ui, Window, epaint::Shape, pos2, vec2,
+    TextStyle, Ui, Vec2, Window, epaint::Shape, pos2, vec2,
 };
 
 fn screen() -> Rect {
@@ -230,15 +230,33 @@ fn auto_sized_window_with_multi_atom_title_settles() {
     );
 }
 
-/// A plain-text title keeps its exact painted geometry in both directions
-/// (the byte-identity guard for the title-atom internals).
+/// A plain-text title keeps its painted geometry in both directions, pinned
+/// font-provider independently: the title box is exactly the natural
+/// single-line `Title` galley in the Heading font (laid out in the same
+/// context, so the reference moves with the font provider), it sits at the
+/// same font-independent top edge in both directions, and the RTL title is the
+/// exact mirror image of the LTR title about the fixed pivot axis x = 320
+/// (`fixed_pos.x` 300; the mirrored `RIGHT_TOP` pivot puts the RTL window's
+/// right edge at 300, which the screen-edge constraint shifts to 340, making
+/// the RTL window the exact mirror of the LTR one, [300..640] vs [0..340]).
+///
+/// The pre-mirror version pinned the absolute edges and bottom
+/// (122.7/187.7/452.3/517.3/89.0). Those quantities depend on the font
+/// provider — the title's text width and the Heading row height that sizes the
+/// title-bar buttons — so under `--all-features` (bundled fonts) they
+/// legitimately differ (measured: left 122.7 → 137.9, bottom 89.0 → 88.0).
+/// The pins below carry the same discrimination without a font provider: any
+/// one-sided horizontal drift breaks the mirror, truncation or wrapping breaks
+/// the reference width, line-height changes break the reference height, and
+/// vertical drift breaks the top edge.
 #[test]
 fn single_text_title_geometry_is_unchanged() {
-    let rects = |rtl: bool| {
+    fn settled(rtl: bool) -> (Rect, Vec2) {
         let ctx = Context::default();
         ctx.set_right_to_left(rtl);
         let id = Id::unique("window-title-rtl-single-text");
         let mut rect = Rect::NOTHING;
+        let mut reference_size = Vec2::ZERO;
         for frame in 0..3 {
             let output = run(&ctx, frame as f64, vec![], |ui| {
                 Window::new("Title")
@@ -247,27 +265,56 @@ fn single_text_title_geometry_is_unchanged() {
                     .show(ui, |ui| {
                         ui.set_min_size(vec2(80.0, 30.0));
                     });
+                if frame == 2 {
+                    // Self-calibration reference: the same text laid out with the
+                    // same resolved Heading font in the same context.
+                    reference_size = ui
+                        .painter()
+                        .layout_no_wrap(
+                            "Title".to_owned(),
+                            TextStyle::Heading.resolve(ui.style()),
+                            Color32::WHITE,
+                        )
+                        .size();
+                }
             });
             if frame == 2 {
                 rect = text_rect(&output, "Title").expect("title text should be painted");
             }
         }
-        rect
-    };
-    let (rtl, ltr) = (rects(true), rects(false));
-    for (edge, expected) in [
-        (rtl.left(), 122.7),
-        (rtl.right(), 187.7),
-        (rtl.top(), 67.0),
-        (rtl.bottom(), 89.0),
-        (ltr.left(), 452.3),
-        (ltr.right(), 517.3),
-        (ltr.top(), 67.0),
-        (ltr.bottom(), 89.0),
+        (rect, reference_size)
+    }
+    let (rtl, rtl_reference) = settled(true);
+    let (ltr, ltr_reference) = settled(false);
+    for (rtl_flag, title, reference) in [(true, rtl, rtl_reference), (false, ltr, ltr_reference)] {
+        assert!(
+            (title.top() - 67.0).abs() <= 0.5,
+            "rtl {rtl_flag}: the title should keep its top at the font-independent \
+             title-bar top edge (window top 60 + frame margin), got {title:?}"
+        );
+        assert!(
+            (title.width() - reference.x).abs() <= 0.5,
+            "rtl {rtl_flag}: the title should be the untruncated natural width of \
+             the reference Heading galley {reference:?}, got {title:?}"
+        );
+        assert!(
+            (title.height() - reference.y).abs() <= 0.5,
+            "rtl {rtl_flag}: the title should use the Heading line height \
+             {reference:?}, got {title:?}"
+        );
+    }
+    assert!(
+        (rtl.width() - ltr.width()).abs() <= 0.5 && (rtl.height() - ltr.height()).abs() <= 0.5,
+        "the title box should be direction-symmetric: rtl {rtl:?} ltr {ltr:?}"
+    );
+    for (sum, edges) in [
+        (rtl.left() + ltr.right(), "rtl.left + ltr.right"),
+        (rtl.right() + ltr.left(), "rtl.right + ltr.left"),
     ] {
         assert!(
-            (edge - expected).abs() <= 0.5,
-            "single-text title geometry drifted (pinned pre-mirror): rtl {rtl:?} ltr {ltr:?}"
+            (sum - 640.0).abs() <= 0.5,
+            "the rtl title should be the exact mirror of the ltr title about the \
+             fixed pivot axis 320 ({edges} = {sum}): rtl {rtl:?} ltr {ltr:?}"
         );
     }
 }
@@ -405,16 +452,22 @@ fn carves(rtl: bool) {
 /// the shared contract so any future direction asymmetry (one direction
 /// growing, the other truncating to the body) fails here loudly. Passes by
 /// design — a pin, not a fail-before.
+///
+/// The growth is asserted against a short-title window settled in the same run
+/// (the body-driven baseline) instead of an absolute pixel threshold: the
+/// settled width of the full title depends on the font provider (measured
+/// 267.6 with no fonts, 211.4 under the `default_fonts` bundle that
+/// `--all-features` pulls in), while the baseline does not (94.0 either way).
 #[test]
 fn auto_sized_title_width_contract_is_direction_symmetric() {
-    fn settled_width(rtl: bool) -> f32 {
+    fn settled_width(rtl: bool, title: &str, salt: &str) -> f32 {
         let ctx = Context::default();
         ctx.set_right_to_left(rtl);
-        let id = Id::unique("window-title-rtl-growth");
+        let id = Id::unique(format!("window-title-rtl-growth-{salt}"));
         let mut width = 0.0;
         for frame in 0..5 {
             let output = run(&ctx, frame as f64, vec![], |ui| {
-                Window::new("probe-row-window")
+                Window::new(title)
                     .id(id)
                     .auto_sized()
                     .fixed_pos(pos2(300.0, 60.0))
@@ -431,17 +484,21 @@ fn auto_sized_title_width_contract_is_direction_symmetric() {
         width
     }
 
-    let (rtl, ltr) = (settled_width(true), settled_width(false));
-    for (rtl_flag, width) in [(true, rtl), (false, ltr)] {
+    let rtl_long = settled_width(true, "probe-row-window", "long");
+    let ltr_long = settled_width(false, "probe-row-window", "long");
+    let rtl_short = settled_width(true, "ab", "short");
+    let ltr_short = settled_width(false, "ab", "short");
+    for (rtl_flag, long, short) in [(true, rtl_long, rtl_short), (false, ltr_long, ltr_short)] {
         assert!(
-            width > 250.0,
-            "rtl: {rtl_flag}: the auto-sized window should grow past the narrow \
-             80 px body to fit its full title (settled width {width})"
+            long > short,
+            "rtl {rtl_flag}: the auto-sized window should grow past the \
+             short-title body baseline to fit its full title (long {long}, \
+             short {short})"
         );
     }
     assert!(
-        (rtl - ltr).abs() <= 1.0,
+        (rtl_long - ltr_long).abs() <= 1.0,
         "the auto-sized title width contract should be direction-symmetric \
-         (rtl {rtl}, ltr {ltr})"
+         (rtl {rtl_long}, ltr {ltr_long})"
     );
 }
