@@ -7,15 +7,15 @@
 //! limit the hit-testing of an element to part of its area without also clipping its drawing:
 //! `clip-path` clips both.
 //!
-//! So while such a view is shown, the canvas only draws and has `pointer-events: none`. Instead,
-//! an invisible "shield" element in front of the canvas and the views takes egui's pointer input,
-//! and eframe listens for pointer events on the shield like on the canvas. The shield's
+//! So while such a view is shown, the canvas only draws and has `pointer-events: none`. Instead, an
+//! invisible input element in front of the canvas and the views takes egui's pointer input, and
+//! eframe listens for pointer events on the input element like on the canvas. The input element's
 //! `clip-path` cuts out the areas where the views take the input
-//! ([`egui::NativeViewOutput::view_input_areas`]), so hit-testing there finds the views. The
-//! canvas isn't clipped, so egui paints over the views down to the last pixel, shadows included.
+//! ([`egui::NativeViewOutput::view_input_areas`]), so hit-testing there finds the views. The canvas
+//! isn't clipped, so egui paints over the views down to the last pixel, shadows included.
 //!
-//! The keyboard focus stays on the canvas: the shield isn't focusable, and eframe cancels the
-//! default action of a `mousedown` on the shield, which would move the focus.
+//! The keyboard focus stays on the canvas: the input element isn't focusable, and eframe cancels
+//! the default action of a `mousedown` on the input element, which would move the focus.
 
 use core::cell::RefCell;
 use core::fmt::Write as _;
@@ -41,19 +41,19 @@ struct State {
     /// `position`, which keeps the canvas in front of the views.
     positioned: bool,
 
-    /// The `style` attribute last set on the shield, so that an unchanged style isn't set
-    /// again. `None` while the shield is hidden.
-    shield_style: Option<String>,
+    /// The `style` attribute last set on the input element, so that an unchanged style isn't set
+    /// again. `None` while the input element is hidden.
+    input_style: Option<String>,
 }
 
 /// The element that holds the views below the canvas, inserted right before the canvas.
 struct Layer {
-    /// The `position: fixed` container of the views and the shield. It precedes the canvas in
-    /// the document, so a positioned canvas paints in front of it.
+    /// The `position: fixed` container of the views and the input element. It precedes the canvas
+    /// in the document, so a positioned canvas paints in front of it.
     element: HtmlElement,
 
     /// Takes egui's pointer input while views below the canvas are shown. See the module docs.
-    shield: HtmlElement,
+    input_element: HtmlElement,
 }
 
 impl Drop for Layer {
@@ -64,7 +64,7 @@ impl Drop for Layer {
 
 impl WebNativeViews {
     pub fn new(canvas: HtmlCanvasElement) -> Self {
-        // Create the layer now, so that eframe can install its event listeners on the shield
+        // Create the layer now, so that eframe can install its event listeners on the input element
         // at startup.
         let layer = Layer::new(&canvas)
             .inspect_err(|err| log::debug!("No native views below the canvas: {err:?}"))
@@ -81,8 +81,8 @@ impl WebNativeViews {
     }
 
     /// The element that takes egui's pointer input in front of the views. See the module docs.
-    pub fn shield(&self) -> Option<&HtmlElement> {
-        self.layer.as_ref().map(|layer| &layer.shield)
+    pub fn input_element(&self) -> Option<&HtmlElement> {
+        self.layer.as_ref().map(|layer| &layer.input_element)
     }
 
     pub fn layer(&self) -> Result<HtmlElement, JsValue> {
@@ -105,11 +105,11 @@ impl WebNativeViews {
         Ok(layer.element.clone())
     }
 
-    /// Updates the shield and the canvas for the views below the canvas in `outputs`.
+    /// Updates the input element and the canvas for the views below the canvas in `outputs`.
     ///
-    /// While such a view is shown, the canvas has `pointer-events: none`, and the shield covers
-    /// the canvas except where the views take the pointer input. Otherwise the shield is hidden
-    /// and the canvas takes the pointer input as usual.
+    /// While such a view is shown, the canvas has `pointer-events: none`, and the input element
+    /// covers the canvas except where the views take the pointer input. Otherwise the input element
+    /// is hidden and the canvas takes the pointer input as usual.
     pub fn route_input(&self, ctx: &Context, outputs: &[NativeViewOutput]) {
         let Some(layer) = &self.layer else {
             return;
@@ -122,8 +122,8 @@ impl WebNativeViews {
             .iter()
             .filter(|output| output.side == NativeViewPlacement::Below)
             .peekable();
-        let shield_style = below.peek().is_some().then(|| {
-            // While egui has a pointer button down, the shield covers the views too, so that
+        let input_style = below.peek().is_some().then(|| {
+            // While egui has a pointer button down, the input element covers the views too, so that
             // egui keeps getting the drag. eframe tracks a drag with `mousemove` events on the
             // document, and the document gets none while the pointer is over an `<iframe>`.
             let egui_press = ctx.input(|input| input.pointer.any_down());
@@ -136,20 +136,20 @@ impl WebNativeViews {
                     .map(to_css)
                     .collect()
             };
-            shield_style(&self.canvas, &view_areas)
+            input_element_style(&self.canvas, &view_areas)
         });
-        if shield_style == state.shield_style {
+        if input_style == state.input_style {
             return;
         }
         let canvas_style = self.canvas.style();
-        if let Some(css) = &shield_style {
+        if let Some(css) = &input_style {
             canvas_style.set_property("pointer-events", "none").ok();
-            set_style(&layer.shield, css);
+            set_style(&layer.input_element, css);
         } else {
             canvas_style.remove_property("pointer-events").ok();
-            set_style(&layer.shield, "display: none;");
+            set_style(&layer.input_element, "display: none;");
         }
-        state.shield_style = shield_style;
+        state.input_style = input_style;
     }
 }
 
@@ -174,11 +174,11 @@ fn to_css_pixels(
     move |rect| rect * scale
 }
 
-/// Returns the `style` attribute of the shield: it covers `canvas`, with `view_areas` (in CSS
-/// pixels relative to the canvas) cut out.
-fn shield_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> String {
+/// Returns the `style` attribute of the input element: it covers `canvas`, with `view_areas` (in
+/// CSS pixels relative to the canvas) cut out.
+fn input_element_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> String {
     let rect = canvas.get_bounding_client_rect();
-    // The maximum `z-index` puts the shield in front of the views, whose `z-index` is at
+    // The maximum `z-index` puts the input element in front of the views, whose `z-index` is at
     // least 1.
     let mut css = format!(
         "position: fixed; left: {}px; top: {}px; width: {}px; height: {}px; \
@@ -189,7 +189,7 @@ fn shield_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> String {
         rect.height(),
     );
     if !view_areas.is_empty() {
-        // The path is the shield's rect followed by the view areas. The `evenodd` fill rule
+        // The path is the input element's rect followed by the view areas. The `evenodd` fill rule
         // cuts out each area, but fills a region again where two areas overlap. The areas of
         // one view don't overlap, so this only happens where two views overlap.
         let mut path = format!("M0 0H{}V{}H0Z", rect.width(), rect.height());
@@ -212,19 +212,22 @@ impl Layer {
 
         let element: HtmlElement = document.create_element("div")?.unchecked_into();
         // `position: fixed` makes the element a stacking context, so the `z-index` of the views
-        // and the shield only orders them within it. Its children inherit
-        // `pointer-events: none`, so the shield and the views have to set
+        // and the input element only orders them within it. Its children inherit
+        // `pointer-events: none`, so the input element and the views have to set
         // `pointer-events: auto`.
         set_style(
             &element,
             "position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none;",
         );
-        let shield: HtmlElement = document.create_element("div")?.unchecked_into();
-        set_style(&shield, "display: none;");
-        element.append_child(&shield)?;
+        let input_element: HtmlElement = document.create_element("div")?.unchecked_into();
+        set_style(&input_element, "display: none;");
+        element.append_child(&input_element)?;
         parent.insert_before(&element, Some(canvas))?;
 
-        Ok(Self { element, shield })
+        Ok(Self {
+            element,
+            input_element,
+        })
     }
 }
 

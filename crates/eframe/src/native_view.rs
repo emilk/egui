@@ -161,8 +161,8 @@ impl NativeViews {
     /// The invisible element that takes egui's pointer input while views are shown below the
     /// canvas. `None` if the canvas wasn't in the document when eframe started.
     #[cfg(target_arch = "wasm32")]
-    pub(crate) fn shield(&self) -> Option<&web_sys::HtmlElement> {
-        self.0.web.shield()
+    pub(crate) fn input_element(&self) -> Option<&web_sys::HtmlElement> {
+        self.0.web.input_element()
     }
 
     /// Routes the pointer input on the web and calls the registered callbacks with the

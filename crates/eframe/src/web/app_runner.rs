@@ -431,8 +431,8 @@ impl AppRunner {
         }
 
         super::set_cursor_icon(self.canvas(), cursor_icon);
-        if let Some(shield) = self.frame.native_views.shield() {
-            super::set_cursor_icon(shield, cursor_icon);
+        if let Some(input_element) = self.frame.native_views.input_element() {
+            super::set_cursor_icon(input_element, cursor_icon);
         }
 
         if self.has_focus() {

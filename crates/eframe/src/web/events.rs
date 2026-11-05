@@ -63,11 +63,11 @@ fn paint_if_needed(runner: &mut AppRunner) {
 pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
-    let (canvas, shield) = {
+    let (canvas, input_element) = {
         let runner = runner_ref.try_lock().unwrap();
         (
             runner.canvas().clone(),
-            runner.frame.native_views.shield().cloned(),
+            runner.frame.native_views.input_element().cloned(),
         )
     };
 
@@ -111,8 +111,8 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     install_gesture(runner_ref, &canvas)?;
     install_drag_and_drop(runner_ref, &canvas)?;
 
-    if let Some(shield) = &shield {
-        install_shield(runner_ref, shield)?;
+    if let Some(input_element) = &input_element {
+        install_input_element(runner_ref, input_element)?;
     }
 
     install_window_events(runner_ref, &window)?;
@@ -542,22 +542,29 @@ fn prevent_default_and_stop_propagation(
     Ok(())
 }
 
-/// Installs the pointer listeners on the shield, which takes the canvas's pointer input while
-/// native views are shown below the canvas. See [`super::native_views`].
-fn install_shield(runner_ref: &WebRunner, shield: &EventTarget) -> Result<(), JsValue> {
-    prevent_default_and_stop_propagation(runner_ref, shield, &["contextmenu"])?;
+/// Installs the pointer listeners on the input element, which takes the canvas's pointer input
+/// while native views are shown below the canvas. See [`super::native_views`].
+fn install_input_element(
+    runner_ref: &WebRunner,
+    input_element: &EventTarget,
+) -> Result<(), JsValue> {
+    prevent_default_and_stop_propagation(runner_ref, input_element, &["contextmenu"])?;
     // Cancel the default action of `mousedown`, which would move the keyboard focus off the
     // canvas. The `pointerup` listener on the document focuses the canvas instead.
-    runner_ref.add_event_listener(shield, "mousedown", |event: web_sys::MouseEvent, _| {
-        event.prevent_default();
-    })?;
-    install_pointerdown(runner_ref, shield)?;
-    install_mouseleave(runner_ref, shield)?;
-    install_touchstart(runner_ref, shield)?;
-    install_touchcancel(runner_ref, shield)?;
-    install_wheel(runner_ref, shield)?;
-    install_gesture(runner_ref, shield)?;
-    install_drag_and_drop(runner_ref, shield)?;
+    runner_ref.add_event_listener(
+        input_element,
+        "mousedown",
+        |event: web_sys::MouseEvent, _| {
+            event.prevent_default();
+        },
+    )?;
+    install_pointerdown(runner_ref, input_element)?;
+    install_mouseleave(runner_ref, input_element)?;
+    install_touchstart(runner_ref, input_element)?;
+    install_touchcancel(runner_ref, input_element)?;
+    install_wheel(runner_ref, input_element)?;
+    install_gesture(runner_ref, input_element)?;
+    install_drag_and_drop(runner_ref, input_element)?;
     Ok(())
 }
 
@@ -655,8 +662,8 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
     )
 }
 
-/// Returns true if the cursor is above the canvas (or above the shield that takes its pointer
-/// input), or if we're dragging something.
+/// Returns true if the cursor is above the canvas (or above the input element that takes its
+/// pointer input), or if we're dragging something.
 /// Pass in the position in browser viewport coordinates (usually event.clientX/Y).
 fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
     let root_node = runner.canvas().get_root_node();
@@ -669,9 +676,10 @@ fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
         None
     };
 
-    let shield = runner.frame.native_views.shield();
+    let input_element = runner.frame.native_views.input_element();
     let is_hovering_canvas = element_at_point.is_some_and(|element| {
-        element.eq(runner.canvas()) || shield.is_some_and(|shield| element.eq(shield))
+        element.eq(runner.canvas())
+            || input_element.is_some_and(|input_element| element.eq(input_element))
     });
     let is_pointer_down = runner
         .egui_ctx()
