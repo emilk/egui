@@ -2376,6 +2376,7 @@ pub fn create_winit_window_attributes(
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
         clamp_size_to_monitor_size: _, // Handled in `viewport_builder` in `epi_integration.rs`
         monitor: _, // Handled in `create_window` (needs ActiveEventLoop for monitor handle)
+        layout_direction: _, // Chrome hint; winit exposes no native layout-RTL support, so it is ignored
     } = viewport_builder;
 
     let mut window_attributes = winit::window::WindowAttributes::default()
