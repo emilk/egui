@@ -915,7 +915,7 @@ impl WidgetText {
 /// direction-agnostic runs (like the menu check mark) the ambient direction
 /// has no bidi effect, and first-strong's fallback keeps their anchoring
 /// unchanged. An explicit per-job direction still wins everywhere.
-fn ambient_direction(style: &Style, text: &str) -> Option<epaint::text::TextDirection> {
+pub(crate) fn ambient_direction(style: &Style, text: &str) -> Option<epaint::text::TextDirection> {
     style
         .right_to_left
         .then_some(epaint::text::TextDirection::RightToLeft)

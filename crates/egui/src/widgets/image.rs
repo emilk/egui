@@ -12,6 +12,7 @@ use crate::{
     TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo,
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
     pos2,
+    widget_text::ambient_direction,
 };
 
 /// A widget which displays an image.
@@ -726,6 +727,15 @@ pub fn paint_texture_load_result(
                     TextFormat::simple(font_id, ui.visuals().text_color()),
                 );
             }
+            // This site builds its job directly, so it never passes through
+            // `WidgetText::into_galley_impl` and must stamp the reading direction
+            // itself, the same way: right-to-left only when the interface is
+            // right-to-left AND first-strong has an opinion about the text; an
+            // explicit job direction still wins. Under a left-to-right interface the
+            // helper returns `None` and the job is untouched.
+            job.direction = job
+                .direction
+                .or_else(|| ambient_direction(ui.style(), alt_text.unwrap_or(job.text.as_str())));
             let galley = ui.painter().layout_job(job);
             ui.painter().galley(
                 rect.center() - Vec2::Y * galley.size().y * 0.5,
@@ -734,6 +744,19 @@ pub fn paint_texture_load_result(
             );
         }
     }
+}
+
+/// The hover text shown while a texture loads, with the URI wrapped in bidi
+/// isolates (U+2066 LRI … U+2069 PDI) so a Latin uri cannot garble the
+/// punctuation of a right-to-left hover sentence. The invisible isolates are
+/// rendering-neutral in left-to-right sentences.
+fn loading_hover_text(uri: &str) -> String {
+    format!("Loading \u{2066}{uri}\u{2069}…")
+}
+
+/// Like [`loading_hover_text`], for a failed load.
+fn failed_hover_text(uri: &str, err: &str) -> String {
+    format!("Failed loading \u{2066}{uri}\u{2069}: {err}")
 }
 
 /// Attach tooltips like "Loading…" or "Failed loading: …".
@@ -746,11 +769,11 @@ pub fn texture_load_result_response(
         Ok(TexturePoll::Ready { .. }) => response,
         Ok(TexturePoll::Pending { .. }) => {
             let uri = source.uri().unwrap_or("image");
-            response.on_hover_text(format!("Loading {uri}…"))
+            response.on_hover_text(loading_hover_text(uri))
         }
         Err(err) => {
             let uri = source.uri().unwrap_or("image");
-            response.on_hover_text(format!("Failed loading {uri}: {err}"))
+            response.on_hover_text(failed_hover_text(uri, &err.to_string()))
         }
     }
 }
@@ -990,4 +1013,36 @@ fn is_animated_image_uri(uri: &str) -> bool {
 
 fn are_animated_image_bytes(bytes: &[u8]) -> bool {
     has_gif_magic_header(bytes) || has_webp_header(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{failed_hover_text, loading_hover_text};
+
+    #[test]
+    fn hover_texts_isolate_the_uri() {
+        // The uri is wrapped in U+2066 (LRI) … U+2069 (PDI), so a Latin uri cannot
+        // garble the punctuation of a right-to-left hover sentence:
+        assert_eq!(
+            loading_hover_text("https://example.invalid/x.png"),
+            "Loading \u{2066}https://example.invalid/x.png\u{2069}…"
+        );
+        assert_eq!(
+            failed_hover_text("https://example.invalid/x.png", "not found"),
+            "Failed loading \u{2066}https://example.invalid/x.png\u{2069}: not found"
+        );
+    }
+
+    #[test]
+    fn hover_texts_isolate_the_default_uri() {
+        // Widgets without a uri use the placeholder name, isolated the same way:
+        assert_eq!(
+            loading_hover_text("image"),
+            "Loading \u{2066}image\u{2069}…"
+        );
+        assert_eq!(
+            failed_hover_text("image", "no matching loader"),
+            "Failed loading \u{2066}image\u{2069}: no matching loader"
+        );
+    }
 }
