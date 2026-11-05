@@ -8,6 +8,14 @@
 //! right edge under right-to-left. The landed `debug_overlay_rtl.rs` pins the
 //! same overlay only with synthetic rects in LTR.
 //!
+//! The flip's one residue — a label wider than the room between the content
+//! rect's left edge and the widget's right edge still painting off-window on
+//! the left — is closed by a direction-symmetric horizontal clamp of the
+//! flipped anchor (`widget_rect.right().at_least(content_rect.min.x +
+//! text_width)`); the narrow-screen tests pin it red-at-base in both
+//! directions and in both vertical branches, and the wide-screen tests pin
+//! that a label which fits is never moved.
+//!
 //! Debug-overlay shapes reach the captured `FullOutput.shapes` (they are painted
 //! before the frame's graphics drain), so these tests assert on shape geometry,
 //! which is *unclipped*: clipping happens only at tessellation time. That makes
@@ -26,7 +34,7 @@
 //! No snapshot assertions; painted text geometry only.
 
 use egui::epaint::Shape;
-use egui::{Context, FullOutput, Pos2, RawInput, Rect, Ui, Vec2, vec2};
+use egui::{Context, FullOutput, Pos2, RawInput, Rect, Sense, Ui, Vec2, pos2, vec2};
 
 fn input(size: Vec2) -> RawInput {
     RawInput {
@@ -94,6 +102,16 @@ fn painted_layout<'a>(texts: &'a [PaintedText], needle: &str) -> Option<&'a Rect
 /// float noise. (Mirrors the landed constant in `debug_overlay_rtl.rs`.)
 const ANCHOR_TOLERANCE: f32 = 0.5;
 
+/// Two collapsing headers sharing an id, the real-path clash generator.
+fn two_collapsing_headers(ui: &mut Ui) {
+    ui.collapsing("Clashing header", |ui| {
+        ui.label("x");
+    });
+    ui.collapsing("Clashing header", |ui| {
+        ui.label("x");
+    });
+}
+
 // ---------------------------------------------------------------------------
 
 /// The id-clash overlay through the real mirrored layout under right-to-left:
@@ -113,12 +131,7 @@ fn id_clash_error_hangs_inward_from_the_right_edge_under_rtl() {
     ctx.set_right_to_left(true);
 
     let output = run(&ctx, input(vec2(400.0, 300.0)), |ui| {
-        ui.collapsing("Clashing header", |ui| {
-            ui.label("x");
-        });
-        ui.collapsing("Clashing header", |ui| {
-            ui.label("x");
-        });
+        two_collapsing_headers(ui);
     });
 
     let texts = painted_texts(&output);
@@ -150,12 +163,7 @@ fn id_clash_error_ltr_twin_keeps_the_left_edge_anchor() {
     ctx.options_mut(|o| o.warn_on_id_clash = true);
 
     let output = run(&ctx, input(vec2(400.0, 300.0)), |ui| {
-        ui.collapsing("Clashing header", |ui| {
-            ui.label("x");
-        });
-        ui.collapsing("Clashing header", |ui| {
-            ui.label("x");
-        });
+        two_collapsing_headers(ui);
     });
 
     let texts = painted_texts(&output);
@@ -188,12 +196,7 @@ fn id_clash_error_never_moves_a_label_that_fits() {
     ctx.options_mut(|o| o.warn_on_id_clash = true);
 
     let output = run(&ctx, input(vec2(400.0, 300.0)), |ui| {
-        ui.collapsing("Clashing header", |ui| {
-            ui.label("x");
-        });
-        ui.collapsing("Clashing header", |ui| {
-            ui.label("x");
-        });
+        two_collapsing_headers(ui);
     });
 
     let texts = painted_texts(&output);
@@ -219,12 +222,7 @@ fn id_clash_error_never_moves_a_label_that_fits() {
     ctx.set_right_to_left(true);
 
     let output = run(&ctx, input(vec2(400.0, 300.0)), |ui| {
-        ui.collapsing("Clashing header", |ui| {
-            ui.label("x");
-        });
-        ui.collapsing("Clashing header", |ui| {
-            ui.label("x");
-        });
+        two_collapsing_headers(ui);
     });
 
     let texts = painted_texts(&output);
@@ -240,6 +238,113 @@ fn id_clash_error_never_moves_a_label_that_fits() {
             layout.left() >= 0.0 - ANCHOR_TOLERANCE,
             "RTL: a fitting {what} error must stay inside the window's left \
              edge, got {layout:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// The residue the landed flip leaves behind: when the label is wider than the
+/// room between the content rect's left edge and the widget's right edge, the
+/// flipped anchor paints it off-window on the left (mid-glyph amputated at the
+/// window edge). The flipped anchor must therefore be clamped to
+/// `content_rect.min.x + text_width`, so the label's reading start stays at or
+/// inside the window (a label wider than the window cannot fit at all and runs
+/// off the right edge instead — the reading start is the informative end).
+///
+/// Narrow LTR screen through the real collapsing path: the clashing header
+/// rects hug the window's left edge, the ~230 px label overflows the 120 px
+/// window, and the flipped label must not start left of the window's left
+/// edge. (Only the left edge is asserted: the label is wider than this window,
+/// so it necessarily runs past the right edge — the accepted residual.)
+#[test]
+fn id_clash_error_stays_inside_the_window_when_it_cannot_fit_ltr() {
+    let ctx = Context::default();
+    ctx.options_mut(|o| o.warn_on_id_clash = true);
+
+    let output = run(&ctx, input(vec2(120.0, 300.0)), |ui| {
+        two_collapsing_headers(ui);
+    });
+
+    let texts = painted_texts(&output);
+    for (what, needle) in [("first", "First use of"), ("second", "Second use of")] {
+        let layout = painted_layout(&texts, needle)
+            .unwrap_or_else(|| panic!("the {what} id-clash error should paint"));
+        assert!(
+            layout.left() >= 0.0 - ANCHOR_TOLERANCE,
+            "the {what} error's reading start must stay at or inside the \
+             window's left edge, got {layout:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// RTL twin of the narrow-screen clamp test, through the issue's exact
+/// scenario: the clashing header rects hug the window's right edge under a
+/// right-to-left interface, the flipped label overflows the 120 px window on
+/// the left, and the clamp must keep its reading start at or inside the
+/// window's left edge.
+#[test]
+fn id_clash_error_stays_inside_the_window_when_it_cannot_fit_rtl() {
+    let ctx = Context::default();
+    ctx.options_mut(|o| o.warn_on_id_clash = true);
+    ctx.set_right_to_left(true);
+
+    let output = run(&ctx, input(vec2(120.0, 300.0)), |ui| {
+        two_collapsing_headers(ui);
+    });
+
+    let texts = painted_texts(&output);
+    for (what, needle) in [("first", "First use of"), ("second", "Second use of")] {
+        let layout = painted_layout(&texts, needle)
+            .unwrap_or_else(|| panic!("the {what} id-clash error should paint"));
+        assert!(
+            layout.left() >= 0.0 - ANCHOR_TOLERANCE,
+            "RTL: the {what} error's reading start must stay at or inside the \
+             window's left edge, got {layout:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// The above-branch half of the clamp: the `below` heuristic is vertical-only
+/// (a widget within 32 px of the content rect's bottom paints its label
+/// above), so pin it with synthetic rects. Both clashing rects sit near the
+/// bottom of a 120 px window (above branch), the ~230 px label overflows the
+/// 120 px window, and both flipped labels must stay at or inside the window's
+/// left edge. (The synthetic path registers exactly the given rects, unlike
+/// the collapsing path whose clash rect is the whole header row.)
+#[test]
+fn id_clash_error_stays_inside_the_window_when_it_cannot_fit_above_branch() {
+    let ctx = Context::default();
+    ctx.options_mut(|o| o.warn_on_id_clash = true);
+
+    let output = run(&ctx, input(vec2(120.0, 300.0)), |ui| {
+        let id = ui.scope_id().with("clash-test-above");
+        // Bottoms 292 and 268: `bottom + 32 < 300` is false for both, so both
+        // labels paint above their widget (the above+overflow branch).
+        ui.interact(
+            Rect::from_min_size(pos2(102.0, 272.0), vec2(18.0, 20.0)),
+            id,
+            Sense::click(),
+        );
+        ui.interact(
+            Rect::from_min_size(pos2(102.0, 248.0), vec2(18.0, 20.0)),
+            id,
+            Sense::click(),
+        );
+    });
+
+    let texts = painted_texts(&output);
+    for (what, needle) in [("first", "First use of"), ("second", "Second use of")] {
+        let layout = painted_layout(&texts, needle)
+            .unwrap_or_else(|| panic!("the {what} id-clash error should paint"));
+        assert!(
+            layout.left() >= 0.0 - ANCHOR_TOLERANCE,
+            "above branch: the {what} error's reading start must stay at or \
+             inside the window's left edge, got {layout:?}"
         );
     }
 }

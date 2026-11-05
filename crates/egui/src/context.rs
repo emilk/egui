@@ -1484,6 +1484,13 @@ impl Context {
             // rightward from the widget's left edge would run past the content rect
             // (right-hugging widgets, mirrored panels under right-to-left). When the
             // text fits, the anchors are unchanged.
+            //
+            // The flipped anchor is clamped to the content rect's left edge plus the
+            // text width, so a label wider than that room never paints off-window on
+            // the left: its reading start stays at or inside the window (a label
+            // wider than the whole window cannot fit and runs off the right edge
+            // instead). This is direction-symmetric: the same geometry bound applies
+            // to left-hugging widgets in left-to-right interfaces.
             let text_width = painter
                 .layout_no_wrap(text.clone(), FontId::monospace(12.0), color)
                 .size()
@@ -1493,7 +1500,12 @@ impl Context {
             let (pos, anchor) = if below {
                 if overflow {
                     (
-                        pos2(widget_rect.right(), widget_rect.bottom() + 2.0),
+                        pos2(
+                            widget_rect
+                                .right()
+                                .at_least(content_rect.min.x + text_width),
+                            widget_rect.bottom() + 2.0,
+                        ),
                         Align2::RIGHT_TOP,
                     )
                 } else {
@@ -1501,7 +1513,12 @@ impl Context {
                 }
             } else if overflow {
                 (
-                    pos2(widget_rect.right(), widget_rect.top() - 2.0),
+                    pos2(
+                        widget_rect
+                            .right()
+                            .at_least(content_rect.min.x + text_width),
+                        widget_rect.top() - 2.0,
+                    ),
                     Align2::RIGHT_BOTTOM,
                 )
             } else {
