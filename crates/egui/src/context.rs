@@ -1621,6 +1621,19 @@ impl Context {
                     // https://github.com/AccessKit/accesskit/blob/e639c0e0d8ccbfd9dff302d972fa06f9766d608e/common/src/lib.rs#L2621
                     const DISTANCE: f32 = 100.0;
 
+                    // ScrollLeft/ScrollRight name *viewport-relative* motion
+                    // (reveal what lies to the left/right), but
+                    // `PassState::scroll_delta` is *content-relative* (positive
+                    // X moves the content right — see its doc). Revealing the
+                    // content to the left therefore moves the content right,
+                    // and vice versa. The same sign serves both reading
+                    // directions, since the delta stays in screen space and
+                    // the RTL axis handling lives in the consumer (the scroll
+                    // area applies the horizontal delta un-negated under RTL,
+                    // where offset and content move together). Driven this
+                    // way, ScrollLeft behaves like a natural-scrolling swipe
+                    // right.
+
                     match &request.action {
                         Action::ScrollIntoView => {
                             viewport.this_pass.scroll_target = [
@@ -1643,10 +1656,10 @@ impl Context {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::DOWN;
                         }
                         Action::ScrollLeft => {
-                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::LEFT;
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::RIGHT;
                         }
                         Action::ScrollRight => {
-                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::RIGHT;
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::LEFT;
                         }
                         _ => return false,
                     }
