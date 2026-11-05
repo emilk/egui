@@ -1082,7 +1082,11 @@ pub struct Glyph {
     /// row are in visual order, so splitting the slice at `bidi_level` changes
     /// recovers the directional runs in stream order (see e.g. the
     /// accessibility `TextRun` builder). Serialized galleys from before this
-    /// field existed degrade to all-level-0, which is today's behavior.
+    /// field existed degrade to all-level-0: such rows read and step as
+    /// left-to-right content. In a left-to-right base that is the historic
+    /// behavior; in a right-to-left base the caret table treats them as
+    /// embedded LTR runs (stepping by the local level) instead of mirroring
+    /// the step by the base direction.
     #[cfg_attr(feature = "serde", serde(default))]
     pub bidi_level: u8,
 
@@ -1276,6 +1280,243 @@ impl Row {
         // `column < num_glyphs` always lands in some group; fall back to the
         // reading end rather than panicking on unexpected row states.
         self.glyphs[0].pos.x
+    }
+
+    /// Groups the row's visually-ordered glyphs into cluster cells: half-open
+    /// ranges into [`Self::glyphs`], where a new cell starts at glyph 0 and at
+    /// every glyph with a positive advance (zero-advance glyphs are the
+    /// continuations of the cluster before them; a genuinely zero-advance
+    /// *base* merges into its neighbour — the same grouping and the same
+    /// documented approximation the row-level mapping ([`Self::char_at_rtl`])
+    /// and the accessibility `TextRun` builder make). An empty row yields no
+    /// cells. The level of a cell is its first glyph's `bidi_level`.
+    fn bidi_cluster_cells(&self) -> Vec<Range<usize>> {
+        let mut cells: Vec<Range<usize>> = Vec::new();
+        let mut start = 0;
+        for (i, glyph) in self.glyphs.iter().enumerate().skip(1) {
+            if glyph.advance_width > 0.0 {
+                cells.push(start..i);
+                start = i;
+            }
+        }
+        if !self.glyphs.is_empty() {
+            cells.push(start..self.glyphs.len());
+        }
+        cells
+    }
+
+    /// The reading-order permutation of `cells`: the cells' indices in the
+    /// order the row's text reads, by re-applying the UAX #9 L2 reversal
+    /// schedule to the visual cell sequence (for `level` from
+    /// `(min_level | 1)..=max_level` descending, reverse each maximal
+    /// contiguous subsequence of cells at `level >= level`).
+    ///
+    /// This mirrors `accesskit_text.rs::logical_run_order` in egui (the
+    /// accessibility bridge applies the same schedule to its text runs) —
+    /// keep the two in sync. Unlike the bridge's version there is no
+    /// empty-run handling: cells are never empty. All-level-0 rows (legacy
+    /// deserialized galleys) skip the replay entirely (`0 | 1 > 0`), so their
+    /// cells stay in visual order: the content reads as left-to-right.
+    fn logical_cell_order(&self, cells: &[Range<usize>]) -> Vec<usize> {
+        let level_of = |i: usize| -> u8 {
+            cells
+                .get(i)
+                .and_then(|cell| self.glyphs.get(cell.start))
+                .map_or(0, |glyph| glyph.bidi_level)
+        };
+        let min_level = (0..cells.len()).map(level_of).min().unwrap_or(0);
+        let max_level = (0..cells.len()).map(level_of).max().unwrap_or(0);
+        let bound = min_level | 1;
+
+        let mut order: Vec<usize> = (0..cells.len()).collect();
+        for level in (bound..=max_level).rev() {
+            let mut i = 0;
+            while i < order.len() {
+                if level_of(order[i]) >= level {
+                    let start = i;
+                    while i < order.len() && level_of(order[i]) >= level {
+                        i += 1;
+                    }
+                    order[start..i].reverse();
+                } else {
+                    i += 1;
+                }
+            }
+        }
+        order
+    }
+
+    /// The caret boundary table of a mixed-direction row.
+    ///
+    /// Returns `(boundary_of_column, column_of_boundary)`, both with
+    /// `glyphs.len() + 1` entries: the caret boundaries `k = 0..=n` are the
+    /// row's visual edges (`k = 0` the visual left edge, `k = n` the visual
+    /// right), `boundary_of_column[c]` is the visual boundary the caret for
+    /// *logical* column `c` sits at, and `column_of_boundary[k]` is the
+    /// logical column whose caret sits at visual boundary `k`. A missing
+    /// entry (`None`) means the mapping is undefined for that column or
+    /// boundary (an empty row, or a degenerate stream where two reading
+    /// positions share one visual boundary) — the caller falls back to the
+    /// historic step.
+    ///
+    /// Construction, over the cluster cells ([`Self::bidi_cluster_cells`]) in
+    /// reading order ([`Self::logical_cell_order`]):
+    ///
+    /// 1. The reading walk's anchors: the first-read cell's entry caret (an
+    ///    even cell's left edge, an odd cell's right edge), then every
+    ///    reading transition's caret — at the shared visual boundary of
+    ///    visually-adjacent cells, or at the entering cell's own entry edge
+    ///    across a bidi reading "teleport" (e.g. عربي↔abc). These are
+    ///    written first so they win the keep-first race below against the
+    ///    neighbouring cells' own walks.
+    /// 2. Within each cell, its caret columns walk across the cell's box in
+    ///    its parity direction (even: `s..=e` ascending; odd: `e..=s`
+    ///    descending), from its entry edge to its exit edge — the last-read
+    ///    cell's exit edge is the row's reading-exit caret (column `n`).
+    ///    Sub-columns follow the cell's own parity, exactly reproducing
+    ///    [`Self::x_offset_rtl`]'s in-cluster sub-columns for odd cells and
+    ///    the left-to-right glyph-left rule for even cells.
+    ///
+    /// Writes are keep-first: where two reading positions claim one visual
+    /// boundary (degenerate streams), the first (reading-order) claim wins
+    /// and the loser looks up to `None` — the caller falls back. No panics
+    /// are possible: every index comes from `saturating` arithmetic bounded
+    /// by `glyphs.len()`, both vecs are pre-sized `n + 1`, and every read and
+    /// write goes through `get`/`get_mut`.
+    fn visual_caret_boundaries(&self) -> (Vec<Option<usize>>, Vec<Option<CharIndex>>) {
+        let n = self.glyphs.len();
+        let mut boundary_of_column: Vec<Option<usize>> = Vec::new();
+        boundary_of_column.resize(n + 1, None);
+        let mut column_of_boundary: Vec<Option<CharIndex>> = Vec::new();
+        column_of_boundary.resize(n + 1, None);
+
+        let cells = self.bidi_cluster_cells();
+        let order = self.logical_cell_order(&cells);
+
+        // The read cells in reading order: (first caret column, slot span,
+        // odd embedding level). The first caret column of a cell is shared
+        // with the previous-read cell's exit column; the cursor advances by
+        // the cell's glyph count, so the columns tile `0..=n`.
+        let mut read_cells: Vec<(usize, Range<usize>, bool)> = Vec::new();
+        let mut column_cursor = 0usize;
+        for &cell_index in &order {
+            let Some(cell) = cells.get(cell_index).cloned() else {
+                continue;
+            };
+            let Some(leading) = self.glyphs.get(cell.start) else {
+                continue;
+            };
+            let len = cell.end.saturating_sub(cell.start);
+            read_cells.push((column_cursor, cell, leading.bidi_level % 2 == 1));
+            column_cursor = column_cursor.saturating_add(len);
+        }
+
+        // A keep-first claim is atomic across the two tables: it lands only
+        // when BOTH of its slots are still free, so a column whose mapping
+        // was already decided (by an anchor) can never steal a boundary in
+        // the inverse table.
+        fn claim(
+            boundary_of_column: &mut [Option<usize>],
+            column_of_boundary: &mut [Option<CharIndex>],
+            column: usize,
+            boundary: usize,
+        ) {
+            let column_free = boundary_of_column
+                .get(column)
+                .is_none_or(|slot| slot.is_none());
+            let boundary_free = column_of_boundary
+                .get(boundary)
+                .is_none_or(|slot| slot.is_none());
+            if !(column_free && boundary_free) {
+                return;
+            }
+            if let Some(slot) = boundary_of_column.get_mut(column) {
+                *slot = Some(boundary);
+            }
+            if let Some(slot) = column_of_boundary.get_mut(boundary) {
+                *slot = Some(CharIndex(column));
+            }
+        }
+
+        // Pass 1 — the anchors (rules 1-2): the first-read cell's entry
+        // caret, then every reading transition's caret. Written before the
+        // walks so a transition value wins the keep-first race against both
+        // neighbours' parity walks.
+        let mut previous: Option<Range<usize>> = None;
+        for (column, cell, odd) in &read_cells {
+            let entry_edge = if *odd { cell.end } else { cell.start };
+            let value = match previous {
+                None => entry_edge,
+                Some(prev_cell) => {
+                    if prev_cell.end == cell.start {
+                        // Visually adjacent (the previous-read cell ends
+                        // where this one begins): the caret sits at their
+                        // shared boundary.
+                        prev_cell.end
+                    } else if cell.end == prev_cell.start {
+                        // Visually adjacent the other way (this cell sits
+                        // visually left of the previous-read one): again a
+                        // shared boundary.
+                        cell.end
+                    } else {
+                        // Bidi reading teleport: land on this cell's own
+                        // entry edge.
+                        entry_edge
+                    }
+                }
+            };
+            claim(
+                &mut boundary_of_column,
+                &mut column_of_boundary,
+                *column,
+                value,
+            );
+            previous = Some(cell.clone());
+        }
+
+        // Pass 2 — within-cell columns (rule 3): each cell's caret columns
+        // walk across its own box in its parity direction (even: `s..=e`
+        // ascending; odd: `e..=s` descending), from its entry edge to its
+        // exit edge. The last-read cell's exit lands on column `n`, the
+        // row's reading-exit caret. Keep-first: the anchors above win where
+        // they coincide.
+        for (column, cell, odd) in &read_cells {
+            let len = cell.end.saturating_sub(cell.start);
+            let anchor = if *odd { cell.end } else { cell.start };
+            for j in 0..=len {
+                let boundary = if *odd {
+                    anchor.saturating_sub(j)
+                } else {
+                    anchor.saturating_add(j)
+                };
+                let walked = column.saturating_add(j);
+                claim(
+                    &mut boundary_of_column,
+                    &mut column_of_boundary,
+                    walked,
+                    boundary,
+                );
+            }
+        }
+        (boundary_of_column, column_of_boundary)
+    }
+
+    /// Fast path for caret stepping: true when the historic base-mirrored
+    /// step already moves the caret one visual position per keypress, i.e.
+    /// the row is empty or every glyph shares one `bidi_level` whose parity
+    /// equals the row's base direction. Such rows (pure LTR in an LTR base,
+    /// pure RTL in an RTL base, empty, elision-only) never need the caret
+    /// table.
+    fn is_bidi_homogeneous_with_base(&self) -> bool {
+        let base_parity = u8::from(self.base_direction == TextDirection::RightToLeft);
+        match self.glyphs.first() {
+            None => true,
+            Some(leading) => {
+                let level = leading.bidi_level;
+                level % 2 == base_parity
+                    && self.glyphs.iter().all(|glyph| glyph.bidi_level == level)
+            }
+        }
     }
 
     #[inline]
@@ -1657,20 +1898,74 @@ impl Galley {
         }
     }
 
+    /// Step the cursor one *visual* character position, by the local bidi
+    /// levels of the row under the cursor (the standard editor caret model
+    /// for bidirectional text).
+    ///
+    /// Returns `None` when the historic base-mirrored step should decide
+    /// instead: on rows where every glyph shares one embedding level whose
+    /// parity equals the base direction (pure LTR, pure RTL, empty,
+    /// elision-only — the byte-identity fast path), on row edges (crossing
+    /// rows / clamping), and on any degenerate or out-of-range case.
+    fn step_one_character_visually(&self, cursor: &CCursor, left: bool) -> Option<CCursor> {
+        // Clamp the incoming index to the galley's end first: the historic
+        // step clamped silently, and an out-of-range cursor with
+        // `prefer_next_row: false` would otherwise trip the pre-existing
+        // `debug_assert` in `layout_from_cursor` in debug builds. A no-op for
+        // every in-range cursor.
+        let cursor = CCursor {
+            index: cursor.index.min(self.end().index),
+            prefer_next_row: cursor.prefer_next_row,
+        };
+        let layout = self.layout_from_cursor(cursor);
+        let row = self.rows.get(layout.row)?;
+        if row.is_bidi_homogeneous_with_base() {
+            return None;
+        }
+        let (boundary_of_column, column_of_boundary) = row.visual_caret_boundaries();
+        let boundary = boundary_of_column.get(layout.column.0).copied().flatten()?;
+        let target = if left {
+            boundary.checked_sub(1)?
+        } else {
+            boundary.checked_add(1)?
+        };
+        let column = column_of_boundary.get(target).copied().flatten()?;
+        // The row-local column becomes a global index through the same
+        // per-row prefix accumulation `cursor_from_layout` uses:
+        let mut index = CharIndex::ZERO;
+        for placed in self.rows.iter().take(layout.row) {
+            index = index + placed.char_count_including_newline().0;
+        }
+        Some(CCursor {
+            index: index + column.0,
+            prefer_next_row: true,
+        })
+    }
+
     /// Move the cursor one character toward the visual **left**.
     ///
-    /// Under a right-to-left base direction that is the logically *next*
-    /// character; under a left-to-right one the logically previous one.
+    /// Steps by each embedded run's *local* bidi level: inside a maximal run
+    /// of one embedding level the caret moves one visual position in the
+    /// run's own direction, and crossing into the visually-adjacent run lands
+    /// on the column of the shared visual boundary. On base-parity-matching
+    /// uniform rows, at row edges and on any degenerate case this falls back
+    /// to the historic step (under a right-to-left base direction the
+    /// logically *next* character; under a left-to-right one the logically
+    /// previous one).
     pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
-        self.step_one_character(cursor, self.is_rtl())
+        self.step_one_character_visually(cursor, true)
+            .unwrap_or_else(|| self.step_one_character(cursor, self.is_rtl()))
     }
 
     /// Move the cursor one character toward the visual **right**.
     ///
-    /// Under a right-to-left base direction that is the logically *previous*
-    /// character; under a left-to-right one the logically next one.
+    /// The mirror of [`Self::cursor_left_one_character`]: steps by the local
+    /// bidi levels, falling back to the historic step (under a right-to-left
+    /// base direction the logically *previous* character; under a
+    /// left-to-right one the logically next one).
     pub fn cursor_right_one_character(&self, cursor: &CCursor) -> CCursor {
-        self.step_one_character(cursor, !self.is_rtl())
+        self.step_one_character_visually(cursor, false)
+            .unwrap_or_else(|| self.step_one_character(cursor, !self.is_rtl()))
     }
 
     pub fn clamp_cursor(&self, cursor: &CCursor) -> CCursor {

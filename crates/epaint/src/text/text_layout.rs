@@ -5082,6 +5082,189 @@ mod tests {
         assert_eq!(ltr.cursor_right_one_character(&ltr.end()).index.0, 5);
     }
 
+    /// T1 — mixed-direction rows step the caret by each embedded run's *local*
+    /// bidi level, not by the row's base direction.
+    ///
+    /// Columns stay logical (0 = the reading start, anchored by
+    /// [`Row::base_direction`]); only the stepping changes: inside a maximal
+    /// run of one embedding level the caret moves one *visual* position per
+    /// keypress (direction = the run's own parity), and crossing into the
+    /// visually-adjacent run lands on the column of the shared visual
+    /// boundary. Row-edge and degenerate cases fall back to the historic
+    /// base-mirrored step.
+    ///
+    /// Oracles, hand-derived from the UAX #9 levels the shaper stamps (the
+    /// boundary→column tables are in the plan):
+    ///
+    /// * `"عربي abc"`, RTL base — visual slots `a(2) b(2) c(2) ␣(1) ي(1) ب(1) ر(1) ع(1)`,
+    ///   logical columns `ع=0 ر=1 ب=2 ي=3 ␣=4 a=5 b=6 c=7`. Visual left from
+    ///   the reading end steps *into* the embedded LTR run, visual right from
+    ///   the reading end teleports across the run boundary onto the Arabic
+    ///   run's reading-exit caret (the space), and the run-edge guards fall
+    ///   back to the historic step.
+    /// * `"abc عربي"`, LTR base — the exact vice-versa.
+    /// * `"تقرير"` pinned to an explicit LTR base (an all-odd row in an even
+    ///   base; only explicit-direction jobs produce this) — the mirrored
+    ///   vice-versa of the `Field`-stamp defect shape: visual left from the
+    ///   reading start enters the text instead of clamping.
+    /// * `"Hello"`, RTL base (an all-even row in an odd base) — the
+    ///   Latin-value-under-RTL-chrome shape every TextEdit field hits:
+    ///   ArrowLeft retreats one character (`left(5) == 4`).
+    /// * `"اب١٢"`, LTR base — nested levels (Arabic-Indic digits continue at
+    ///   the higher even level inside an RTL run inside an even base): the
+    ///   caret steps visually right from the shared ا|ب boundary onto ا's
+    ///   right edge (`right(1) == 0`).
+    ///
+    /// Uniform rows (pure LTR, pure RTL, empty) never reach the local-level
+    /// table — the byte-identity guards at the bottom pin the historic step.
+    #[test]
+    fn mixed_direction_rows_step_by_local_level() {
+        let at = |column: usize| CCursor::new(column);
+
+        // "عربي abc", RTL base (an embedded LTR run in an RTL row):
+        let galley = layout_with_direction("عربي abc", Some(TextDirection::RightToLeft));
+        assert!(galley.is_rtl(), "the row's base direction is RTL");
+        assert_eq!(galley.end().index.0, 8, "one glyph slot per char");
+        // Visual left from the reading end steps into the embedded LTR run:
+        assert_eq!(
+            galley.cursor_left_one_character(&at(8)).index.0,
+            7,
+            "visual left from the reading end enters the embedded LTR run"
+        );
+        assert_eq!(galley.cursor_left_one_character(&at(7)).index.0, 6);
+        assert_eq!(galley.cursor_left_one_character(&at(6)).index.0, 5);
+        // Visual left from the LTR run's left edge leaves the row's table
+        // (the shared boundary is the row's visual left edge): falls back to
+        // the historic step (logically next under an RTL base):
+        assert_eq!(
+            galley.cursor_left_one_character(&at(5)).index.0,
+            6,
+            "visual left from the LTR run's left edge falls back to the historic step"
+        );
+        // Visual right walks back through the LTR run, then teleports across
+        // the run boundary onto the Arabic run's reading-exit caret:
+        assert_eq!(
+            galley.cursor_right_one_character(&at(5)).index.0,
+            6,
+            "visual right from the LTR run's left edge re-enters the run"
+        );
+        assert_eq!(galley.cursor_right_one_character(&at(6)).index.0, 7);
+        assert_eq!(galley.cursor_right_one_character(&at(7)).index.0, 8);
+        assert_eq!(
+            galley.cursor_right_one_character(&at(8)).index.0,
+            4,
+            "visual right from the reading end teleports to the Arabic run's exit caret"
+        );
+        assert_eq!(
+            galley.cursor_right_one_character(&at(4)).index.0,
+            3,
+            "visual right from the space caret steps into the Arabic run"
+        );
+        assert_eq!(
+            galley.cursor_right_one_character(&at(0)),
+            CCursor::default(),
+            "visual right from the reading start clamps to the galley begin"
+        );
+
+        // First-strong resolution produces the same row (no explicit pin):
+        let first_strong = layout_with_direction("عربي abc", None);
+        assert!(first_strong.is_rtl(), "first-strong resolves RTL");
+        assert_eq!(first_strong.cursor_left_one_character(&at(8)).index.0, 7);
+        assert_eq!(first_strong.cursor_right_one_character(&at(8)).index.0, 4);
+
+        // "abc عربي", LTR base (the exact vice-versa):
+        let galley = layout_with_direction("abc عربي", Some(TextDirection::LeftToRight));
+        assert!(!galley.is_rtl(), "the row's base direction is LTR");
+        assert_eq!(galley.end().index.0, 8, "one glyph slot per char");
+        assert_eq!(
+            galley.cursor_right_one_character(&at(3)).index.0,
+            8,
+            "visual right from the space caret teleports to the Arabic run's entry caret"
+        );
+        assert_eq!(galley.cursor_right_one_character(&at(8)).index.0, 7);
+        assert_eq!(galley.cursor_right_one_character(&at(7)).index.0, 6);
+        assert_eq!(
+            galley.cursor_left_one_character(&at(4)).index.0,
+            5,
+            "visual left from the Arabic run's entry caret re-enters the run rightward"
+        );
+        assert_eq!(galley.cursor_left_one_character(&at(5)).index.0, 6);
+        assert_eq!(
+            galley.cursor_left_one_character(&at(8)).index.0,
+            3,
+            "visual left from the Arabic run's reading end teleports back to the LTR run"
+        );
+        assert_eq!(
+            galley.cursor_right_one_character(&at(4)).index.0,
+            5,
+            "visual right from the Arabic run's entry edge falls back to the historic step"
+        );
+        assert_eq!(
+            galley.cursor_left_one_character(&at(0)),
+            CCursor::default(),
+            "visual left from the reading start clamps to the galley begin"
+        );
+
+        // "تقرير" pinned to an explicit LTR base (an all-odd row in an even
+        // base — no egui call site produces this today; explicit-direction
+        // jobs do). RED at base on the first two (today: 0 and 5, the clamps):
+        let galley = layout_with_direction("تقرير", Some(TextDirection::LeftToRight));
+        assert_eq!(galley.end().index.0, 5);
+        assert_eq!(
+            galley.cursor_left_one_character(&at(0)).index.0,
+            1,
+            "visual left from the reading start enters the all-odd row"
+        );
+        assert_eq!(
+            galley.cursor_right_one_character(&at(5)).index.0,
+            4,
+            "visual right from the reading end steps back into the all-odd row"
+        );
+        // Row-edge guards stay on the historic step via the fallback:
+        assert_eq!(galley.cursor_right_one_character(&at(0)).index.0, 1);
+        assert_eq!(galley.cursor_left_one_character(&at(5)).index.0, 4);
+
+        // "Hello", RTL base (an all-even row in an odd base — the task-467
+        // shape: every Latin/digit value in an RTL UI):
+        let galley = layout_with_direction("Hello", Some(TextDirection::RightToLeft));
+        assert!(galley.is_rtl());
+        assert_eq!(galley.end().index.0, 5);
+        assert_eq!(
+            galley.cursor_left_one_character(&at(5)).index.0,
+            4,
+            "ArrowLeft retreats one character from the end"
+        );
+        assert_eq!(galley.cursor_right_one_character(&at(4)).index.0, 5);
+        assert_eq!(galley.cursor_left_one_character(&at(4)).index.0, 3);
+        assert_eq!(galley.cursor_right_one_character(&at(3)).index.0, 4);
+
+        // "اب١٢", LTR base (nested levels: the Arabic-Indic digits continue
+        // at the higher even level inside the RTL run). RED at base on the
+        // first assert (today: 2):
+        let galley = layout_with_direction("اب١٢", Some(TextDirection::LeftToRight));
+        assert_eq!(galley.end().index.0, 4);
+        assert_eq!(
+            galley.cursor_right_one_character(&at(1)).index.0,
+            0,
+            "visual right from the shared ا|ب boundary lands on ا's right edge"
+        );
+        assert_eq!(
+            galley.cursor_right_one_character(&at(0)).index.0,
+            1,
+            "visual right from the row edge falls back to the historic step"
+        );
+
+        // Uniform byte-identity guards: the fast path keeps the historic step
+        // for every base-parity-matching row (these all pass at base too):
+        let rtl_uniform = layout_with_direction("تقرير", Some(TextDirection::RightToLeft));
+        assert_eq!(rtl_uniform.cursor_left_one_character(&at(0)).index.0, 1);
+        assert_eq!(rtl_uniform.cursor_right_one_character(&at(0)).index.0, 0);
+        assert_eq!(rtl_uniform.cursor_right_one_character(&at(5)).index.0, 4);
+        let ltr_uniform = layout_with_direction("abcde", Some(TextDirection::LeftToRight));
+        assert_eq!(ltr_uniform.cursor_left_one_character(&at(0)).index.0, 0);
+        assert_eq!(ltr_uniform.cursor_right_one_character(&at(5)).index.0, 5);
+    }
+
     /// T6 — hostile input must not panic: unpaired-surrogate stand-ins, control
     /// and isolate characters, direction-mark soup, huge direction mixes, and
     /// wrapping/elision of the same, across all three direction settings.
@@ -5151,6 +5334,34 @@ mod tests {
                 let _ = galley.end();
                 let _ = galley.cursor_from_pos(vec2(0.0, 0.0));
                 let _ = galley.pos_from_cursor(galley.end());
+
+                // Stepping the caret one visual position must stay panic-free
+                // and clamped to the galley end on hostile input: walk both
+                // arrow directions from both reading edges, on the unwrapped
+                // and the wrapped+elided layouts. Row-edge steps fall back to
+                // the historic base-mirrored step, so every walk terminates
+                // in a clamp; none may ever exceed the galley's end.
+                let max_steps = text.chars().count().saturating_add(2).min(64);
+                for walked in [&unwrapped, &galley] {
+                    let end = walked.end().index;
+                    let mut left_from_begin = walked.begin();
+                    let mut left_from_end = walked.end();
+                    let mut right_from_begin = walked.begin();
+                    let mut right_from_end = walked.end();
+                    for _ in 0..max_steps {
+                        left_from_begin = walked.cursor_left_one_character(&left_from_begin);
+                        left_from_end = walked.cursor_left_one_character(&left_from_end);
+                        right_from_begin = walked.cursor_right_one_character(&right_from_begin);
+                        right_from_end = walked.cursor_right_one_character(&right_from_end);
+                        assert!(
+                            left_from_begin.index <= end
+                                && left_from_end.index <= end
+                                && right_from_begin.index <= end
+                                && right_from_end.index <= end,
+                            "arrow stepping must stay within the galley for {text:?} (direction {direction:?})"
+                        );
+                    }
+                }
             }
         }
 
