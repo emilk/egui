@@ -139,6 +139,20 @@ pub struct IMEOutput {
     /// every focused frame, so integrations can diff it each frame for free.
     #[cfg_attr(feature = "serde", serde(default))]
     pub surrounding_text: Option<Arc<ImeSurroundingText>>,
+
+    /// The language the text is being composed in, as a BCP 47 tag, when
+    /// known (the laid-out text's [`crate::text::LayoutJob::language`]).
+    ///
+    /// Platform IME APIs that take a language hint (TSF/UIA, macOS) can use
+    /// it; Wayland's `text-input-v3` cannot (best effort).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub language: Option<String>,
+
+    /// The resolved base reading direction of the text being composed into,
+    /// when known. The IME composes *content*, not UI chrome, so this is the
+    /// text's own direction — not the interface's.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub base_direction: Option<crate::text::TextDirection>,
 }
 
 /// Commands that the egui integration should execute at the end of a frame.

@@ -1237,6 +1237,10 @@ impl<'t> TextEdit<'t> {
                                 cursor_rect: to_global * primary_cursor_rect,
                                 should_interrupt_composition: false,
                                 surrounding_text,
+                                // The IME composes content, not UI chrome: report
+                                // the laid-out text's own language and direction.
+                                language: galley.job.language.clone(),
+                                base_direction: galley.job.direction,
                             });
                         });
                     }
