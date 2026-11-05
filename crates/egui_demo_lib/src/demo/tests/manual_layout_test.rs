@@ -43,7 +43,7 @@ impl crate::Demo for ManualLayoutTest {
 
 impl crate::View for ManualLayoutTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        egui::reset_button(ui, self, "Reset");
+        egui::reset_button(ui, self, crate::i18n::t("Reset"));
 
         let Self {
             widget_offset,
@@ -52,24 +52,28 @@ impl crate::View for ManualLayoutTest {
             text_edit_contents,
         } = self;
         ui.horizontal(|ui| {
-            ui.label("Test widget:");
-            ui.radio_value(widget_type, WidgetType::Button, "Button");
-            ui.radio_value(widget_type, WidgetType::Label, "Label");
-            ui.radio_value(widget_type, WidgetType::TextEdit, "TextEdit");
+            ui.label(crate::i18n::t("Test widget:"));
+            ui.radio_value(widget_type, WidgetType::Button, crate::i18n::t("Button"));
+            ui.radio_value(widget_type, WidgetType::Label, crate::i18n::t("Label"));
+            ui.radio_value(
+                widget_type,
+                WidgetType::TextEdit,
+                crate::i18n::t("TextEdit"),
+            );
         });
         egui::Grid::new("pos_size").show(ui, |ui| {
-            ui.label("Widget position:");
+            ui.label(crate::i18n::t("Widget position:"));
             ui.add(egui::Slider::new(&mut widget_offset.x, 0.0..=400.0))
-                .on_hover_text("Widget position x");
+                .on_hover_text(crate::i18n::t("Widget position x"));
             ui.add(egui::Slider::new(&mut widget_offset.y, 0.0..=400.0))
-                .on_hover_text("Widget position y");
+                .on_hover_text(crate::i18n::t("Widget position y"));
             ui.end_row();
 
-            ui.label("Widget size:");
+            ui.label(crate::i18n::t("Widget size:"));
             ui.add(egui::Slider::new(&mut widget_size.x, 0.0..=400.0))
-                .on_hover_text("Widget width");
+                .on_hover_text(crate::i18n::t("Widget width"));
             ui.add(egui::Slider::new(&mut widget_size.y, 0.0..=400.0))
-                .on_hover_text("Widget height");
+                .on_hover_text(crate::i18n::t("Widget height"));
             ui.end_row();
         });
 
@@ -81,10 +85,16 @@ impl crate::View for ManualLayoutTest {
         // Showing how to place a widget anywhere in the [`Ui`]:
         match *widget_type {
             WidgetType::Button => {
-                ui.put(widget_rect, egui::Button::new("Example button"));
+                ui.put(
+                    widget_rect,
+                    egui::Button::new(crate::i18n::t("Example button")),
+                );
             }
             WidgetType::Label => {
-                ui.put(widget_rect, egui::Label::new("Example label"));
+                ui.put(
+                    widget_rect,
+                    egui::Label::new(crate::i18n::t("Example label")),
+                );
             }
             WidgetType::TextEdit => {
                 ui.put(widget_rect, egui::TextEdit::multiline(text_edit_contents));
