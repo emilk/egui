@@ -23,6 +23,7 @@ use crate::{
     },
     vec2,
     widget_style::TextEditStyle,
+    widget_text::{DirectionStamp, stamped_direction},
 };
 
 use super::{TextEditOutput, TextEditState};
@@ -591,15 +592,21 @@ impl<'t> TextEdit<'t> {
             layout_job.language = ui.language();
             // Pin the paragraph direction so a Latin-first value still reads
             // (and anchors) as a right-to-left row in a right-to-left field —
-            // the same stamp `menu_item_button` puts on its labels. The job is
-            // built fresh here, so it never carries an explicit direction that
-            // this could override. An empty field follows the interface first
-            // and the keyboard layout second (an integration that reports an
-            // RTL primary layout gets RTL edits even in a default interface).
-            if ui.is_rtl()
-                || ui.input(|i| i.keyboard_layout_direction()) == Some(ReadingDirection::Rtl)
-            {
-                layout_job.direction = Some(epaint::text::TextDirection::RightToLeft);
+            // the HTML `dir=rtl` input convention
+            // ([`crate::widget_text::DirectionStamp::Field`]). The job is
+            // built fresh here, so it never carries an explicit direction
+            // that this could override. An empty field also follows the
+            // keyboard layout second: an integration that reports an RTL
+            // primary layout gets RTL edits even in a default interface.
+            layout_job.direction =
+                match stamped_direction(ui.style(), &layout_job.text, DirectionStamp::Field) {
+                    Some(direction) => layout_job.direction.or(Some(direction)),
+                    None => layout_job.direction,
+                };
+            if ui.input(|i| i.keyboard_layout_direction()) == Some(ReadingDirection::Rtl) {
+                layout_job.direction = layout_job
+                    .direction
+                    .or(Some(epaint::text::TextDirection::RightToLeft));
             }
 
             for section in &mut layout_job.sections {
@@ -753,23 +760,25 @@ impl<'t> TextEdit<'t> {
                 // Sucks, since it means users won't be able to override it.
                 hint_text.map_texts(|t| {
                     let t = t.color(hint_text_color);
-                    if !ui.is_rtl() {
-                        return t;
-                    }
                     // Pin the paragraph direction like `menu_item_button` does,
                     // so a Latin-first hint still reads as a right-to-left row
-                    // under a right-to-left interface. The default fallback
-                    // font is what the atom machinery would resolve to anyway,
-                    // and only jobs without an explicit direction are touched.
+                    // under a right-to-left interface — the same HTML
+                    // `dir=rtl` input convention as the field value
+                    // ([`crate::widget_text::DirectionStamp::Field`]), with an
+                    // explicit per-job direction still winning.
+                    let Some(direction) =
+                        stamped_direction(ui.style(), t.text(), DirectionStamp::Field)
+                    else {
+                        return t;
+                    };
+                    // The default fallback font is what the atom machinery would resolve to anyway:
                     let mut job = Arc::unwrap_or_clone(t.into_layout_job(
                         ui.ctx(),
                         ui.style(),
                         FontSelection::default(),
                         ui.text_valign(),
                     ));
-                    if job.direction.is_none() {
-                        job.direction = Some(epaint::text::TextDirection::RightToLeft);
-                    }
+                    job.direction = job.direction.or(Some(direction));
                     WidgetText::LayoutJob(Arc::new(job))
                 });
 

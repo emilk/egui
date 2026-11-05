@@ -858,7 +858,7 @@ impl WidgetText {
     ) -> Arc<Galley> {
         // Stamp the reading direction from the style, mirroring the language stamp
         // below: an explicit per-job direction still wins.
-        let direction = ambient_direction(style, self.text());
+        let direction = stamped_direction(style, self.text(), DirectionStamp::Label);
 
         match self {
             Self::Text(text) => {
@@ -910,16 +910,45 @@ impl WidgetText {
     }
 }
 
-/// The ambient base direction for widget text in a right-to-left interface:
-/// right-to-left, but only for text first-strong has an opinion about. For
-/// direction-agnostic runs (like the menu check mark) the ambient direction
-/// has no bidi effect, and first-strong's fallback keeps their anchoring
-/// unchanged. An explicit per-job direction still wins everywhere.
-pub(crate) fn ambient_direction(style: &Style, text: &str) -> Option<epaint::text::TextDirection> {
-    style
-        .right_to_left
-        .then_some(epaint::text::TextDirection::RightToLeft)
-        .filter(|_| epaint::text::TextDirection::infer(text).is_some())
+/// Which text a widget stamps with the interface reading direction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DirectionStamp {
+    /// Fields follow the HTML `dir=rtl` input convention: a right-to-left
+    /// interface stamps every field paragraph unconditionally, so a
+    /// Latin-first or digits-only value still reads (and orders mixed runs)
+    /// as a right-to-left row.
+    Field,
+    /// Labels defer to first-strong inference: direction-agnostic runs (the
+    /// menu check mark, icons) keep their anchoring unchanged.
+    Label,
+}
+
+/// The base direction to stamp a job with for the given kind of text, or
+/// `None` to leave the job's direction alone (no stamping under a
+/// left-to-right interface, or nothing first-strong has an opinion about).
+///
+/// An explicit per-job direction still wins everywhere — call sites merge
+/// with `.or()`.
+pub(crate) fn stamped_direction(
+    style: &Style,
+    text: &str,
+    stamp: DirectionStamp,
+) -> Option<epaint::text::TextDirection> {
+    match stamp {
+        DirectionStamp::Field => style
+            .right_to_left
+            .then_some(epaint::text::TextDirection::RightToLeft),
+        DirectionStamp::Label => {
+            // Right-to-left, but only for text first-strong has an opinion
+            // about. For direction-agnostic runs (like the menu check mark)
+            // the ambient direction has no bidi effect, and first-strong's
+            // fallback keeps their anchoring unchanged.
+            style
+                .right_to_left
+                .then_some(epaint::text::TextDirection::RightToLeft)
+                .filter(|_| epaint::text::TextDirection::infer(text).is_some())
+        }
+    }
 }
 
 impl From<&str> for WidgetText {

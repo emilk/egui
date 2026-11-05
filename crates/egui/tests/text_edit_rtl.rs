@@ -927,3 +927,38 @@ fn arrow_collapse_keeps_the_logical_edges_ltr() {
         "LTR: ArrowRight must keep collapsing onto the logical end"
     );
 }
+
+// ---------------------------------------------------------------------------
+// The shared direction-stamp policy: a field stamps the interface reading
+// direction unconditionally (the HTML `dir=rtl` input convention), so even
+// digits-only — first-weak — values read as a right-to-left row.
+
+/// Digits-only values have no strong character, so first-strong inference has
+/// no opinion; the field's unconditional stamp decides: right-to-left under a
+/// right-to-left interface, left-to-right under the default. Characterization
+/// for the stamp policy shared with labels (which resolve the other way — see
+/// `tests/widget_text_direction.rs`).
+#[test]
+fn digits_only_value_direction_follows_the_interface() {
+    for (rtl, expected) in [
+        (false, TextDirection::LeftToRight),
+        (true, TextDirection::RightToLeft),
+    ] {
+        let mut text = String::from("3.14");
+        let (field, ink, direction) = value_geometry(rtl, &mut text, None);
+        assert_eq!(
+            direction,
+            Some(expected),
+            "the digits-only value's base direction should follow the interface (rtl = {rtl})"
+        );
+        let start_hug = if rtl {
+            field.right() - ink.right()
+        } else {
+            ink.left() - field.left()
+        };
+        assert!(
+            (0.0..=EDGE_TOL).contains(&start_hug),
+            "the digits-only value should hug the reading-start edge (rtl = {rtl}: hug {start_hug}, ink {ink:?}, field {field:?})"
+        );
+    }
+}

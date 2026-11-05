@@ -245,3 +245,43 @@ fn layout_job_arm_fills_only_missing_directions() {
         );
     }
 }
+
+/// Digits-only text is first-weak: first-strong inference has no opinion, so
+/// the label's stamp abstains and the base stays left-to-right in both
+/// interface directions — the deliberate contrast with fields, which stamp
+/// unconditionally (the HTML `dir=rtl` input convention; see
+/// `tests/text_edit_rtl.rs`). The mirrored placement still anchors the label
+/// at the reading-start (right) edge under a right-to-left interface.
+#[test]
+fn digits_only_label_resolves_ltr_and_stays_right_anchored_under_rtl() {
+    for rtl in [false, true] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        let output = run(&ctx, input(SCREEN), |ui| {
+            ui.label("3.14");
+        });
+
+        let texts = painted_texts(&output);
+        let entry = painted_text(&texts, "3.14")
+            .unwrap_or_else(|| panic!("the label should paint (rtl = {rtl}), got {texts:?}"));
+        let (rect, direction) = (entry.1, entry.2);
+        assert_eq!(
+            direction,
+            Some(TextDirection::LeftToRight),
+            "the digits-only label must keep a left-to-right base (rtl = {rtl})"
+        );
+        if rtl {
+            assert!(
+                rect.right() > SCREEN.x * 0.75,
+                "the label should anchor at the right edge under the flag (rtl = {rtl}): rect {rect:?}"
+            );
+        } else {
+            assert!(
+                rect.left() < SCREEN.x * 0.25,
+                "the label should anchor at the left edge without the flag: rect {rect:?}"
+            );
+        }
+    }
+}
