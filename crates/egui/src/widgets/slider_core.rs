@@ -390,7 +390,10 @@ impl SliderCore<'_> {
                 .speed(speed)
                 .format(self.drag_value.format.clone())
                 .range(bounds)
-                .clamp_existing_to_range(self.clamping == SliderClamping::Always),
+                .clamp_existing_to_range(self.clamping == SliderClamping::Always)
+                // The number beside the rail moves at the rail's signed gradient, so its
+                // drag must not mirror the pointer delta a second time:
+                .rail_signed_speed(),
         )
     }
 }

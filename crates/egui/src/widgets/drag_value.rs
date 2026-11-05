@@ -61,6 +61,7 @@ pub struct DragValue<'a> {
     classes: Classes,
     min_size: Option<Vec2>,
     clip_text: bool,
+    rail_signed_speed: bool,
 }
 
 impl<'a> DragValue<'a> {
@@ -101,6 +102,7 @@ impl<'a> DragValue<'a> {
             classes: Classes::default().with_class(Self::CLASS),
             min_size: None,
             clip_text: false,
+            rail_signed_speed: false,
         }
     }
 
@@ -119,6 +121,16 @@ impl<'a> DragValue<'a> {
     #[inline]
     pub fn speed(mut self, speed: impl Into<f64>) -> Self {
         self.speed = speed.into();
+        self
+    }
+
+    /// The speed of this drag value already carries the sign of the rail it belongs to
+    /// (the signed gradient from `SliderGeometry::gradient_at`), so its drag must not
+    /// mirror the pointer delta under a right-to-left interface: the signed speed and
+    /// the physical delta cancel, and mirroring would flip the value a second time.
+    #[inline]
+    pub(crate) fn rail_signed_speed(mut self) -> Self {
+        self.rail_signed_speed = true;
         self
     }
 
@@ -416,6 +428,7 @@ impl Widget for DragValue<'_> {
             classes,
             min_size,
             clip_text,
+            rail_signed_speed,
         } = self;
         let ValueFormat {
             prefix,
@@ -646,7 +659,23 @@ impl Widget for DragValue<'_> {
                 ui.set_cursor_icon(cursor_icon);
 
                 let mdelta = response.drag_delta();
-                let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
+                // Mirror the horizontal drag delta under a right-to-left interface, so a
+                // standalone drag value follows the reading direction (dragging toward
+                // the reading end increases the value). Widgets whose speed already
+                // carries the rail's sign — the numbers beside a slider rail, handed
+                // over by `SliderCore::drag_value_ui` with `rail_signed_speed` — are
+                // excluded: their signed speed (see `SliderGeometry::gradient_at`) and
+                // the physical delta cancel, so mirroring here would flip twice. The
+                // sign of a user-set `speed` is deliberately not inspected: positive
+                // speed means "drag toward the reading end increases" in both
+                // directions. Only the interface flag decides; the keyboard path above
+                // never reaches this branch.
+                let x = if rail_signed_speed || !ui.is_rtl() {
+                    mdelta.x
+                } else {
+                    -mdelta.x
+                };
+                let delta_points = x - mdelta.y; // Increase to the right and up
 
                 let speed = if is_slow_speed { speed / 10.0 } else { speed };
 

@@ -15,7 +15,7 @@
 
 use egui::epaint::{RectShape, Shape};
 use egui::{
-    Align, Color32, Context, Event, FullOutput, Layout, Modifiers, PointerButton, Pos2,
+    Align, Color32, Context, DragValue, Event, FullOutput, Layout, Modifiers, PointerButton, Pos2,
     ProgressBar, RangeSlider, RawInput, Rect, Slider, Ui, Vec2, pos2, vec2,
 };
 
@@ -436,5 +436,140 @@ fn slider_drag_value_speed_stays_signed_under_rtl() {
         (ltr.abs() - flag_rtl.abs()).abs() < 1e-6 && (ltr.abs() - layout_rtl.abs()).abs() < 1e-6,
         "mirroring must flip only the sign, never the magnitude: \
          ltr {ltr}, flag {flag_rtl}, layout {layout_rtl}"
+    );
+}
+
+/// The center of the only painted text galley of the pass.
+///
+/// A bare `DragValue` (or a slider with its number and no label) paints exactly one
+/// text galley: its value. Used to find where to press for a drag.
+fn only_text_center(output: &FullOutput) -> Pos2 {
+    fn collect(shape: &Shape, out: &mut Vec<Rect>) {
+        match shape {
+            Shape::Text(text) => out.push(text.galley.mesh_bounds.translate(text.pos.to_vec2())),
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut rects = Vec::new();
+    for clipped in &output.shapes {
+        collect(&clipped.shape, &mut rects);
+    }
+    assert_eq!(
+        rects.len(),
+        1,
+        "expected exactly one painted text (the value), got {rects:?}"
+    );
+    rects[0].center()
+}
+
+/// Hover `pos`, press, and drag by `delta`, one frame each.
+fn drag_by(
+    ctx: &Context,
+    size: Vec2,
+    pos: Pos2,
+    delta: Vec2,
+    mut show_ui: impl FnMut(&mut Ui),
+) -> FullOutput {
+    run(
+        ctx,
+        input_at(size, 1.0, vec![Event::PointerMoved(pos)]),
+        |ui| show_ui(ui),
+    );
+    run(
+        ctx,
+        input_at(size, 1.1, vec![pointer_press(pos, true)]),
+        |ui| show_ui(ui),
+    );
+    run(
+        ctx,
+        input_at(size, 1.2, vec![Event::PointerMoved(pos + delta)]),
+        |ui| show_ui(ui),
+    )
+}
+
+/// B1: a standalone `DragValue` follows the interface reading direction: dragging
+/// toward the reading end (physically left under the flag) increases the value, while
+/// the same leftward drag decreases it in LTR. Layout-only right-to-left (flag off)
+/// keeps the LTR-ward drag, like every other flag-driven widget chrome in this file:
+/// only the interface flag mirrors, never the local layout.
+#[test]
+fn standalone_drag_value_drags_toward_the_reading_direction() {
+    fn dragged_value(dir: Dir) -> f64 {
+        let ctx = make_ctx(dir);
+        let screen = vec2(400.0, 120.0);
+        let mut value = 0.5_f64;
+        let show = |ui: &mut Ui, value: &mut f64| {
+            rtl_layout(ui, dir, |ui| {
+                ui.add(DragValue::new(value).range(0.0..=1.0));
+            });
+        };
+        // Frame 1 lays the widget out; its value text is the only painted text:
+        let layout = run(&ctx, input(screen), |ui| show(ui, &mut value));
+        let pos = only_text_center(&layout);
+        drag_by(&ctx, screen, pos, vec2(-10.0, 0.0), |ui| {
+            show(ui, &mut value);
+        });
+        value
+    }
+
+    assert_eq!(
+        dragged_value(Dir::Ltr),
+        0.0,
+        "LTR: dragging left should decrease the value toward the range start"
+    );
+    assert_eq!(
+        dragged_value(Dir::FlagRtl),
+        1.0,
+        "RTL (flag): dragging toward the reading end (left) should increase the value"
+    );
+    assert_eq!(
+        dragged_value(Dir::LayoutRtl),
+        0.0,
+        "layout-only RTL: the drag keeps its LTR-ward mapping (flag off)"
+    );
+}
+
+/// B2: the `DragValue` beside a slider rail keeps the rail's signed drag under every
+/// direction: its speed is the signed gradient (negative under either mirroring
+/// mechanism, pinned by `slider_drag_value_speed_stays_signed_under_rtl`), so dragging
+/// the NUMBER toward the reading end (physically left) increases the value without any
+/// delta mirroring — mirroring it a second time would double-flip the gesture.
+#[test]
+fn slider_embedded_drag_value_keeps_the_rail_signed_drag() {
+    fn dragged_value(dir: Dir) -> f64 {
+        let ctx = make_ctx(dir);
+        let screen = vec2(400.0, 120.0);
+        let mut value = 0.5_f64;
+        let show = |ui: &mut Ui, value: &mut f64| {
+            rtl_layout(ui, dir, |ui| {
+                ui.add(Slider::new(value, 0.0..=1.0));
+            });
+        };
+        // Frame 1 lays the widget out; its number text is the only painted text:
+        let layout = run(&ctx, input(screen), |ui| show(ui, &mut value));
+        let pos = only_text_center(&layout);
+        drag_by(&ctx, screen, pos, vec2(-10.0, 0.0), |ui| {
+            show(ui, &mut value);
+        });
+        value
+    }
+
+    assert!(
+        dragged_value(Dir::Ltr) < 0.5,
+        "LTR: dragging the number left should decrease the value along the rail"
+    );
+    assert!(
+        dragged_value(Dir::FlagRtl) > 0.5,
+        "RTL (flag): dragging the number left should increase the value along the rail \
+         (the signed speed and the physical delta cancel)"
+    );
+    assert!(
+        dragged_value(Dir::LayoutRtl) > 0.5,
+        "RTL (layout): dragging the number left should increase the value along the rail"
     );
 }
