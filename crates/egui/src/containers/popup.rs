@@ -200,6 +200,19 @@ impl<'a> Popup<'a> {
         } else {
             RectAlign::BOTTOM_START
         };
+        // Like the other defaults here, read the interface direction: the body
+        // rows hug the reading-start edge — `top_down(Align::Min)` in a
+        // left-to-right interface (identical to the previous
+        // `Layout::default()`, since `Align::Min == Align::LEFT`), mirrored to
+        // `Align::Max` in a right-to-left one, where the Ui-construction
+        // canonicalization flips the cross align anyway, so this only makes
+        // the default explicit. Callers needing a per-layout direction (not
+        // this flag) pass `.layout()` themselves.
+        let layout = if ctx.is_rtl() {
+            Layout::top_down(Align::Max)
+        } else {
+            Layout::top_down(Align::Min)
+        };
         Self {
             id,
             ctx,
@@ -216,7 +229,9 @@ impl<'a> Popup<'a> {
             sizing_pass: false,
             sense: Sense::CLICK,
             interactable: true,
-            layout: Layout::default(),
+            // Like the other defaults here, read the interface direction (see the
+            // `layout` binding above).
+            layout,
             frame: None,
             style: StyleModifier::default(),
             anchor_widget: None,
