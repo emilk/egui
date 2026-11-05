@@ -383,6 +383,13 @@ impl core::fmt::Debug for CustomCursorImage {
 /// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.
 ///
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
+///
+/// The directional resize variants ([`Self::ResizeHorizontal`], [`Self::ResizeEast`], …)
+/// are physical screen directions, like all geometry in egui. A call site that sizes
+/// things in reading order must resolve the logical side to the physical one first —
+/// mirroring is the call site's job, as with the logical panels
+/// ([`crate::Panel::start`]/[`crate::Panel::end`]), which resolve their side against the
+/// interface reading direction before emitting the physical resize cursor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorIcon {
