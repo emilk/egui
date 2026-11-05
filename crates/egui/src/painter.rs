@@ -10,6 +10,7 @@ use crate::{
     Color32, Context, FontId,
     emath::{Align2, Pos2, Rangef, Rect, Vec2, pos2, vec2},
     layers::{LayerId, PaintList, ShapeIdx},
+    widget_text::ambient_direction,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -490,6 +491,11 @@ impl Painter {
 
     /// Will wrap text at the given width and line break at `\n`.
     ///
+    /// The default job is stamped with the context language and the ambient reading
+    /// direction (right-to-left when the interface is right-to-left and first-strong
+    /// has an opinion about the text), the same way widget text is. Use
+    /// [`Self::layout_job`] for full control over the job.
+    ///
     /// Paint the results with [`Self::galley`].
     #[inline]
     #[must_use]
@@ -500,10 +506,15 @@ impl Painter {
         color: crate::Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.fonts_mut(|f| f.layout(text, font_id, color, wrap_width))
+        let mut job = LayoutJob::simple(text, font_id, color, wrap_width);
+        self.stamp_ambient_direction(&mut job);
+        self.layout_job(job)
     }
 
     /// Will line break at `\n`.
+    ///
+    /// The default job is stamped with the context language and the ambient reading
+    /// direction, the same way as [`Self::layout`].
     ///
     /// Paint the results with [`Self::galley`].
     #[inline]
@@ -514,16 +525,34 @@ impl Painter {
         font_id: FontId,
         color: crate::Color32,
     ) -> Arc<Galley> {
-        self.fonts_mut(|f| f.layout(text, font_id, color, f32::INFINITY))
+        let mut job = LayoutJob::simple(text, font_id, color, f32::INFINITY);
+        self.stamp_ambient_direction(&mut job);
+        self.layout_job(job)
     }
 
     /// Lay out this text layut job in a galley.
+    ///
+    /// The job is caller-authoritative: it is laid out exactly as given, with no
+    /// language or reading-direction stamp.
     ///
     /// Paint the results with [`Self::galley`].
     #[inline]
     #[must_use]
     pub fn layout_job(&self, layout_job: LayoutJob) -> Arc<Galley> {
         self.fonts_mut(|f| f.layout_job(layout_job))
+    }
+
+    /// Stamp a default-built job with the context language and the ambient reading
+    /// direction, mirroring the widget-text stamp (`WidgetText::into_galley_impl`):
+    /// right-to-left only when the interface is right-to-left AND first-strong has an
+    /// opinion about the text, so direction-agnostic runs (pure ASCII, symbol names)
+    /// are left untouched and keep their first-strong anchoring in both directions.
+    /// An explicit per-job direction still wins.
+    fn stamp_ambient_direction(&self, job: &mut LayoutJob) {
+        job.language = self.ctx.language();
+        job.direction = job
+            .direction
+            .or_else(|| ambient_direction(&self.ctx.global_style(), job.text.as_str()));
     }
 
     /// Paint text that has already been laid out in a [`Galley`].
