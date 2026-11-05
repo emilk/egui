@@ -67,7 +67,12 @@ impl KeyboardShortcut {
     ///
     /// This is true for any shortcut without modifiers (e.g. `Space`, `A`, `Delete`),
     /// as well as for shortcuts using keys that are commonly combined with modifiers
-    /// when editing text (e.g. `Alt+ArrowLeft` to move one word, or `Shift+Home` to select to the start of a line).
+    /// when editing text (e.g. `Alt+ArrowLeft`/`Alt+ArrowRight` to move one word, or
+    /// `Shift+Home`/`Shift+End` to select to the start/end of the line).
+    ///
+    /// The arrow keys move the text cursor toward the visual left/right — the
+    /// reading start/end depending on the field's direction; in a right-to-left
+    /// field their visual direction is mirrored.
     ///
     /// Such shortcuts should only be consumed when no text field has keyboard focus.
     /// See also [`crate::Memory::focused`] and [`crate::Context::egui_wants_keyboard_input`].
