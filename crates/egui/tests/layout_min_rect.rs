@@ -11,7 +11,7 @@
 //! the default `CentralPanel` has an 8 pt inner margin and a `top_down(Align::Min)`
 //! non-justified content layout, and egui rounds ui rects (`round_ui`).
 
-use egui::{Align, Context, Layout, RawInput, Rect, Sense, Ui, Vec2, pos2, vec2};
+use egui::{Align, Context, Layout, RawInput, Rect, Sense, Ui, Vec2, Window, pos2, vec2};
 
 /// The screen size of every test frame.
 const SCREEN: Vec2 = vec2(640.0, 480.0);
@@ -235,4 +235,66 @@ fn grid_cell_min_rect_keeps_the_cell_frame() {
         min_row_height,
         "a grid cell must keep the cell-derived (frame-folded) height, not its content height"
     );
+}
+
+/// Task-302 probe (directive-native-rtl): a vertical autosized body (desired
+/// smaller than offered) containing a flag-mirrored `ui.horizontal` row with
+/// plain widgets, inside a [`Window`] end-to-end: the body — the direct
+/// `min_rect`/response-rect consumer the report is about — must hug its
+/// content in every frame (sizing pass and steady frames).
+///
+/// Characterization probe for the reported mirrored-row measurement inflation
+/// (reported as steady-frame full-width bodies): expected GREEN at baseline.
+/// The window itself is only the end-to-end container here: egui windows keep
+/// their 340 pt `default_size` width regardless of content, direction-neutrally
+/// (verified against plain LTR/RTL windows), so only the body measurement is
+/// asserted. If it ever goes red, a mirrored horizontal row has started
+/// leaking the offered width into the measured span.
+#[test]
+fn probe_window_with_mirrored_row_hugs_content_in_all_frames() {
+    let ctx = Context::default();
+    ctx.set_right_to_left(true);
+    let mut body_widths: Vec<f32> = Vec::new();
+
+    for _ in 0..4 {
+        let mut body_width = 0.0;
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), SCREEN)),
+                ..Default::default()
+            },
+            |ui| {
+                egui::CentralPanel::default().show(ui, |ui| {
+                    Window::new("probe302").show(ui, |ui| {
+                        let body = ui
+                            .allocate_ui_with_layout(
+                                DESIRED,
+                                Layout::top_down(Align::Min),
+                                |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.allocate_exact_size(WIDGET, Sense::hover());
+                                        ui.allocate_exact_size(WIDGET, Sense::hover());
+                                    });
+                                },
+                            )
+                            .response;
+                        body_width = body.rect.width();
+                    });
+                });
+            },
+        );
+        output.drop_without_applying_deltas();
+        body_widths.push(body_width);
+    }
+
+    // The content is one row of two `WIDGET` widgets (50 + 8 + 50 = 108 wide);
+    // the body must hug it in every frame — not the 300 pt desired width and
+    // certainly not the full offered width.
+    for (frame, &body_width) in body_widths.iter().enumerate() {
+        assert!(
+            (body_width - 108.0).abs() <= 0.5,
+            "frame {frame}: the autosized body must hug the mirrored row \
+             (108 pt), got {body_width}"
+        );
+    }
 }

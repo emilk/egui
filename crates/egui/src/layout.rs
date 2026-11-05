@@ -503,7 +503,20 @@ impl Layout {
     /// The returned `frame_rect` [`Rect`] will always be justified along the cross axis.
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
-    pub(crate) fn next_frame(&self, region: &Region, child_size: Vec2, spacing: Vec2) -> Rect {
+    ///
+    /// `prefer_right_to_left` is the resolved reading-direction term (the same
+    /// settled predicate `Placer::prefer_right_to_left` computes for placement):
+    /// in a wrapping layout whose main axis is vertical it makes new wrap
+    /// columns grow leftward from the reading-start edge, mirroring the
+    /// rightward growth of the LTR arms. The horizontal arms mirror through
+    /// `Direction::LeftToRight`/`RightToLeft` on their own and ignore the term.
+    pub(crate) fn next_frame(
+        &self,
+        region: &Region,
+        child_size: Vec2,
+        spacing: Vec2,
+        prefer_right_to_left: bool,
+    ) -> Rect {
         region.sanity_check();
         debug_assert!(
             child_size.x >= 0.0 && child_size.y >= 0.0,
@@ -550,25 +563,45 @@ impl Layout {
                     if available_size.y < child_size.y && max_rect.top() < cursor.top() {
                         // New column
                         let new_col_width = cursor.width().max(child_size.x);
-                        cursor = Rect::from_min_max(
-                            pos2(cursor.right() + spacing.x, max_rect.top()),
-                            pos2(cursor.right() + spacing.x + new_col_width, INFINITY),
-                        );
-                        max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        if prefer_right_to_left {
+                            // Reading starts at the right edge, so the new
+                            // wrap column grows leftward from there and the
+                            // available span expands past the reading end:
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.left() - spacing.x - new_col_width, max_rect.top()),
+                                pos2(cursor.left() - spacing.x, INFINITY),
+                            );
+                            max_rect.min.x = max_rect.min.x.min(cursor.min.x);
+                        } else {
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.right() + spacing.x, max_rect.top()),
+                                pos2(cursor.right() + spacing.x + new_col_width, INFINITY),
+                            );
+                            max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        }
                     }
                 }
                 Direction::BottomUp => {
                     if available_size.y < child_size.y && cursor.bottom() < max_rect.bottom() {
                         // New column
                         let new_col_width = cursor.width().max(child_size.x);
-                        cursor = Rect::from_min_max(
-                            pos2(cursor.right() + spacing.x, -INFINITY),
-                            pos2(
-                                cursor.right() + spacing.x + new_col_width,
-                                max_rect.bottom(),
-                            ),
-                        );
-                        max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        if prefer_right_to_left {
+                            // Mirrored wrap-column growth, as in `TopDown`:
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.left() - spacing.x - new_col_width, -INFINITY),
+                                pos2(cursor.left() - spacing.x, max_rect.bottom()),
+                            );
+                            max_rect.min.x = max_rect.min.x.min(cursor.min.x);
+                        } else {
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.right() + spacing.x, -INFINITY),
+                                pos2(
+                                    cursor.right() + spacing.x + new_col_width,
+                                    max_rect.bottom(),
+                                ),
+                            );
+                            max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        }
                     }
                 }
             }

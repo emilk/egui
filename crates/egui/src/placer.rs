@@ -111,7 +111,17 @@ impl Placer {
     /// The returned `frame_rect` will always be justified along the cross axis.
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
-    pub(crate) fn next_space(&self, child_size: Vec2, item_spacing: Vec2) -> Rect {
+    ///
+    /// `prefer_right_to_left` is the resolved reading-direction term
+    /// ([`Self::prefer_right_to_left`]): in a wrapping layout whose main axis is
+    /// vertical it makes new wrap columns grow leftward from the reading-start
+    /// edge instead of rightward.
+    pub(crate) fn next_space(
+        &self,
+        child_size: Vec2,
+        item_spacing: Vec2,
+        prefer_right_to_left: bool,
+    ) -> Rect {
         debug_assert!(
             0.0 <= child_size.x && 0.0 <= child_size.y,
             "Negative child size: {child_size:?}"
@@ -121,7 +131,7 @@ impl Placer {
             grid.next_cell(self.region.cursor, child_size)
         } else {
             self.layout
-                .next_frame(&self.region, child_size, item_spacing)
+                .next_frame(&self.region, child_size, item_spacing, prefer_right_to_left)
         }
     }
 
@@ -442,7 +452,7 @@ mod tests {
             Rect::from_min_size(pos2(0.0, 0.0), crate::vec2(300.0, 100.0)),
             Layout::top_down(Align::Center),
         );
-        let frame = placer.next_space(crate::vec2(50.0, 10.0), Vec2::ZERO);
+        let frame = placer.next_space(crate::vec2(50.0, 10.0), Vec2::ZERO, false);
         assert_eq!(
             frame.width(),
             300.0,
@@ -458,7 +468,7 @@ mod tests {
             Rect::from_min_size(pos2(0.0, 0.0), crate::vec2(300.0, 20.0)),
             Layout::left_to_right(Align::Center),
         );
-        let frame = placer.next_space(crate::vec2(50.0, 15.0), Vec2::ZERO);
+        let frame = placer.next_space(crate::vec2(50.0, 15.0), Vec2::ZERO, false);
         assert_eq!(
             frame.height(),
             20.0,
