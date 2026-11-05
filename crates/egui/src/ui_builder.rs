@@ -199,6 +199,16 @@ impl UiBuilder {
     /// [`Ui::is_rtl`], the widget-text ambient direction and galley halign —
     /// follows by construction.
     ///
+    /// Placement caveat: a child [`Ui`] with no explicit layout inherits the
+    /// parent's [`Layout`], and that inherited layout is already mirrored to
+    /// the *parent's* reading direction. The override therefore changes the
+    /// style-driven consumers above (and re-maps the inherited cross
+    /// alignment only when the flipped style's mirror applies, e.g. an
+    /// inherited vertical [`crate::Align::Min`] under a forced-RTL subtree), but it
+    /// does not re-derive the inherited layout. Pass an explicit layout —
+    /// [`Layout::from_style`] of the subtree's own style — when the subtree's
+    /// placement must follow the overridden direction too.
+    ///
     /// The override is *pinned* for the subtree's lifetime: it survives
     /// [`Ui::style_mut`], but it does not track later
     /// [`Context::set_right_to_left`](crate::Context::set_right_to_left)
