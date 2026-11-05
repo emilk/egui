@@ -160,7 +160,14 @@ impl StyleProvider<TextEditStyle> for DefaultStyle {
                 min_size: Vec2::new(0.0, style.spacing.interact_size.y),
                 gap: style.spacing.icon_spacing,
                 text_style: text,
-                align2: Some(Align2::LEFT_TOP),
+                // The text hugs the field's reading-start edge: left under a
+                // left-to-right interface, mirrored to the right under a
+                // right-to-left one. An explicit `TextEdit::align` still wins.
+                align2: Some(if style.right_to_left {
+                    Align2::LEFT_TOP.flipped_x()
+                } else {
+                    Align2::LEFT_TOP
+                }),
                 ..Default::default()
             },
             hint_text_color: style.visuals.weak_text_color(),

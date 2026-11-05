@@ -8,7 +8,7 @@ use crate::{
     EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent, IntoAtoms,
     IntoSizedResult, Key, KeyboardShortcut, MAX_TEXT_EVENT_CHARS, Margin, Modifiers, NumExt as _,
     Response, Sense, SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom,
-    WidgetInfo, WidgetWithState,
+    WidgetInfo, WidgetText, WidgetWithState,
     class::{ClassName, Classes, HasClasses},
     epaint,
     os::OperatingSystem,
@@ -407,6 +407,9 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Set the align of the inner text.
+    ///
+    /// The default hugs the field's reading-start edge: left under a left-to-right
+    /// interface, right under a right-to-left one.
     #[inline]
     pub fn align(mut self, align: Align2) -> Self {
         self.align = Some(align);
@@ -585,6 +588,14 @@ impl<'t> TextEdit<'t> {
             // We want to keep the trailing whitespace, since hiding it feels really weird when typing
             layout_job.keep_trailing_whitespace = true;
             layout_job.language = ui.language();
+            // Pin the paragraph direction so a Latin-first value still reads
+            // (and anchors) as a right-to-left row in a right-to-left field —
+            // the same stamp `menu_item_button` puts on its labels. The job is
+            // built fresh here, so it never carries an explicit direction that
+            // this could override.
+            if ui.is_rtl() {
+                layout_job.direction = Some(epaint::text::TextDirection::RightToLeft);
+            }
 
             for section in &mut layout_job.sections {
                 section.format.line_height = Some(line_height);
@@ -735,7 +746,27 @@ impl<'t> TextEdit<'t> {
 
                 // Since we can't set a fallback color per atom, we have to override it here.
                 // Sucks, since it means users won't be able to override it.
-                hint_text.map_texts(|t| t.color(hint_text_color));
+                hint_text.map_texts(|t| {
+                    let t = t.color(hint_text_color);
+                    if !ui.is_rtl() {
+                        return t;
+                    }
+                    // Pin the paragraph direction like `menu_item_button` does,
+                    // so a Latin-first hint still reads as a right-to-left row
+                    // under a right-to-left interface. The default fallback
+                    // font is what the atom machinery would resolve to anyway,
+                    // and only jobs without an explicit direction are touched.
+                    let mut job = Arc::unwrap_or_clone(t.into_layout_job(
+                        ui.ctx(),
+                        ui.style(),
+                        FontSelection::default(),
+                        ui.text_valign(),
+                    ));
+                    if job.direction.is_none() {
+                        job.direction = Some(epaint::text::TextDirection::RightToLeft);
+                    }
+                    WidgetText::LayoutJob(Arc::new(job))
+                });
 
                 for mut atom in hint_text {
                     if !shrunk && matches!(atom.kind, AtomKind::Text(_)) {
@@ -754,7 +785,9 @@ impl<'t> TextEdit<'t> {
 
                     // Align the hint text the same as the input text so the hint, the
                     // cursor, and the typed text all share one alignment. The default
-                    // `align` is `LEFT_TOP`, which keeps multi line text edits unchanged.
+                    // `align` hugs the reading-start edge (see `DefaultStyle`), which
+                    // keeps multi line text edits unchanged under a left-to-right
+                    // interface.
                     atoms.push_right(atom.atom_align(align));
                 }
 
@@ -936,10 +969,23 @@ impl<'t> TextEdit<'t> {
             response.mark_changed();
         }
 
-        let mut galley_pos = align
-            .align_size_within_rect(galley.size(), inner_rect)
-            .intersect(inner_rect) // limit pos to the response rect area
-            .min;
+        let mut galley_pos = {
+            let mut rect = align
+                .align_size_within_rect(galley.size(), inner_rect)
+                .intersect(inner_rect); // limit pos to the response rect area
+            // Anchor the painted galley on its resolved halign (the `Label`
+            // pattern): a right-to-left galley is laid out with a right-anchored
+            // rect (epaint pins `Align::LEFT` to the reading start), so anchoring
+            // the paint on the widget's own `align` alone would cancel that and
+            // pin the text physically left. When the two agree this computes the
+            // exact same position as the plain align placement.
+            rect.min.x = match galley.job.halign {
+                Align::LEFT => inner_rect.left(),
+                Align::Center => inner_rect.center().x - galley.size().x / 2.0,
+                Align::RIGHT => inner_rect.right() - galley.size().x,
+            };
+            rect.min
+        };
         let align_offset = inner_rect.left_top() - galley_pos;
 
         // Visual clipping for singleline text editor with text larger than width
