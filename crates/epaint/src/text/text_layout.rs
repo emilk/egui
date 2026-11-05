@@ -101,6 +101,12 @@ struct Paragraph {
     /// pure-LTR paragraphs and for jobs that cannot wrap.
     pub bidi_runs: Vec<RecordedBidiRun>,
 
+    /// Byte range of the paragraph's characters in `LayoutJob::text`, stamped
+    /// during emission (segments are contiguous by the `LayoutSection`
+    /// invariant). The logical wrap path resolves UAX #9 over this span, so
+    /// row byte ranges always stay inside it.
+    pub byte_span: Range<usize>,
+
     /// In case of an empty paragraph ("\n"), use this as height.
     pub empty_paragraph_height: f32,
 }
@@ -113,6 +119,7 @@ impl Paragraph {
             glyphs: vec![],
             cluster_byte_starts: vec![],
             bidi_runs: vec![],
+            byte_span: 0..0,
             empty_paragraph_height: 0.0,
         }
     }
@@ -777,29 +784,33 @@ fn layout_section(
             continue;
         }
 
+        // Stamp the segment's bytes onto its paragraph (contiguous by the
+        // `LayoutSection` invariant; see `Paragraph::byte_span`):
+        let segment_end = segment_base + segment.len();
+        if paragraph.byte_span.is_empty() {
+            paragraph.byte_span = segment_base..segment_end;
+        } else {
+            paragraph.byte_span.end = segment_end;
+        }
+
         // UAX #9: split the segment into maximal directional runs and lay them out in
         // visual (left-to-right) order. Each run is shaped in its own direction, so an
         // RTL run's glyphs already come out of the shaper in visual order; within an
         // RTL run the font runs are therefore emitted in reverse (logical) order too.
         //
-        // KNOWN LIMITATION: the reordering is per newline-split segment, and wrapping
-        // (`line_break`) afterwards slices the already-reordered *visual* glyph stream
-        // into rows at geometric wrap points. The rows therefore do not follow UAX #9
-        // L1/L2 per rendered line (which would wrap the *logical* stream and reorder
-        // each rendered line's own text), and this affects ANY right-to-left text that
-        // wraps — pure RTL included, not just mixed-direction text — because slicing
-        // starts at the visually-leftmost (= logically last) end: an RTL-base
-        // `أول ثاني ثالث` wrapped one word per row renders the rows as `ثالث`,
-        // `ثاني`, `أول` (bottom-up; `أول` should lead row 1). Mixed-direction text
-        // corrupts the same way: an RTL-base `عربي aaa bbb` wrapped at the logical
-        // space after `aaa` must render row 1 as `aaa يبرع` and row 2 as `bbb`, but
-        // slicing the whole-segment visual stream (`aaa bbb يبرع`) instead renders
-        // row 1 as `aaa` and row 2 as `bbb يبرع` — the Arabic word on the wrong row.
-        // Correct per-line reordering needs wrapping to happen on the logical stream
-        // before the visual reorder (with x positions assigned per row afterwards),
-        // which is a restructuring of the layout pipeline; until then, any RTL text
-        // that wraps can render words on the wrong rows. Single-row text (no wrap) is
-        // unaffected.
+        // Wrapping needs the *logical* stream, so the runs are also recorded on
+        // the paragraph (see `RecordedBidiRun`) and the wrap path
+        // (`line_break_logically`) reorders each *produced row* per UAX #9
+        // L1/L2, resolving the levels over the paragraph's whole byte span
+        // (which can merge runs across a section boundary where the
+        // per-segment emission split them — more UAX #9-conformant). The
+        // earlier KNOWN LIMITATION — wrapped RTL text rendering on the wrong
+        // rows — is fixed by that path; what remains approximate is mapping a
+        // logical cursor column INSIDE a run that counteracts the base
+        // direction (e.g. an embedded left-to-right word in a right-to-left
+        // row), which needs a logical↔visual run map stored on the row (see
+        // `Row::glyphs`). Single-row text (no wrap) is unaffected: it takes
+        // the early-out and keeps this emission order as-is.
         segment_into_bidi_runs(segment, base_level, &mut bidi_runs);
 
         // Record only segments that resolved to more than one run or to a
@@ -1032,10 +1043,10 @@ fn rows_from_paragraphs(
                     ends_with_newline: !is_last_paragraph,
                 });
             } else {
-                if wraps_single_rtl_run(&paragraph) {
-                    // The KNOWN LIMITATION, single-run case: wrap the logical
-                    // stream so the rows come out in reading order.
-                    line_break_single_rtl_run(&paragraph, job, word_ranges, &mut rows, elided);
+                if wraps_logically(&paragraph) {
+                    // The KNOWN LIMITATION's fix: wrap the logical stream and
+                    // reorder each produced row per UAX #9 L1/L2.
+                    line_break_logically(&paragraph, job, word_ranges, &mut rows, elided);
                 } else {
                     line_break(&paragraph, job, word_ranges, &mut rows, elided);
                 }
@@ -1222,8 +1233,6 @@ struct LogicalBlock {
     bytes: Range<usize>,
 
     /// x of the block's first (base) glyph in the emitted stream.
-    // Read by the per-row reorder (next commit), not yet by this one.
-    #[expect(dead_code)]
     origin: f32,
 
     /// The block's stacking width: the distance to the next block's origin in
@@ -1232,17 +1241,31 @@ struct LogicalBlock {
     width: f32,
 }
 
-/// The paragraph's glyphs as logical blocks, in logical order, for a paragraph
-/// whose glyphs are exactly one right-to-left run: the emitted visual stream
-/// reversed at block level, with byte ranges assigned in logical order
-/// starting at `bytes_start` (the run's first byte).
-fn logical_blocks_of_single_rtl_run(
-    paragraph: &Paragraph,
-    bytes_start: usize,
-) -> Vec<LogicalBlock> {
+/// The paragraph's glyphs as logical blocks, in logical order.
+///
+/// The block inventory covers ALL of the paragraph's glyphs: the recorded
+/// directional runs ([`Paragraph::bidi_runs`], which carry exact byte
+/// ranges) interleaved with the complement glyph intervals — whole segments
+/// that resolved to a single even-level run and were therefore not recorded
+/// (a qualifying segment records ALL of its runs, so a complement interval
+/// never splits one). Both the complement glyph intervals and the
+/// corresponding byte gaps (the complement of the recorded byte ranges in
+/// the paragraph's span) are naturally ordered — glyph intervals in
+/// emission (= section/segment) order, byte gaps in byte order — and under
+/// the `glyphs.len() == char_count` invariant they match one to one, so the
+/// k-th complement interval fills the k-th byte gap. An unrecorded stretch
+/// is a single even-level run: its stream order IS its logical order, so
+/// its blocks iterate in stream order; a recorded right-to-left run's
+/// blocks iterate in reverse stream order. The stretches are then sorted by
+/// byte start, which IS the logical order, and byte ranges are assigned
+/// cumulatively from each stretch's own byte start.
+fn logical_blocks(paragraph: &Paragraph) -> Vec<LogicalBlock> {
     let glyphs = &paragraph.glyphs;
 
-    // Stream blocks: a base glyph plus its trailing zero-advance glyphs.
+    // Stream blocks paragraph-wide: a base glyph plus its trailing
+    // zero-advance glyphs. Widths are measured in stream order (to the next
+    // block's origin, across stretch boundaries — the emitted stream is one
+    // ascending x sequence).
     let mut stream_blocks: Vec<(Range<usize>, f32)> = Vec::new();
     let mut i = 0;
     while i < glyphs.len() {
@@ -1256,108 +1279,259 @@ fn logical_blocks_of_single_rtl_run(
         stream_blocks.push((i..end, glyphs[i].pos.x));
         i = end;
     }
-
     let ink_end = glyphs.last().map_or(0.0, |glyph| glyph.max_x());
+    // Glyph index -> stream block index (blocks are stream-contiguous):
+    let mut block_of_glyph = vec![0usize; glyphs.len()];
+    for (block_idx, (glyph_range, _)) in stream_blocks.iter().enumerate() {
+        for g in glyph_range.clone() {
+            block_of_glyph[g] = block_idx;
+        }
+    }
 
-    // Logical order is the reverse of the emitted (visual) order; byte ranges
-    // accumulate in logical order from the run's first byte, and each width
-    // is measured in stream order (to the next block's origin).
+    // The byte gaps between the recorded runs (sorted by byte start), inside
+    // the paragraph's span:
+    let mut sorted_bytes: Vec<Range<usize>> = paragraph
+        .bidi_runs
+        .iter()
+        .map(|run| run.bytes.clone())
+        .collect();
+    sorted_bytes.sort_by_key(|bytes| bytes.start);
+    let mut byte_gaps: Vec<Range<usize>> = Vec::new();
+    let mut byte_cursor = paragraph.byte_span.start;
+    for bytes in &sorted_bytes {
+        if bytes.start > byte_cursor {
+            byte_gaps.push(byte_cursor..bytes.start);
+        }
+        byte_cursor = byte_cursor.max(bytes.end);
+    }
+    if byte_cursor < paragraph.byte_span.end {
+        byte_gaps.push(byte_cursor..paragraph.byte_span.end);
+    }
+
+    // The complement glyph intervals (whole unrecorded segments):
+    let mut glyph_gaps: Vec<Range<usize>> = Vec::new();
+    let mut next_glyph = 0usize;
+    for run in &paragraph.bidi_runs {
+        if run.glyphs.start > next_glyph {
+            glyph_gaps.push(next_glyph..run.glyphs.start);
+        }
+        next_glyph = run.glyphs.end;
+    }
+    if next_glyph < glyphs.len() {
+        glyph_gaps.push(next_glyph..glyphs.len());
+    }
+
+    // The stretches: (glyph range, byte range, rtl). Hostile shapes can
+    // desync the two gap lists; an unpaired glyph interval gets a degenerate
+    // byte range and its row's byte ranges simply clamp downstream.
+    let mut stretches: Vec<(Range<usize>, Range<usize>, bool)> = Vec::new();
+    for run in &paragraph.bidi_runs {
+        stretches.push((run.glyphs.clone(), run.bytes.clone(), run.rtl));
+    }
+    for (k, glyph_gap) in glyph_gaps.iter().enumerate() {
+        let byte_gap = byte_gaps
+            .get(k)
+            .cloned()
+            .unwrap_or(paragraph.byte_span.start..paragraph.byte_span.start);
+        stretches.push((glyph_gap.clone(), byte_gap, false));
+    }
+    // The logical order is the byte order:
+    stretches.sort_by_key(|(_, bytes, _)| bytes.start);
+
+    // Assemble the blocks stretch by stretch, in logical order.
     let mut blocks: Vec<LogicalBlock> = Vec::with_capacity(stream_blocks.len());
-    let mut byte_cursor = bytes_start;
-    for stream_idx in (0..stream_blocks.len()).rev() {
-        let (glyph_range, origin) = &stream_blocks[stream_idx];
-        let byte_len: usize = glyphs[glyph_range.clone()]
-            .iter()
-            .map(|glyph| glyph.chr.len_utf8())
-            .sum();
-        let width = match stream_blocks.get(stream_idx + 1) {
-            Some((_, next_origin)) => (*next_origin - *origin).max(0.0),
-            None => (ink_end - *origin).max(0.0),
-        };
-        blocks.push(LogicalBlock {
-            bytes: byte_cursor..byte_cursor + byte_len,
-            glyphs: glyph_range.clone(),
-            origin: *origin,
-            width,
-        });
-        byte_cursor += byte_len;
+    for (stretch_glyphs, stretch_bytes, rtl) in stretches {
+        if stretch_glyphs.is_empty() {
+            continue;
+        }
+        let first_block = block_of_glyph[stretch_glyphs.start];
+        let last_block = block_of_glyph[stretch_glyphs.end - 1];
+        let mut order: Vec<usize> = (first_block..=last_block).collect();
+        if rtl {
+            order.reverse();
+        }
+        let mut byte_cursor = stretch_bytes.start;
+        for stream_idx in order {
+            let Some((glyph_range, origin)) = stream_blocks.get(stream_idx) else {
+                continue;
+            };
+            let byte_len: usize = glyphs[glyph_range.clone()]
+                .iter()
+                .map(|glyph| glyph.chr.len_utf8())
+                .sum();
+            let width = match stream_blocks.get(stream_idx + 1) {
+                Some((_, next_origin)) => (*next_origin - *origin).max(0.0),
+                None => (ink_end - *origin).max(0.0),
+            };
+            blocks.push(LogicalBlock {
+                bytes: byte_cursor..byte_cursor + byte_len,
+                glyphs: glyph_range.clone(),
+                origin: *origin,
+                width,
+            });
+            byte_cursor += byte_len;
+        }
     }
     blocks
 }
 
-/// Whether this overflowing paragraph takes the logical-stream wrap path:
-/// exactly one recorded directional run, right-to-left, covering the
-/// paragraph's whole glyph range. Paragraphs that mix the run with
-/// unrecorded stretches (e.g. a pure-LTR section) keep today's path — their
-/// logical rows can span disjoint stream intervals, which the contiguous
-/// slice construction below cannot express (the general per-row reorder
-/// handles them).
-fn wraps_single_rtl_run(paragraph: &Paragraph) -> bool {
-    let [run] = paragraph.bidi_runs.as_slice() else {
-        return false;
-    };
-    run.rtl && run.glyphs.start == 0 && run.glyphs.end == paragraph.glyphs.len()
+/// Whether this overflowing paragraph takes the logical-stream wrap path: any
+/// recorded directional run (a segment that resolved to more than one run or
+/// to a right-to-left run). Pure-LTR paragraphs record nothing and never take
+/// the path — every LTR galley keeps its exact pre-change code path.
+fn wraps_logically(paragraph: &Paragraph) -> bool {
+    !paragraph.bidi_runs.is_empty()
 }
 
-/// Push one row as a contiguous slice of the paragraph's emitted stream,
-/// shifted so its first glyph sits at x = 0 (the slice arithmetic of
-/// [`line_break`]), with the row's position at `pos_x`.
-fn push_stream_slice(
-    paragraph: &Paragraph,
-    job: &LayoutJob,
-    glyph_range: Range<usize>,
-    pos_x: f32,
-    out_rows: &mut Vec<PlacedRow>,
-) {
-    let Some(first_glyph) = paragraph.glyphs.get(glyph_range.start) else {
-        return; // empty range: no row to push (never happens for block rows)
-    };
-    let row_start_x = first_glyph.pos.x;
-    let glyphs: Vec<Glyph> = paragraph.glyphs[glyph_range]
-        .iter()
-        .copied()
-        .map(|mut glyph| {
-            glyph.pos.x -= row_start_x;
-            glyph
-        })
-        .collect();
-    let Some(section_index_at_start) = glyphs.first().map(|glyph| glyph.section_index) else {
-        return;
-    };
-    let paragraph_max_x = glyphs.last().map_or(0.0, |glyph| glyph.max_x());
-    out_rows.push(PlacedRow {
-        pos: pos2(pos_x, f32::NAN),
-        row: Arc::new(Row {
-            section_index_at_start,
-            base_direction: resolved_direction(job),
-            glyphs,
-            visuals: Default::default(),
-            size: vec2(paragraph_max_x, 0.0),
-        }),
-        ends_with_newline: false,
-    });
+/// Per-row UAX #9 context for the logical wrap path, computed once per
+/// overflowing paragraph: the paragraph's whole byte span (a paragraph can
+/// span several `LayoutSection`s — contiguous byte ranges by the sections
+/// invariant), so row-level runs can merge across a section boundary where
+/// the per-segment emission split them.
+struct RowReorder<'a> {
+    /// The paragraph's byte-span text (empty if the span was hostile).
+    text: &'a str,
+
+    /// Byte offset of the span in `LayoutJob::text`.
+    span_start: usize,
+
+    /// The job's resolved base level.
+    base_level: unicode_bidi::Level,
+
+    /// UAX #9 resolution over the whole span.
+    info: unicode_bidi::ParagraphBidiInfo<'a>,
 }
 
-/// Wrap an overflowing paragraph whose glyphs are exactly one right-to-left
-/// run on the LOGICAL stream: blocks are walked in reading order (the reverse
-/// of the emitted visual stream), accumulating widths; break candidates are
-/// registered after the overflow check at each block, exactly like
-/// [`line_break`] registers them per glyph; and each produced row is the
-/// corresponding contiguous slice of the emitted stream (the logical block
-/// range, already in visual order), shifted so its first glyph sits at 0.
+impl RowReorder<'_> {
+    /// Place one row's blocks in visual order per UAX #9 L1/L2 and push the
+    /// row.
+    ///
+    /// The row's logical blocks ([`RowReorder::place_row`] receives their
+    /// index range) cover a contiguous logical byte range; `visual_runs` on
+    /// that range applies L1 (scoped to the row — the break candidate
+    /// whitespace resets to the base level and renders at the row's visual
+    /// reading end) and returns the row's runs in visual order. Blocks are
+    /// then re-stacked with a pen: each run's blocks in logical order, or
+    /// reversed for a right-to-left run, each glyph keeping its intra-block
+    /// offset (marks and ligature geometry stay exact; only whole blocks
+    /// move).
+    fn place_row(
+        &self,
+        paragraph: &Paragraph,
+        job: &LayoutJob,
+        blocks: &[LogicalBlock],
+        row_range: Range<usize>,
+        pos_x: f32,
+        out_rows: &mut Vec<PlacedRow>,
+    ) {
+        if row_range.is_empty() {
+            return;
+        }
+
+        // The row's byte range relative to the span, clamped and snapped to
+        // char boundaries: hostile shapes (a cluster standing in for a
+        // replacement char) can drift the `chr.len_utf8()` sums — that may
+        // degrade reorder quality, but never panics (the crate asserts range
+        // bounds and slices its text by the range).
+        let span_len = self.text.len();
+        let mut rel_start = blocks[row_range.start]
+            .bytes
+            .start
+            .saturating_sub(self.span_start)
+            .min(span_len);
+        let mut rel_end = blocks[row_range.end - 1]
+            .bytes
+            .end
+            .saturating_sub(self.span_start)
+            .min(span_len)
+            .max(rel_start);
+        while rel_start > 0 && !self.text.is_char_boundary(rel_start) {
+            rel_start -= 1;
+        }
+        while rel_end > rel_start && !self.text.is_char_boundary(rel_end) {
+            rel_end -= 1;
+        }
+
+        let (levels, runs) = self.info.visual_runs(rel_start..rel_end);
+
+        // Place the blocks in the row's visual run order. Blocks no run
+        // claims (hostile byte drift, or an empty clamped range) are kept in
+        // logical order at the visual end rather than dropped.
+        let mut glyphs: Vec<Glyph> = Vec::new();
+        let mut claimed = vec![false; row_range.len()];
+        let mut pen = 0.0_f32;
+        let place_block = |glyphs: &mut Vec<Glyph>, pen: &mut f32, block: &LogicalBlock| {
+            for glyph in &paragraph.glyphs[block.glyphs.clone()] {
+                let mut glyph = *glyph;
+                glyph.pos.x = *pen + (glyph.pos.x - block.origin);
+                glyphs.push(glyph);
+            }
+            *pen += block.width;
+        };
+        for run_rel in &runs {
+            let run_level = levels
+                .get(run_rel.start)
+                .copied()
+                .unwrap_or(self.base_level);
+            let run_start = run_rel.start + self.span_start;
+            let run_end = run_rel.end + self.span_start;
+            let mut indices: Vec<usize> = row_range
+                .clone()
+                .filter(|&b| blocks[b].bytes.start >= run_start && blocks[b].bytes.start < run_end)
+                .collect();
+            if run_level.is_rtl() {
+                indices.reverse();
+            }
+            for b in indices {
+                claimed[b - row_range.start] = true;
+                place_block(&mut glyphs, &mut pen, &blocks[b]);
+            }
+        }
+        for (offset, b) in row_range.clone().enumerate() {
+            if !claimed[offset] {
+                place_block(&mut glyphs, &mut pen, &blocks[b]);
+            }
+        }
+
+        if glyphs.is_empty() {
+            return;
+        }
+        let section_index_at_start = glyphs[0].section_index;
+        let paragraph_max_x = glyphs.last().map_or(0.0, |glyph| glyph.max_x());
+        out_rows.push(PlacedRow {
+            pos: pos2(pos_x, f32::NAN),
+            row: Arc::new(Row {
+                section_index_at_start,
+                base_direction: resolved_direction(job),
+                glyphs,
+                visuals: Default::default(),
+                size: vec2(paragraph_max_x, 0.0),
+            }),
+            ends_with_newline: false,
+        });
+    }
+}
+
+/// Wrap an overflowing paragraph that contains right-to-left text on the
+/// LOGICAL stream: blocks are walked in reading order, accumulating widths;
+/// break candidates are registered after the overflow check at each block,
+/// exactly like [`line_break`] registers them per glyph; and each produced
+/// row is placed per UAX #9 L1/L2 over the paragraph's whole byte span
+/// ([`RowReorder::place_row`]).
 ///
-/// The rows therefore come out in logical (reading) order: a wrapped RTL
-/// paragraph reads top-down instead of bottom-up — the single-run case of the
-/// KNOWN LIMITATION described in [`layout_section`]. The break candidate
-/// whitespace block stays in its row (as in `line_break`); per-line UAX #9
-/// L1 resets it to the base level, so on these rows it renders at the visual
-/// reading end (the left edge), pinned by the wrapped oracles.
+/// The rows come out in logical (reading) order: a wrapped RTL paragraph
+/// reads top-down instead of bottom-up, and mixed-direction rows keep UAX #9
+/// L1/L2 per rendered line — the fix for the KNOWN LIMITATION described in
+/// [`layout_section`]. The break candidate whitespace block stays in its row
+/// (as in `line_break`); per-line L1 resets it to the base level, so on
+/// right-to-left rows it renders at the visual reading end (the left edge),
+/// pinned by the wrapped oracles.
 ///
 /// Mirrors `line_break`'s arithmetic: the leading indent
 /// (`LayoutSection::leading_space`, carried by the first emitted glyph)
 /// counts against the first row's budget; the empty-first-row escape hatch
 /// and the `max_rows`/`elided` checks apply per produced row.
-fn line_break_single_rtl_run(
+fn line_break_logically(
     paragraph: &Paragraph,
     job: &LayoutJob,
     word_ranges: &[Range<usize>],
@@ -1365,7 +1539,22 @@ fn line_break_single_rtl_run(
     elided: &mut bool,
 ) {
     let wrap_width = job.effective_wrap_width();
-    let blocks = logical_blocks_of_single_rtl_run(paragraph, paragraph.bidi_runs[0].bytes.start);
+    let blocks = logical_blocks(paragraph);
+
+    // Per-row UAX #9 context, computed once per overflowing paragraph:
+    let span = paragraph.byte_span.clone();
+    let span_text = job.text.get(span.clone()).unwrap_or("");
+    let base_level = if resolved_direction(job) == TextDirection::RightToLeft {
+        unicode_bidi::Level::rtl()
+    } else {
+        unicode_bidi::Level::ltr()
+    };
+    let reorder = RowReorder {
+        text: span_text,
+        span_start: span.start,
+        base_level,
+        info: unicode_bidi::ParagraphBidiInfo::new(span_text, Some(base_level)),
+    };
 
     // Keeps track of good places to insert a row break if we exceed `wrap_width`.
     let mut row_break_candidates = RowBreakCandidates::default();
@@ -1416,12 +1605,14 @@ fn line_break_single_rtl_run(
                 pen -= first_row_indentation;
                 first_row_indentation_left = false;
             } else if let Some(last_kept) = row_break_candidates.get(job.wrap.break_anywhere) {
-                // The logical blocks [row_start..=last_kept] are consecutive
-                // reversed stream blocks: one contiguous slice, from the
-                // row's visually-leftmost block (the last logical one) to its
-                // visually-rightmost (the first logical one).
-                let stream_range = blocks[last_kept].glyphs.start..blocks[row_start].glyphs.end;
-                push_stream_slice(paragraph, job, stream_range, 0.0, out_rows);
+                reorder.place_row(
+                    paragraph,
+                    job,
+                    &blocks,
+                    row_start..last_kept + 1,
+                    0.0,
+                    out_rows,
+                );
 
                 // Start a new row:
                 row_start = last_kept + 1;
@@ -1470,22 +1661,27 @@ fn line_break_single_rtl_run(
     }
 
     if row_start < blocks.len() {
-        // Final row of text (the logically-last blocks, the emitted stream's
-        // head):
+        // Final row of text (the logically-last blocks):
 
         if job.wrap.max_rows <= out_rows.len() {
             *elided = true; // can't fit another row
         } else {
-            let stream_range = blocks[blocks.len() - 1].glyphs.start..blocks[row_start].glyphs.end;
             // As in `line_break`: the leading indent survives as the row's
             // position only when the whole paragraph is a single row; rows
-            // after a break sit at zero (the stream is contiguous).
+            // after a break sit at zero.
             let paragraph_min_x = if row_start == 0 {
                 first_row_indentation
             } else {
                 0.0
             };
-            push_stream_slice(paragraph, job, stream_range, paragraph_min_x, out_rows);
+            reorder.place_row(
+                paragraph,
+                job,
+                &blocks,
+                row_start..blocks.len(),
+                paragraph_min_x,
+                out_rows,
+            );
         }
     }
 }
@@ -5361,5 +5557,309 @@ mod tests {
         ]
         .into();
         assert_glyphs_close(&glyphs, &expected);
+    }
+
+    /// B — a wrapped mixed-direction RTL-base paragraph keeps UAX #9 L1/L2
+    /// per rendered line: `عربي aaa bbb` (RTL-pinned) breaks at the logical
+    /// space after `aaa`, and row 1 must render `aaa يبرع` (the latin island
+    /// at the visual left, the Arabic word at its reading position), not the
+    /// old path's geometric slicing of the whole-segment visual stream
+    /// (`aaa bbb يبرع`), which stranded the Arabic word alone on the last
+    /// row. Fail-before: rows came out `aaa bbb ` / `يبرع`.
+    #[test]
+    fn wrapped_mixed_rtl_base_keeps_uax9_per_row() {
+        let text = "عربي aaa bbb";
+
+        // Wrap width measured from the LTR twin: its stream is
+        // `يبرع ␣ aaa ␣ bbb` (the RTL run reverses to the front), so
+        // run 0 = يبرع, run 1 = aaa, run 2 = bbb. The intended row 1 is
+        // `عربي aaa ␣` (content + trailing break space); the `aaa`→`bbb`
+        // gap's space sits at an even level in both bases (level 0 in the
+        // twin, level 2 inside the island in the oracle job), so its shaping
+        // — and hence its advance — is identical in both.
+        let twin = layout_unwrapped(text, Some(TextDirection::LeftToRight));
+        let (spans, gaps) = visible_runs(&twin);
+        assert_eq!(spans.len(), 3, "spans {spans:?}");
+        assert_eq!(gaps.len(), 2, "spans {spans:?} gaps {gaps:?}");
+        let (w_arabi, w_aaa, w_bbb) = (spans[0], spans[1], spans[2]);
+        let s = gaps[1];
+        let wrap_width = w_arabi + s + w_aaa + s + 0.5;
+        // Per-boundary asserts: row 1's content + break space fits W, the
+        // next word (bbb) overflows, and the final row's bare content fits:
+        assert!(
+            w_arabi + s + w_aaa + s <= wrap_width && w_arabi + s + w_aaa + s + w_bbb > wrap_width,
+            "spans {spans:?} gaps {gaps:?} W {wrap_width}"
+        );
+        assert!(w_bbb <= wrap_width, "W {wrap_width}");
+
+        let galley = layout_wrapped(text, Some(TextDirection::RightToLeft), wrap_width);
+        assert_eq!(
+            galley.rows.len(),
+            2,
+            "rows: {rows:?}",
+            rows = visible_chars_per_row(&galley)
+        );
+        let chars = visible_chars_per_row(&galley);
+        assert_eq!(chars[0], ['a', 'a', 'a', 'ي', 'ب', 'ر', 'ع'], "{chars:?}");
+        assert_eq!(chars[1], ['b', 'b', 'b'], "{chars:?}");
+        for glyphs in visible_glyphs_per_row(&galley) {
+            assert_x_nondecreasing(&glyphs);
+        }
+        // One glyph slot per char of each row's logical slice (row 1 =
+        // `عربي aaa ␣`, row 2 = `bbb`):
+        let counts: Vec<usize> = galley
+            .rows
+            .iter()
+            .map(|placed| placed.row.glyphs.len())
+            .collect();
+        assert_eq!(counts, vec![9, 3], "glyph slots per row: {counts:?}");
+
+        // Trailing-space pin: the kept break-candidate space survives, is
+        // L1-reset to the base level, and renders at the row's visual
+        // reading end — the visually-LEFT slot of an RTL-base row (its
+        // `pos.x` is at or before every non-space glyph's x). At an
+        // under-sized wrap width this pin fails by design (the kept space
+        // becomes the row-internal one).
+        let row0 = &galley.rows[0];
+        assert_eq!(
+            row0.glyphs[0].chr, ' ',
+            "the break space leads the row's vector"
+        );
+        let min_visible_x = row0
+            .glyphs
+            .iter()
+            .filter(|glyph| glyph.advance_width > 0.0 && !glyph.chr.is_whitespace())
+            .map(|glyph| glyph.pos.x)
+            .fold(f32::INFINITY, f32::min);
+        assert!(
+            row0.glyphs[0].pos.x <= min_visible_x,
+            "the L1-reset break space must sit at the visual reading end: {} vs {min_visible_x}",
+            row0.glyphs[0].pos.x
+        );
+    }
+
+    /// C — an LTR-base paragraph with embedded RTL wraps correctly: the
+    /// Hebrew word renders visually reordered (`םולש`) inside whichever row
+    /// it lands, the surrounding latin words keep their logical order, and
+    /// every row keeps the x-nondecreasing invariant. The wrap width anchors
+    /// on the job's own single-row galley — an LTR-pinned job skips the
+    /// halign pass entirely, so its glyph x values are the exact emitted
+    /// values (equivalently measurable from a twin).
+    #[test]
+    fn wrapped_ltr_base_embedded_rtl_stays_uax9() {
+        let text = "Hello שלום world wrapped again";
+
+        // Break after `שלום`: the first `w` glyph of the stream (of "world")
+        // starts at 9 px per char over 11 chars:
+        let single = layout_unwrapped(text, Some(TextDirection::LeftToRight));
+        let first_world_x = single.rows[0]
+            .glyphs
+            .iter()
+            .find(|glyph| glyph.chr == 'w')
+            .map(|glyph| glyph.pos.x)
+            .unwrap_or_default();
+        let wrap_width = first_world_x + 0.5;
+        // The intended row 1 (`Hello שלום `) fits, the next word overflows,
+        // and the final row's content fits (uniform tofu advances):
+        assert!(first_world_x <= wrap_width && first_world_x + 5.0 * 9.0 > wrap_width);
+
+        let galley = layout_wrapped(text, Some(TextDirection::LeftToRight), wrap_width);
+        assert!(galley.rows.len() >= 2);
+        let chars = visible_chars_per_row(&galley);
+        // Row 0 carries the pinned boundary: `Hello שלום ` — the Hebrew word
+        // visually reordered:
+        assert_eq!(
+            chars[0],
+            ['H', 'e', 'l', 'l', 'o', 'ם', 'ו', 'ל', 'ש'],
+            "{chars:?}"
+        );
+        // The remaining latin words keep their logical order, in whichever
+        // rows they land (the remainder is wider than W, so the partition is
+        // deliberately loose beyond row 0):
+        let words: [&[char]; 3] = [
+            &['w', 'o', 'r', 'l', 'd'],
+            &['w', 'r', 'a', 'p', 'p', 'e', 'd'],
+            &['a', 'g', 'a', 'i', 'n'],
+        ];
+        for word in words {
+            assert!(
+                chars
+                    .iter()
+                    .any(|row| row.windows(word.len()).any(|w| w == word)),
+                "{word:?} must appear in logical order in some row: {chars:?}"
+            );
+        }
+        for glyphs in visible_glyphs_per_row(&galley) {
+            assert_x_nondecreasing(&glyphs);
+        }
+    }
+
+    /// Build a two-section job: `specs` are (section text, format) pairs;
+    /// the byte ranges are derived from the concatenation.
+    fn two_section_job(
+        section_texts: &[&str],
+        formats: &[TextFormat; 2],
+        wrap_width: f32,
+        direction: Option<TextDirection>,
+    ) -> LayoutJob {
+        let mut text = String::new();
+        let mut sections = Vec::new();
+        for (i, section_text) in section_texts.iter().enumerate() {
+            let start = ByteIndex(text.len());
+            text.push_str(section_text);
+            sections.push(LayoutSection {
+                leading_space: 0.0,
+                byte_range: start..ByteIndex(text.len()),
+                format: formats[i].clone(),
+            });
+        }
+        let mut job = LayoutJob {
+            sections,
+            text,
+            wrap: TextWrapping {
+                max_width: wrap_width,
+                ..Default::default()
+            },
+            break_on_newline: true,
+            ..Default::default()
+        };
+        job.direction = direction;
+        job.round_output_to_gui = false;
+        job
+    }
+
+    /// D — a paragraph spanning several `LayoutSection`s wraps jointly: the
+    /// recorded runs accumulate across the section boundary, the per-row
+    /// reorder resolves UAX #9 over the paragraph's whole byte span, and an
+    /// RTL word SPLIT by a color change (two sections, `عر` + `بي`) reorders
+    /// as ONE run on its row. Fail-before: the old path sliced the visual
+    /// stream geometrically, putting the words on the wrong rows.
+    #[test]
+    fn wrapped_multi_section_rtl_reorders_jointly() {
+        let text = "عربي aaa bbb ccc ddd eee";
+        let formats = [
+            TextFormat::simple(FontId::proportional(14.0), Color32::RED),
+            TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+        ];
+        // `عر` in the red section, the rest in the white one — the word
+        // عربي is split across the boundary:
+        assert_eq!(&text[..4], "عر");
+        let job = two_section_job(
+            &[&text[..4], &text[4..]],
+            &formats,
+            (4 + 1 + 3 + 1) as f32 * 9.0 + 0.5,
+            Some(TextDirection::RightToLeft),
+        );
+        let mut fonts = tofu_fonts();
+        let galley = layout(&mut fonts, 1.0, job.into());
+
+        // Rows partition logically (عربي aaa / bbb ccc / ddd eee):
+        assert_eq!(galley.rows.len(), 3);
+        let chars = visible_chars_per_row(&galley);
+        // Row 0 renders `عربي aaa`: the split word as ONE run in visual
+        // order (يبرع at the right, jointly across the section boundary),
+        // the latin island at the visual left:
+        assert_eq!(chars[0], ['a', 'a', 'a', 'ي', 'ب', 'ر', 'ع'], "{chars:?}");
+        assert_eq!(chars[1], ['b', 'b', 'b', 'c', 'c', 'c'], "{chars:?}");
+        assert_eq!(chars[2], ['d', 'd', 'd', 'e', 'e', 'e'], "{chars:?}");
+        // Both sections' glyphs appear (no drops):
+        assert_eq!(
+            galley
+                .rows
+                .iter()
+                .map(|placed| placed.row.glyphs.len())
+                .sum::<usize>(),
+            text.chars().count(),
+            "one glyph slot per char across both sections"
+        );
+        for glyphs in visible_glyphs_per_row(&galley) {
+            assert_x_nondecreasing(&glyphs);
+        }
+    }
+
+    /// D (unrecorded edge) — a paragraph mixing a pure-LTR section (a single
+    /// even-level run, never recorded) with a wrapped RTL section keeps every
+    /// glyph: the block inventory interleaves the recorded runs with the
+    /// complement intervals. LTR-first order (the LTR stretch is the
+    /// paragraph's head).
+    #[test]
+    fn wrapped_unrecorded_edge_ltr_first_keeps_all_glyphs() {
+        // "abcd" resolves to a single level-2 run at an RTL base and is not
+        // recorded; the second section's leading space joins عربي's run.
+        let formats = [
+            TextFormat::simple(FontId::proportional(14.0), Color32::RED),
+            TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+        ];
+        let job = two_section_job(
+            &["abcd", " عربي aaa bbb"],
+            &formats,
+            (4 + 1 + 4 + 1) as f32 * 9.0 + 0.5,
+            Some(TextDirection::RightToLeft),
+        );
+        let mut fonts = tofu_fonts();
+        let galley = layout(&mut fonts, 1.0, job.into());
+
+        assert_eq!(galley.rows.len(), 2);
+        let chars = visible_chars_per_row(&galley);
+        // Row 0 reads `abcd عربي `: visually ␣ يبرع ␣ abcd — the LTR word
+        // kept, the Arabic word reordered as one run:
+        assert_eq!(
+            chars[0],
+            ['ي', 'ب', 'ر', 'ع', 'a', 'b', 'c', 'd'],
+            "{chars:?}"
+        );
+        assert_eq!(chars[1], ['a', 'a', 'a', 'b', 'b', 'b'], "{chars:?}");
+        // No dropped glyphs (the unrecorded stretch's chars are all present):
+        assert_eq!(
+            galley
+                .rows
+                .iter()
+                .map(|placed| placed.row.glyphs.len())
+                .sum::<usize>(),
+            "abcd عربي aaa bbb".chars().count(),
+        );
+        for glyphs in visible_glyphs_per_row(&galley) {
+            assert_x_nondecreasing(&glyphs);
+        }
+    }
+
+    /// D (unrecorded edge, mirrored) — the unrecorded pure-LTR stretch is the
+    /// paragraph's TAIL: the recorded stretches come first, the complement
+    /// interval last, and the trailing section's glyphs still land in their
+    /// logical row.
+    #[test]
+    fn wrapped_unrecorded_edge_ltr_last_keeps_all_glyphs() {
+        let formats = [
+            TextFormat::simple(FontId::proportional(14.0), Color32::RED),
+            TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+        ];
+        // Section 0 = "عربي aaa " (three recorded runs), section 1 = "abcd"
+        // (single even run, unrecorded):
+        let job = two_section_job(
+            &["عربي aaa ", "abcd"],
+            &formats,
+            (4 + 1 + 3 + 1) as f32 * 9.0 + 0.5,
+            Some(TextDirection::RightToLeft),
+        );
+        let mut fonts = tofu_fonts();
+        let galley = layout(&mut fonts, 1.0, job.into());
+
+        assert_eq!(galley.rows.len(), 2);
+        let chars = visible_chars_per_row(&galley);
+        // Row 0 reads `عربي aaa ` (visually ␣ aaa ␣ يبرع), row 1 the
+        // unrecorded tail in logical order:
+        assert_eq!(chars[0], ['a', 'a', 'a', 'ي', 'ب', 'ر', 'ع'], "{chars:?}");
+        assert_eq!(chars[1], ['a', 'b', 'c', 'd'], "{chars:?}");
+        assert_eq!(
+            galley
+                .rows
+                .iter()
+                .map(|placed| placed.row.glyphs.len())
+                .sum::<usize>(),
+            "عربي aaa abcd".chars().count(),
+        );
+        for glyphs in visible_glyphs_per_row(&galley) {
+            assert_x_nondecreasing(&glyphs);
+        }
     }
 }

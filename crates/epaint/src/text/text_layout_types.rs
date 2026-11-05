@@ -985,15 +985,13 @@ pub struct Row {
     /// fully exact mapping would need a logical↔visual run map stored on the
     /// row (not yet implemented — known gap for mixed-direction editing).
     ///
-    /// Second known gap for right-to-left text: the visual reordering happens
-    /// per newline-split segment, and wrapping afterwards slices the already
-    /// reordered glyph stream at geometric wrap points, so for *any* RTL text
-    /// that wraps — pure RTL included, not just mixed-direction text — the
-    /// rows do not follow UAX #9 L1/L2 per rendered line: words can end up on
-    /// the wrong rows (e.g. an RTL-base `أول ثاني ثالث` can wrap with the
-    /// logically last word `ثالث` on the first row). Correct per-line
-    /// reordering needs logical wrapping before the visual reorder. Single-row
-    /// text is unaffected.
+    /// Wrapped right-to-left text used to break UAX #9 L1/L2 per rendered
+    /// line (words could end up on the wrong rows, e.g. an RTL-base
+    /// `أول ثاني ثالث` wrapping with the logically last word `ثالث` on the
+    /// first row): wrapping now walks the logical stream and reorders each
+    /// produced row per UAX #9, so wrapped rows follow the reading order.
+    /// What remains approximate is the in-run cursor mapping documented
+    /// above. Single-row text is unaffected.
     pub glyphs: Vec<Glyph>,
 
     /// Logical size based on font heights etc.
