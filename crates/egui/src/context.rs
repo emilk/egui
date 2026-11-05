@@ -2609,7 +2609,17 @@ impl Context {
     /// ctx.set_theme(egui::Theme::Light); // Switch to light mode
     /// ```
     pub fn set_theme(&self, theme_preference: impl Into<crate::ThemePreference>) {
-        self.options_mut(|opt| opt.theme_preference = theme_preference.into());
+        let theme_preference = theme_preference.into();
+        let cause = RepaintCause::new();
+        self.write(|ctx| {
+            if ctx.memory.options.theme_preference != theme_preference {
+                ctx.memory.options.theme_preference = theme_preference;
+                #[expect(clippy::iter_over_hash_type)]
+                for viewport_id in ctx.all_viewport_ids() {
+                    ctx.request_repaint(viewport_id, cause.clone());
+                }
+            }
+        });
     }
 
     /// Draw the interface right-to-left in **all** theme styles,
@@ -2628,7 +2638,18 @@ impl Context {
     /// assert!(ctx.is_rtl());
     /// ```
     pub fn set_right_to_left(&self, right_to_left: bool) {
-        self.all_styles_mut(|style| style.right_to_left = right_to_left);
+        let cause = RepaintCause::new();
+        self.write(|ctx| {
+            if ctx.memory.options.style().right_to_left != right_to_left {
+                let options = &mut ctx.memory.options;
+                Arc::make_mut(&mut options.dark_style).right_to_left = right_to_left;
+                Arc::make_mut(&mut options.light_style).right_to_left = right_to_left;
+                #[expect(clippy::iter_over_hash_type)]
+                for viewport_id in ctx.all_viewport_ids() {
+                    ctx.request_repaint(viewport_id, cause.clone());
+                }
+            }
+        });
     }
 
     /// Is the interface drawn right-to-left?
