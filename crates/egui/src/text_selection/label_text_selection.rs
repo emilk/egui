@@ -18,6 +18,11 @@ use super::{
 /// Turn on to help debug this
 const DEBUG: bool = false; // Don't merge `true`!
 
+/// Slack for comparing stored screen positions and galley rects across
+/// widgets: wide enough to absorb float slop (and to treat touching rects as
+/// stacked), narrow enough to keep distinct rows apart.
+const ROW_EPSILON: f32 = 1.0;
+
 /// One end of a text selection, inside any widget.
 #[derive(Clone, Copy)]
 struct WidgetTextCursor {
@@ -47,6 +52,64 @@ impl WidgetTextCursor {
 
 fn pos_in_galley(galley: &Galley, ccursor: CCursor) -> Pos2 {
     galley.pos_from_cursor(ccursor).center()
+}
+
+/// Is `a` reading-before `b` — i.e. is `a`'s last known screen position
+/// reading-before `b`'s?
+///
+/// Decided from the two endpoints' stored screen positions: clearly above
+/// reads first (direction-neutral), and on the same visual row band the x
+/// comparison is signed by the reading direction of the *processed* galley
+/// (`sign = 1.0` reduces this to the raw-x compare, i.e. the LTR behavior).
+/// Cross-widget same-band comparisons use the processed widget's paragraph
+/// direction, which is approximate for rows of mixed direction — the same
+/// stance the epaint cursor mapping takes (see `Row` there).
+///
+/// Returns `None` when the geometry is inconclusive — equal positions within
+/// the epsilon, e.g. on the first frame before the other endpoint's widget
+/// was laid out — so the caller can fall back to the layout-encounter-order
+/// flags.
+fn reads_before(a: &WidgetTextCursor, b: &WidgetTextCursor, rtl: bool) -> Option<bool> {
+    if a.pos.y <= b.pos.y - ROW_EPSILON {
+        // `a` is clearly above `b`, so it reads first either way:
+        Some(true)
+    } else if b.pos.y <= a.pos.y - ROW_EPSILON {
+        // `a` is clearly below `b`:
+        Some(false)
+    } else {
+        // Same visual row band: decide by x, signed by the reading direction.
+        let sign: f32 = if rtl { -1.0 } else { 1.0 };
+        let dx = b.pos.x - a.pos.x;
+        (dx.abs() > ROW_EPSILON).then_some(sign * dx > 0.0)
+    }
+}
+
+/// Is the pointer on the reading-after side of the granular anchor?
+///
+/// Below the anchor's row is always reading-after (direction-neutral). On the
+/// anchor's row band, the x comparison is signed by the anchor's reading
+/// direction: with `sign = 1.0` this is term-for-term the raw-x compare
+/// `anchor_max.pos.x <= pointer_pos.x`, i.e. the LTR behavior. The paragraph
+/// direction is used, not the run-local one — approximate for mixed-direction
+/// rows, the same stance the epaint cursor mapping takes (see `Row` there).
+fn granular_is_after_anchor(
+    anchor_min_pos: Pos2,
+    anchor_max_pos: Pos2,
+    pointer_pos: Pos2,
+    anchor_rtl: bool,
+) -> bool {
+    if anchor_max_pos.y < pointer_pos.y {
+        // Below the anchor's row: reading-after either way.
+        true
+    } else if anchor_min_pos.y <= pointer_pos.y {
+        // On the anchor's row band: decide by x, signed by the anchor's
+        // reading direction.
+        let sign: f32 = if anchor_rtl { -1.0 } else { 1.0 };
+        sign * (pointer_pos.x - anchor_max_pos.x) >= 0.0
+    } else {
+        // Above the anchor's row: reading-before.
+        false
+    }
 }
 
 impl core::fmt::Debug for WidgetTextCursor {
@@ -79,6 +142,14 @@ struct GranularDrag {
 
     /// End of the word/line that was initially clicked.
     anchor_max: WidgetTextCursor,
+
+    /// Does the anchor word/line read right-to-left?
+    ///
+    /// Captured where the anchor is created (inside the anchor's widget),
+    /// because the drag may leave that widget: while the pointer is over
+    /// another widget, the current galley belongs to the hovered widget, not
+    /// to the anchor.
+    anchor_rtl: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -363,14 +434,61 @@ impl ViewportLabelSelectionState {
 
         // We need to append or prepend the new text to the already copied text.
         // We need to do so intelligently.
+        //
+        // Classify the new galley against the last copied one the way the
+        // fill branches order the endpoints: below reads after (append,
+        // unchanged), above reads before (prepend), and on the same row band
+        // the x comparison is signed by the galley's reading direction. When
+        // the geometry is inconclusive, fall back to the encounter order
+        // (append), like the fills do.
 
         if last_copied_galley_rect.bottom() <= new_galley_rect.top() {
+            // The new galley is below the last copied one, so it reads after
+            // it (top-down reading):
             self.text_to_copy.push('\n');
             let vertical_distance = new_galley_rect.top() - last_copied_galley_rect.bottom();
             if estimate_row_height(galley) * 0.5 < vertical_distance {
                 self.text_to_copy.push('\n');
             }
+            self.text_to_copy.push_str(&new_text);
+        } else if new_galley_rect.bottom() <= last_copied_galley_rect.top() + ROW_EPSILON {
+            // The new galley is entirely above the last copied one, so it
+            // reads before it: prepend — the mirror of the case above, with
+            // the mirrored newline logic (encounter order is not always
+            // top-down order, e.g. in bottom-anchored layouts):
+            let vertical_distance = last_copied_galley_rect.top() - new_galley_rect.bottom();
+            let newlines = if estimate_row_height(galley) * 0.5 < vertical_distance {
+                "\n\n"
+            } else {
+                "\n"
+            };
+            self.text_to_copy = format!("{new_text}{newlines}{}", self.text_to_copy);
+        } else if galley.is_rtl()
+            && new_galley_rect.left() >= last_copied_galley_rect.right() - ROW_EPSILON
+        {
+            // Same row band, horizontally disjoint: under a right-to-left
+            // reading direction the new galley sits to the right of the last
+            // copied one, so it reads before it: prepend, joining at the new
+            // boundary — the new text's trailing char against the existing
+            // text's leading char (the mirror of the append rule below):
+            let new_ends_with_space = new_text.chars().last().map(|c| c.is_whitespace());
+
+            let existing_starts_with_space_or_punctuation = self
+                .text_to_copy
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_whitespace() || c.is_ascii_punctuation());
+
+            let mut prepended = new_text;
+            if new_ends_with_space == Some(false) && !existing_starts_with_space_or_punctuation {
+                prepended.push(' ');
+            }
+            prepended.push_str(&self.text_to_copy);
+            self.text_to_copy = prepended;
         } else {
+            // Same row band (or inconclusive geometry): the existing raw-x
+            // append rule, which is the reading order for left-to-right rows
+            // and the fallback for everything else:
             let existing_ends_with_space =
                 self.text_to_copy.chars().last().map(|c| c.is_whitespace());
 
@@ -383,9 +501,9 @@ impl ViewportLabelSelectionState {
             {
                 self.text_to_copy.push(' ');
             }
+            self.text_to_copy.push_str(&new_text);
         }
 
-        self.text_to_copy.push_str(&new_text);
         self.last_copied_galley_rect = Some(new_galley_rect);
     }
 
@@ -458,10 +576,16 @@ impl ViewportLabelSelectionState {
                         Some(range.primary)
                     } else {
                         // The drag has left the anchor's widget.
-                        // Are we before or after the anchor? Decide by screen position:
-                        let after_anchor = granular.anchor_max.pos.y < pointer_pos.y
-                            || (granular.anchor_min.pos.y <= pointer_pos.y
-                                && granular.anchor_max.pos.x <= pointer_pos.x);
+                        // Are we before or after the anchor? Decide by screen position,
+                        // signed by the ANCHOR's reading direction (captured at the
+                        // anchor): the current galley belongs to the widget under the
+                        // pointer, not to the anchor.
+                        let after_anchor = granular_is_after_anchor(
+                            granular.anchor_min.pos,
+                            granular.anchor_max.pos,
+                            pointer_pos,
+                            granular.anchor_rtl,
+                        );
 
                         let unit =
                             select_unit_at(granular.granularity, galley.text(), cursor_at_pointer);
@@ -567,10 +691,18 @@ impl ViewportLabelSelectionState {
 
             (Some(primary), None) => {
                 // This labels contains only the primary cursor.
-                let secondary = if self.has_reached_secondary {
-                    // Secondary was before primary.
+                //
+                // Pick the half to select from the stored reading order of the
+                // two endpoints, falling back to the layout-encounter-order
+                // flags when the stored geometry is inconclusive (e.g. the
+                // first frame, before the other endpoint's widget was laid
+                // out):
+                let secondary_first =
+                    reads_before(&selection.secondary, &selection.primary, galley.is_rtl())
+                        .unwrap_or(self.has_reached_secondary);
+                let secondary = if secondary_first {
+                    // The secondary reads before the primary.
                     // Select everything up to the cursor.
-                    // We assume normal left-to-right and top-down layout order here.
                     galley.begin()
                 } else {
                     // Select everything from the cursor onward:
@@ -585,10 +717,18 @@ impl ViewportLabelSelectionState {
 
             (None, Some(secondary)) => {
                 // This labels contains only the secondary cursor
-                let primary = if self.has_reached_primary {
-                    // Primary was before secondary.
+                //
+                // Pick the half to select from the stored reading order of the
+                // two endpoints, falling back to the layout-encounter-order
+                // flags when the stored geometry is inconclusive (e.g. the
+                // first frame, before the other endpoint's widget was laid
+                // out):
+                let primary_first =
+                    reads_before(&selection.primary, &selection.secondary, galley.is_rtl())
+                        .unwrap_or(self.has_reached_primary);
+                let primary = if primary_first {
+                    // The primary reads before the secondary.
                     // Select everything up to the cursor.
-                    // We assume normal left-to-right and top-down layout order here.
                     galley.begin()
                 } else {
                     // Select everything from the cursor onward:
@@ -706,6 +846,12 @@ impl ViewportLabelSelectionState {
                     granularity: granular.granularity,
                     anchor_min,
                     anchor_max,
+                    // The anchor's reading direction, captured in this widget's galley.
+                    // For a shift-double-click that re-anchors in another widget (above),
+                    // this stores the double-clicked widget's direction rather than the
+                    // true anchor's — the same mixed-direction approximation the cursor
+                    // mapping makes:
+                    anchor_rtl: galley.is_rtl(),
                 });
             }
         }
@@ -940,5 +1086,146 @@ mod tests {
             "the selection must be cleared when its labels disappear from the same viewport"
         );
         output.drop_without_applying_deltas();
+    }
+
+    /// Build a `WidgetTextCursor` at the given screen position.
+    fn cursor_at(x: f32, y: f32) -> WidgetTextCursor {
+        WidgetTextCursor {
+            widget_id: Id::unique("reads_before_test"),
+            ccursor: CCursor::default(),
+            pos: Pos2::new(x, y),
+        }
+    }
+
+    /// `reads_before` decides from stored endpoint geometry: clearly-above
+    /// reads first either way; on the same row band the x compare is signed
+    /// by the reading direction (LTR: smaller x first, RTL: larger x first);
+    /// equal positions are inconclusive so callers fall back.
+    #[test]
+    fn reads_before_table() {
+        // Clearly above / below, direction-neutral:
+        assert_eq!(
+            reads_before(&cursor_at(0.0, 0.0), &cursor_at(500.0, 20.0), false),
+            Some(true)
+        );
+        assert_eq!(
+            reads_before(&cursor_at(0.0, 20.0), &cursor_at(500.0, 0.0), false),
+            Some(false)
+        );
+        assert_eq!(
+            reads_before(&cursor_at(0.0, 0.0), &cursor_at(500.0, 20.0), true),
+            Some(true)
+        );
+
+        // Same row band, left-to-right: smaller x reads first:
+        assert_eq!(
+            reads_before(&cursor_at(10.0, 5.0), &cursor_at(50.0, 5.0), false),
+            Some(true)
+        );
+        assert_eq!(
+            reads_before(&cursor_at(50.0, 5.0), &cursor_at(10.0, 5.0), false),
+            Some(false)
+        );
+
+        // Same row band, right-to-left: larger x reads first:
+        assert_eq!(
+            reads_before(&cursor_at(50.0, 5.0), &cursor_at(10.0, 5.0), true),
+            Some(true)
+        );
+        assert_eq!(
+            reads_before(&cursor_at(10.0, 5.0), &cursor_at(50.0, 5.0), true),
+            Some(false)
+        );
+
+        // Equal positions are inconclusive (the caller falls back):
+        assert_eq!(
+            reads_before(&cursor_at(20.0, 5.0), &cursor_at(20.0, 5.0), false),
+            None
+        );
+        assert_eq!(
+            reads_before(&cursor_at(20.0, 5.0), &cursor_at(20.0, 5.0), true),
+            None
+        );
+    }
+
+    /// `granular_is_after_anchor` signs the same-band x compare with the
+    /// anchor's reading direction (below the anchor's row always reads after;
+    /// exactly at the anchor's reading-end edge counts as after).
+    #[test]
+    fn granular_is_after_anchor_table() {
+        // An RTL row's anchor word: reading start on the right (x = 90), its
+        // reading end to the left (x = 40):
+        let anchor_min = Pos2::new(90.0, 5.0);
+        let anchor_max = Pos2::new(40.0, 5.0);
+
+        // On the anchor's row band, an RTL anchor reads after toward smaller x:
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(20.0, 5.0),
+            true
+        ));
+        assert!(!granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(60.0, 5.0),
+            true
+        ));
+
+        // The same geometry with an LTR anchor reads before toward smaller x:
+        assert!(!granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(20.0, 5.0),
+            false
+        ));
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(60.0, 5.0),
+            false
+        ));
+
+        // Below the anchor's row is reading-after either way:
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(20.0, 40.0),
+            false
+        ));
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(20.0, 40.0),
+            true
+        ));
+
+        // Exactly at the anchor's reading-end edge counts as after (>= 0):
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(40.0, 5.0),
+            true
+        ));
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(40.0, 5.0),
+            false
+        ));
+
+        // Above the anchor's row is reading-before either way:
+        assert!(!granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(60.0, -40.0),
+            false
+        ));
+        assert!(!granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(60.0, -40.0),
+            true
+        ));
     }
 }
