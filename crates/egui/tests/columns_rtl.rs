@@ -9,7 +9,7 @@
 //! as the LTR-unchanged regression. No snapshot assertions; column geometry
 //! only. Covers both [`egui::Ui::columns`] and [`egui::Ui::columns_const`].
 
-use egui::{CentralPanel, Context, Pos2, RawInput, Rect, Ui, Vec2, vec2};
+use egui::{Align, CentralPanel, Context, Layout, Pos2, RawInput, Rect, Sense, Ui, Vec2, vec2};
 
 const SCREEN: Vec2 = vec2(600.0, 400.0);
 const NUM_COLUMNS: usize = 3;
@@ -183,4 +183,131 @@ fn columns_order_is_mirrored_between_directions() {
             "column {i}: mirrored rtl column ({r:?}) matches ltr column ({l:?})"
         );
     }
+}
+
+/// The region for the overflow scenario: 100 pt wide, so `NUM_COLUMNS`
+/// columns claiming 60 pt each (plus spacing) cannot fit inside it.
+const NARROW_REGION: Vec2 = vec2(100.0, 60.0);
+
+/// The region for the fit-case pin: 200 pt wide, so the default columns fit
+/// exactly (available width == total required width).
+const FIT_REGION: Vec2 = vec2(200.0, 60.0);
+
+/// A 10 x 10 content widget for the columns' cells.
+const CELL: Vec2 = vec2(10.0, 10.0);
+
+/// One pass: a central panel containing a `region`-sized region whose contents
+/// split into `NUM_COLUMNS` columns, each optionally claiming 60 pt of width
+/// (overflowing the 100 pt region). Returns the region's max rect and the
+/// advance rect the columns reported back to the parent (the region's
+/// response rect, which the parent's cursor advance folded in).
+fn columns_advance_rect(rtl: bool, claim: bool, region_size: Vec2) -> (Rect, Rect) {
+    let ctx = Context::default();
+    if rtl {
+        ctx.set_right_to_left(true);
+    }
+    let mut region = Rect::NOTHING;
+    let mut response = Rect::NOTHING;
+    run(&ctx, input(SCREEN), |ui| {
+        CentralPanel::default().show(ui, |ui| {
+            let inner = ui
+                .allocate_ui_with_layout(region_size, Layout::top_down(Align::Min), |ui| {
+                    region = ui.max_rect();
+                    ui.columns(NUM_COLUMNS, |cols| {
+                        for col in cols.iter_mut() {
+                            if claim {
+                                col.set_min_width(60.0);
+                            }
+                            col.allocate_exact_size(CELL, Sense::hover());
+                        }
+                    });
+                })
+                .response;
+            response = inner.rect;
+        });
+    });
+    (region, response)
+}
+
+/// On overflow the columns' advance rect anchors at the reading-start edge:
+/// under RTL it hugs the region's right edge and spills past the reading end
+/// (left), instead of growing rightward from the region's left edge and
+/// pushing the parent's measured span past the reading start.
+#[test]
+fn columns_overflow_advance_rect_anchors_at_reading_start() {
+    let (region, response) = columns_advance_rect(true, true, NARROW_REGION);
+    assert!(
+        (response.right() - region.right()).abs() <= TOL,
+        "rtl overflow: the advance rect must hug the reading-start (right) \
+         edge, got {response:?} in {region:?}"
+    );
+    assert!(
+        response.left() < region.left() - TOL,
+        "rtl overflow: the advance rect must spill past the reading end \
+         (left), got {response:?} in {region:?}"
+    );
+}
+
+/// LTR twin: unchanged — on overflow the advance rect hugs the region's left
+/// edge and spills rightward, exactly as before.
+#[test]
+fn columns_overflow_advance_rect_ltr_unchanged() {
+    let (region, response) = columns_advance_rect(false, true, NARROW_REGION);
+    assert!(
+        (response.left() - region.left()).abs() <= TOL,
+        "ltr overflow: the advance rect must hug the left edge, got \
+         {response:?} in {region:?}"
+    );
+    assert!(
+        response.right() > region.right() + TOL,
+        "ltr overflow: the advance rect must spill rightward, got \
+         {response:?} in {region:?}"
+    );
+}
+
+/// Fit-case pin: when the columns fit a fresh region (cursor width ==
+/// available width == total required width), the reading-start anchor
+/// coincides with the old left-anchored rect — only overflow changes.
+#[test]
+fn columns_fit_advance_rect_identical_in_both_directions() {
+    for rtl in [false, true] {
+        let (region, response) = columns_advance_rect(rtl, false, FIT_REGION);
+        assert!(
+            (response.left() - region.left()).abs() <= TOL
+                && (response.right() - region.right()).abs() <= TOL,
+            "fit (rtl={rtl}): the advance rect must span the region exactly, \
+             got {response:?} in {region:?}"
+        );
+    }
+}
+
+/// A `columns` call inside a mirrored (`RightToLeft` main dir) horizontal row
+/// keeps a finite measured width: the old left-anchored advance rect started
+/// at the row's −∞ cursor and poisoned the row's span with an infinite
+/// width in every frame. The reading-start anchor pins it at the row's
+/// finite right edge.
+#[test]
+fn columns_inside_mirrored_horizontal_row_stays_finite() {
+    let ctx = Context::default();
+    ctx.set_right_to_left(true);
+    let mut row = Rect::NOTHING;
+    run(&ctx, input(SCREEN), |ui| {
+        CentralPanel::default().show(ui, |ui| {
+            row = ui
+                .horizontal(|row| {
+                    row.columns(2, |cols| {
+                        for col in cols.iter_mut() {
+                            col.allocate_exact_size(CELL, Sense::hover());
+                        }
+                    });
+                })
+                .response
+                .rect;
+        });
+    });
+    assert!(
+        row.width().is_finite(),
+        "rtl: a mirrored row containing columns must keep a finite measured \
+         width, got {row:?}"
+    );
 }

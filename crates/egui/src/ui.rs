@@ -2928,7 +2928,19 @@ impl Ui {
         let total_required_width = total_spacing + max_column_width * (num_columns as f32);
 
         let size = vec2(self.available_width().max(total_required_width), max_height);
-        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+        // Anchor the advance rect at the reading-start edge: on overflow it
+        // must grow past the reading end (left), mirroring the LTR rect, which
+        // grows rightward from `top_left`. When everything fits a fresh region
+        // the two forms coincide (cursor width == available width == `size.x`).
+        let advance_rect = if rtl {
+            Rect::from_min_max(
+                pos2(cursor.max.x - size.x, top_left.y),
+                pos2(cursor.max.x, top_left.y + size.y),
+            )
+        } else {
+            Rect::from_min_size(top_left, size)
+        };
+        self.advance_cursor_after_rect(advance_rect);
         result
     }
 
@@ -2992,7 +3004,19 @@ impl Ui {
         let total_required_width = total_spacing + max_column_width * (NUM_COL as f32);
 
         let size = vec2(self.available_width().max(total_required_width), max_height);
-        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+        // Anchor the advance rect at the reading-start edge: on overflow it
+        // must grow past the reading end (left), mirroring the LTR rect, which
+        // grows rightward from `top_left`. When everything fits a fresh region
+        // the two forms coincide (cursor width == available width == `size.x`).
+        let advance_rect = if rtl {
+            Rect::from_min_max(
+                pos2(cursor.max.x - size.x, top_left.y),
+                pos2(cursor.max.x, top_left.y + size.y),
+            )
+        } else {
+            Rect::from_min_size(top_left, size)
+        };
+        self.advance_cursor_after_rect(advance_rect);
         result
     }
 
