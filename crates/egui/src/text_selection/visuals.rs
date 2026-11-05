@@ -296,6 +296,16 @@ pub fn paint_cursor_end(painter: &Painter, visuals: &Visuals, cursor_rect: Rect)
 
     painter.line_segment([top, bottom], stroke);
 
+    // The dead roof/floor block below is the natural home for a bidi
+    // caret-affinity indicator, should one ever be wanted: at a mixed-direction
+    // run boundary a single visual edge hosts two logical caret positions
+    // (logical-before vs logical-after), and roof/floor strokes are how such an
+    // affinity choice could be made visible. Landing it first needs an exact
+    // logical↔visual mapping inside runs that counteract the base direction —
+    // i.e. the stored per-row run map documented as not-yet-implemented in
+    // epaint's `Row` (see the epaint commit that made `Row::x_offset`
+    // direction-aware). Visualizing an approximation now would change default
+    // visuals for every user, so the block stays as scaffolded.
     if false {
         // Roof/floor:
         let extrusion = 3.0;
