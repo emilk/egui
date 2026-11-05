@@ -49,6 +49,38 @@ fn pos_in_galley(galley: &Galley, ccursor: CCursor) -> Pos2 {
     galley.pos_from_cursor(ccursor).center()
 }
 
+/// Is `a` reading-before `b` — i.e. is `a`'s last known screen position
+/// reading-before `b`'s?
+///
+/// Decided from the two endpoints' stored screen positions: clearly above
+/// reads first (direction-neutral), and on the same visual row band the x
+/// comparison is signed by the reading direction of the *processed* galley
+/// (`sign = 1.0` reduces this to the raw-x compare, i.e. the LTR behavior).
+/// Cross-widget same-band comparisons use the processed widget's paragraph
+/// direction, which is approximate for rows of mixed direction — the same
+/// stance the epaint cursor mapping takes (see `Row` there).
+///
+/// Returns `None` when the geometry is inconclusive — equal positions within
+/// the epsilon, e.g. on the first frame before the other endpoint's widget
+/// was laid out — so the caller can fall back to the layout-encounter-order
+/// flags.
+fn reads_before(a: &WidgetTextCursor, b: &WidgetTextCursor, rtl: bool) -> Option<bool> {
+    const ROW_EPSILON: f32 = 1.0;
+
+    if a.pos.y <= b.pos.y - ROW_EPSILON {
+        // `a` is clearly above `b`, so it reads first either way:
+        Some(true)
+    } else if b.pos.y <= a.pos.y - ROW_EPSILON {
+        // `a` is clearly below `b`:
+        Some(false)
+    } else {
+        // Same visual row band: decide by x, signed by the reading direction.
+        let sign: f32 = if rtl { -1.0 } else { 1.0 };
+        let dx = b.pos.x - a.pos.x;
+        (dx.abs() > ROW_EPSILON).then_some(sign * dx > 0.0)
+    }
+}
+
 impl core::fmt::Debug for WidgetTextCursor {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self {
@@ -567,10 +599,18 @@ impl ViewportLabelSelectionState {
 
             (Some(primary), None) => {
                 // This labels contains only the primary cursor.
-                let secondary = if self.has_reached_secondary {
-                    // Secondary was before primary.
+                //
+                // Pick the half to select from the stored reading order of the
+                // two endpoints, falling back to the layout-encounter-order
+                // flags when the stored geometry is inconclusive (e.g. the
+                // first frame, before the other endpoint's widget was laid
+                // out):
+                let secondary_first =
+                    reads_before(&selection.secondary, &selection.primary, galley.is_rtl())
+                        .unwrap_or(self.has_reached_secondary);
+                let secondary = if secondary_first {
+                    // The secondary reads before the primary.
                     // Select everything up to the cursor.
-                    // We assume normal left-to-right and top-down layout order here.
                     galley.begin()
                 } else {
                     // Select everything from the cursor onward:
@@ -585,10 +625,18 @@ impl ViewportLabelSelectionState {
 
             (None, Some(secondary)) => {
                 // This labels contains only the secondary cursor
-                let primary = if self.has_reached_primary {
-                    // Primary was before secondary.
+                //
+                // Pick the half to select from the stored reading order of the
+                // two endpoints, falling back to the layout-encounter-order
+                // flags when the stored geometry is inconclusive (e.g. the
+                // first frame, before the other endpoint's widget was laid
+                // out):
+                let primary_first =
+                    reads_before(&selection.primary, &selection.secondary, galley.is_rtl())
+                        .unwrap_or(self.has_reached_primary);
+                let primary = if primary_first {
+                    // The primary reads before the secondary.
                     // Select everything up to the cursor.
-                    // We assume normal left-to-right and top-down layout order here.
                     galley.begin()
                 } else {
                     // Select everything from the cursor onward:
@@ -940,5 +988,65 @@ mod tests {
             "the selection must be cleared when its labels disappear from the same viewport"
         );
         output.drop_without_applying_deltas();
+    }
+
+    /// Build a `WidgetTextCursor` at the given screen position.
+    fn cursor_at(x: f32, y: f32) -> WidgetTextCursor {
+        WidgetTextCursor {
+            widget_id: Id::unique("reads_before_test"),
+            ccursor: CCursor::default(),
+            pos: Pos2::new(x, y),
+        }
+    }
+
+    /// `reads_before` decides from stored endpoint geometry: clearly-above
+    /// reads first either way; on the same row band the x compare is signed
+    /// by the reading direction (LTR: smaller x first, RTL: larger x first);
+    /// equal positions are inconclusive so callers fall back.
+    #[test]
+    fn reads_before_table() {
+        // Clearly above / below, direction-neutral:
+        assert_eq!(
+            reads_before(&cursor_at(0.0, 0.0), &cursor_at(500.0, 20.0), false),
+            Some(true)
+        );
+        assert_eq!(
+            reads_before(&cursor_at(0.0, 20.0), &cursor_at(500.0, 0.0), false),
+            Some(false)
+        );
+        assert_eq!(
+            reads_before(&cursor_at(0.0, 0.0), &cursor_at(500.0, 20.0), true),
+            Some(true)
+        );
+
+        // Same row band, left-to-right: smaller x reads first:
+        assert_eq!(
+            reads_before(&cursor_at(10.0, 5.0), &cursor_at(50.0, 5.0), false),
+            Some(true)
+        );
+        assert_eq!(
+            reads_before(&cursor_at(50.0, 5.0), &cursor_at(10.0, 5.0), false),
+            Some(false)
+        );
+
+        // Same row band, right-to-left: larger x reads first:
+        assert_eq!(
+            reads_before(&cursor_at(50.0, 5.0), &cursor_at(10.0, 5.0), true),
+            Some(true)
+        );
+        assert_eq!(
+            reads_before(&cursor_at(10.0, 5.0), &cursor_at(50.0, 5.0), true),
+            Some(false)
+        );
+
+        // Equal positions are inconclusive (the caller falls back):
+        assert_eq!(
+            reads_before(&cursor_at(20.0, 5.0), &cursor_at(20.0, 5.0), false),
+            None
+        );
+        assert_eq!(
+            reads_before(&cursor_at(20.0, 5.0), &cursor_at(20.0, 5.0), true),
+            None
+        );
     }
 }
