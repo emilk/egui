@@ -395,3 +395,53 @@ fn carves(rtl: bool) {
     frame(time, vec![pointer_button(pos, false)], &mut open);
     assert!(!open, "the close button should close the window");
 }
+
+/// task-462 `window-title-growth` pin: an auto-sized window with a long
+/// single-text title over a narrow fixed body grows to fit the FULL title in
+/// BOTH directions — the auto-size loop's title-bar `min_width` feedback
+/// converges identically, and the `!auto_sized` shrink gate at the title-bar
+/// atom construction does not apply to auto-sized windows (measured symmetric
+/// at this commit; both directions settle at the full title width). This pins
+/// the shared contract so any future direction asymmetry (one direction
+/// growing, the other truncating to the body) fails here loudly. Passes by
+/// design — a pin, not a fail-before.
+#[test]
+fn auto_sized_title_width_contract_is_direction_symmetric() {
+    fn settled_width(rtl: bool) -> f32 {
+        let ctx = Context::default();
+        ctx.set_right_to_left(rtl);
+        let id = Id::unique("window-title-rtl-growth");
+        let mut width = 0.0;
+        for frame in 0..5 {
+            let output = run(&ctx, frame as f64, vec![], |ui| {
+                Window::new("probe-row-window")
+                    .id(id)
+                    .auto_sized()
+                    .fixed_pos(pos2(300.0, 60.0))
+                    .show(ui, |ui| {
+                        ui.set_min_size(vec2(80.0, 30.0));
+                    });
+            });
+            if frame >= 2 {
+                width = window_rect(&output)
+                    .expect("the window should be painted")
+                    .width();
+            }
+        }
+        width
+    }
+
+    let (rtl, ltr) = (settled_width(true), settled_width(false));
+    for (rtl_flag, width) in [(true, rtl), (false, ltr)] {
+        assert!(
+            width > 250.0,
+            "rtl: {rtl_flag}: the auto-sized window should grow past the narrow \
+             80 px body to fit its full title (settled width {width})"
+        );
+    }
+    assert!(
+        (rtl - ltr).abs() <= 1.0,
+        "the auto-sized title width contract should be direction-symmetric \
+         (rtl {rtl}, ltr {ltr})"
+    );
+}

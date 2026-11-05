@@ -1494,6 +1494,10 @@ fn title_ui(
         title.reverse();
     }
 
+    // Only a window with a fixed width has something to truncate its title
+    // against; an auto-sized window instead grows to fit its full title (the
+    // auto-size `min_width` feedback below), symmetrically in both reading
+    // directions.
     if !auto_sized
         && !title.any_shrink()
         && let Some(first_text) = title
