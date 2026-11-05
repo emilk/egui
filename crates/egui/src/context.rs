@@ -2762,6 +2762,14 @@ impl Context {
     /// Widgets stamp this onto their text [`LayoutJob`]s so that
     /// line-breaking and shaping can be locale-aware.
     ///
+    /// Setting the same language again does nothing (no store, no repaint),
+    /// so per-frame callers are safe.
+    ///
+    /// The language is temp state: it is **not persisted between runs**, so
+    /// set it at startup. For persistence of the derived direction see
+    /// [`Options::direction_preference`]; for one call that sets the language
+    /// *and* derives the direction, see [`Self::set_locale`].
+    ///
     /// Takes effect from the next frame (galleys re-layout because the cache key changed).
     ///
     /// Example:
@@ -2772,8 +2780,43 @@ impl Context {
     /// assert_eq!(ctx.language(), Some("ar-EG".to_owned()));
     /// ```
     pub fn set_language(&self, language: impl Into<String>) {
-        self.data_mut(|data| data.insert_temp(language_id(), language.into()));
+        let language = language.into();
+        if self.language().as_deref() == Some(language.as_str()) {
+            return;
+        }
+        self.data_mut(|data| data.insert_temp(language_id(), language));
         self.request_repaint();
+    }
+
+    /// The combined locale entry point: sets the UI language *and* derives the
+    /// reading direction from it in one call.
+    ///
+    /// For `"ar-EG"` this switches the text language to Arabic (Egypt) *and*
+    /// mirrors the interface right-to-left (see [`Self::set_right_to_left`]);
+    /// for `"en-US"` both resolve left-to-right. The direction is derived from
+    /// the locale's primary language subtag; apps with their own direction
+    /// policy should keep using the two finer-grained setters,
+    /// [`Self::set_language`] and [`Self::set_right_to_left`].
+    ///
+    /// Like [`Self::set_right_to_left`], this records an explicit direction
+    /// preference (which persists between runs with the `persistence`
+    /// feature). Both underlying writes are guarded on the value, so per-frame
+    /// callers are safe.
+    ///
+    /// The language itself is still temp state (see [`Self::set_language`]).
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.set_locale("he-IL");
+    /// assert_eq!(ctx.language(), Some("he-IL".to_owned()));
+    /// assert!(ctx.is_rtl());
+    /// ```
+    pub fn set_locale(&self, locale: impl Into<String>) {
+        let locale = locale.into();
+        let rtl = crate::locale::locale_direction(&locale).is_rtl();
+        self.set_language(locale);
+        self.set_right_to_left(rtl);
     }
 
     /// The language text should be laid out in, as a BCP 47 tag, or `None` if not set.

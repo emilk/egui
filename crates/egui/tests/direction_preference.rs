@@ -38,6 +38,17 @@ fn watch(ctx: &Context) -> Log {
     log
 }
 
+/// Like `watch`, but on the repaint observer, which sees *every* request —
+/// including ones the come-sooner callback suppresses.
+fn observe(ctx: &Context) -> Log {
+    let log: Log = Arc::new(Mutex::new(Vec::new()));
+    let sink = Arc::clone(&log);
+    ctx.set_repaint_observer(move |info| {
+        sink.lock().push(info);
+    });
+    log
+}
+
 /// A reported RTL locale bootstraps the direction while the preference is
 /// `System`, an LTR locale resolves left-to-right, and a mid-run locale flip
 /// follows on the next frame.
@@ -159,4 +170,43 @@ fn direction_preference_survives_a_persistence_round_trip() {
         ctx.is_rtl(),
         "the restored preference should be re-applied against the reported locale"
     );
+}
+
+/// One call sets the language and derives the direction from the locale tag.
+#[test]
+fn set_locale_derives_language_and_direction() {
+    let ctx = Context::default();
+    ctx.set_locale("he-IL");
+    assert_eq!(ctx.language(), Some("he-IL".to_owned()));
+    assert!(ctx.is_rtl());
+
+    let ctx = Context::default();
+    ctx.set_locale("en-US");
+    assert_eq!(ctx.language(), Some("en-US".to_owned()));
+    assert!(!ctx.is_rtl());
+}
+
+/// Per-frame language callers stop repainting every frame: a same-value
+/// `set_language` (and, through it, `set_locale`) requests no repaint at all.
+///
+/// The repaint *observer* is used, not the come-sooner callback: it sees
+/// every request, which is what "repaints every frame" means for an
+/// integration's wake-up accounting.
+#[test]
+fn set_language_with_the_same_value_does_not_repaint() {
+    let ctx = Context::default();
+    let log = observe(&ctx);
+
+    ctx.set_locale("ar-EG"); // the actual change: language + direction
+    assert!(!log.lock().is_empty(), "the change itself must repaint");
+
+    for frame in 0..5u64 {
+        log.lock().clear();
+        ctx.set_language("ar-EG"); // same value
+        ctx.set_locale("ar-EG"); // same value through the combined setter
+        assert!(
+            log.lock().is_empty(),
+            "frame {frame}: same-value language writes must not request a repaint"
+        );
+    }
 }
