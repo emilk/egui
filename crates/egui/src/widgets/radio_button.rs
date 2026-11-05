@@ -87,7 +87,9 @@ impl Widget for RadioButton<'_> {
             let response = prepared.paint(ui);
 
             if let Some(rect) = response.rect(rect_id) {
-                let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
+                let (small_icon_rect, big_icon_rect) = ui
+                    .spacing()
+                    .icon_rectangles_reading_start(rect, ui.is_rtl());
 
                 let painter = ui.painter();
 

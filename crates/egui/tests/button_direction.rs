@@ -478,3 +478,62 @@ fn window(open: &mut bool) -> Window<'_> {
         .collapsible(false)
         .resizable(false)
 }
+
+/// The radio icon's circle sits exactly mirrored with the interface direction:
+/// its distance from the widget's reading-start edge is the same in a
+/// left-to-right row (from the left edge) as in a right-to-left row (from the
+/// right edge), with the interface flag on and off. The icon atom is exactly
+/// `icon_width` wide, so both anchors of [`egui::Spacing::icon_rectangles`]
+/// coincide — this pins the painted position that the
+/// `icon_rectangles_reading_start` migration must not move.
+#[test]
+fn radio_icon_circle_is_mirrored_exactly_with_the_direction() {
+    for flag in [false, true] {
+        let ctx = Context::default();
+        if flag {
+            ctx.set_right_to_left(true);
+        }
+        let mut ltr_widget = Rect::NOTHING;
+        let mut rtl_widget = Rect::NOTHING;
+        let output = run(&ctx, input(vec2(200.0, 100.0)), |ui| {
+            ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                ltr_widget = ui.add(RadioButton::new(false, "")).rect;
+            });
+            ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+                rtl_widget = ui.add(RadioButton::new(false, "")).rect;
+            });
+        });
+
+        let circles: Vec<Pos2> = output
+            .shapes
+            .iter()
+            .filter_map(|clipped| match &clipped.shape {
+                Shape::Circle(circle) => Some(circle.center),
+                _ => None,
+            })
+            .collect();
+        let circle_in = |widget: Rect| {
+            circles
+                .iter()
+                .copied()
+                .find(|center| widget.contains(*center))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "expected a radio circle inside {widget:?}, got {circles:?} \
+                         (flag = {flag})"
+                    )
+                })
+        };
+        let ltr_circle = circle_in(ltr_widget);
+        let rtl_circle = circle_in(rtl_widget);
+
+        let ltr_dist = ltr_circle.x - ltr_widget.left();
+        let rtl_dist = rtl_widget.right() - rtl_circle.x;
+        assert!(
+            (ltr_dist - rtl_dist).abs() <= 0.5,
+            "the radio circle must sit at the mirrored reading-start anchor \
+             (flag = {flag}: ltr circle {ltr_circle:?} in {ltr_widget:?}, \
+             rtl circle {rtl_circle:?} in {rtl_widget:?})"
+        );
+    }
+}

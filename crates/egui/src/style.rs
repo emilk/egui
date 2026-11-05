@@ -475,11 +475,36 @@ pub struct Spacing {
 }
 
 impl Spacing {
-    /// Returns small icon rectangle and big icon rectangle
+    /// Returns small icon rectangle and big icon rectangle.
+    ///
+    /// Anchors at the physical left edge of `rect`; see
+    /// [`Self::icon_rectangles_reading_start`] for the direction-aware variant.
     pub fn icon_rectangles(&self, rect: Rect) -> (Rect, Rect) {
         let icon_width = self.icon_width;
         let big_icon_rect = Rect::from_center_size(
             pos2(rect.left() + icon_width * 0.5, rect.center().y),
+            vec2(icon_width, icon_width),
+        );
+
+        let small_icon_rect =
+            Rect::from_center_size(big_icon_rect.center(), Vec2::splat(self.icon_width_inner));
+
+        (small_icon_rect, big_icon_rect)
+    }
+
+    /// [`Self::icon_rectangles`] anchored at the reading-start edge of `rect`:
+    /// identical in left-to-right interfaces; mirrored to `rect.right() - icon_width/2`
+    /// when `rtl` is set. Prefer this over [`Self::icon_rectangles`], whose anchor is
+    /// the physical left edge.
+    pub fn icon_rectangles_reading_start(&self, rect: Rect, rtl: bool) -> (Rect, Rect) {
+        let icon_width = self.icon_width;
+        let anchor_x = if rtl {
+            rect.right() - icon_width * 0.5
+        } else {
+            rect.left() + icon_width * 0.5
+        };
+        let big_icon_rect = Rect::from_center_size(
+            pos2(anchor_x, rect.center().y),
             vec2(icon_width, icon_width),
         );
 
@@ -3310,5 +3335,64 @@ pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAx
 impl Widget for &mut FontTweak {
     fn ui(self, ui: &mut Ui) -> Response {
         font_tweak_ui(ui, self, &[])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use emath::{Pos2, Rect, Vec2, pos2};
+
+    use super::Spacing;
+
+    /// A helper cell rect and the spacing the icon helpers read their sizes from.
+    fn fixture() -> (Rect, Spacing) {
+        let rect = Rect::from_min_size(pos2(100.0, 50.0), Vec2::splat(40.0));
+        (rect, Spacing::default())
+    }
+
+    /// The reading-start variant is identical to `icon_rectangles` in a
+    /// left-to-right interface.
+    #[test]
+    fn icon_rectangles_reading_start_matches_ltr_anchor() {
+        let (rect, spacing) = fixture();
+        assert_eq!(
+            spacing.icon_rectangles_reading_start(rect, false),
+            spacing.icon_rectangles(rect),
+            "the reading-start anchor is the physical left edge in a left-to-right \
+             interface"
+        );
+    }
+
+    /// Under a right-to-left interface the anchor mirrors to the right edge; the
+    /// icon keeps its size and vertical position.
+    #[test]
+    fn icon_rectangles_reading_start_mirrors_in_rtl() {
+        let (rect, spacing) = fixture();
+        let (small, big) = spacing.icon_rectangles_reading_start(rect, true);
+        assert!(
+            (big.center().x - (rect.right() - spacing.icon_width * 0.5)).abs() < 1e-5,
+            "the big icon center should sit at right - icon_width/2, got {:?}",
+            big.center()
+        );
+        assert_eq!(big.size(), Vec2::splat(spacing.icon_width));
+        assert!((big.center().y - rect.center().y).abs() < 1e-5);
+        assert_eq!(
+            small.center(),
+            big.center(),
+            "the small icon stays concentric"
+        );
+    }
+
+    /// The small icon is concentric with the big icon in both directions.
+    #[test]
+    fn icon_rectangles_small_icon_is_concentric() {
+        let (rect, spacing) = fixture();
+        for rtl in [false, true] {
+            let (small, big) = spacing.icon_rectangles_reading_start(rect, rtl);
+            assert_eq!(small.center(), big.center(), "rtl = {rtl}");
+            assert_eq!(small.size(), Vec2::splat(spacing.icon_width_inner));
+        }
+        let (_, big_ltr) = spacing.icon_rectangles(rect);
+        assert_eq!(big_ltr.center(), Pos2::new(100.0 + 7.0, 70.0));
     }
 }
