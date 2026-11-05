@@ -85,6 +85,20 @@ impl TestMenu {
                 self,
             )
     }
+
+    /// [`Self::into_harness`] with mirrored chrome (an RTL UI).
+    fn into_rtl_harness(self) -> Harness<'static, Self> {
+        Harness::builder()
+            .with_right_to_left(true)
+            .with_size(egui::Vec2::new(500.0, 300.0))
+            .build_ui_state(
+                |ui, menu| {
+                    egui_extras::install_image_loaders(ui.ctx());
+                    menu.ui(ui);
+                },
+                self,
+            )
+    }
 }
 
 #[test]
@@ -268,6 +282,91 @@ fn menu_snapshots() {
     results.add(harness.try_snapshot("menu/subsubmenu"));
 }
 
+#[cfg(feature = "snapshot")]
+#[test]
+fn menu_snapshots_rtl() {
+    // RTL twin of [`menu_snapshots`]: same menus, mirrored chrome. The Latin
+    // labels keep the snapshots deterministic on the bundled fonts.
+    let mut harness = TestMenu::new(MenuConfig::new()).into_rtl_harness();
+
+    let mut results = egui_kittest::SnapshotResults::new();
+
+    harness.get_by_label("Menu A").hover();
+    harness.run();
+    results.add(harness.try_snapshot("menu_rtl/closed_hovered"));
+
+    harness.get_by_label("Menu A").click();
+    harness.run();
+    results.add(harness.try_snapshot("menu_rtl/opened"));
+
+    harness
+        .get_by_label_contains("Submenu C (CloseOnClickOutside)")
+        .hover();
+    harness.run();
+    results.add(harness.try_snapshot("menu_rtl/submenu"));
+
+    harness.get_by_label_contains("Submenu D").hover();
+    harness.run();
+    results.add(harness.try_snapshot("menu_rtl/subsubmenu"));
+}
+
+/// RTL twin of [`submenu_respects_custom_style`].
+#[test]
+fn submenu_style_rtl() {
+    const FILL: egui::Color32 = egui::Color32::from_rgb(123, 45, 67);
+    const CORNER_RADIUS: egui::CornerRadius = egui::CornerRadius::same(13);
+    const STROKE: egui::Stroke = egui::Stroke {
+        width: 3.0,
+        color: egui::Color32::GREEN,
+    };
+
+    let mut harness = Harness::builder()
+        .with_right_to_left(true)
+        .with_size(egui::vec2(500.0, 300.0))
+        .build_ui(|ui| {
+            MenuBar::new().ui(ui, |ui| {
+                ui.menu_button("Menu", |ui| {
+                    SubMenuButton::new("Styled submenu")
+                        .config(MenuConfig::new().style(|style: &mut egui::Style| {
+                            style.visuals.window_fill = FILL;
+                            style.visuals.window_stroke = STROKE;
+                            style.visuals.menu_corner_radius = CORNER_RADIUS;
+                        }))
+                        .ui(ui, |ui| {
+                            assert_eq!(ui.visuals().window_fill(), FILL);
+                            ui.label("I should have a thick green outline and red fill");
+                            ui.menu_button("Sub-submenu", |ui| {
+                                assert_eq!(ui.visuals().window_fill(), FILL);
+                                ui.label("I should inherit the style");
+                            });
+                        });
+                });
+            });
+        });
+
+    harness.get_by_label("Menu").click();
+    harness.run();
+    harness.get_by_label_contains("Styled submenu").hover();
+    harness.run();
+    assert!(
+        harness
+            .query_by_label("I should have a thick green outline and red fill")
+            .is_some()
+    );
+    harness.get_by_label_contains("Sub-submenu").hover();
+    harness.run();
+    assert!(
+        harness
+            .query_by_label("I should inherit the style")
+            .is_some()
+    );
+
+    harness.fit_contents();
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    harness.snapshot("submenu_style_rtl");
+}
+
 #[test]
 fn submenu_respects_custom_style() {
     const FILL: egui::Color32 = egui::Color32::from_rgb(123, 45, 67);
@@ -319,5 +418,6 @@ fn submenu_respects_custom_style() {
 
     harness.fit_contents();
 
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
     harness.snapshot("submenu_style");
 }

@@ -336,7 +336,7 @@ fn submenu_in_other_containers() {
 fn navigation_menu(context_menu: bool, rtl: bool) -> Harness<'static, Vec<String>> {
     Harness::builder()
         .with_size(egui::vec2(500.0, 400.0))
-        .with_context_setup(move |ctx| ctx.set_right_to_left(rtl))
+        .with_right_to_left(rtl)
         .build_ui_state(
             move |ui, gained: &mut Vec<String>| {
                 for row in 0..12 {

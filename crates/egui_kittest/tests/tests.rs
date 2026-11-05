@@ -219,6 +219,111 @@ fn test_remove_cursor() {
     );
 }
 
+/// RTL twins of the snapshot tests above: same Latin labels and widget set,
+/// mirrored chrome. Latin labels keep these snapshots deterministic on the
+/// bundled fonts, under the same pinned defaults (os `OperatingSystem::Nix`,
+/// ppi 1.0) and the same os-threshold contract as the LTR snapshots.
+
+#[test]
+fn test_shrink_rtl() {
+    let mut harness = Harness::builder().with_right_to_left(true).build_ui(|ui| {
+        ui.label("Hello, world!");
+        ui.separator();
+        ui.label("This is a test");
+    });
+
+    harness.fit_contents();
+
+    #[cfg(all(feature = "snapshot", feature = "wgpu"))]
+    harness.snapshot("test_shrink_rtl");
+}
+
+#[test]
+fn test_tooltip_rtl() {
+    let mut harness = Harness::builder().with_right_to_left(true).build_ui(|ui| {
+        ui.label("Hello, world!");
+        ui.separator();
+        ui.label("This is a test")
+            .on_hover_text("This\nis\na\nvery\ntall\ntooltip!");
+    });
+
+    harness.fit_contents();
+
+    #[cfg(all(feature = "snapshot", feature = "wgpu"))]
+    harness.snapshot("test_tooltip_hidden_rtl");
+
+    harness.get_by_label("This is a test").hover();
+    harness.run_ok();
+    harness.fit_contents();
+
+    #[cfg(all(feature = "snapshot", feature = "wgpu"))]
+    harness.snapshot("test_tooltip_shown_rtl");
+}
+
+#[cfg(feature = "snapshot")]
+#[test]
+fn test_scroll_rtl() {
+    let mut harness = Harness::builder()
+        .with_right_to_left(true)
+        .with_size(Vec2::new(100.0, 200.0))
+        .build_ui_state(
+            |ui, state| {
+                ScrollArea::vertical().show(ui, |ui| {
+                    for i in 0..20 {
+                        ui.label(format!("Item {i}"));
+                    }
+                    if ui.button("Hidden Button").clicked() {
+                        *state = true;
+                    }
+                });
+            },
+            false,
+        );
+
+    let mut results = SnapshotResults::new();
+
+    results.add(harness.try_snapshot("test_scroll_initial_rtl"));
+
+    harness.get_by_label("Hidden Button").scroll_to_me();
+
+    harness.run();
+    results.add(harness.try_snapshot("test_scroll_scrolled_rtl"));
+}
+
+/// A button, a checkbox and a radio under mirrored chrome.
+#[test]
+fn test_button_checkbox_rtl() {
+    let mut harness = Harness::builder().with_right_to_left(true).build_ui(|ui| {
+        _ = ui.button("Button");
+        let mut checked = true;
+        ui.checkbox(&mut checked, "Checkbox");
+        ui.radio(true, "Radio");
+    });
+
+    harness.fit_contents();
+
+    #[cfg(all(feature = "snapshot", feature = "wgpu"))]
+    harness.snapshot("test_button_checkbox_rtl");
+}
+
+/// A `TextEdit` with Latin text under mirrored chrome.
+#[test]
+fn test_text_edit_latin_rtl() {
+    let mut text = "Hello, world!".to_owned();
+    let mut harness = Harness::builder().with_right_to_left(true).build_ui(|ui| {
+        ui.add(
+            egui::TextEdit::singleline(&mut text)
+                .hint_text("Text")
+                .desired_width(120.0),
+        );
+    });
+
+    harness.fit_contents();
+
+    #[cfg(all(feature = "snapshot", feature = "wgpu"))]
+    harness.snapshot("test_text_edit_latin_rtl");
+}
+
 #[test]
 fn test_ime_composition_visuals() {
     let mut harness = Harness::new_ui_state(

@@ -16,7 +16,7 @@ fn rtl_harness<State>(rtl: bool) -> egui_kittest::HarnessBuilder<State> {
         // Short frames, so that press-hold-release is still a click
         // (and a second click within the double-click delay):
         .with_step_dt(1.0 / 60.0)
-        .with_context_setup(move |ctx| ctx.set_right_to_left(rtl))
+        .with_right_to_left(rtl)
 }
 
 /// Run two more frames: the window follows its content with a frame delay, so the

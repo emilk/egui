@@ -86,6 +86,25 @@ fields to their label with `Response::labelled_by`, or add an `on_hover_text`.
 Turn the check off with `Harness::builder().with_accessibility_check(false)`, or run it by hand
 with `Harness::check_accessibility`.
 
+## Testing RTL
+
+`Harness::builder().with_right_to_left(true)` mirrors the widget chrome for a right-to-left
+reading direction (an Arabic or Hebrew UI, say), the same way
+`egui::Context::set_right_to_left` does in an app. `Harness::right_to_left()` reads the flag
+back, as an assertion that the direction took effect.
+
+Mirroring the chrome does not give you Arabic glyphs: the bundled fonts have none. To render
+RTL-script text in tests, point the `KITTEST_RTL_FONT` environment variable at an
+Arabic-capable TTF (e.g. Noto Naskh Arabic, Noto Sans Arabic or Amiri — all OFL-licensed) and
+build the harness with `.with_rtl_font()`; the font is installed as a fallback at test time.
+Without it, tests should assert the structure that does not need Arabic glyphs and skip the
+rest with a printed reason (`egui_kittest::rtl_font_path()` tells you whether a font is
+configured).
+
+Never commit font files, and never commit snapshots that depend on `KITTEST_RTL_FONT`:
+they would not reproduce on machines without it. Committed RTL snapshots should use Latin
+labels, which render deterministically on the bundled fonts.
+
 ## Recording
 When enabling the `recording` feature, you can record tests to mp4s via these env vars:
 * `KITTEST_RECORD=1 cargo test` writes numbered MP4s to `tests/snapshots/recordings`

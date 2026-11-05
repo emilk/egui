@@ -19,7 +19,7 @@ fn rtl_harness(rtl: bool) -> egui_kittest::HarnessBuilder<Captured> {
         // Short frames, so that a press-hold-release stays a click and a press
         // followed by a big move stays a drag:
         .with_step_dt(1.0 / 60.0)
-        .with_context_setup(move |ctx| ctx.set_right_to_left(rtl))
+        .with_right_to_left(rtl)
 }
 
 /// Run two more frames: the window follows its content with a frame delay, so the
