@@ -300,7 +300,22 @@ fn title_is_horizontally_centred_between_the_buttons() {
                 .iter()
                 .find_map(|clipped| match &clipped.shape {
                     egui::Shape::Text(text) if text.galley.text() == "Test window" => {
-                        Some(text.pos.x + text.galley.size().x / 2.0)
+                        // Measure the painted ink, not the galley anchor: under
+                        // the widget-text stamp a Latin title in a right-to-left
+                        // interface is laid out as a right-to-left paragraph, so
+                        // `Shape::Text::pos` is its reading-start (right) anchor
+                        // and the ink extends leftward from it; `pos + size / 2`
+                        // would over-measure by a full title width. The tight
+                        // ink bounds translate to the true painted centre in
+                        // either anchoring (same observable as
+                        // `egui/tests/widget_text_direction.rs`).
+                        Some(
+                            text.galley
+                                .mesh_bounds
+                                .translate(text.pos.to_vec2())
+                                .center()
+                                .x,
+                        )
                     }
                     _ => None,
                 });
