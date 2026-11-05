@@ -21,7 +21,7 @@ use std::sync::Arc;
 use egui::epaint::{Galley, Shape};
 use egui::{
     Color32, Context, Event, FullOutput, Label, Modifiers, PointerButton, Pos2, RawInput, Rect,
-    Sides, Ui, Vec2, text::CCursorRange, vec2,
+    Sides, Ui, Vec2, pos2, text::CCursorRange, vec2,
 };
 
 const SCREEN: Vec2 = vec2(400.0, 120.0);
@@ -287,4 +287,143 @@ fn assert_cross_widget_halves(rtl: bool, press_right: bool) {
              (rtl = {rtl}: painted {painted:?}, expected {expected:?})"
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// Granular (double-click) drag across two labels on one row: which side of
+// the anchor word the pointer lands on must follow the ANCHOR's reading
+// direction, not the raw screen x.
+
+fn horizontal_labels(ui: &mut Ui, first_text: &str, second_text: &str) {
+    ui.horizontal(|ui| {
+        ui.add(Label::new(first_text).selectable(true));
+        ui.add(Label::new(second_text).selectable(true));
+    });
+}
+
+/// The x of a point strictly inside a row's reading-start (first) word: the
+/// visual right quarter of an RTL row, the visual left quarter of an LTR one.
+fn reading_start_word_x(rect: Rect, rtl: bool) -> f32 {
+    if rtl {
+        rect.right() - 0.15 * rect.width()
+    } else {
+        rect.left() + 0.15 * rect.width()
+    }
+}
+
+/// Double-click the reading-start word of the first label, drag horizontally
+/// into the second label, release there, and copy. The granular anchor is the
+/// double-clicked word; while the pointer is over the second label, the
+/// before/after-anchor decision must be signed by the anchor's reading
+/// direction, so the selection ends up covering the anchor word's
+/// reading-forward span in the first label plus the unit under the pointer in
+/// the second label.
+fn granular_drag_copy(rtl: bool) -> String {
+    let ctx = Context::default();
+    ctx.set_right_to_left(rtl);
+    ctx.style_mut_of(ctx.theme(), |style| {
+        style.interaction.selectable_labels = true;
+        style.interaction.multi_widget_text_select = true;
+    });
+    let (first_text, second_text) = if rtl {
+        ("ليل طويل", "نهار بارد")
+    } else {
+        ("one two", "three four")
+    };
+
+    let settle = run(&ctx, 0.0, vec![], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    });
+    let first = painted_galley(&settle, first_text);
+    let second = painted_galley(&settle, second_text);
+
+    // The mirrored horizontal row places the first label at the reading start
+    // (the right under RTL, the left under LTR), on one row band — so the
+    // layout-encounter order also equals the reading order and the copy text
+    // below is the final reading-order string:
+    let first_rect = first.1.rect.translate(first.0.to_vec2());
+    let second_rect = second.1.rect.translate(second.0.to_vec2());
+    let first_is_reading_first = if rtl {
+        first_rect.left() > second_rect.right() - 1.0
+    } else {
+        first_rect.right() < second_rect.left() + 1.0
+    };
+    assert!(
+        first_is_reading_first,
+        "the first label must sit reading-first (first {first_rect:?}, second {second_rect:?})"
+    );
+    assert!(
+        (first_rect.top() - second_rect.top()).abs() <= 2.0,
+        "the two labels must share one row band (first {first_rect:?}, second {second_rect:?})"
+    );
+
+    let press = pos2(reading_start_word_x(first_rect, rtl), first_rect.center().y);
+    let release = pos2(
+        reading_start_word_x(second_rect, rtl),
+        second_rect.center().y,
+    );
+
+    // Double-click (two presses within the multi-click window at the same
+    // spot), then drag into the second label and release:
+    drop(run(&ctx, 2.0, vec![pointer_button(press, true)], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    }));
+    drop(run(&ctx, 2.1, vec![pointer_button(press, false)], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    }));
+    drop(run(&ctx, 2.2, vec![pointer_button(press, true)], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    }));
+    drop(run(&ctx, 2.3, vec![Event::PointerMoved(release)], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    }));
+    drop(run(&ctx, 2.4, vec![pointer_button(release, false)], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    }));
+    let output = run(&ctx, 2.5, vec![Event::Copy], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    });
+    copied_text(&output)
+}
+
+/// The text a frame's copy commands put on the clipboard.
+fn copied_text(output: &FullOutput) -> String {
+    output
+        .platform_output
+        .commands
+        .iter()
+        .find_map(|cmd| match cmd {
+            egui::OutputCommand::CopyText(text) => Some(text.clone()),
+            _ => None,
+        })
+        .unwrap_or_default()
+}
+
+/// Double-click the first word of the right (reading-first) label, drag into
+/// the left label and release there: the selection must cover the whole
+/// reading-first label (from the anchor word's start reading-forward) plus
+/// the second label's word under the pointer, copied in reading order. Before
+/// the fix the raw-x compare inverted the sides: the anchor's reading-start
+/// was treated as its end and the picked unit end flipped, garbling the copy.
+#[test]
+fn granular_drag_extends_in_reading_order() {
+    assert_eq!(
+        granular_drag_copy(true),
+        "ليل طويل نهار",
+        "the copied text must be the anchor word's reading-forward span \
+         (the whole first label) followed by the second label's unit, \
+         in reading order"
+    );
+}
+
+/// LTR twin: with an LTR-reading anchor the signed compare reduces to the raw
+/// screen-x compare, so the copied text is unchanged.
+#[test]
+fn granular_drag_reading_order_ltr_twin() {
+    assert_eq!(
+        granular_drag_copy(false),
+        "one two three",
+        "the LTR granular drag must keep copying first-label word-one plus \
+         the second label's unit in encounter (= reading) order"
+    );
 }

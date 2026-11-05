@@ -81,6 +81,34 @@ fn reads_before(a: &WidgetTextCursor, b: &WidgetTextCursor, rtl: bool) -> Option
     }
 }
 
+/// Is the pointer on the reading-after side of the granular anchor?
+///
+/// Below the anchor's row is always reading-after (direction-neutral). On the
+/// anchor's row band, the x comparison is signed by the anchor's reading
+/// direction: with `sign = 1.0` this is term-for-term the raw-x compare
+/// `anchor_max.pos.x <= pointer_pos.x`, i.e. the LTR behavior. The paragraph
+/// direction is used, not the run-local one — approximate for mixed-direction
+/// rows, the same stance the epaint cursor mapping takes (see `Row` there).
+fn granular_is_after_anchor(
+    anchor_min_pos: Pos2,
+    anchor_max_pos: Pos2,
+    pointer_pos: Pos2,
+    anchor_rtl: bool,
+) -> bool {
+    if anchor_max_pos.y < pointer_pos.y {
+        // Below the anchor's row: reading-after either way.
+        true
+    } else if anchor_min_pos.y <= pointer_pos.y {
+        // On the anchor's row band: decide by x, signed by the anchor's
+        // reading direction.
+        let sign: f32 = if anchor_rtl { -1.0 } else { 1.0 };
+        sign * (pointer_pos.x - anchor_max_pos.x) >= 0.0
+    } else {
+        // Above the anchor's row: reading-before.
+        false
+    }
+}
+
 impl core::fmt::Debug for WidgetTextCursor {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self {
@@ -111,6 +139,14 @@ struct GranularDrag {
 
     /// End of the word/line that was initially clicked.
     anchor_max: WidgetTextCursor,
+
+    /// Does the anchor word/line read right-to-left?
+    ///
+    /// Captured where the anchor is created (inside the anchor's widget),
+    /// because the drag may leave that widget: while the pointer is over
+    /// another widget, the current galley belongs to the hovered widget, not
+    /// to the anchor.
+    anchor_rtl: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -490,10 +526,16 @@ impl ViewportLabelSelectionState {
                         Some(range.primary)
                     } else {
                         // The drag has left the anchor's widget.
-                        // Are we before or after the anchor? Decide by screen position:
-                        let after_anchor = granular.anchor_max.pos.y < pointer_pos.y
-                            || (granular.anchor_min.pos.y <= pointer_pos.y
-                                && granular.anchor_max.pos.x <= pointer_pos.x);
+                        // Are we before or after the anchor? Decide by screen position,
+                        // signed by the ANCHOR's reading direction (captured at the
+                        // anchor): the current galley belongs to the widget under the
+                        // pointer, not to the anchor.
+                        let after_anchor = granular_is_after_anchor(
+                            granular.anchor_min.pos,
+                            granular.anchor_max.pos,
+                            pointer_pos,
+                            granular.anchor_rtl,
+                        );
 
                         let unit =
                             select_unit_at(granular.granularity, galley.text(), cursor_at_pointer);
@@ -754,6 +796,12 @@ impl ViewportLabelSelectionState {
                     granularity: granular.granularity,
                     anchor_min,
                     anchor_max,
+                    // The anchor's reading direction, captured in this widget's galley.
+                    // For a shift-double-click that re-anchors in another widget (above),
+                    // this stores the double-clicked widget's direction rather than the
+                    // true anchor's — the same mixed-direction approximation the cursor
+                    // mapping makes:
+                    anchor_rtl: galley.is_rtl(),
                 });
             }
         }
@@ -1048,5 +1096,86 @@ mod tests {
             reads_before(&cursor_at(20.0, 5.0), &cursor_at(20.0, 5.0), true),
             None
         );
+    }
+
+    /// `granular_is_after_anchor` signs the same-band x compare with the
+    /// anchor's reading direction (below the anchor's row always reads after;
+    /// exactly at the anchor's reading-end edge counts as after).
+    #[test]
+    fn granular_is_after_anchor_table() {
+        // An RTL row's anchor word: reading start on the right (x = 90), its
+        // reading end to the left (x = 40):
+        let anchor_min = Pos2::new(90.0, 5.0);
+        let anchor_max = Pos2::new(40.0, 5.0);
+
+        // On the anchor's row band, an RTL anchor reads after toward smaller x:
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(20.0, 5.0),
+            true
+        ));
+        assert!(!granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(60.0, 5.0),
+            true
+        ));
+
+        // The same geometry with an LTR anchor reads before toward smaller x:
+        assert!(!granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(20.0, 5.0),
+            false
+        ));
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(60.0, 5.0),
+            false
+        ));
+
+        // Below the anchor's row is reading-after either way:
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(20.0, 40.0),
+            false
+        ));
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(20.0, 40.0),
+            true
+        ));
+
+        // Exactly at the anchor's reading-end edge counts as after (>= 0):
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(40.0, 5.0),
+            true
+        ));
+        assert!(granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(40.0, 5.0),
+            false
+        ));
+
+        // Above the anchor's row is reading-before either way:
+        assert!(!granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(60.0, -40.0),
+            false
+        ));
+        assert!(!granular_is_after_anchor(
+            anchor_min,
+            anchor_max,
+            Pos2::new(60.0, -40.0),
+            true
+        ));
     }
 }
