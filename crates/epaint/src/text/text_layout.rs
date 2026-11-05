@@ -336,7 +336,11 @@ fn layout_shaped_run(
     // starts: for an ascending run the next cluster starts right after it,
     // while a right-to-left run emits its clusters in *descending* order, so
     // the outgoing cluster ends where the previous one began (the next larger
-    // cluster start):
+    // cluster start) — or, for the run's first transition, at the end of the
+    // run text (there is no earlier cluster; the outgoing one is the logically
+    // last). `previous_cluster_start` is therefore seeded only once a cluster
+    // has actually been processed — never from the dummy `cluster_start_byte`
+    // the run starts with:
     let mut cluster_start_byte: usize = 0;
     let mut previous_cluster_start: Option<usize> = None;
     let mut cluster_glyph_count: usize = 0;
@@ -397,11 +401,13 @@ fn layout_shaped_run(
                     face_metrics,
                     ctx.segment_base + run.byte_range.as_usize().start + cluster_start_byte,
                 );
+                // The outgoing cluster was really processed, so it may seed the
+                // "previous cluster" for the next transition:
+                previous_cluster_start = Some(cluster_start_byte);
             }
             if !ctx.is_first_glyph_in_section {
                 paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
             }
-            previous_cluster_start = Some(cluster_start_byte);
             cluster_start_byte = cluster as usize;
             cluster_glyph_count = 0;
             ctx.is_first_glyph_in_section = false;
@@ -2069,6 +2075,7 @@ mod tests {
     use super::{super::*, *};
     use crate::{
         ColorImage,
+        text::ByteRangeExt,
         text::cursor::{CCursor, LayoutCursor},
         text::galley_cache::GalleyCache,
     };
@@ -3996,6 +4003,131 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Shape `codepoints` — (char, cluster byte offset) pairs in output order —
+    /// with hand-picked cluster values, so a cluster can be given fewer glyphs
+    /// than characters. No bundled font produces a multi-char→fewer-glyphs
+    /// cluster (no lam-alef ligature; flag RIs keep one glyph per char), so the
+    /// continuation-glyph bookkeeping needs a synthetic glyph vector to
+    /// exercise that shape. Non-monotone cluster levels keep the hand-picked
+    /// (descending) values instead of rewriting them.
+    fn shape_synthetic_run(
+        fonts: &mut FontsImpl,
+        codepoints: &[(char, u32)],
+    ) -> (harfrust::GlyphBuffer, FontFaceKey, StyledMetrics) {
+        let family = fonts.family_key(&FontFamily::Proportional);
+        let face_key = fonts.resolve_face(family, 'a');
+        let coords = VariationCoords::default();
+        let face_metrics = fonts
+            .face(face_key)
+            .expect("the test font must resolve 'a'")
+            .styled_metrics(1.0, 14.0, &coords);
+
+        let mut buffer = harfrust::UnicodeBuffer::default();
+        for (chr, cluster) in codepoints {
+            buffer.add(*chr, *cluster);
+        }
+        buffer.set_cluster_level(harfrust::BufferClusterLevel::Characters);
+        buffer.set_direction(harfrust::Direction::LeftToRight);
+        buffer.guess_segment_properties();
+
+        let face = fonts
+            .face(face_key)
+            .expect("the test font must resolve 'a'");
+        let shaper = face.shaper_data().shaper(face.skrifa_font_ref()).build();
+        let glyph_buffer = shaper.shape(buffer, harfrust::ShapeOptions::new());
+        (glyph_buffer, face_key, face_metrics)
+    }
+
+    /// A multi-char cluster with fewer glyphs than chars at the logically-last
+    /// position of a descending-order run keeps its continuation glyph.
+    ///
+    /// The synthetic vector emits two clusters in descending byte order:
+    /// cluster 1 covers the two chars "b" + U+E000 with a single glyph (the
+    /// second codepoint maps to no glyph, like a dropped mark), then cluster 0
+    /// covers "a". The first descending transition's outgoing cluster extends
+    /// to the end of the run text; the previous-cluster bookkeeping used to
+    /// seed itself with the dummy start `0` there, emitting an inverted
+    /// `1..0` range that silently dropped the continuation glyph (2 slots for
+    /// 3 chars).
+    #[test]
+    fn descending_run_first_emitted_cluster_keeps_its_continuation_glyphs() {
+        let run_text = "ab\u{E000}";
+        let mut fonts = test_fonts();
+        let codepoints = [('b', 1), ('\u{E000}', 1), ('a', 0)];
+        let (glyph_buffer, face_key, face_metrics) = shape_synthetic_run(&mut fonts, &codepoints);
+
+        // Precondition: the synthetic vector is what the bookkeeping expects —
+        // three glyphs in descending clusters, the second one unmapped (so the
+        // run emits one glyph for the two-char cluster 1):
+        let infos = glyph_buffer.glyph_infos();
+        assert_eq!(infos.len(), 3, "infos: {infos:?}");
+        let clusters: Vec<u32> = infos.iter().map(|info| info.cluster).collect();
+        assert_eq!(clusters, [1, 1, 0], "infos: {infos:?}");
+        assert_eq!(
+            infos[1].glyph_id, 0,
+            "U+E000 must have no glyph in the test font for this vector to be synthetic"
+        );
+
+        let family = fonts.family_key(&FontFamily::Proportional);
+        let mut ctx = ShapingContext {
+            family,
+            pixels_per_point: 1.0,
+            font_size: 14.0,
+            line_height: face_metrics.row_height,
+            extra_letter_spacing: 0.0,
+            section_index: 0,
+            font_metrics: face_metrics.clone(),
+            is_first_glyph_in_section: true,
+            prev_cluster: None,
+            track_cluster_bytes: true,
+            segment_base: 0,
+        };
+        let run = TextRun {
+            font_key: face_key,
+            byte_range: ByteRangeExt::full(run_text),
+            raster: None,
+        };
+        let mut paragraph = Paragraph::from_section_index(0);
+        layout_shaped_run(
+            &mut fonts,
+            &run,
+            run_text,
+            &glyph_buffer,
+            &face_metrics,
+            &mut ctx,
+            &mut paragraph,
+        );
+
+        let chars = run_text.chars().count();
+        assert_eq!(
+            paragraph.glyphs.len(),
+            chars,
+            "the continuation glyph of the logically-last cluster must not be lost: \
+             glyphs {:?}",
+            paragraph.glyphs.iter().map(|g| g.chr).collect::<Vec<_>>()
+        );
+
+        // The continuation is grouped with its cluster: it carries the cluster's
+        // byte start (1, like the 'b' glyph before it, not 0), zero advance (it
+        // draws nothing), and the char it stands in for:
+        assert_eq!(
+            paragraph.cluster_byte_starts,
+            [1, 1, 0],
+            "the continuation glyph must belong to cluster 1, with 'a' in cluster 0"
+        );
+        let continuation = &paragraph.glyphs[1];
+        assert_eq!(continuation.chr, '\u{E000}');
+        assert_eq!(
+            continuation.advance_width, 0.0,
+            "a continuation glyph is zero-width"
+        );
+        assert!(
+            paragraph.glyphs[2].pos.x >= continuation.pos.x,
+            "the glyph vector stays in visual order: {:?}",
+            paragraph.glyphs.iter().map(|g| g.pos.x).collect::<Vec<_>>()
+        );
     }
 
     /// The caret boundaries of a pure-RTL row mirror the reading direction: the
