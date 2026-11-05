@@ -58,6 +58,30 @@ impl PointScale {
 
 // ----------------------------------------------------------------------------
 
+/// One recorded UAX #9 directional run of a [`Paragraph`]: the glyph-index
+/// range it occupies in `Paragraph::glyphs` (in emission = visual order) and
+/// the job-text-absolute byte range it covers.
+///
+/// Recorded while emitting a paragraph segment that resolved to more than one
+/// directional run or to a right-to-left run, and only when the job can wrap
+/// (a finite wrap width) — the spans are consumed only by the wrapping path.
+/// Runs accumulate across the `LayoutSection`s a paragraph spans; their
+/// `bytes` stay absolute in `LayoutJob::text`, which makes that safe.
+// The spans are write-only until the wrapping path consumes them (next
+// commit); the unit tests read them, so the expectation is test-gated.
+#[cfg_attr(not(test), expect(dead_code))]
+#[derive(Clone, Debug)]
+struct RecordedBidiRun {
+    /// Glyph index range within `Paragraph::glyphs`.
+    pub glyphs: Range<usize>,
+
+    /// Byte range within `LayoutJob::text`.
+    pub bytes: Range<usize>,
+
+    /// Whether the run resolves to an odd (right-to-left) embedding level.
+    pub rtl: bool,
+}
+
 /// Temporary storage before line-wrapping.
 #[derive(Clone)]
 struct Paragraph {
@@ -75,6 +99,11 @@ struct Paragraph {
     /// otherwise.
     pub cluster_byte_starts: Vec<usize>,
 
+    /// The segment's directional runs recorded during emission
+    /// ([`RecordedBidiRun`]), in visual order. Empty (no allocation) for
+    /// pure-LTR paragraphs and for jobs that cannot wrap.
+    pub bidi_runs: Vec<RecordedBidiRun>,
+
     /// In case of an empty paragraph ("\n"), use this as height.
     pub empty_paragraph_height: f32,
 }
@@ -86,6 +115,7 @@ impl Paragraph {
             section_index_at_start,
             glyphs: vec![],
             cluster_byte_starts: vec![],
+            bidi_runs: vec![],
             empty_paragraph_height: 0.0,
         }
     }
@@ -156,23 +186,7 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
     let track_cluster_bytes = job.effective_wrap_width().is_finite()
         && (job.wrap.line_breaker.is_some() || may_have_sea_text(&job.text));
 
-    let mut paragraphs = vec![Paragraph::from_section_index(0)];
-    {
-        let mut shape_buffer = fonts.take_shape_buffer();
-        for (section_index, section) in job.sections.iter().enumerate() {
-            shape_buffer = layout_section(
-                fonts,
-                shape_buffer,
-                pixels_per_point,
-                &job,
-                track_cluster_bytes,
-                section_index as u32,
-                section,
-                &mut paragraphs,
-            );
-        }
-        fonts.return_shape_buffer(shape_buffer);
-    }
+    let paragraphs = shape_paragraphs(fonts, pixels_per_point, &job, track_cluster_bytes);
 
     let point_scale = PointScale::new(pixels_per_point);
 
@@ -243,6 +257,33 @@ fn may_have_sea_text(text: &str) -> bool {
         let _ = text;
         false
     }
+}
+
+/// Shape the job's sections into [`Paragraph`]s (one per newline-split
+/// segment), recording each qualifying segment's directional runs
+/// ([`RecordedBidiRun`]) along the way.
+fn shape_paragraphs(
+    fonts: &mut FontsImpl,
+    pixels_per_point: f32,
+    job: &LayoutJob,
+    track_cluster_bytes: bool,
+) -> Vec<Paragraph> {
+    let mut paragraphs = vec![Paragraph::from_section_index(0)];
+    let mut shape_buffer = fonts.take_shape_buffer();
+    for (section_index, section) in job.sections.iter().enumerate() {
+        shape_buffer = layout_section(
+            fonts,
+            shape_buffer,
+            pixels_per_point,
+            job,
+            track_cluster_bytes,
+            section_index as u32,
+            section,
+            &mut paragraphs,
+        );
+    }
+    fonts.return_shape_buffer(shape_buffer);
+    paragraphs
 }
 
 /// Shared context for emitting shaped glyphs into a [`Paragraph`].
@@ -716,6 +757,10 @@ fn layout_section(
     };
 
     // Process each paragraph segment (split on newlines — the shaper can't handle them).
+    // Directional runs are recorded for the wrapping path only when the job can
+    // actually wrap (see `RecordedBidiRun`): an infinite wrap width can never
+    // overflow, so its spans would never be consumed.
+    let record_bidi_runs = job.effective_wrap_width().is_finite();
     let section_base = byte_range.as_usize().start;
     let mut segment_offset = 0usize;
     for (seg_idx, segment) in SplitOrWhole::new(section_text, job.break_on_newline).enumerate() {
@@ -760,10 +805,22 @@ fn layout_section(
         // unaffected.
         segment_into_bidi_runs(segment, base_level, &mut bidi_runs);
 
+        // Record only segments that resolved to more than one run or to a
+        // right-to-left run: a single even-level run (pure LTR, or an
+        // explicitly RTL-pinned base with no RTL characters — its double
+        // reversal is the identity) emits its glyphs in logical order already
+        // and needs no per-row reordering.
+        let record_this_segment = record_bidi_runs
+            && (bidi_runs.len() > 1 || bidi_runs.first().is_some_and(|run| run.is_rtl()));
+
         for bidi_run in &bidi_runs {
             let Some(bidi_text) = segment.get(bidi_run.byte_range.clone()) else {
                 continue;
             };
+
+            // First glyph the run will emit (its span in `Paragraph::glyphs`,
+            // recorded below if this segment qualifies):
+            let run_first_glyph = paragraph.glyphs.len();
 
             // Font runs are segmented per bidi run on the run's own substring, so
             // `run.byte_range` below is relative to `bidi_text`. Bias the context's
@@ -847,6 +904,18 @@ fn layout_section(
                 );
 
                 shape_buffer = glyph_buffer.clear();
+            }
+
+            // Record the run's span (glyph indices in emission = visual order,
+            // bytes absolute in `LayoutJob::text`). Runs that emitted no glyphs
+            // are not recorded, so recorded glyph ranges stay contiguous.
+            if record_this_segment && paragraph.glyphs.len() > run_first_glyph {
+                paragraph.bidi_runs.push(RecordedBidiRun {
+                    glyphs: run_first_glyph..paragraph.glyphs.len(),
+                    bytes: segment_base + bidi_run.byte_range.start
+                        ..segment_base + bidi_run.byte_range.end,
+                    rtl: bidi_run.is_rtl(),
+                });
             }
         }
     }
@@ -4148,6 +4217,112 @@ mod tests {
         }
         // The continuation glyph (the zero-advance one) is covered too:
         assert!(paragraph.glyphs.iter().any(|g| g.advance_width == 0.0));
+    }
+
+    /// C1 — directional runs are recorded on the paragraph during emission, in
+    /// visual order with job-absolute byte ranges, for every segment that
+    /// resolved to more than one run or to a right-to-left run — and only when
+    /// the job can wrap (a finite wrap width): the spans are consumed by the
+    /// wrapping path alone. Pure-LTR segments record nothing.
+    #[test]
+    fn bidi_run_spans_are_recorded_on_paragraphs_for_wrapping_jobs() {
+        let finite = 10_000.0; // big enough to never overflow these shapes
+        let mut fonts = tofu_fonts();
+
+        // The rename-ar oracle shape (T1): four runs in visual order — the
+        // latin extension, the dot, the Arabic-Indic digits, the Arabic word
+        // plus its trailing space.
+        let mut job = LayoutJob::simple(
+            "تقرير ٢٠٢٦.pdf".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            finite,
+        );
+        job.direction = Some(TextDirection::RightToLeft);
+        let paragraphs = shape_paragraphs(&mut fonts, 1.0, &job, false);
+        assert_eq!(paragraphs.len(), 1);
+        let runs = &paragraphs[0].bidi_runs;
+        assert_eq!(runs.len(), 4, "runs: {runs:?}");
+
+        // Byte map: "تقرير" = 0..10, " " = 10..11, "٢٠٢٦" = 11..19,
+        // "." = 19..20, "pdf" = 20..23. Visual order (left to right) is
+        // `pdf.٢٠٢٦ تقرير`, so the recorded byte ranges descend:
+        assert_eq!(runs[0].bytes, 20..23, "runs: {runs:?}");
+        assert!(!runs[0].rtl, "the latin extension sits at an even level");
+        assert_eq!(runs[1].bytes, 19..20, "runs: {runs:?}");
+        assert!(runs[1].rtl, "the dot joins the base level");
+        assert_eq!(runs[2].bytes, 11..19, "runs: {runs:?}");
+        assert!(!runs[2].rtl, "Arabic-Indic digits keep an LTR level");
+        assert_eq!(runs[3].bytes, 0..11, "runs: {runs:?}");
+        assert!(runs[3].rtl);
+
+        // The glyph ranges partition the paragraph's glyphs in emission order:
+        assert_eq!(runs[0].glyphs, 0..3, "runs: {runs:?}");
+        assert_eq!(runs[1].glyphs, 3..4, "runs: {runs:?}");
+        assert_eq!(runs[2].glyphs, 4..8, "runs: {runs:?}");
+        assert_eq!(
+            runs[3].glyphs.end,
+            paragraphs[0].glyphs.len(),
+            "runs: {runs:?}"
+        );
+        assert_eq!(
+            paragraphs[0].glyphs.len(),
+            "تقرير ٢٠٢٦.pdf".chars().count(),
+            "one glyph slot per char"
+        );
+
+        // A mixed RTL-base segment records its two runs:
+        let mut job = LayoutJob::simple(
+            "عربي aaa bbb".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            finite,
+        );
+        job.direction = Some(TextDirection::RightToLeft);
+        let paragraphs = shape_paragraphs(&mut fonts, 1.0, &job, false);
+        let runs = &paragraphs[0].bidi_runs;
+        assert_eq!(runs.len(), 2, "runs: {runs:?}");
+        // Visual order: the level-2 island `aaa bbb` (bytes 9..16) is emitted
+        // first, the level-1 `عربي ` (bytes 0..9) second:
+        assert_eq!(runs[0].bytes, 9..16, "runs: {runs:?}");
+        assert!(!runs[0].rtl);
+        assert_eq!(runs[1].bytes, 0..9, "runs: {runs:?}");
+        assert!(runs[1].rtl);
+        assert_eq!(paragraphs[0].glyphs.len(), "عربي aaa bbb".chars().count());
+
+        // Pure-LTR segments (the ASCII fast path and a non-ASCII single run
+        // alike) record nothing:
+        for text in ["Hello World 123", "Héllo wörld"] {
+            let mut job = LayoutJob::simple(
+                text.into(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                finite,
+            );
+            job.direction = Some(TextDirection::LeftToRight);
+            let paragraphs = shape_paragraphs(&mut fonts, 1.0, &job, false);
+            assert!(
+                paragraphs[0].bidi_runs.is_empty(),
+                "{text:?} must not record runs: {:?}",
+                paragraphs[0].bidi_runs
+            );
+        }
+
+        // An infinite wrap width never records: the spans would never be
+        // consumed, because such a job can never overflow.
+        let mut job = LayoutJob::simple(
+            "تقرير ٢٠٢٦.pdf".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        job.direction = Some(TextDirection::RightToLeft);
+        let paragraphs = shape_paragraphs(&mut fonts, 1.0, &job, false);
+        assert!(
+            paragraphs[0].bidi_runs.is_empty(),
+            "infinite wrap must not record runs: {:?}",
+            paragraphs[0].bidi_runs
+        );
     }
 
     /// Shape `codepoints` — (char, cluster byte offset) pairs in output order —
