@@ -63,7 +63,7 @@ impl crate::View for TextEditDemo {
 
         ui.horizontal(|ui| {
             ui.label(crate::i18n::t("Horizontal align:"));
-            ui.selectable_value(halign, None, "Auto");
+            ui.selectable_value(halign, None, crate::i18n::t("Auto"));
             ui.selectable_value(halign, Some(egui::Align::LEFT), crate::i18n::t("Left"));
             ui.selectable_value(halign, Some(egui::Align::Center), crate::i18n::t("Center"));
             ui.selectable_value(halign, Some(egui::Align::RIGHT), crate::i18n::t("Right"));
