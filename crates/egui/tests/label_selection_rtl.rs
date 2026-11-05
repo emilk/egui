@@ -65,14 +65,34 @@ fn pointer_button(pos: Pos2, pressed: bool) -> Event {
     }
 }
 
-fn sides_labels(ui: &mut Ui, left_text: &str, right_text: &str) {
+/// The kind of selectable text widget under test.
+#[derive(Clone, Copy)]
+enum WidgetKind {
+    Label,
+    Link,
+}
+
+/// Two `Sides` panels with one selectable text widget each: labels and links
+/// route through the very same selection state when `selectable_labels` is on
+/// (links with an underline stroke argument on top).
+fn sides_widgets(ui: &mut Ui, left_text: &str, right_text: &str, kind: WidgetKind) {
     Sides::new().show(
         ui,
-        |ui| {
-            ui.add(Label::new(left_text).selectable(true));
+        |ui| match kind {
+            WidgetKind::Label => {
+                ui.add(Label::new(left_text).selectable(true));
+            }
+            WidgetKind::Link => {
+                let _response = ui.link(left_text);
+            }
         },
-        |ui| {
-            ui.add(Label::new(right_text).selectable(true));
+        |ui| match kind {
+            WidgetKind::Label => {
+                ui.add(Label::new(right_text).selectable(true));
+            }
+            WidgetKind::Link => {
+                let _response = ui.link(right_text);
+            }
         },
     );
 }
@@ -180,13 +200,13 @@ fn word_interior_x(rect: Rect, right_side: bool) -> f32 {
     }
 }
 
-/// Drag-select from one `Sides` panel label into the other, starting in the
-/// right-panel label when `press_right`, and return the release-frame output
-/// plus both labels' geometry. The press lands in the press label's
-/// reading-end word (the side toward the other label) and the release in the
-/// release label's reading-start word, so the selected halves start and end
+/// Drag-select from one `Sides` panel widget into the other, starting in the
+/// right-panel widget when `press_right`, and return the release-frame output
+/// plus both widgets' geometry. The press lands in the press widget's
+/// reading-end word (the side toward the other widget) and the release in the
+/// release widget's reading-start word, so the selected halves start and end
 /// on letter boundaries.
-fn drag_between_sides(rtl: bool, press_right: bool) -> CrossDrag {
+fn drag_between_sides(rtl: bool, press_right: bool, kind: WidgetKind) -> CrossDrag {
     let ctx = Context::default();
     ctx.set_right_to_left(rtl);
     ctx.style_mut_of(ctx.theme(), |style| {
@@ -195,32 +215,32 @@ fn drag_between_sides(rtl: bool, press_right: bool) -> CrossDrag {
     });
     let selection_color = ctx.style_of(ctx.theme()).visuals.selection.bg_fill;
     let (left_text, right_text) = panel_texts(rtl);
+    let sides_body = |ui: &mut Ui| sides_widgets(ui, left_text, right_text, kind);
 
-    // Settle the layout and collect the two labels' galley geometry:
-    let settle = run(&ctx, 0.0, vec![], |ui| {
-        sides_labels(ui, left_text, right_text);
-    });
+    // Settle the layout and collect the two widgets' galley geometry:
+    let settle = run(&ctx, 0.0, vec![], sides_body);
     let left = painted_galley(&settle, left_text);
     let right = painted_galley(&settle, right_text);
 
-    // The panels are physical: the right-panel label must sit to the right of
-    // the left-panel one, on the same row band, in both interface directions:
+    // The panels are physical: the right-panel widget must sit to the right
+    // of the left-panel one, on the same row band, in both interface
+    // directions:
     assert!(
         right.0.x > left.0.x,
         "Sides must place its panels physically (right {right:?}, left {left:?})"
     );
     assert!(
         (right.0.y - left.0.y).abs() <= 2.0,
-        "the two panel labels must share one row band (right {right:?}, left {left:?})"
+        "the two panel widgets must share one row band (right {right:?}, left {left:?})"
     );
 
     let left_rect = left.1.rect.translate(left.0.to_vec2());
     let right_rect = right.1.rect.translate(right.0.to_vec2());
     let (press, release) = if press_right {
-        // Pressing in the right label: land in its reading-end word (the
+        // Pressing in the right widget: land in its reading-end word (the
         // visual left side of an RTL row, the right side of an LTR one):
         let press_x = word_interior_x(right_rect, !rtl);
-        // Releasing in the left label: land in its reading-start word:
+        // Releasing in the left widget: land in its reading-start word:
         let release_x = word_interior_x(left_rect, rtl);
         (
             pos2(press_x, right_rect.center().y),
@@ -235,18 +255,20 @@ fn drag_between_sides(rtl: bool, press_right: bool) -> CrossDrag {
         )
     };
 
-    drop(run(&ctx, 1.0, vec![pointer_button(press, true)], |ui| {
-        sides_labels(ui, left_text, right_text);
-    }));
-    drop(run(&ctx, 1.1, vec![Event::PointerMoved(release)], |ui| {
-        sides_labels(ui, left_text, right_text);
-    }));
-    let output = run(&ctx, 1.2, vec![pointer_button(release, false)], |ui| {
-        sides_labels(ui, left_text, right_text);
-    });
-    let copy_output = run(&ctx, 1.3, vec![Event::Copy], |ui| {
-        sides_labels(ui, left_text, right_text);
-    });
+    drop(run(
+        &ctx,
+        1.0,
+        vec![pointer_button(press, true)],
+        sides_body,
+    ));
+    drop(run(
+        &ctx,
+        1.1,
+        vec![Event::PointerMoved(release)],
+        sides_body,
+    ));
+    let output = run(&ctx, 1.2, vec![pointer_button(release, false)], sides_body);
+    let copy_output = run(&ctx, 1.3, vec![Event::Copy], sides_body);
 
     CrossDrag {
         output,
@@ -268,7 +290,7 @@ fn drag_between_sides(rtl: bool, press_right: bool) -> CrossDrag {
 #[test]
 fn cross_widget_selection_selects_the_reading_order_halves() {
     let (rtl, press_right) = (true, true);
-    assert_cross_widget_halves(rtl, press_right);
+    assert_cross_widget_halves(rtl, press_right, WidgetKind::Label);
 }
 
 /// LTR twin: in a left-to-right interface the encounter order already equals
@@ -276,12 +298,31 @@ fn cross_widget_selection_selects_the_reading_order_halves() {
 #[test]
 fn cross_widget_selection_halves_ltr_twin() {
     let (rtl, press_right) = (false, false);
-    assert_cross_widget_halves(rtl, press_right);
+    assert_cross_widget_halves(rtl, press_right, WidgetKind::Label);
 }
 
-/// The shared drag-and-assert body of the two cross-widget tests above.
-fn assert_cross_widget_halves(rtl: bool, press_right: bool) {
-    let drag = drag_between_sides(rtl, press_right);
+/// Link widgets route through the very same selection state as labels (with
+/// an underline stroke argument on top), so the reading-order halves and the
+/// reading-order copy must hold for links too — and a selected link must
+/// still paint (its underline + selection-recolor path must not break; the
+/// painted-galley lookups below panic if its galley went missing).
+#[test]
+fn link_selection_selects_the_reading_order_halves() {
+    let (rtl, press_right) = (true, true);
+    assert_cross_widget_halves(rtl, press_right, WidgetKind::Link);
+}
+
+/// LTR twin for links.
+#[test]
+fn link_selection_halves_ltr_twin() {
+    let (rtl, press_right) = (false, false);
+    assert_cross_widget_halves(rtl, press_right, WidgetKind::Link);
+}
+
+/// The shared drag-and-assert body of the cross-widget tests above
+/// (`links`: link widgets instead of labels).
+fn assert_cross_widget_halves(rtl: bool, press_right: bool, kind: WidgetKind) {
+    let drag = drag_between_sides(rtl, press_right, kind);
     let (reading_first, reading_second) = if rtl {
         (&drag.right, &drag.left)
     } else {
