@@ -3,7 +3,7 @@ mod wheel_state;
 
 use crate::{
     MouseWheelSource, SafeAreaInsets,
-    emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
+    emath::{NumExt as _, Pos2, ReadingDirection, Rect, Vec2, vec2},
     util::History,
 };
 use crate::{
@@ -564,6 +564,15 @@ impl InputState {
     #[inline]
     pub fn keyboard_layout_is_latin(&self) -> Option<bool> {
         self.raw.keyboard_layout_is_latin
+    }
+
+    /// The reading direction of the user's primary keyboard layout.
+    ///
+    /// `None` when the integration doesn't report it. See
+    /// [`RawInput::keyboard_layout_direction`].
+    #[inline]
+    pub fn keyboard_layout_direction(&self) -> Option<ReadingDirection> {
+        self.raw.keyboard_layout_direction
     }
 
     /// The character the user's Latin keyboard layout produces for the given key

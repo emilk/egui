@@ -10,6 +10,7 @@ use crate::{
     Response, Sense, SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom,
     WidgetInfo, WidgetText, WidgetWithState,
     class::{ClassName, Classes, HasClasses},
+    emath::ReadingDirection,
     epaint,
     os::OperatingSystem,
     output::OutputEvent,
@@ -592,8 +593,12 @@ impl<'t> TextEdit<'t> {
             // (and anchors) as a right-to-left row in a right-to-left field —
             // the same stamp `menu_item_button` puts on its labels. The job is
             // built fresh here, so it never carries an explicit direction that
-            // this could override.
-            if ui.is_rtl() {
+            // this could override. An empty field follows the interface first
+            // and the keyboard layout second (an integration that reports an
+            // RTL primary layout gets RTL edits even in a default interface).
+            if ui.is_rtl()
+                || ui.input(|i| i.keyboard_layout_direction()) == Some(ReadingDirection::Rtl)
+            {
                 layout_job.direction = Some(epaint::text::TextDirection::RightToLeft);
             }
 
