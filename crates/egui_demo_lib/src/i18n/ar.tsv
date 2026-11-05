@@ -47,6 +47,7 @@
 	Request discard	طلب الاستبعاد
 	Discard denied!	تم رفض الاستبعاد!
 	egui running inside {eframe}.	يعمل egui داخل {eframe}.
+	Build:	البناء:
 	Web info (location)	معلومات الويب (الموقع)
 	Renderer:	المصيّر:
 	Backend:	الواجهة الخلفية:
@@ -200,6 +201,7 @@
 	Edit this text	حرر هذا النص
 	Advanced usage of 	استخدام متقدم لـ 
 	Horizontal align:	المحاذاة الأفقية:
+	Auto	تلقائي
 	Left	يسار
 	Center	وسط
 	Right	يمين

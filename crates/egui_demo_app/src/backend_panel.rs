@@ -212,7 +212,11 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
     // Self-identification: the git commit this binary was built from (baked by
     // `build.rs`; "unknown" in archive/sandbox builds). The hash itself is
     // language-independent data, so it stays unwrapped.
-    ui.label(format!("Build: {}", env!("EGUI_DEMO_APP_GIT_SHA")));
+    ui.label(format!(
+        "{} {}",
+        i18n::t("Build:"),
+        env!("EGUI_DEMO_APP_GIT_SHA")
+    ));
 
     #[cfg(target_arch = "wasm32")]
     ui.collapsing(i18n::t("Web info (location)"), |ui| {
