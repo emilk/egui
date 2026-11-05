@@ -15,8 +15,10 @@
 
 use egui::epaint::Shape;
 use egui::epaint::text::TextDirection;
+use egui::widgets::text_edit::TextEditState;
 use egui::{
-    Align2, Context, FullOutput, Id, Pos2, RawInput, Rect, TextEdit, Ui, Vec2,
+    Align2, Context, Event, FullOutput, Id, Modifiers, PointerButton, Pos2, RawInput, Rect,
+    TextEdit, Ui, Vec2,
     text::{CCursor, CCursorRange},
     vec2,
 };
@@ -516,5 +518,186 @@ fn singleline_overflow_scrolls_to_the_caret() {
             ),
             _ => unreachable!(),
         }
+    }
+}
+
+/// Run one ui pass with pointer events at the given time, discarding the
+/// texture deltas (these tests never render).
+fn run_at(ctx: &Context, time: f64, events: Vec<Event>, run_ui: impl FnMut(&mut Ui)) -> FullOutput {
+    let mut output = ctx.run_ui(
+        RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SCREEN)),
+            time: Some(time),
+            events,
+            ..Default::default()
+        },
+        run_ui,
+    );
+    output.textures_delta.clear();
+    output
+}
+
+fn pointer_press(pos: Pos2, pressed: bool) -> Event {
+    Event::PointerButton {
+        pos,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers: Modifiers::NONE,
+    }
+}
+
+fn caret_x_is_inside_field(x: f32, field: Rect) -> bool {
+    field.left() - 1.0 <= x && x <= field.right() + 1.0
+}
+
+/// An overflowing singleline field with an explicit centered alignment keeps
+/// the generic anchoring: the text paints centered (mid-clipped, intersecting
+/// the field) instead of being pushed almost fully out of it, and pointer
+/// hit-testing stays the exact inverse of the painted position — a click
+/// inside the field lands on a column that repaints back at the click point,
+/// and clicking the same point again keeps that column.
+///
+/// (The RTL scroll branch's stored-offset algebra assumes a reading-start
+/// anchored galley and used to steal this case from the generic anchoring:
+/// the galley was pushed out of the field and clicks landed in the wrong
+/// columns.)
+#[test]
+fn centered_overflow_keeps_click_hit_testing_exact() {
+    /// Slack for the click-to-caret round trip: the caret snaps to the cluster
+    /// boundary nearest the click.
+    const CLICK_TOL: f32 = 30.0;
+
+    for (rtl, value) in [(true, "سلام "), (false, "lorem ")] {
+        let mut text = value.repeat(8); // far wider than the narrow field
+        let ctx = Context::default();
+        ctx.set_right_to_left(rtl);
+        blink_off(&ctx);
+
+        // Focus the field with the caret at the middle column, then paint one
+        // frame: the text span must still cross the field and the caret must
+        // be visible inside it.
+        let mut field = Rect::NOTHING;
+        drop(run(&ctx, |ui| {
+            ui.memory_mut(|mem| mem.request_focus(edit_id()));
+            let mut out = ui
+                .allocate_ui(vec2(120.0, 30.0), |ui| {
+                    TextEdit::singleline(&mut text)
+                        .id(edit_id())
+                        .align(Align2::CENTER_CENTER)
+                        .show(ui)
+                })
+                .inner;
+            let middle = text.chars().count() / 2;
+            out.state
+                .cursor
+                .set_char_range(Some(CCursorRange::one(CCursor::new(middle))));
+            out.state.store(ui.ctx(), edit_id());
+            field = out.response.rect;
+        }));
+        let output = run(&ctx, |ui| {
+            let out = ui
+                .allocate_ui(vec2(120.0, 30.0), |ui| {
+                    TextEdit::singleline(&mut text)
+                        .id(edit_id())
+                        .align(Align2::CENTER_CENTER)
+                        .show(ui)
+                })
+                .inner;
+            field = out.response.rect;
+        });
+        let (ink, _) = painted_text(&output, &text);
+        assert!(
+            ink.intersects(field),
+            "the overflowing centered text must still paint across the field \
+             (rtl = {rtl}: ink {ink:?}, field {field:?})"
+        );
+        let caret = painted_caret(&output, field)
+            .unwrap_or_else(|| panic!("no caret painted at the middle column (rtl = {rtl})"));
+        assert!(
+            caret_x_is_inside_field(caret[0].x, field),
+            "the middle-column caret must be visible inside the centered field \
+             (rtl = {rtl}: caret {:?}, field {field:?})",
+            caret[0]
+        );
+
+        // Click inside the field: the caret must land on a column that repaints
+        // back at the click point.
+        let click_pos = field.center();
+        let clicked_column = |ctx: &Context| {
+            TextEditState::load(ctx, edit_id())
+                .and_then(|state| state.cursor.char_range())
+                .and_then(|range| range.single())
+                .map(|cursor| cursor.index)
+        };
+        let mut show = |ui: &mut Ui| {
+            ui.allocate_ui(vec2(120.0, 30.0), |ui| {
+                TextEdit::singleline(&mut text)
+                    .id(edit_id())
+                    .align(Align2::CENTER_CENTER)
+                    .show(ui);
+            });
+        };
+        drop(run_at(
+            &ctx,
+            1.0,
+            vec![Event::PointerMoved(click_pos)],
+            &mut show,
+        ));
+        drop(run_at(
+            &ctx,
+            1.1,
+            vec![pointer_press(click_pos, true)],
+            &mut show,
+        ));
+        drop(run_at(
+            &ctx,
+            1.2,
+            vec![pointer_press(click_pos, false)],
+            &mut show,
+        ));
+        let column = clicked_column(&ctx)
+            .unwrap_or_else(|| panic!("the click must place a caret (rtl = {rtl})"));
+        let output = run(&ctx, &mut show);
+        let caret = painted_caret(&output, field)
+            .unwrap_or_else(|| panic!("no caret painted after the click (rtl = {rtl})"));
+        assert!(
+            (caret[0].x - click_pos.x).abs() <= CLICK_TOL,
+            "the clicked caret must repaint back at the click point \
+             (rtl = {rtl}: caret {:?}, click {click_pos:?})",
+            caret[0]
+        );
+        assert!(
+            caret_x_is_inside_field(caret[0].x, field),
+            "the clicked caret must be visible inside the field \
+             (rtl = {rtl}: caret {:?}, field {field:?})",
+            caret[0]
+        );
+
+        // Clicking the same point again, well past the double-click window,
+        // must keep the same column:
+        drop(run_at(
+            &ctx,
+            3.0,
+            vec![Event::PointerMoved(click_pos)],
+            &mut show,
+        ));
+        drop(run_at(
+            &ctx,
+            3.1,
+            vec![pointer_press(click_pos, true)],
+            &mut show,
+        ));
+        drop(run_at(
+            &ctx,
+            3.2,
+            vec![pointer_press(click_pos, false)],
+            &mut show,
+        ));
+        let column_again = clicked_column(&ctx)
+            .unwrap_or_else(|| panic!("the second click must place a caret (rtl = {rtl})"));
+        assert_eq!(
+            column_again, column,
+            "clicking the same point must keep the same column (rtl = {rtl})"
+        );
     }
 }

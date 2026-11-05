@@ -990,13 +990,20 @@ impl<'t> TextEdit<'t> {
 
         // Visual clipping for singleline text editor with text larger than width.
         //
-        // A right-to-left galley is anchored on its reading-start (right) edge,
-        // so its `align_offset.x` is never zero when it overflows — engage the
-        // scroll for it as well, measuring the cursor from the reading start
-        // and sliding the galley the other way.
+        // A right-to-left galley anchored on its reading start (the right edge,
+        // which epaint resolves the job's default `Align::LEFT` to) is never at
+        // `align_offset.x == 0.0` when it overflows — engage the scroll for it
+        // as well, measuring the cursor from the reading start and sliding the
+        // galley the other way. The stored-offset algebra below assumes that
+        // reading-start anchoring, so a galley with any other anchor (an
+        // explicit center) keeps the generic anchoring below — where pointer
+        // hit-testing stays the exact inverse of the painted position — like
+        // its left-to-right twin.
         let galley_is_rtl = galley.is_rtl();
-        let rtl_overflows = galley_is_rtl && galley.size().x > inner_rect.width();
-        if clip_text && (align_offset.x == 0.0 || rtl_overflows) {
+        let rtl_reading_start_overflows = galley_is_rtl
+            && galley.job.halign == Align::Max
+            && galley.size().x > inner_rect.width();
+        if clip_text && (align_offset.x == 0.0 || rtl_reading_start_overflows) {
             let galley_width = galley.size().x;
             let cursor_pos = match (cursor_range, ui.memory(|mem| mem.has_focus(id))) {
                 (Some(cursor_range), true) => galley.pos_from_cursor(cursor_range.primary).min.x,
