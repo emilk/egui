@@ -1,5 +1,7 @@
+use core::ops::Range;
+
 use emath::TSTransform;
-use epaint::text::CharIndex;
+use epaint::text::{CharIndex, PlacedRow, Row};
 
 use crate::{Context, Galley, Id};
 
@@ -8,21 +10,290 @@ use super::{CCursorRange, text_cursor_state::is_word_char};
 /// AccessKit's `word_starts` uses `u8` indices, so text runs cannot exceed this length.
 pub(crate) const MAX_CHARS_PER_TEXT_RUN: usize = 255;
 
+/// One text run of a row: a maximal stretch of glyphs that share one UAX #9
+/// embedding level (so it reads in one direction and is contiguous on screen),
+/// capped at [`MAX_CHARS_PER_TEXT_RUN`] glyphs.
+///
+/// `glyphs` indexes [`Row::glyphs`] — the *visual* glyph stream, stored
+/// left-to-right (see that field's docs). A run's glyphs all carry the run's
+/// [`epaint::text::Glyph::bidi_level`].
+#[derive(Debug)]
+pub(crate) struct TextRunInfo {
+    /// Glyph range in stream (visual) order, excluding the row's trailing
+    /// newline (tracked separately, see [`Self::newline`]).
+    pub glyphs: Range<usize>,
+
+    /// The run's UAX #9 embedding level (odd = right-to-left).
+    pub level: u8,
+
+    /// Whether the row's trailing newline is appended to this run's value.
+    ///
+    /// The newline logically terminates the row's text, so it belongs to the
+    /// run that comes last in *logical* order — which for a right-to-left row
+    /// is not the visually-last one (the visually-last run of an RTL row is
+    /// the logically *first*).
+    pub newline: bool,
+}
+
+impl TextRunInfo {
+    /// Char count of the run's value (glyphs, plus the newline if carried).
+    pub fn len(&self) -> usize {
+        self.glyphs.len() + usize::from(self.newline)
+    }
+
+    /// The run's glyphs in *logical* character order.
+    ///
+    /// Even-level runs read in stream order. An odd-level run reads
+    /// right-to-left while the stream lists its glyphs left-to-right, so its
+    /// logical order reverses the *clusters*: a glyph continues the previous
+    /// cluster while its advance width is <= 0 (the same grouping
+    /// [`Row::char_at_rtl`] / [`Row::x_offset_rtl`] use), and the stream order
+    /// is kept inside a cluster. Every glyph of a cluster carries the
+    /// cluster's first char ([`Row::text`] builds on the same fact), so the
+    /// value is invariant to the order *within* a cluster; multi-glyph
+    /// clusters still duplicate that char in the value (a pre-existing,
+    /// direction-independent limitation of building values from `glyph.chr`).
+    ///
+    /// Returns glyph indices into `row.glyphs`, in logical char order.
+    fn logical_glyphs(&self, row: &Row) -> Vec<usize> {
+        let glyphs = &row.glyphs[self.glyphs.clone()];
+
+        // Cluster boundaries: the first glyph of the run starts a cluster, and
+        // a new cluster starts at every glyph with a positive advance
+        // (zero-advance glyphs are continuations of the cluster before them;
+        // a genuinely zero-advance *base* merges into its neighbour — the same
+        // approximation the row-level mapping makes).
+        let mut clusters: Vec<Range<usize>> = Vec::new();
+        let mut start = 0;
+        for (i, glyph) in glyphs.iter().enumerate().skip(1) {
+            if glyph.advance_width > 0.0 {
+                clusters.push(start..i);
+                start = i;
+            }
+        }
+        if !glyphs.is_empty() {
+            clusters.push(start..glyphs.len());
+        }
+
+        if self.level % 2 == 1 {
+            clusters.reverse();
+        }
+
+        clusters
+            .into_iter()
+            .flatten()
+            .map(|i| self.glyphs.start + i)
+            .collect()
+    }
+}
+
+/// The text runs of a row, as ranges of its columns, in stream (visual) order.
+///
+/// A run is a stretch of chars with the same bidi level, so it reads in one
+/// direction and is contiguous on screen, at most [`MAX_CHARS_PER_TEXT_RUN`]
+/// long. A row always has at least one run, even when empty. (The trailing
+/// newline is folded into the visually-last range here; [`RowTextRuns`]
+/// re-assigns it to the logically-last run.)
+pub(crate) fn row_text_runs(row: &PlacedRow) -> Vec<Range<usize>> {
+    let glyph_count = row.glyphs.len();
+    let total_chars = glyph_count + usize::from(row.ends_with_newline);
+    let mut runs = Vec::new();
+    let mut start = 0;
+    for i in 1..glyph_count {
+        if row.glyphs[i].bidi_level != row.glyphs[i - 1].bidi_level
+            || i - start == MAX_CHARS_PER_TEXT_RUN
+        {
+            runs.push(start..i);
+            start = i;
+        }
+    }
+    if total_chars - start > MAX_CHARS_PER_TEXT_RUN {
+        runs.push(start..glyph_count);
+        start = glyph_count;
+    }
+    runs.push(start..total_chars);
+    runs
+}
+
+/// The text runs of a row, with their logical order resolved.
+///
+/// The glyph stream is in *visual* order, so the runs ([`Self::runs`], in
+/// stream order — the order the run nodes are created in) are generally not in
+/// logical order: for a right-to-left row the visually-leftmost run holds the
+/// logically *first* text. [`Self::logical_order`] maps the stream to the
+/// logical order, and [`Self::logical_range`] gives each run's char range
+/// within the row's logical text.
+pub(crate) struct RowTextRuns {
+    /// Per run, in stream (visual) order.
+    pub runs: Vec<TextRunInfo>,
+
+    /// Run indices (into [`Self::runs`]), in logical order.
+    pub logical_order: Vec<usize>,
+}
+
+impl RowTextRuns {
+    pub fn new(row: &PlacedRow) -> Self {
+        let glyph_count = row.glyphs.len();
+        let mut runs: Vec<TextRunInfo> = row_text_runs(row)
+            .into_iter()
+            .map(|range| TextRunInfo {
+                glyphs: range.start..range.end.min(glyph_count),
+                level: row
+                    .glyphs
+                    .get(range.start)
+                    .map_or(0, |glyph| glyph.bidi_level),
+                newline: false,
+            })
+            .collect();
+
+        let logical_order = logical_run_order(&runs);
+
+        // The row's trailing newline terminates its text, so it goes on the
+        // logically-last run. It adds one char to that run's value; the char
+        // is never a word start, so AccessKit's u8 word-start indices stay
+        // valid even when the run already holds `MAX_CHARS_PER_TEXT_RUN`
+        // glyphs (the newline is then the last char, at index 255).
+        if row.ends_with_newline
+            && let Some(&last) = logical_order.last()
+        {
+            runs[last].newline = true;
+        }
+
+        Self {
+            runs,
+            logical_order,
+        }
+    }
+
+    /// The run's char range `[start, end)` within the row's logical text
+    /// (the run values joined in [`Self::logical_order`]).
+    pub fn logical_range(&self, stream_index: usize) -> Range<usize> {
+        let mut start = 0;
+        for &idx in &self.logical_order {
+            if idx == stream_index {
+                break;
+            }
+            start += self.runs[idx].len();
+        }
+        let len = self.runs[stream_index].len();
+        start..start + len
+    }
+
+    /// The run that comes last in logical order, if any.
+    pub fn logically_last(&self) -> Option<usize> {
+        self.logical_order.last().copied()
+    }
+}
+
+/// The logical order of a row's runs, as indices into `runs` (which are in
+/// stream / visual order).
+///
+/// Reconstructs the logical run order by re-applying the UAX #9 L2 reversal
+/// schedule to the visual run sequence: for L from the highest run level down
+/// to the lowest odd bound — `minimum run level | 1`, exactly unicode-bidi's
+/// `new_lowest_ge_rtl` (`Level(self.0 | 1)`) — reverse each maximal contiguous
+/// sequence of runs at level >= L. The `(bound..=max).rev()` loop shape
+/// includes the intermediate even levels and skips the replay entirely when no
+/// level qualifies (e.g. an all-even run list like the level-2 digits of a
+/// right-to-left row: their visual order is already the logical one).
+///
+/// Runs without glyphs (a newline-only run from the 255-char split) are
+/// pinned last: the newline terminates the row's text.
+///
+/// Known fence (the same one the row model itself works under): wrapping
+/// slices the already-reordered *visual* glyph stream per row, so for wrapped
+/// right-to-left rows this reconstruction is best-effort (per-line reordering
+/// is a layout-pipeline gap, not an accessibility one).
+fn logical_run_order(runs: &[TextRunInfo]) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..runs.len())
+        .filter(|&i| !runs[i].glyphs.is_empty())
+        .collect();
+
+    let min_level = order.iter().map(|&i| runs[i].level).min().unwrap_or(0);
+    let max_level = order.iter().map(|&i| runs[i].level).max().unwrap_or(0);
+    let bound = min_level | 1;
+    for level in (bound..=max_level).rev() {
+        let mut i = 0;
+        while i < order.len() {
+            if runs[order[i]].level >= level {
+                let start = i;
+                while i < order.len() && runs[order[i]].level >= level {
+                    i += 1;
+                }
+                order[start..i].reverse();
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    order.extend((0..runs.len()).filter(|&i| runs[i].glyphs.is_empty()));
+    order
+}
+
 /// Convert a (row, column) layout cursor position to a text run node ID and character index,
 /// accounting for rows that are split into multiple text runs.
-fn text_run_position(parent_id: Id, row: usize, column: CharIndex) -> accesskit::TextPosition {
+///
+/// `column` is a *logical* character offset within the row (what cursor
+/// columns count since the glyphs' cluster ranges were fixed). A column on
+/// the boundary between two runs is the start of the second run when the
+/// cursor sticks to the char after it (`prefer_next_row`), and the end of the
+/// first one otherwise, so the position names the run edge the cursor is
+/// drawn at. The run is located by its *logical* char range (assigned over
+/// [`RowTextRuns::logical_order`]) — never by its stream position, which
+/// differs from the logical order inside right-to-left rows.
+fn text_run_position(
+    parent_id: Id,
+    galley: &Galley,
+    row: usize,
+    column: CharIndex,
+    prefer_next_row: bool,
+) -> accesskit::TextPosition {
     let column = column.0;
-    // When column lands exactly on a chunk boundary (e.g., 255), it refers to
-    // the end of the previous chunk, not the start of a new one.
-    let chunk_index = if column > 0 && column.is_multiple_of(MAX_CHARS_PER_TEXT_RUN) {
-        column / MAX_CHARS_PER_TEXT_RUN - 1
-    } else {
-        column / MAX_CHARS_PER_TEXT_RUN
+    let fallback = || accesskit::TextPosition {
+        node: parent_id.with(row).with(0usize).accesskit_id(),
+        character_index: column,
     };
-    let character_index = column - chunk_index * MAX_CHARS_PER_TEXT_RUN;
-    accesskit::TextPosition {
-        node: parent_id.with(row).with(chunk_index).accesskit_id(),
-        character_index,
+    let Some(placed_row) = galley.rows.get(row) else {
+        return fallback();
+    };
+    let runs = RowTextRuns::new(placed_row);
+
+    // Walk the runs in logical order, accumulating char counts:
+    let mut start = 0usize;
+    for &stream_index in &runs.logical_order {
+        let end = start + runs.runs[stream_index].len();
+        let matches = if prefer_next_row {
+            column < end
+        } else {
+            column <= end
+        };
+        if matches {
+            return accesskit::TextPosition {
+                node: parent_id.with(row).with(stream_index).accesskit_id(),
+                character_index: column - start,
+            };
+        }
+        start = end;
+    }
+
+    // Past the row's end (the cursor clamps, so this is a degenerate galley):
+    // clamp to the logically-last run.
+    match runs.logically_last() {
+        Some(stream_index) => {
+            let mut start = 0usize;
+            for &idx in &runs.logical_order {
+                if idx == stream_index {
+                    break;
+                }
+                start += runs.runs[idx].len();
+            }
+            accesskit::TextPosition {
+                node: parent_id.with(row).with(stream_index).accesskit_id(),
+                character_index: column.saturating_sub(start),
+            }
+        }
+        None => fallback(),
     }
 }
 
@@ -32,6 +303,15 @@ fn text_run_position(parent_id: Id, row: usize, column: CharIndex) -> accesskit:
 /// current text selection. It never touches the role of the widget itself: that
 /// is set from the [`crate::WidgetInfo`] the widget reports, so a link stays a
 /// link and a button stays a button.
+///
+/// Each run holds the *logical* text of one bidi-level stretch of a row, with
+/// that stretch's direction (the row's glyph stream is in visual order, so the
+/// logical text is reconstructed per run — cluster order reversed for
+/// right-to-left runs — and the runs' logical order is reconstructed for
+/// selection mapping and word starts). Character positions run from the run's
+/// left edge for left-to-right runs and from its right edge for right-to-left
+/// runs, as AccessKit expects: they grow in logical order and stay inside the
+/// run.
 pub fn update_accesskit_for_text_widget(
     ctx: &Context,
     widget_id: Id,
@@ -46,8 +326,20 @@ pub fn update_accesskit_for_text_widget(
             let anchor = galley.layout_from_cursor(cursor_range.secondary);
             let focus = galley.layout_from_cursor(cursor_range.primary);
             builder.set_text_selection(accesskit::TextSelection {
-                anchor: text_run_position(parent_id, anchor.row, anchor.column),
-                focus: text_run_position(parent_id, focus.row, focus.column),
+                anchor: text_run_position(
+                    parent_id,
+                    galley,
+                    anchor.row,
+                    anchor.column,
+                    cursor_range.secondary.prefer_next_row,
+                ),
+                focus: text_run_position(
+                    parent_id,
+                    galley,
+                    focus.row,
+                    focus.column,
+                    cursor_range.primary.prefer_next_row,
+                ),
             });
         }
 
@@ -60,142 +352,475 @@ pub fn update_accesskit_for_text_widget(
 
     let mut prev_row_ended_with_newline = true;
 
-    for (row_index, row) in galley.rows.iter().enumerate() {
-        let glyph_count = row.glyphs.len();
-        let mut value = String::with_capacity(glyph_count);
-        let mut character_lengths = Vec::<u8>::with_capacity(glyph_count);
-        let mut character_positions = Vec::<f32>::with_capacity(glyph_count);
-        let mut character_widths = Vec::<f32>::with_capacity(glyph_count);
-        let mut word_starts = Vec::<usize>::new();
+    for (row_index, placed_row) in galley.rows.iter().enumerate() {
+        let runs = RowTextRuns::new(placed_row);
+
         // For soft-wrapped continuation rows, treat the start as a word
         // boundary so the first word character gets a `word_starts` entry.
         // Paragraph-starting runs (first row or after a newline) get an
         // implicit word start from AccessKit, so they don't need this.
         let mut was_at_word_end = !prev_row_ended_with_newline;
 
-        for glyph in &row.glyphs {
-            let is_word_char = is_word_char(glyph.chr);
-            if is_word_char && was_at_word_end {
-                word_starts.push(character_lengths.len());
+        // Word starts, as indices into the row's *logical* text (the run
+        // values joined in logical order — the only order that matches the
+        // `value` strings AccessKit indexes them against):
+        let mut word_starts = Vec::<usize>::new();
+        let mut logical_char = 0usize;
+        for &stream_index in &runs.logical_order {
+            let run = &runs.runs[stream_index];
+            for glyph_index in run.logical_glyphs(&placed_row.row) {
+                let is_word = is_word_char(placed_row.row.glyphs[glyph_index].chr);
+                if is_word && was_at_word_end {
+                    word_starts.push(logical_char);
+                }
+                was_at_word_end = !is_word;
+                logical_char += 1;
             }
-            was_at_word_end = !is_word_char;
-            let old_len = value.len();
-            value.push(glyph.chr);
-            character_lengths.push((value.len() - old_len) as _);
-            character_positions.push(glyph.pos.x - row.pos.x);
-            character_widths.push(glyph.advance_width);
+            if run.newline {
+                // The '\n' occupies a value slot but is never a word start:
+                logical_char += 1;
+            }
         }
 
-        if row.ends_with_newline {
-            value.push('\n');
-            character_lengths.push(1);
-            character_positions.push(row.size.x);
-            character_widths.push(0.0);
-        }
+        // Per-run node data, computed before building nodes (which need the
+        // context mutably):
+        let row_rect = placed_row.rect_without_leading_space();
+        let run_data: Vec<RunNodeData> = runs
+            .runs
+            .iter()
+            .map(|run| {
+                let logical_glyphs = run.logical_glyphs(&placed_row.row);
+                let is_rtl = run.level % 2 == 1 && !logical_glyphs.is_empty();
 
-        let total_chars = character_lengths.len();
+                // The run's horizontal extent, row-relative:
+                let (x0, x1) = if logical_glyphs.is_empty() {
+                    (
+                        row_rect.min.x - placed_row.pos.x,
+                        row_rect.max.x - placed_row.pos.x,
+                    )
+                } else {
+                    logical_glyphs.iter().fold(
+                        (f32::INFINITY, f32::NEG_INFINITY),
+                        |(x0, x1), &glyph_index| {
+                            let glyph = &placed_row.row.glyphs[glyph_index];
+                            (x0.min(glyph.pos.x), x1.max(glyph.max_x()))
+                        },
+                    )
+                };
 
-        if total_chars <= MAX_CHARS_PER_TEXT_RUN {
-            let run_id = parent_id.with(row_index).with(0usize);
+                let mut value = String::with_capacity(run.len());
+                let mut character_lengths = Vec::<u8>::with_capacity(run.len());
+                let mut character_positions = Vec::<f32>::with_capacity(run.len());
+                let mut character_widths = Vec::<f32>::with_capacity(run.len());
+                for &glyph_index in &logical_glyphs {
+                    let glyph = &placed_row.row.glyphs[glyph_index];
+                    let old_len = value.len();
+                    value.push(glyph.chr);
+                    character_lengths.push((value.len() - old_len) as _);
+                    // Right-to-left runs measure from their right edge, so
+                    // positions grow in logical order:
+                    character_positions.push(if is_rtl {
+                        x1 - glyph.max_x()
+                    } else {
+                        glyph.pos.x - x0
+                    });
+                    character_widths.push(glyph.advance_width);
+                }
+                if run.newline {
+                    // The newline, at the end of the run:
+                    value.push('\n');
+                    character_lengths.push(1);
+                    character_positions.push(x1 - x0);
+                    character_widths.push(0.0);
+                }
+
+                RunNodeData {
+                    value,
+                    character_lengths,
+                    character_positions,
+                    character_widths,
+                    is_rtl,
+                    x0,
+                    x1,
+                }
+            })
+            .collect();
+
+        for (run_index, data) in run_data.iter().enumerate() {
+            let run_id = parent_id.with(row_index).with(run_index);
             ctx.register_accesskit_parent(run_id, parent_id);
+
+            let logical_range = runs.logical_range(run_index);
+            let run_word_starts: Vec<u8> = word_starts
+                .iter()
+                .filter(|&&ws| ws >= logical_range.start && ws < logical_range.end)
+                .map(|&ws| (ws - logical_range.start) as u8)
+                .collect();
 
             ctx.accesskit_node_builder(run_id, |builder| {
                 builder.set_role(accesskit::Role::TextRun);
-                builder.set_text_direction(accesskit::TextDirection::LeftToRight);
+                builder.set_text_direction(if data.is_rtl {
+                    accesskit::TextDirection::RightToLeft
+                } else {
+                    accesskit::TextDirection::LeftToRight
+                });
                 // TODO(mwcampbell): Set more node fields for the row
                 // once AccessKit adapters expose text formatting info.
 
-                let rect = global_from_galley * row.rect_without_leading_space();
+                // Neighbors link in stream (visual) order — the order the run
+                // nodes are created (and traversed) in:
+                if run_index > 0 {
+                    let prev_id = parent_id.with(row_index).with(run_index - 1);
+                    builder.set_previous_on_line(prev_id.accesskit_id());
+                }
+                if run_index + 1 < runs.runs.len() {
+                    let next_id = parent_id.with(row_index).with(run_index + 1);
+                    builder.set_next_on_line(next_id.accesskit_id());
+                }
+
+                let run_rect = emath::Rect::from_min_max(
+                    emath::pos2(placed_row.pos.x + data.x0, row_rect.min.y),
+                    emath::pos2(placed_row.pos.x + data.x1, row_rect.max.y),
+                );
+                let rect = global_from_galley * run_rect;
                 builder.set_bounds(accesskit::Rect {
                     x0: rect.min.x.into(),
                     y0: rect.min.y.into(),
                     x1: rect.max.x.into(),
                     y1: rect.max.y.into(),
                 });
-                builder.set_value(value);
-                builder.set_character_lengths(character_lengths);
+                builder.set_value(data.value.clone());
+                builder.set_character_lengths(data.character_lengths.clone());
 
-                let pos_offset = character_positions.first().copied().unwrap_or(0.0);
-                for p in &mut character_positions {
-                    *p -= pos_offset;
-                }
-                builder.set_character_positions(character_positions);
-                builder.set_character_widths(character_widths);
+                builder.set_character_positions(data.character_positions.clone());
+                builder.set_character_widths(data.character_widths.clone());
 
-                let chunk_word_starts: Vec<u8> = word_starts.iter().map(|&ws| ws as u8).collect();
-                builder.set_word_starts(chunk_word_starts);
+                builder.set_word_starts(run_word_starts);
             });
-        } else {
-            let num_chunks = total_chars.div_ceil(MAX_CHARS_PER_TEXT_RUN);
-            let mut byte_offset = 0usize;
+        }
 
-            for chunk_idx in 0..num_chunks {
-                let char_start = chunk_idx * MAX_CHARS_PER_TEXT_RUN;
-                let char_end = (char_start + MAX_CHARS_PER_TEXT_RUN).min(total_chars);
+        prev_row_ended_with_newline = placed_row.ends_with_newline;
+    }
+}
 
-                let byte_start = byte_offset;
-                let chunk_byte_len: usize = character_lengths[char_start..char_end]
-                    .iter()
-                    .map(|&l| l as usize)
-                    .sum();
-                let byte_end = byte_start + chunk_byte_len;
-                byte_offset = byte_end;
+/// Everything a run node needs, precomputed per row pass.
+struct RunNodeData {
+    value: String,
+    character_lengths: Vec<u8>,
+    character_positions: Vec<f32>,
+    character_widths: Vec<f32>,
+    is_rtl: bool,
+    /// The run's horizontal extent, row-relative.
+    x0: f32,
+    x1: f32,
+}
 
-                let run_id = parent_id.with(row_index).with(chunk_idx);
-                ctx.register_accesskit_parent(run_id, parent_id);
+#[cfg(test)]
+mod tests {
+    use accesskit::{NodeId, Role, TextDirection, TreeUpdate};
+    use epaint::text::cursor::CCursor;
 
-                ctx.accesskit_node_builder(run_id, |builder| {
-                    builder.set_role(accesskit::Role::TextRun);
-                    builder.set_text_direction(accesskit::TextDirection::LeftToRight);
-                    // TODO(mwcampbell): Set more node fields for the row
-                    // once AccessKit adapters expose text formatting info.
+    use super::{MAX_CHARS_PER_TEXT_RUN, row_text_runs, text_run_position};
+    use crate::text_selection::cursor_range::ccursor_from_accesskit_text_position;
+    use crate::{Color32, Context, FontId, Id, RawInput, Ui};
 
-                    if chunk_idx > 0 {
-                        let prev_id = parent_id.with(row_index).with(chunk_idx - 1);
-                        builder.set_previous_on_line(prev_id.accesskit_id());
-                    }
-                    if chunk_idx + 1 < num_chunks {
-                        let next_id = parent_id.with(row_index).with(chunk_idx + 1);
-                        builder.set_next_on_line(next_id.accesskit_id());
-                    }
+    fn accesskit_update(ctx: &Context, mut add_contents: impl FnMut(&mut Ui)) -> TreeUpdate {
+        ctx.enable_accesskit();
+        let mut output = ctx.run_ui(RawInput::default(), |ui| add_contents(ui));
+        output.textures_delta.clear();
+        output
+            .platform_output
+            .accesskit_update
+            .expect("Missing accesskit update")
+    }
 
-                    let row_rect = row.rect_without_leading_space();
-                    let chunk_x0 = row.pos.x + character_positions[char_start];
-                    let chunk_x1 = row.pos.x
-                        + character_positions[char_end - 1]
-                        + character_widths[char_end - 1];
-                    let chunk_rect = emath::Rect::from_min_max(
-                        emath::pos2(chunk_x0, row_rect.min.y),
-                        emath::pos2(chunk_x1, row_rect.max.y),
-                    );
-                    let rect = global_from_galley * chunk_rect;
-                    builder.set_bounds(accesskit::Rect {
-                        x0: rect.min.x.into(),
-                        y0: rect.min.y.into(),
-                        x1: rect.max.x.into(),
-                        y1: rect.max.y.into(),
-                    });
-                    builder.set_value(value[byte_start..byte_end].to_owned());
-                    builder.set_character_lengths(character_lengths[char_start..char_end].to_vec());
+    fn node(update: &TreeUpdate, id: NodeId) -> &accesskit::Node {
+        &update
+            .nodes
+            .iter()
+            .find(|(node_id, _)| *node_id == id)
+            .expect("node in update")
+            .1
+    }
 
-                    let pos_offset = character_positions[char_start];
-                    let chunk_positions: Vec<f32> = character_positions[char_start..char_end]
-                        .iter()
-                        .map(|&p| p - pos_offset)
-                        .collect();
-                    builder.set_character_positions(chunk_positions);
-                    builder.set_character_widths(character_widths[char_start..char_end].to_vec());
+    fn label<'a>(update: &'a TreeUpdate, text: &str) -> &'a accesskit::Node {
+        &update
+            .nodes
+            .iter()
+            .find(|(_, node)| node.role() == Role::Label && node.value() == Some(text))
+            .unwrap_or_else(|| panic!("No label {text:?}"))
+            .1
+    }
 
-                    let chunk_word_starts: Vec<u8> = word_starts
-                        .iter()
-                        .filter(|&&ws| ws >= char_start && ws < char_end)
-                        .map(|&ws| (ws - char_start) as u8)
-                        .collect();
-                    builder.set_word_starts(chunk_word_starts);
-                });
+    /// `(value, direction)` of each text run of a label, in tree (stream) order.
+    fn runs(update: &TreeUpdate, text: &str) -> Vec<(String, TextDirection)> {
+        label(update, text)
+            .children()
+            .iter()
+            .map(|&id| node(update, id))
+            .filter(|run| run.role() == Role::TextRun)
+            .map(|run| {
+                (
+                    run.value().expect("run value").to_owned(),
+                    run.text_direction().expect("run direction"),
+                )
+            })
+            .collect()
+    }
+
+    /// Runs of one label in tree order, as `(id, value, direction)`:
+    fn run_ids(update: &TreeUpdate, text: &str) -> Vec<(NodeId, String, TextDirection)> {
+        label(update, text)
+            .children()
+            .iter()
+            .map(|&id| {
+                let run = node(update, id);
+                (
+                    id,
+                    run.value().expect("run value").to_owned(),
+                    run.text_direction().expect("run direction"),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn text_runs_have_their_direction_and_logical_text() {
+        let ctx = Context::default();
+        let arabic = "مرحبا بالعالم";
+        let mixed = "Hello שלום world";
+        let update = accesskit_update(&ctx, |ui| {
+            ui.label(arabic);
+            ui.label(mixed);
+        });
+
+        // An RTL run's value is its logical text (not the visual glyph stream,
+        // which lists the letters left-to-right), with no spurious glyphs:
+        assert_eq!(
+            runs(&update, arabic),
+            [(arabic.to_owned(), TextDirection::RightToLeft)]
+        );
+        assert_eq!(
+            runs(&update, mixed),
+            [
+                ("Hello ".to_owned(), TextDirection::LeftToRight),
+                ("שלום".to_owned(), TextDirection::RightToLeft),
+                (" world".to_owned(), TextDirection::LeftToRight),
+            ]
+        );
+
+        // Positions of a right-to-left run count from its right edge,
+        // so they grow in logical order and stay inside the run.
+        let run = node(&update, label(&update, arabic).children()[0]);
+        let positions = run.character_positions().expect("positions");
+        let widths = run.character_widths().expect("widths");
+        let bounds = run.bounds().expect("bounds");
+        assert_eq!(positions.len(), arabic.chars().count());
+        assert!(positions[0].abs() < 0.01, "{positions:?}");
+        assert!(positions.is_sorted(), "{positions:?}");
+        let end = positions.last().expect("non-empty") + widths.last().expect("non-empty");
+        assert!(
+            (f64::from(end) - bounds.width()).abs() < 0.01,
+            "{end} vs {}",
+            bounds.width()
+        );
+
+        // Runs on one line link to each other in tree order:
+        let ids = label(&update, mixed).children();
+        assert_eq!(node(&update, ids[0]).next_on_line(), Some(ids[1]));
+        assert_eq!(node(&update, ids[2]).previous_on_line(), Some(ids[1]));
+    }
+
+    /// Word starts index the run's *logical* value: in a mixed row the second
+    /// run's word starts at its own char 0 even though the row's glyph stream
+    /// lists it elsewhere.
+    #[test]
+    fn word_starts_follow_the_logical_text() {
+        let ctx = Context::default();
+        let mixed = "Hello שלום world";
+        let update = accesskit_update(&ctx, |ui| {
+            ui.label(mixed);
+        });
+
+        let ids = label(&update, mixed).children();
+        assert_eq!(ids.len(), 3, "{:?}", runs(&update, mixed));
+
+        // Logical text "Hello שלום world": words at logical chars 6 and 11
+        // (the paragraph's first word start is implicit in AccessKit, see the
+        // `was_at_word_end` seeding). Run 0 = logical [0..6) = "Hello " (no
+        // word starts), run 1 = [6..10) = "שלום" (word at its local 0), run
+        // 2 = [10..16) = " world" (the word starts after its leading space,
+        // at local 1):
+        let word_starts = |id: NodeId| node(&update, id).word_starts();
+        assert_eq!(word_starts(ids[0]), &[][..]);
+        assert_eq!(
+            word_starts(ids[1]),
+            &[0u8][..],
+            "שלום starts its own run value"
+        );
+        assert_eq!(word_starts(ids[2]), &[1u8][..], "'world' follows the space");
+    }
+
+    /// A right-to-left row stores its glyphs in visual order: the tree lists
+    /// the runs visually (digits leftmost for `عربي 123`), but every run's
+    /// value is its logical text and the run values joined in *logical* order
+    /// read back the original string. Selection columns (logical offsets)
+    /// map onto the right run and character index, and round-trip.
+    #[test]
+    fn rtl_base_row_maps_logical_columns_through_the_right_runs() {
+        let ctx = Context::default();
+        let id = Id::unique("rtl_text");
+        let arabic = "عربي 123";
+        let mut galley_slot = None;
+        let update = accesskit_update(&ctx, |ui| {
+            let galley = ui.painter().layout_no_wrap(
+                arabic.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+            );
+            assert!(galley.is_rtl(), "the label must resolve RTL");
+            assert_eq!(galley.rows.len(), 1);
+            // Visual run order: the digits at the visual left come first:
+            let stream_runs = row_text_runs(&galley.rows[0]);
+            assert_eq!(stream_runs.len(), 2, "digits and arabic split");
+            galley_slot = Some(galley);
+            ui.label(arabic);
+        });
+
+        let tree_runs = run_ids(&update, arabic);
+        assert_eq!(
+            tree_runs
+                .iter()
+                .map(|(_, value, _)| value.as_str())
+                .collect::<Vec<_>>(),
+            // Visual (stream) order: digits run first (visual left), then the
+            // RTL run. Each value is the run's logical text:
+            ["123", "عربي "],
+            "{tree_runs:?}"
+        );
+        assert_eq!(tree_runs[0].2, TextDirection::LeftToRight); // level 2 digits
+        assert_eq!(tree_runs[1].2, TextDirection::RightToLeft); // level 1 arabic
+
+        // The values joined in LOGICAL order (arabic run first, digits second)
+        // read back the original string:
+        assert_eq!(
+            format!("{}{}", tree_runs[1].1, tree_runs[0].1),
+            arabic,
+            "the logical run order reconstructs the text"
+        );
+
+        // Every logical column of the row maps to a run node + character
+        // index, and round-trips back to the same column through the
+        // reverse mapping (what an AT-driven `SetTextSelection` uses):
+        let galley = galley_slot.expect("galley");
+        let n = arabic.chars().count();
+        for column in 0..=n {
+            for prefer_next_row in [false, true] {
+                let cursor = CCursor {
+                    index: epaint::text::CharIndex(column),
+                    prefer_next_row,
+                };
+                let layout = galley.layout_from_cursor(cursor);
+                let position =
+                    text_run_position(id, &galley, layout.row, layout.column, prefer_next_row);
+                let back = ccursor_from_accesskit_text_position(id, &galley, &position)
+                    .expect("position maps back");
+                assert_eq!(back.index, cursor.index, "{cursor:?} -> {position:?}");
+                // The caret stays put (a TextPosition cannot carry the
+                // `prefer_next_row` flag; the reverse mapping re-derives it):
+                assert_eq!(
+                    galley.pos_from_cursor(back),
+                    galley.pos_from_cursor(cursor),
+                    "{cursor:?} {position:?}"
+                );
             }
         }
 
-        prev_row_ended_with_newline = row.ends_with_newline;
+        // Column 0 (logical start) is the START of the arabic run (stream
+        // index 1); the row end is the END of the digits run (stream 0):
+        let start = text_run_position(id, &galley, 0, epaint::text::CharIndex(0), false);
+        assert_eq!(
+            start.node,
+            id.with(0usize).with(1usize).accesskit_id(),
+            "column 0 must map to the visually-second (logically-first) run"
+        );
+        assert_eq!(start.character_index, 0);
+        let end = text_run_position(id, &galley, 0, epaint::text::CharIndex(n), false);
+        assert_eq!(end.node, id.with(0usize).with(0usize).accesskit_id());
+        assert_eq!(end.character_index, 3, "the digits run holds 3 chars");
+    }
+
+    /// Selection positions round-trip through the run mapping on mixed
+    /// multi-row text (like an AT-driven selection would).
+    #[test]
+    fn text_positions_round_trip_through_runs() {
+        let ctx = Context::default();
+        let id = Id::unique("text");
+        accesskit_update(&ctx, |ui| {
+            let text = "abc אבג 12 def\nשלום";
+            let galley = ui.painter().layout_no_wrap(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+            );
+            assert!(row_text_runs(&galley.rows[0]).len() >= 3);
+            for index in 0..=text.chars().count() {
+                for prefer_next_row in [false, true] {
+                    let cursor = CCursor {
+                        index: epaint::text::CharIndex(index),
+                        prefer_next_row,
+                    };
+                    let layout = galley.layout_from_cursor(cursor);
+                    let position =
+                        text_run_position(id, &galley, layout.row, layout.column, prefer_next_row);
+                    let back = ccursor_from_accesskit_text_position(id, &galley, &position)
+                        .expect("position maps back");
+                    assert_eq!(back.index, cursor.index, "{position:?}");
+                    // Where the direction changes, the caret stays at the same run edge:
+                    assert_eq!(
+                        galley.pos_from_cursor(back),
+                        galley.pos_from_cursor(cursor),
+                        "{cursor:?} {position:?}"
+                    );
+                }
+            }
+        });
+    }
+
+    /// Long pure-LTR text keeps today's chunking: 255-char chunks, ids
+    /// `with(row).with(chunk)`, values that concatenate back to the text, and
+    /// chunk-to-chunk links.
+    #[test]
+    fn long_ltr_rows_chunk_every_255_chars() {
+        let ctx = Context::default();
+        let text = "ab ".repeat(100); // 300 chars, words at every multiple of 3
+        let update = accesskit_update(&ctx, |ui| {
+            ui.add(crate::Label::new(text.clone()).wrap_mode(crate::TextWrapMode::Extend));
+        });
+
+        let ids = label(&update, &text).children();
+        assert_eq!(
+            ids.len(),
+            400usize.div_ceil(MAX_CHARS_PER_TEXT_RUN),
+            "two 255-capped chunks"
+        );
+        let values: Vec<String> = ids
+            .iter()
+            .map(|&id| node(&update, id).value().expect("value").to_owned())
+            .collect();
+        assert_eq!(values.concat(), text);
+        assert_eq!(values[0].chars().count(), MAX_CHARS_PER_TEXT_RUN);
+        assert_eq!(node(&update, ids[0]).next_on_line(), Some(ids[1]));
+        assert_eq!(node(&update, ids[1]).previous_on_line(), Some(ids[0]));
+        // Word starts are indices into each chunk's value. The paragraph's
+        // first word start is implicit in AccessKit (not pushed), so chunk 0
+        // holds the words at 3, 6, …, 252 (84 of them); the word at logical
+        // char 255 opens chunk 1 at its own char 0 (15 more to the end):
+        let chunk0 = node(&update, ids[0]).word_starts();
+        let chunk1 = node(&update, ids[1]).word_starts();
+        assert_eq!(chunk0.len(), 84);
+        assert_eq!(&chunk0[..3], &[3u8, 6, 9]);
+        assert_eq!(chunk1.len(), 15);
+        assert_eq!(&chunk1[..3], &[0u8, 3, 6]);
     }
 }
