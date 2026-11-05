@@ -538,24 +538,9 @@ fn run_at(ctx: &Context, time: f64, events: Vec<Event>, run_ui: impl FnMut(&mut 
 }
 
 // ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
 // Hover preview: the opt-in text cursor preview (`Visuals::text_cursor
 // .preview`, default off) paints the caret a click would place, so it must
 // follow the same scrolled-galley mapping as the real caret.
-
-/// Run one ui pass with extra input events, discarding the texture deltas.
-fn run_with_events(ctx: &Context, events: Vec<Event>, run_ui: impl FnMut(&mut Ui)) -> FullOutput {
-    let mut output = ctx.run_ui(
-        RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SCREEN)),
-            events,
-            ..Default::default()
-        },
-        run_ui,
-    );
-    output.textures_delta.clear();
-    output
-}
 
 /// The preview caret ("where would a click land?") tracks the scrolled text:
 /// an overflowing singleline field stores a scroll offset, and the previewed
@@ -628,7 +613,7 @@ fn preview_caret_tracks_the_scrolled_text() {
             vec![Event::PointerMoved(at(50.0))],
             vec![release],
         ] {
-            output = Some(run_with_events(&ctx, events, |ui| {
+            output = Some(run_events(&ctx, events, |ui| {
                 let out = ui
                     .allocate_ui(vec2(120.0, 30.0), |ui| {
                         TextEdit::singleline(&mut text).id(edit_id()).show(ui)
@@ -650,6 +635,7 @@ fn preview_caret_tracks_the_scrolled_text() {
         );
     }
 }
+
 // Collapsing a selection with the arrow keys: ArrowLeft/ArrowRight collapse a
 // non-empty selection onto the visual edge they point at (the reading end /
 // start of the row), and typing afterwards lands there. The LTR twins pin the
