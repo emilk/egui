@@ -18,6 +18,11 @@ use super::{
 /// Turn on to help debug this
 const DEBUG: bool = false; // Don't merge `true`!
 
+/// Slack for comparing stored screen positions and galley rects across
+/// widgets: wide enough to absorb float slop (and to treat touching rects as
+/// stacked), narrow enough to keep distinct rows apart.
+const ROW_EPSILON: f32 = 1.0;
+
 /// One end of a text selection, inside any widget.
 #[derive(Clone, Copy)]
 struct WidgetTextCursor {
@@ -65,8 +70,6 @@ fn pos_in_galley(galley: &Galley, ccursor: CCursor) -> Pos2 {
 /// was laid out — so the caller can fall back to the layout-encounter-order
 /// flags.
 fn reads_before(a: &WidgetTextCursor, b: &WidgetTextCursor, rtl: bool) -> Option<bool> {
-    const ROW_EPSILON: f32 = 1.0;
-
     if a.pos.y <= b.pos.y - ROW_EPSILON {
         // `a` is clearly above `b`, so it reads first either way:
         Some(true)
@@ -431,14 +434,61 @@ impl ViewportLabelSelectionState {
 
         // We need to append or prepend the new text to the already copied text.
         // We need to do so intelligently.
+        //
+        // Classify the new galley against the last copied one the way the
+        // fill branches order the endpoints: below reads after (append,
+        // unchanged), above reads before (prepend), and on the same row band
+        // the x comparison is signed by the galley's reading direction. When
+        // the geometry is inconclusive, fall back to the encounter order
+        // (append), like the fills do.
 
         if last_copied_galley_rect.bottom() <= new_galley_rect.top() {
+            // The new galley is below the last copied one, so it reads after
+            // it (top-down reading):
             self.text_to_copy.push('\n');
             let vertical_distance = new_galley_rect.top() - last_copied_galley_rect.bottom();
             if estimate_row_height(galley) * 0.5 < vertical_distance {
                 self.text_to_copy.push('\n');
             }
+            self.text_to_copy.push_str(&new_text);
+        } else if new_galley_rect.bottom() <= last_copied_galley_rect.top() + ROW_EPSILON {
+            // The new galley is entirely above the last copied one, so it
+            // reads before it: prepend — the mirror of the case above, with
+            // the mirrored newline logic (encounter order is not always
+            // top-down order, e.g. in bottom-anchored layouts):
+            let vertical_distance = last_copied_galley_rect.top() - new_galley_rect.bottom();
+            let newlines = if estimate_row_height(galley) * 0.5 < vertical_distance {
+                "\n\n"
+            } else {
+                "\n"
+            };
+            self.text_to_copy = format!("{new_text}{newlines}{}", self.text_to_copy);
+        } else if galley.is_rtl()
+            && new_galley_rect.left() >= last_copied_galley_rect.right() - ROW_EPSILON
+        {
+            // Same row band, horizontally disjoint: under a right-to-left
+            // reading direction the new galley sits to the right of the last
+            // copied one, so it reads before it: prepend, joining at the new
+            // boundary — the new text's trailing char against the existing
+            // text's leading char (the mirror of the append rule below):
+            let new_ends_with_space = new_text.chars().last().map(|c| c.is_whitespace());
+
+            let existing_starts_with_space_or_punctuation = self
+                .text_to_copy
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_whitespace() || c.is_ascii_punctuation());
+
+            let mut prepended = new_text;
+            if new_ends_with_space == Some(false) && !existing_starts_with_space_or_punctuation {
+                prepended.push(' ');
+            }
+            prepended.push_str(&self.text_to_copy);
+            self.text_to_copy = prepended;
         } else {
+            // Same row band (or inconclusive geometry): the existing raw-x
+            // append rule, which is the reading order for left-to-right rows
+            // and the fallback for everything else:
             let existing_ends_with_space =
                 self.text_to_copy.chars().last().map(|c| c.is_whitespace());
 
@@ -451,9 +501,9 @@ impl ViewportLabelSelectionState {
             {
                 self.text_to_copy.push(' ');
             }
+            self.text_to_copy.push_str(&new_text);
         }
 
-        self.text_to_copy.push_str(&new_text);
         self.last_copied_galley_rect = Some(new_galley_rect);
     }
 

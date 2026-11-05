@@ -111,11 +111,6 @@ fn painted_galley(output: &FullOutput, needle: &str) -> GalleyInfo {
         .unwrap_or_else(|| panic!("no painted text galley for {needle:?}"))
 }
 
-fn galley_center(info: &GalleyInfo) -> Pos2 {
-    let (shape_pos, galley) = info;
-    galley.rect.translate(shape_pos.to_vec2()).center()
-}
-
 /// The x-range of the painted selection highlight inside the label whose
 /// galley text is `needle`, if any.
 fn painted_selection_x_range(
@@ -166,6 +161,7 @@ fn expected_x_range(info: &GalleyInfo, range: CCursorRange) -> (f32, f32) {
 /// Everything one cross-widget drag produces.
 struct CrossDrag {
     output: FullOutput,
+    copied: String,
     left: GalleyInfo,
     right: GalleyInfo,
     selection_color: Color32,
@@ -173,9 +169,23 @@ struct CrossDrag {
     release: Pos2,
 }
 
+/// The x of a point strictly inside a row's first/last word: near the visual
+/// right edge (`right_side`) or the visual left edge, whichever the row reads
+/// from. Word-interior so the selected half's boundary chars are letters.
+fn word_interior_x(rect: Rect, right_side: bool) -> f32 {
+    if right_side {
+        rect.right() - 0.15 * rect.width()
+    } else {
+        rect.left() + 0.15 * rect.width()
+    }
+}
+
 /// Drag-select from one `Sides` panel label into the other, starting in the
 /// right-panel label when `press_right`, and return the release-frame output
-/// plus both labels' geometry.
+/// plus both labels' geometry. The press lands in the press label's
+/// reading-end word (the side toward the other label) and the release in the
+/// release label's reading-start word, so the selected halves start and end
+/// on letter boundaries.
 fn drag_between_sides(rtl: bool, press_right: bool) -> CrossDrag {
     let ctx = Context::default();
     ctx.set_right_to_left(rtl);
@@ -204,10 +214,25 @@ fn drag_between_sides(rtl: bool, press_right: bool) -> CrossDrag {
         "the two panel labels must share one row band (right {right:?}, left {left:?})"
     );
 
+    let left_rect = left.1.rect.translate(left.0.to_vec2());
+    let right_rect = right.1.rect.translate(right.0.to_vec2());
     let (press, release) = if press_right {
-        (galley_center(&right), galley_center(&left))
+        // Pressing in the right label: land in its reading-end word (the
+        // visual left side of an RTL row, the right side of an LTR one):
+        let press_x = word_interior_x(right_rect, !rtl);
+        // Releasing in the left label: land in its reading-start word:
+        let release_x = word_interior_x(left_rect, rtl);
+        (
+            pos2(press_x, right_rect.center().y),
+            pos2(release_x, left_rect.center().y),
+        )
     } else {
-        (galley_center(&left), galley_center(&right))
+        let press_x = word_interior_x(left_rect, rtl);
+        let release_x = word_interior_x(right_rect, !rtl);
+        (
+            pos2(press_x, left_rect.center().y),
+            pos2(release_x, right_rect.center().y),
+        )
     };
 
     drop(run(&ctx, 1.0, vec![pointer_button(press, true)], |ui| {
@@ -219,9 +244,13 @@ fn drag_between_sides(rtl: bool, press_right: bool) -> CrossDrag {
     let output = run(&ctx, 1.2, vec![pointer_button(release, false)], |ui| {
         sides_labels(ui, left_text, right_text);
     });
+    let copy_output = run(&ctx, 1.3, vec![Event::Copy], |ui| {
+        sides_labels(ui, left_text, right_text);
+    });
 
     CrossDrag {
         output,
+        copied: copied_text(&copy_output),
         left,
         right,
         selection_color,
@@ -287,6 +316,20 @@ fn assert_cross_widget_halves(rtl: bool, press_right: bool) {
              (rtl = {rtl}: painted {painted:?}, expected {expected:?})"
         );
     }
+
+    // The copied text must be in reading order: the reading-first label's
+    // half, then the reading-second label's half, joined by one space (both
+    // boundary chars are letters by construction).
+    let first_half_text = first_half.slice_str(reading_first.1.text());
+    let second_half_text = second_half.slice_str(reading_second.1.text());
+    assert_eq!(
+        drag.copied,
+        format!("{first_half_text} {second_half_text}"),
+        "the copied text must follow the reading order across the two labels \
+         (rtl = {rtl}: copied {:?}, expected {:?} = {first_half_text:?} then {second_half_text:?})",
+        drag.copied,
+        format!("{first_half_text} {second_half_text}")
+    );
 }
 
 // ---------------------------------------------------------------------------
