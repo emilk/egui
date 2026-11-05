@@ -36,6 +36,13 @@ pub struct UiBuilder {
     ///
     /// Inherited by child [`Ui`]s; falls back to [`Context::language`] at read time.
     pub language: Option<String>,
+
+    /// Per-subtree reading-direction override: `None` inherits the effective
+    /// direction (like every other `Option` field here), `Some(true)` forces
+    /// this subtree right-to-left and `Some(false)` forces it left-to-right.
+    ///
+    /// See [`UiBuilder::right_to_left`] for the exact semantics.
+    pub right_to_left: Option<bool>,
 }
 
 /// Is this [`Ui`] a root or a child of another [`Ui`]?
@@ -178,6 +185,30 @@ impl UiBuilder {
     #[inline]
     pub fn language(mut self, language: impl Into<String>) -> Self {
         self.language = Some(language.into());
+        self
+    }
+
+    /// Force the reading direction of this subtree, overriding the surrounding
+    /// interface direction: `true` lays this subtree out right-to-left,
+    /// `false` left-to-right. Not calling this inherits the effective
+    /// direction.
+    ///
+    /// The override is resolved at construction: it flips this subtree's own
+    /// [`Style::right_to_left`] (one `Style` clone per boundary that actually
+    /// flips), so every direction consumer — the vertical mirror,
+    /// [`Ui::is_rtl`], the widget-text ambient direction and galley halign —
+    /// follows by construction.
+    ///
+    /// The override is *pinned* for the subtree's lifetime: it survives
+    /// [`Ui::style_mut`], but it does not track later
+    /// [`Context::set_right_to_left`](crate::Context::set_right_to_left)
+    /// flips — re-create the child with a new override to follow — and
+    /// [`Ui::set_style`](crate::Ui::set_style) replaces the whole style and
+    /// intentionally discards it. This matches per-widget direction overrides
+    /// in other toolkits (Qt `setLayoutDirection`, Flutter `Directionality`).
+    #[inline]
+    pub fn right_to_left(mut self, right_to_left: bool) -> Self {
+        self.right_to_left = Some(right_to_left);
         self
     }
 

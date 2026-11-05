@@ -111,6 +111,7 @@ impl Ui {
             accessibility_role,
             classes,
             language,
+            right_to_left,
         } = ui_builder;
 
         let layer_id = layer_id.unwrap_or_else(LayerId::background);
@@ -123,7 +124,18 @@ impl Ui {
         let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
         let clip_rect = max_rect;
         let disabled = disabled || invisible;
-        let style = style.unwrap_or_else(|| ctx.global_style());
+        let mut style = style.unwrap_or_else(|| ctx.global_style());
+        // A per-subtree direction override flips this subtree's own style once,
+        // before the default layout below and the mirror further down read the
+        // flag, so every direction consumer follows by construction. One
+        // `Style` clone per boundary that actually flips; none otherwise. The
+        // override is pinned for the subtree's lifetime (see
+        // `UiBuilder::right_to_left`).
+        if let Some(rtl) = right_to_left {
+            if rtl != style.right_to_left {
+                Arc::make_mut(&mut style).right_to_left = rtl;
+            }
+        }
         let mut layout = layout.unwrap_or_else(|| Layout::from_style(&style));
         let sense = sense.unwrap_or_else(Sense::hover);
         let classes = classes.with_class(class::ROOT);
@@ -248,6 +260,7 @@ impl Ui {
             accessibility_role,
             classes,
             language,
+            right_to_left,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
@@ -262,7 +275,17 @@ impl Ui {
             painter.set_invisible();
         }
         let sizing_pass = self.sizing_pass || sizing_pass;
-        let style = style.unwrap_or_else(|| Arc::clone(&self.style));
+        let mut style = style.unwrap_or_else(|| Arc::clone(&self.style));
+        // A per-subtree direction override flips this subtree's own style once,
+        // before the mirror further down reads the flag, so every direction
+        // consumer follows by construction. One `Style` clone per boundary that
+        // actually flips; none otherwise. The override is pinned for the
+        // subtree's lifetime (see `UiBuilder::right_to_left`).
+        if let Some(rtl) = right_to_left {
+            if rtl != style.right_to_left {
+                Arc::make_mut(&mut style).right_to_left = rtl;
+            }
+        }
         let sense = sense.unwrap_or_else(Sense::hover);
 
         if sizing_pass {
