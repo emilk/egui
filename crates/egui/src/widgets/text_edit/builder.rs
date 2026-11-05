@@ -1308,12 +1308,28 @@ impl<'t> TextEdit<'t> {
             }
         });
 
+        // An active IME composition on this focused widget: the preedit text is
+        // reinserted into the buffer and the cursor range spans it (see the
+        // `ImeEvent::Preedit` handling). Exposing the range lets the
+        // accessibility bridge mark the widget as a live region and announce
+        // the composing text as an `ImeCandidate` node.
+        let composition =
+            if ui.memory(|mem| mem.has_focus(id)) && state.cursor_purpose.is_ime_composition() {
+                cursor_range
+                    .as_ref()
+                    .map(|range| range.as_sorted_char_range())
+                    .filter(|range| !range.is_empty())
+            } else {
+                None
+            };
+
         crate::text_selection::accesskit_text::update_accesskit_for_text_widget(
             ui.ctx(),
             id,
             cursor_range,
             TSTransform::from_translation(galley_pos.to_vec2()),
             &galley,
+            composition,
         );
 
         let output = TextEditOutput {

@@ -966,6 +966,7 @@ impl ViewportLabelSelectionState {
             cursor_range,
             global_from_galley,
             galley,
+            None, // labels never compose
         );
 
         new_vertex_indices

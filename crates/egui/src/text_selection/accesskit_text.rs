@@ -1,11 +1,15 @@
 use core::ops::Range;
 
 use emath::TSTransform;
+use epaint::text::cursor::CCursor;
 use epaint::text::{CharIndex, PlacedRow, Row};
 
 use crate::{Context, Galley, Id};
 
-use super::{CCursorRange, text_cursor_state::is_word_char};
+use super::{
+    CCursorRange,
+    text_cursor_state::{byte_index_from_char_index, is_word_char},
+};
 
 /// AccessKit's `word_starts` uses `u8` indices, so text runs cannot exceed this length.
 pub(crate) const MAX_CHARS_PER_TEXT_RUN: usize = 255;
@@ -304,6 +308,13 @@ fn text_run_position(
 /// is set from the [`crate::WidgetInfo`] the widget reports, so a link stays a
 /// link and a button stays a button.
 ///
+/// While an IME composition is active on the widget (`composition` holds the
+/// preedit's character range in the galley text — the preedit is already
+/// reinserted into the buffer), the widget node is marked as a live region and
+/// an [`accesskit::Role::ImeCandidate`] child announces the composing text with
+/// its on-screen bounds. Both marks are rebuilt every pass: when composition
+/// ends the child node is simply not built again, so adapters drop it.
+///
 /// Each run holds the *logical* text of one bidi-level stretch of a row, with
 /// that stretch's direction (the row's glyph stream is in visual order, so the
 /// logical text is reconstructed per run — cluster order reversed for
@@ -318,9 +329,17 @@ pub fn update_accesskit_for_text_widget(
     cursor_range: Option<CCursorRange>,
     global_from_galley: TSTransform,
     galley: &Galley,
+    composition: Option<Range<CharIndex>>,
 ) {
     let parent_id = ctx.accesskit_node_builder(widget_id, |builder| {
         let parent_id = widget_id;
+
+        // Announce the composition's text changes to assistive technology
+        // while it is active (cleared by simply not setting it next pass —
+        // an AccessKit node replaces its previous serialization wholesale):
+        if composition.is_some() {
+            builder.set_live(accesskit::Live::Polite);
+        }
 
         if let Some(cursor_range) = &cursor_range {
             let anchor = galley.layout_from_cursor(cursor_range.secondary);
@@ -510,6 +529,47 @@ pub fn update_accesskit_for_text_widget(
         }
 
         prev_row_ended_with_newline = placed_row.ends_with_newline;
+    }
+
+    // While an IME composition is active, expose the composing text as its own
+    // node so assistive technology has something concrete to announce even
+    // without live-region support. The node goes through the same per-pass
+    // machinery as the run nodes: when the composition ends it is simply not
+    // built again, so it disappears from the tree without explicit removal.
+    if let Some(composition) = composition {
+        let ime_id = parent_id.with("ime_composition");
+        ctx.register_accesskit_parent(ime_id, parent_id);
+
+        // The preedit occupies `composition` in the laid-out text (for a
+        // password field that text is the masked buffer, never the plaintext):
+        let text = &galley.job.text;
+        let byte_range = byte_index_from_char_index(text, composition.start).0
+            ..byte_index_from_char_index(text, composition.end).0;
+        let value = text.get(byte_range).unwrap_or_default().to_owned();
+
+        // The preedit's on-screen bounds, mapped to screen space by the same
+        // transform the run nodes use. `from_two_pos` normalizes: on a
+        // right-to-left row the reading-start caret sits right of the end.
+        let start_rect = galley.pos_from_cursor(CCursor {
+            index: composition.start,
+            prefer_next_row: true,
+        });
+        let end_rect = galley.pos_from_cursor(CCursor {
+            index: composition.end,
+            prefer_next_row: false,
+        });
+        let rect = global_from_galley * emath::Rect::from_two_pos(start_rect.min, end_rect.max);
+
+        ctx.accesskit_node_builder(ime_id, |builder| {
+            builder.set_role(accesskit::Role::ImeCandidate);
+            builder.set_value(value);
+            builder.set_bounds(accesskit::Rect {
+                x0: rect.min.x.into(),
+                y0: rect.min.y.into(),
+                x1: rect.max.x.into(),
+                y1: rect.max.y.into(),
+            });
+        });
     }
 }
 
@@ -874,5 +934,96 @@ mod tests {
         let run = node(&update, french.children()[0]);
         assert_eq!(run.role(), Role::TextRun);
         assert_eq!(run.language(), Some("fr"));
+    }
+
+    /// While an IME composition is active on a focused text edit, the widget
+    /// is marked as a live region and an `ImeCandidate` child announces the
+    /// composing text with its bounds. When the composition ends (here: a
+    /// commit), both are gone again — the node is not built next pass.
+    #[test]
+    fn ime_composition_is_exposed_to_the_accesskit_tree() {
+        use accesskit::Live;
+
+        use crate::{Event, ImeEvent, TextEdit};
+
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+        let id = Id::unique("ime_a11y_test");
+        let mut text = String::from("hello ");
+
+        let run_frame = |text: &mut String, events: Vec<Event>| {
+            let mut output = ctx.run_ui(
+                RawInput {
+                    time: Some(0.0),
+                    events,
+                    ..RawInput::default()
+                },
+                |ui| {
+                    ui.memory_mut(|mem| mem.request_focus(id));
+                    let out = TextEdit::singleline(text).id(id).show(ui);
+                    out.state.store(ui.ctx(), id);
+                },
+            );
+            output.textures_delta.clear();
+            output
+                .platform_output
+                .accesskit_update
+                .expect("accesskit update")
+        };
+
+        // Focus first (a frame without events), then compose:
+        let _setup = run_frame(&mut text, vec![]);
+        let composing = run_frame(
+            &mut text,
+            vec![Event::Ime(ImeEvent::Preedit {
+                text: "مرحبا".to_owned(),
+                active_range_chars: None,
+            })],
+        );
+
+        // The text widget (its role comes from `WidgetInfo`, refined in the
+        // bridge) carries the live flag while composing:
+        let text_widget = &composing
+            .nodes
+            .iter()
+            .find(|(_, node)| node.role() == Role::TextInput)
+            .expect("text input node")
+            .1;
+        assert_eq!(text_widget.live(), Some(Live::Polite));
+
+        // The composition text has its own child node:
+        let candidate = &composing
+            .nodes
+            .iter()
+            .find(|(_, node)| node.role() == Role::ImeCandidate)
+            .expect("ImeCandidate node while composing")
+            .1;
+        assert_eq!(candidate.value(), Some("مرحبا"));
+        assert!(candidate.bounds().is_some(), "the candidate has bounds");
+
+        // Committing ends the composition: no candidate node and no live flag
+        // in the next update:
+        let committed = run_frame(
+            &mut text,
+            vec![Event::Ime(ImeEvent::Commit("مرحبا".to_owned()))],
+        );
+        assert!(
+            !committed
+                .nodes
+                .iter()
+                .any(|(_, node)| node.role() == Role::ImeCandidate),
+            "the ImeCandidate node must be dropped when the composition ends"
+        );
+        let text_widget = &committed
+            .nodes
+            .iter()
+            .find(|(_, node)| node.role() == Role::TextInput)
+            .expect("text input node")
+            .1;
+        assert_eq!(
+            text_widget.live(),
+            None,
+            "the live mark must be cleared when the composition ends"
+        );
     }
 }
