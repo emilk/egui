@@ -31,6 +31,14 @@ pub struct AreaState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub size: Option<Vec2>,
 
+    /// Placement size an anchored area uses in its anchor derivation instead of its
+    /// live size, once a user resize drag has happened on it (see the
+    /// `resize_drag_in_flight` flag `Resize` sets): the reading-start edge of the
+    /// placed rect pins and the area grows reading-forward from it. Not persisted
+    /// between sessions, like [`Self::size`].
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub resize_pin_placement: Option<Vec2>,
+
     /// If false, clicks goes straight through to what is behind us. Useful for tooltips etc.
     pub interactable: bool,
 
@@ -47,6 +55,7 @@ impl Default for AreaState {
             pivot_pos: None,
             pivot: Align2::LEFT_TOP,
             size: None,
+            resize_pin_placement: None,
             interactable: true,
             last_became_visible_at: None,
         }
@@ -619,6 +628,7 @@ impl Area {
             pivot_pos: None,
             pivot,
             size: None,
+            resize_pin_placement: None,
             interactable,
             last_became_visible_at: None,
         });
@@ -691,12 +701,41 @@ impl Area {
         }
 
         if let Some((anchor, offset)) = anchor {
-            state.set_left_top_pos(
-                anchor
-                    .align_size_within_rect(size, constrain_rect)
-                    .left_top()
-                    + offset,
-            );
+            // A `Resize` inside this area sets `resize_drag_in_flight` on its layer
+            // while a user resize drag is in flight. On such a frame the anchored
+            // placement is frozen: from then on the placement is derived from the
+            // frozen size instead of the live one, so the reading-start edge of the
+            // placed rect pins and the area grows reading-forward from it (a centered
+            // `Modal` with a resize grip, for instance, stops re-centering around the
+            // dragged size — which would otherwise grow it at double pointer rate,
+            // both edges moving by half the delta). The pin persists after the drag:
+            // unfreezing would re-derive the placement from the final size and jump
+            // the area back towards its anchor by half the growth, and a user-resized
+            // area stays where the user left it, like a user-resized window.
+            let resize_drag_in_flight = ctx.data(|d| {
+                d.get_temp::<()>(layer_id.id.with("resize_drag_in_flight"))
+                    .is_some()
+            });
+            if resize_drag_in_flight {
+                state.resize_pin_placement.get_or_insert(size);
+            }
+            let placement_size = state.resize_pin_placement.unwrap_or(size);
+            let placed = anchor
+                .align_size_within_rect(placement_size, constrain_rect)
+                .translate(offset);
+            // While the placement is pinned, the reading-start edge of the placed
+            // rect is the frozen-size placement's reading-start edge: under RTL the
+            // rect's right edge, under LTR its left edge, and in both directions its
+            // top edge (growth is downward). Anchors that already pin that edge for
+            // any size (corner anchors like `RIGHT_TOP` under RTL) are unaffected —
+            // the pin only changes anchors whose reading-start edge moves with size
+            // (`CENTER_*` and the mirrored `LEFT_*`/`RIGHT_*` cases).
+            let left_top = if state.resize_pin_placement.is_some() && rtl {
+                pos2(placed.right() - size.x, placed.top())
+            } else {
+                placed.left_top()
+            };
+            state.set_left_top_pos(left_top);
         }
 
         // interact right away to prevent frame-delay

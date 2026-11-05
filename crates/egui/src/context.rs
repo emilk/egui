@@ -567,6 +567,7 @@ impl ContextImpl {
                     Align2::LEFT_TOP
                 },
                 size: Some(content_rect.size()),
+                resize_pin_placement: None,
                 interactable: true,
                 last_became_visible_at: None,
             },

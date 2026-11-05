@@ -289,6 +289,29 @@ impl Resize {
 
         let is_actively_resizing = user_requested_size.is_some();
 
+        // Tell anchored parent areas (a centered `Modal` wrapping this `Resize`, for
+        // instance) that a user resize is in flight, so they can pin their anchored
+        // placement — the reading-start edge — instead of re-centering while the drag
+        // changes their size. Same exemption the window's reading-edge compensation
+        // uses (`edge_drag_in_flight`). The flag is set after this frame's `Area::begin`
+        // has read it, so the first read is the first move frame — harmless, since the
+        // press frame's request reproduces the current size exactly and the frozen
+        // placement size is therefore the pre-drag size.
+        if is_actively_resizing {
+            ui.ctx().data_mut(|d| {
+                d.insert_temp(ui.layer_id().id.with("resize_drag_in_flight"), ());
+            });
+        } else {
+            // No drag in flight: drop the flag so a stale entry can't outlive the drag.
+            // Safe against racing the area's read: this runs after the parent area's
+            // `begin` has read the flag this frame, and the pinned placement is frozen
+            // into the area state from the first in-flight frame, so clearing the flag
+            // never unfreezes an existing pin.
+            ui.ctx().data_mut(|d| {
+                d.remove_temp::<()>(ui.layer_id().id.with("resize_drag_in_flight"));
+            });
+        }
+
         // Drag just started: we don't yet know what the content's minimum width is.
         // Run a one-frame sizing pass below to discover it.
         let needs_sizing_pass = is_actively_resizing && state.min_content_width.is_none();
