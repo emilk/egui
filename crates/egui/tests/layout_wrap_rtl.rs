@@ -331,8 +331,10 @@ fn from_style_derives_the_default_layout_from_the_style() {
         Layout::top_down(Align::Min),
         "the style-derived default is plain top-down Min under LTR"
     );
-    let mut rtl_style = egui::Style::default();
-    rtl_style.right_to_left = true;
+    let rtl_style = egui::Style {
+        right_to_left: true,
+        ..egui::Style::default()
+    };
     assert_eq!(
         Layout::from_style(&rtl_style),
         Layout::top_down(Align::Max),
