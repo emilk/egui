@@ -204,10 +204,26 @@ impl RowTextRuns {
 /// Runs without glyphs (a newline-only run from the 255-char split) are
 /// pinned last: the newline terminates the row's text.
 ///
-/// Known fence (the same one the row model itself works under): wrapping
-/// slices the already-reordered *visual* glyph stream per row, so for wrapped
-/// right-to-left rows this reconstruction is best-effort (per-line reordering
-/// is a layout-pipeline gap, not an accessibility one).
+/// Known fence (post-NG9): wrapping no longer slices an already-reordered
+/// *visual* stream — it walks the logical stream (`line_break_logically`) and
+/// places each produced row per UAX #9 L1/L2 (`RowReorder::place_row`,
+/// re-resolving the levels per row over the paragraph's whole byte span), so
+/// wrapped right-to-left rows follow the reading order and this replay is the
+/// exact inverse of that placement — wherever the levels it reads match the
+/// placement's. Those levels are the glyphs' stamps, resolved per *segment* at
+/// emission (`segment_into_bidi_runs` treats the segment as one line), while
+/// the placement resolves per *row*: a non-final wrapped row's trailing
+/// break-candidate whitespace is L1-reset to the base level for placement but
+/// keeps its stamped mid-segment level, and a row can likewise start with
+/// whitespace. Where the two differ (a break inside an embedded counter-base
+/// island), the replay folds that whitespace into the island's run and it
+/// reconstructs on the wrong side of its neighbours. Also past the stamps: a
+/// paragraph spanning several `LayoutSection`s is re-resolved span-wide (runs
+/// can merge across a section boundary where the per-segment emission split
+/// them), and hostile byte drift degrades the placement itself (clamped
+/// ranges, unclaimed blocks kept in logical order at the visual end).
+/// Everything else reconstructs exactly: single-row text, final rows, and
+/// every wrapped row whose stamps match its placed levels.
 fn logical_run_order(runs: &[TextRunInfo]) -> Vec<usize> {
     let mut order: Vec<usize> = (0..runs.len())
         .filter(|&i| !runs[i].glyphs.is_empty())
