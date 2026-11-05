@@ -2082,16 +2082,25 @@ impl Context {
     /// right-to-left text. The isolates render as invisible zero-advance
     /// glyphs, so left-to-right output is unchanged.
     ///
+    /// In a right-to-left interface the horizontal arrow keys of the shortcut
+    /// are mirrored to the reading direction (see [`KeyboardShortcut::format_for`]).
+    ///
     /// Can be used to get the text for [`crate::Button::shortcut_text`].
     pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
         let os = self.os();
 
         let is_mac = os.is_mac();
 
-        if is_mac && self.can_show_modifier_symbols() {
-            shortcut.format(&ModifierNames::SYMBOLS, is_mac)
+        let dir = if self.is_rtl() {
+            emath::ReadingDirection::Rtl
         } else {
-            shortcut.format(&ModifierNames::NAMES, is_mac)
+            emath::ReadingDirection::Ltr
+        };
+
+        if is_mac && self.can_show_modifier_symbols() {
+            shortcut.format_for(&ModifierNames::SYMBOLS, is_mac, dir)
+        } else {
+            shortcut.format_for(&ModifierNames::NAMES, is_mac, dir)
         }
     }
 

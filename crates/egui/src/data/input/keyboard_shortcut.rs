@@ -29,14 +29,30 @@ impl KeyboardShortcut {
     /// right-to-left text (the isolates render as invisible zero-advance
     /// glyphs, so left-to-right output is unchanged).
     pub fn format(&self, names: &ModifierNames<'_>, is_mac: bool) -> String {
+        self.format_for(names, is_mac, crate::emath::ReadingDirection::Ltr)
+    }
+
+    /// Format the shortcut like [`Self::format`], mirroring the display names
+    /// of the horizontal arrow keys to the reading direction.
+    ///
+    /// In a right-to-left interface the arrows follow the reading direction
+    /// (the same convention as the menu and panel mirroring), so a shortcut
+    /// for "toward the reading start" is labeled `Right`. See
+    /// [`Key::name_for`] and [`Key::symbol_or_name_for`].
+    pub fn format_for(
+        &self,
+        names: &ModifierNames<'_>,
+        is_mac: bool,
+        dir: crate::emath::ReadingDirection,
+    ) -> String {
         let mut s = names.format(&self.modifiers, is_mac);
         if !s.is_empty() {
             s += names.concat;
         }
         if names.is_short {
-            s += self.logical_key.symbol_or_name();
+            s += self.logical_key.symbol_or_name_for(dir);
         } else {
-            s += self.logical_key.name();
+            s += self.logical_key.name_for(dir);
         }
         // Keep the shortcut one left-to-right run when embedded in
         // right-to-left text: without the isolation, a trailing neutral glyph

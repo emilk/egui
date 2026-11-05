@@ -863,6 +863,37 @@ impl Key {
             Self::Clear => "Clear",
         }
     }
+
+    /// The human-readable English name of the key, mirrored to the reading
+    /// direction.
+    ///
+    /// In a right-to-left interface the horizontal arrows follow the reading
+    /// direction (the same convention as the menu and panel mirroring): the
+    /// action "toward the reading start" is labeled `Right`. The vertical
+    /// arrows and the line-edge keys ([`Self::Home`], [`Self::End`],
+    /// [`Self::PageUp`], [`Self::PageDown`]) are direction-neutral and keep
+    /// their names. See also [`Self::name`] (always physical).
+    pub fn name_for(self, dir: crate::emath::ReadingDirection) -> &'static str {
+        match (self, dir) {
+            (Self::ArrowLeft, crate::emath::ReadingDirection::Rtl) => "Right",
+            (Self::ArrowRight, crate::emath::ReadingDirection::Rtl) => "Left",
+            _ => self.name(),
+        }
+    }
+
+    /// The emoji or name representing the key, mirrored to the reading
+    /// direction.
+    ///
+    /// Like [`Self::name_for`]: in a right-to-left interface the horizontal
+    /// arrows swap their glyphs, everything else keeps
+    /// [`Self::symbol_or_name`] (always physical).
+    pub fn symbol_or_name_for(self, dir: crate::emath::ReadingDirection) -> &'static str {
+        match (self, dir) {
+            (Self::ArrowLeft, crate::emath::ReadingDirection::Rtl) => "⏵",
+            (Self::ArrowRight, crate::emath::ReadingDirection::Rtl) => "⏴",
+            _ => self.symbol_or_name(),
+        }
+    }
 }
 
 #[test]
@@ -886,6 +917,76 @@ fn test_key_from_name() {
             Key::from_name(symbol),
             Some(key),
             "Failed to roundtrip {key:?} from symbol {symbol:?}"
+        );
+    }
+}
+#[test]
+fn directional_names_default_to_physical() {
+    for &key in Key::ALL {
+        assert_eq!(
+            key.name_for(crate::emath::ReadingDirection::Ltr),
+            key.name(),
+            "the LTR name must stay the physical name for {key:?}"
+        );
+        assert_eq!(
+            key.symbol_or_name_for(crate::emath::ReadingDirection::Ltr),
+            key.symbol_or_name(),
+            "the LTR symbol must stay the physical symbol for {key:?}"
+        );
+    }
+}
+
+#[test]
+fn arrow_names_mirror_under_rtl() {
+    assert_eq!(
+        Key::ArrowLeft.name_for(crate::emath::ReadingDirection::Rtl),
+        "Right"
+    );
+    assert_eq!(
+        Key::ArrowRight.name_for(crate::emath::ReadingDirection::Rtl),
+        "Left"
+    );
+    assert_eq!(
+        Key::ArrowLeft.symbol_or_name_for(crate::emath::ReadingDirection::Rtl),
+        "⏵"
+    );
+    assert_eq!(
+        Key::ArrowRight.symbol_or_name_for(crate::emath::ReadingDirection::Rtl),
+        "⏴"
+    );
+}
+
+#[test]
+fn vertical_and_line_edge_keys_stay_unmapped_under_rtl() {
+    // Vertical arrows are direction-neutral: nobody may "complete" the
+    // mirroring to them.
+    assert_eq!(
+        Key::ArrowUp.name_for(crate::emath::ReadingDirection::Rtl),
+        "Up"
+    );
+    assert_eq!(
+        Key::ArrowDown.name_for(crate::emath::ReadingDirection::Rtl),
+        "Down"
+    );
+    assert_eq!(
+        Key::ArrowUp.symbol_or_name_for(crate::emath::ReadingDirection::Rtl),
+        "⏶"
+    );
+    assert_eq!(
+        Key::ArrowDown.symbol_or_name_for(crate::emath::ReadingDirection::Rtl),
+        "⏷"
+    );
+    // Home/End/PageUp/PageDown encode line edges, not visual direction.
+    for &key in &[Key::Home, Key::End, Key::PageUp, Key::PageDown] {
+        assert_eq!(
+            key.name_for(crate::emath::ReadingDirection::Rtl),
+            key.name(),
+            "{key:?} must stay unmapped under Rtl"
+        );
+        assert_eq!(
+            key.symbol_or_name_for(crate::emath::ReadingDirection::Rtl),
+            key.symbol_or_name(),
+            "{key:?} must stay unmapped under Rtl"
         );
     }
 }
