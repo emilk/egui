@@ -7,11 +7,14 @@
 //! painted cursor line segments, and glyph positions from the painted text
 //! shapes), so they survive engine tweaks and renderers.
 //!
-//! On this base the cursor indices index the row's visually-ordered glyphs,
-//! so Home/End are the visual left/right edges of the text and the arrow keys
-//! move the caret visually; the bidi *rendering* order is asserted separately
-//! from the painted glyphs (Arabic run right of the Latin run, mirrored
-//! brackets, digits reading left-to-right).
+//! On this base cursor columns are logical (0 = the reading start, the visual
+//! right edge of a right-to-left row; the reading end = the visual left edge),
+//! and the arrow keys move the caret one *visual* position, stepping by each
+//! embedded run's own bidi level (`Glyph::bidi_level`): visual-left inside an
+//! embedded LTR run of an RTL row is the logically previous character, etc.;
+//! the bidi *rendering* order is asserted separately from the painted glyphs
+//! (Arabic run right of the Latin run, mirrored brackets, digits reading
+//! left-to-right).
 //!
 //! Assertions that need actual Arabic glyphs are gated on the RTL font fixture
 //! ([`egui_kittest::HarnessBuilder::with_rtl_font`], env var `KITTEST_RTL_FONT`)
@@ -184,11 +187,12 @@ fn test_text_edit_rtl_caret_and_selection() {
 
     // Arabic caret math (only with the RTL font fixture installed).
     //
-    // On this base the cursor indices index the row's visually-ordered glyphs,
-    // so Home/End are the visual left/right edges of the text and the arrow
-    // keys move the caret visually (ArrowRight x+, ArrowLeft x-), independent
-    // of the reading direction of the runs. The bidi *rendering* order is
-    // covered in `test_text_edit_bidi_boundaries`.
+    // Cursor columns are logical (0 = the reading start, the visual right
+    // edge of this RTL row) and the arrow keys move the caret one *visual*
+    // position, stepping by the row's local bidi levels — for the uniform
+    // Arabic row here: visual-left from the reading start enters the text,
+    // Home is the visual right edge and End the visual left edge. The bidi
+    // *rendering* order is covered in `test_text_edit_bidi_boundaries`.
     if rtl_font_path().is_some() {
         let mut text = "مصر".to_owned();
         let mut harness = focused_rtl_edit(&mut text);
@@ -212,40 +216,45 @@ fn test_text_edit_rtl_caret_and_selection() {
         );
         let end_x = caret_x_expect(&harness, "at End");
         assert!(
-            end_x > home_x,
-            "End should sit at the visual right edge of the Arabic text: \
+            end_x < home_x,
+            "End sits at the reading end (the visual left edge) of the Arabic \
+             row; Home at the reading start (the visual right edge): \
              home {home_x:.1}, end {end_x:.1}"
         );
 
-        // The arrows move the caret visually:
+        // The arrows step by the row's own level (visual left from the
+        // reading start enters the text):
         harness.key_press(egui::Key::Home);
         harness.run();
         let x0 = caret_x_expect(&harness, "at Home");
-        let x1 = caret_after_key(&mut harness, egui::Key::ArrowRight);
+        let x1 = caret_after_key(&mut harness, egui::Key::ArrowLeft);
         assert!(
-            x1 > x0,
-            "ArrowRight should move the caret visually right: {x0:.1} -> {x1:.1}"
+            x1 < x0,
+            "ArrowLeft should move the caret visually left into the text: \
+             {x0:.1} -> {x1:.1}"
         );
-        let x0_again = caret_after_key(&mut harness, egui::Key::ArrowLeft);
+        let x0_again = caret_after_key(&mut harness, egui::Key::ArrowRight);
         assert!(
             (x0_again - x0).abs() < 1.0,
-            "ArrowLeft should move back visually left: {x1:.1} -> {x0_again:.1} (was {x0:.1})"
+            "ArrowRight should move back to the reading start: \
+             {x1:.1} -> {x0_again:.1} (was {x0:.1})"
         );
 
-        // The selection extends glyph by glyph from the visual left edge:
+        // The selection extends visually left from the reading start:
         harness.key_press(egui::Key::Home);
         harness.run();
         let home_x = caret_x_expect(&harness, "at Home");
-        shift_press(&mut harness, egui::Key::ArrowRight);
+        shift_press(&mut harness, egui::Key::ArrowLeft);
         assert_eq!(
             selection_char_range(&harness),
             (0, 1),
-            "shift+ArrowRight from Home should select the first glyph"
+            "shift+ArrowLeft from Home should select the first glyph"
         );
         let selected_x = caret_x_expect(&harness, "at the selection end");
         assert!(
-            selected_x > home_x,
-            "the selection should extend visually right: {home_x:.1} -> {selected_x:.1}"
+            selected_x < home_x,
+            "the selection should extend visually left: \
+             {home_x:.1} -> {selected_x:.1}"
         );
     } else {
         skipped_without_rtl_font("test_text_edit_rtl_caret_and_selection");
