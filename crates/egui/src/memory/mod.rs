@@ -4,7 +4,7 @@ use alloc::sync::Arc;
 use core::num::NonZeroUsize;
 
 use ahash::{HashMap, HashSet};
-use epaint::emath::TSTransform;
+use epaint::emath::{ReadingDirection, TSTransform};
 
 use crate::{
     EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2, ViewportId,
@@ -12,7 +12,7 @@ use crate::{
 };
 
 mod theme;
-pub use theme::{Theme, ThemePreference};
+pub use theme::{DirectionPreference, Theme, ThemePreference};
 
 // ----------------------------------------------------------------------------
 
@@ -217,6 +217,33 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) system_theme: Option<Theme>,
 
+    /// Preference for the reading direction of the interface, used to pick the
+    /// value of [`Style::right_to_left`] in both theme styles.
+    ///
+    /// Set through [`crate::Context::set_right_to_left`] (the explicit fork API)
+    /// or [`crate::Context::set_direction_preference`]; when the preference is
+    /// [`DirectionPreference::System`], the direction is resolved from
+    /// [`crate::RawInput::system_locale`], falling back to left-to-right.
+    ///
+    /// Unlike the styles themselves, this preference persists
+    /// (with the `persistence` feature).
+    ///
+    /// Default: `DirectionPreference::System`.
+    pub direction_preference: DirectionPreference,
+
+    /// The current system reading direction, resolved from
+    /// [`crate::RawInput::system_locale`] at the start of each pass, used to choose
+    /// the direction in case [`Self::direction_preference`] is [`DirectionPreference::System`].
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) system_direction: Option<ReadingDirection>,
+
+    /// The reading direction most recently applied into the theme styles.
+    ///
+    /// [`Self::begin_pass`] re-applies the resolved direction only when this
+    /// differs, so a steady state costs no per-pass style churn.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) applied_direction: Option<ReadingDirection>,
+
     /// If `true`, egui will keep the native window theme in sync with
     /// [`Self::theme_preference`] by sending a [`crate::ViewportCommand::SetTheme`]
     /// to the root viewport whenever the preference changes.
@@ -331,6 +358,9 @@ impl Default for Options {
             theme_preference: Default::default(),
             fallback_theme: Theme::Dark,
             system_theme: None,
+            direction_preference: Default::default(),
+            system_direction: None,
+            applied_direction: None,
             sync_window_theme: true,
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
@@ -358,6 +388,21 @@ impl Options {
     #[doc(hidden)]
     pub fn begin_pass(&mut self, new_raw_input: &RawInput) {
         self.system_theme = new_raw_input.system_theme;
+        self.system_direction = new_raw_input
+            .system_locale
+            .as_deref()
+            .map(crate::locale::locale_direction);
+
+        // Apply the resolved direction into both theme styles, but only on an
+        // actual change: the styles are shared `Arc`s, and re-applying the same
+        // direction every pass would churn them (and fight per-pass style
+        // customization for no reason).
+        let direction = self.direction();
+        if self.applied_direction != Some(direction) {
+            Arc::make_mut(&mut self.dark_style).right_to_left = direction.is_rtl();
+            Arc::make_mut(&mut self.light_style).right_to_left = direction.is_rtl();
+            self.applied_direction = Some(direction);
+        }
     }
 
     /// The currently active theme (may depend on the system theme).
@@ -366,6 +411,16 @@ impl Options {
             ThemePreference::Dark => Theme::Dark,
             ThemePreference::Light => Theme::Light,
             ThemePreference::System => self.system_theme.unwrap_or(self.fallback_theme),
+        }
+    }
+
+    /// The reading direction implied by [`Self::direction_preference`]
+    /// (may depend on the system locale).
+    pub(crate) fn direction(&self) -> ReadingDirection {
+        match self.direction_preference {
+            DirectionPreference::Ltr => ReadingDirection::Ltr,
+            DirectionPreference::Rtl => ReadingDirection::Rtl,
+            DirectionPreference::System => self.system_direction.unwrap_or(ReadingDirection::Ltr),
         }
     }
 
@@ -395,6 +450,9 @@ impl Options {
             theme_preference,
             fallback_theme: _,
             system_theme: _,
+            direction_preference: _, // set through Context::set_direction_preference
+            system_direction: _,
+            applied_direction: _,
             sync_window_theme,
             zoom_factor,
             zoom_with_keyboard,

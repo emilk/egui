@@ -90,6 +90,19 @@ pub struct RawInput {
     /// `None` means "don't know".
     pub system_theme: Option<Theme>,
 
+    /// The system or user locale, as a BCP 47 language tag or a common locale
+    /// id (e.g. `"ar-EG"`).
+    ///
+    /// `None` means the integration doesn't know (the default, and today's
+    /// behaviour). egui uses the locale to resolve the default reading
+    /// direction when the direction preference is
+    /// [`crate::DirectionPreference::System`]; an unknown locale falls back to
+    /// a left-to-right interface. Integrations that know the locale report it
+    /// here (on the web, `navigator.language`; any integration — including
+    /// native ones — can fill this public field itself).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub system_locale: Option<String>,
+
     /// Is the currently active keyboard layout a Latin (QWERTY-family) layout?
     ///
     /// `None` means the integration doesn't know (the default, and today's behaviour).
@@ -139,6 +152,7 @@ impl Default for RawInput {
             dropped_files: Default::default(),
             focused: true, // integrations opt into global focus tracking
             system_theme: None,
+            system_locale: None,
             safe_area_insets: Default::default(),
             keyboard_layout_is_latin: None,
             latin_layout_chars: Vec::new(),
@@ -175,6 +189,7 @@ impl RawInput {
             dropped_files: core::mem::take(&mut self.dropped_files),
             focused: self.focused,
             system_theme: self.system_theme,
+            system_locale: self.system_locale.clone(),
             keyboard_layout_is_latin: self.keyboard_layout_is_latin,
             latin_layout_chars: self.latin_layout_chars.clone(),
         }
@@ -194,6 +209,7 @@ impl RawInput {
             mut dropped_files,
             focused,
             system_theme,
+            system_locale,
             safe_area_insets: safe_area,
             keyboard_layout_is_latin,
             latin_layout_chars,
@@ -210,6 +226,7 @@ impl RawInput {
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
         self.system_theme = system_theme;
+        self.system_locale = system_locale.or_else(|| self.system_locale.take());
         self.safe_area_insets = safe_area.or(self.safe_area_insets);
         self.keyboard_layout_is_latin = keyboard_layout_is_latin.or(self.keyboard_layout_is_latin);
         if !latin_layout_chars.is_empty() {
@@ -232,6 +249,7 @@ impl RawInput {
             dropped_files,
             focused,
             system_theme,
+            system_locale,
             safe_area_insets: safe_area,
             keyboard_layout_is_latin,
             latin_layout_chars,
@@ -263,6 +281,7 @@ impl RawInput {
         ui.label(format!("dropped_files: {}", dropped_files.len()));
         ui.label(format!("focused: {focused}"));
         ui.label(format!("system_theme: {system_theme:?}"));
+        ui.label(format!("system_locale: {system_locale:?}"));
         ui.label(format!(
             "keyboard_layout_is_latin: {keyboard_layout_is_latin:?}"
         ));

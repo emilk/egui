@@ -124,7 +124,7 @@ fn set_theme_with_the_same_value_requests_no_repaint() {
 
 /// Per-frame callers (the i18n demo-app pattern) write the same value every
 /// frame: after the one actual change, no frame may ever see a repaint request
-/// from the setter.
+/// from the setter, and the recorded preference stays exactly as set.
 #[test]
 fn set_right_to_left_called_every_frame_is_a_no_op() {
     let ctx = Context::default();
@@ -139,6 +139,11 @@ fn set_right_to_left_called_every_frame_is_a_no_op() {
         assert!(
             recorded(&log).is_empty(),
             "frame {frame}: a same-value set_right_to_left must not request a repaint"
+        );
+        assert_eq!(
+            ctx.direction_preference(),
+            egui::DirectionPreference::Rtl,
+            "frame {frame}: the explicit preference must stay exactly as set"
         );
         run(&ctx, frame as f64, |_ui| {});
     }

@@ -33,7 +33,7 @@ use crate::{
     interaction::InteractionSnapshot,
     layers::GraphicLayers,
     load::{self, Bytes, Loaders, SizedTexture},
-    memory::{Options, Theme},
+    memory::{DirectionPreference, Options, Theme},
     os::OperatingSystem,
     output::{FullOutput, LogicOutput},
     pass_state::PassState,
@@ -2642,7 +2642,19 @@ impl Context {
     /// right-to-left interface languages (Arabic, Hebrew, Persian, Urdu);
     /// see [`Style::right_to_left`] for what is mirrored.
     ///
-    /// Takes effect from the next frame.
+    /// This is also the explicit-preference setter: the direction is recorded
+    /// in [`Options::direction_preference`] and therefore **persists between
+    /// runs** (with the `persistence` feature), and an explicit preference
+    /// overrides locale detection
+    /// ([`RawInput::system_locale`]). Takes effect from the next frame.
+    ///
+    /// Apps that call this every frame (e.g. deriving it from the UI language)
+    /// are safe — same-value writes are no-ops and repaints are guarded on an
+    /// actual direction change — but note that such a caller always overwrites
+    /// the preference, so system-locale detection is inert for it: an
+    /// explicit per-frame direction policy *is* an explicit preference, and
+    /// [`Self::set_direction_preference`] is only meaningful for apps that do
+    /// not hard-set the direction every frame.
     ///
     /// Example:
     /// ```
@@ -2651,12 +2663,76 @@ impl Context {
     /// assert!(ctx.is_rtl());
     /// ```
     pub fn set_right_to_left(&self, right_to_left: bool) {
+        let preference = if right_to_left {
+            DirectionPreference::Rtl
+        } else {
+            DirectionPreference::Ltr
+        };
         let cause = RepaintCause::new();
         self.write(|ctx| {
+            // Record the explicit preference (persists, and is what
+            // `begin_pass` resolves from), then apply the direction to both
+            // theme styles so an appearance switch cannot revert it.
+            ctx.memory.options.direction_preference = preference;
             if ctx.memory.options.style().right_to_left != right_to_left {
                 let options = &mut ctx.memory.options;
                 Arc::make_mut(&mut options.dark_style).right_to_left = right_to_left;
                 Arc::make_mut(&mut options.light_style).right_to_left = right_to_left;
+                options.applied_direction = Some(options.direction());
+                #[expect(clippy::iter_over_hash_type)]
+                for viewport_id in ctx.all_viewport_ids() {
+                    ctx.request_repaint(viewport_id, cause.clone());
+                }
+            }
+        });
+    }
+
+    /// The reading direction preference of the interface.
+    ///
+    /// See [`Self::set_direction_preference`].
+    pub fn direction_preference(&self) -> DirectionPreference {
+        self.options(|opt| opt.direction_preference)
+    }
+
+    /// Set how the interface picks its reading direction.
+    ///
+    /// * [`DirectionPreference::Ltr`] / [`DirectionPreference::Rtl`]: an
+    ///   explicit direction (what [`Self::set_right_to_left`] records).
+    /// * [`DirectionPreference::System`]: follow the locale reported by the
+    ///   integration through [`RawInput::system_locale`], falling back to
+    ///   left-to-right when none is reported.
+    ///
+    /// Unlike the styles themselves, this preference persists between runs
+    /// (with the `persistence` feature). Repaints are requested only when the
+    /// *resolved* direction will actually change — switching to
+    /// [`DirectionPreference::System`] while the system locale already matches
+    /// the current direction repaints nothing.
+    ///
+    /// The change takes effect from the next frame (the next
+    /// [`Context::begin_pass`] applies the resolved direction). Note that an
+    /// app which calls [`Self::set_right_to_left`] every frame overwrites this
+    /// preference every frame — see that method.
+    pub fn set_direction_preference(&self, preference: DirectionPreference) {
+        let cause = RepaintCause::new();
+        self.write(|ctx| {
+            // Compare the *resolved* direction, not the raw preference, so a
+            // switch whose resolution keeps the visible direction (e.g.
+            // Rtl → System with an RTL system locale) does not repaint. The
+            // styles themselves are applied by the next `begin_pass`.
+            let resolved = match preference {
+                DirectionPreference::Ltr => crate::emath::ReadingDirection::Ltr,
+                DirectionPreference::Rtl => crate::emath::ReadingDirection::Rtl,
+                DirectionPreference::System => ctx
+                    .memory
+                    .options
+                    .system_direction
+                    .unwrap_or(crate::emath::ReadingDirection::Ltr),
+            };
+            // Record the preference even when the visible direction is
+            // unchanged: it may differ without changing the resolution (e.g.
+            // Rtl → System with an RTL system locale), and it must persist.
+            ctx.memory.options.direction_preference = preference;
+            if ctx.memory.options.style().right_to_left != resolved.is_rtl() {
                 #[expect(clippy::iter_over_hash_type)]
                 for viewport_id in ctx.all_viewport_ids() {
                     ctx.request_repaint(viewport_id, cause.clone());
