@@ -94,6 +94,28 @@
 //!
 //! Angles are in radians, and are measured clockwise from the X-axis, which has angle=0.
 //!
+//! ## Right-to-left interfaces
+//! egui can mirror its interface for right-to-left reading orders
+//! (Arabic, Hebrew, Persian, Urdu, …):
+//!
+//! * [`Style::right_to_left`] mirrors egui-owned widget chrome and default
+//!   placements; set it for the whole context with
+//!   [`Context::set_right_to_left`], or pick a policy with
+//!   [`Context::set_direction_preference`] (explicit left-to-right /
+//!   right-to-left, or follow the locale reported through
+//!   [`RawInput::system_locale`]).
+//! * [`Context::set_locale`] sets the text language and derives the reading
+//!   direction from one locale tag; [`Context::set_language`] sets only the
+//!   language, so line-breaking and shaping can be locale-aware.
+//! * The coordinate system stays physical under the flag: Y still points
+//!   down and X still increases to the right; only which side of a widget is
+//!   its reading-*start* changes.
+//! * The default font stack still lacks Arabic and Hebrew glyphs — install a
+//!   suitable font with [`Context::set_fonts`] (or a font provider) to render
+//!   them.
+//! * For the native window chrome itself, integrations can read the
+//!   [`ViewportBuilder::with_layout_direction`] hint.
+//!
 //! # Integrating with egui
 //!
 //! Most likely you are using an existing `egui` backend/integration such as [`eframe`](https://docs.rs/eframe), [`bevy_egui`](https://docs.rs/bevy_egui),
@@ -367,7 +389,7 @@
 //! ```
 //!
 //! ## Installing additional fonts
-//! The default egui fonts only support latin and cryllic characters, and some emojis.
+//! The default egui fonts only support latin and cyrillic characters, and some emojis.
 //! To use egui with e.g. asian characters you need to install your own font (`.ttf` or `.otf`) using [`Context::set_fonts`].
 //!
 //! ## Instrumentation
