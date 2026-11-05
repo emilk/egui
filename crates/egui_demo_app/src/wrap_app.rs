@@ -454,10 +454,17 @@ impl WrapApp {
         // Demo toggle for the reading direction and UI language (issue #14):
         // flip to Arabic/RTL to exercise right-to-left widgets such as the
         // date picker popup. Fork-side only; not upstreamable.
+        //
+        // Route through the app state: the per-frame reset at the top of `ui`
+        // derives direction and translations from `self.state.language`, so a
+        // direct `Context::set_right_to_left`/`set_language` here is
+        // overwritten next frame. The binding still reads the direction the
+        // reset derived, so the toggle shows active iff Arabic is active.
         let mut rtl = ui.ctx().is_rtl();
         if ui.toggle_value(&mut rtl, "↔ RTL · العربية").changed() {
-            ui.ctx().set_right_to_left(rtl);
-            ui.ctx().set_language(if rtl { "ar-EG" } else { "en" });
+            // Registry codes from `i18n::LANGUAGES` ("ar"/"en"), like the
+            // Language dropdown's `selected.code()`; "ar-EG" is not one.
+            self.state.language = if rtl { "ar" } else { "en" }.to_owned();
         }
 
         ui.separator();

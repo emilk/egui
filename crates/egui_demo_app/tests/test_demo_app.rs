@@ -117,3 +117,41 @@ fn test_language_flips_interface_direction() {
     harness.run_steps(2);
     assert!(!harness.ctx.is_rtl());
 }
+
+/// Clicking the top-bar RTL toggle routes through the app language, so the
+/// per-frame reset keeps the direction; clicking again restores English.
+///
+/// The switch-back leg resizes the window first: after a mid-session direction
+/// flip the accesskit tree still reports the widgets at their pre-flip rects
+/// (pre-existing fork quirk: the interaction rects mirror immediately, while
+/// the accessibility tree and the painted shapes lag behind), so a
+/// node-targeted click would land on the mirrored position. A resize forces a
+/// full tree rebuild, as any real window resize does.
+#[test]
+fn test_rtl_toggle_routes_through_language() {
+    let mut harness = egui_kittest::Harness::builder()
+        .with_size(Vec2::new(900.0, 600.0))
+        .wgpu()
+        .allow_missing_glyphs() // Arabic glyphs are system-font dependent; tofu is fine
+        .build_eframe(|cc| WrapApp::new(cc));
+
+    harness.run_steps(2);
+    assert!(!harness.ctx.is_rtl());
+
+    harness
+        .get_by_role_and_label(Role::Button, "↔ RTL · العربية")
+        .click();
+    harness.run_steps(2);
+    assert!(harness.ctx.is_rtl());
+    assert_eq!(harness.state().state.language, "ar");
+
+    // Refresh the accessibility tree before the second click (see doc comment).
+    harness.set_size(Vec2::new(901.0, 600.0));
+    harness.run_steps(2);
+    harness
+        .get_by_role_and_label(Role::Button, "↔ RTL · العربية")
+        .click();
+    harness.run_steps(2);
+    assert!(!harness.ctx.is_rtl());
+    assert_eq!(harness.state().state.language, "en");
+}
