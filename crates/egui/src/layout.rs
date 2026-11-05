@@ -319,7 +319,7 @@ impl Layout {
     /// True when the layout itself runs right-to-left, or when it is vertical with
     /// `Align::Max` cross alignment. The interface-direction term lives in
     /// `Placer::prefer_right_to_left`, which also mirrors nested rows of vertical
-    /// `Align::Min` bodies when `Style::right_to_left` is set.
+    /// `Align::Min` and `Align::Center` bodies when `Style::right_to_left` is set.
     pub fn prefer_right_to_left(&self) -> bool {
         self.main_dir == Direction::RightToLeft
             || self.main_dir.is_vertical() && self.cross_align == Align::Max

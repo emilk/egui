@@ -50,7 +50,7 @@ impl Placer {
     #[inline(always)]
     pub(crate) fn prefer_right_to_left(&self, ui_is_rtl: bool) -> bool {
         self.layout.prefer_right_to_left()
-            || ui_is_rtl && self.layout.is_vertical() && self.layout.cross_align == Align::Min
+            || ui_is_rtl && self.layout.is_vertical() && self.layout.cross_align != Align::Max
     }
 
     #[inline(always)]
@@ -363,8 +363,9 @@ mod tests {
         }
     }
 
-    /// The RTL term applies only to vertical `Align::Min` layouts,
-    /// and `rtl = false` matches the old pure-layout answers.
+    /// The RTL term applies only to vertical layouts that are not `Align::Max`
+    /// (`Align::Min` and `Align::Center` bodies), and `rtl = false` matches the
+    /// old pure-layout answers.
     #[test]
     fn prefer_right_to_left_truth_table() {
         let layouts = [
@@ -387,9 +388,10 @@ mod tests {
                 "{layout:?} with ui_is_rtl=false"
             );
 
-            // With the flag on, only vertical `Align::Min` layouts gain the RTL term:
+            // With the flag on, only vertical layouts that are not `Align::Max`
+            // gain the RTL term:
             let expected = layout.prefer_right_to_left()
-                || layout.is_vertical() && layout.cross_align == Align::Min;
+                || layout.is_vertical() && layout.cross_align != Align::Max;
             assert_eq!(
                 placer.prefer_right_to_left(true),
                 expected,
@@ -404,6 +406,12 @@ mod tests {
         let body = Layout::top_down(Align::Min);
         assert!(placer(body).prefer_right_to_left(true));
         assert!(!placer(body).prefer_right_to_left(false));
+
+        // `ui.vertical_centered` uses this exact layout; it mirrors under the
+        // interface flag just like a `Min` body:
+        let center_body = Layout::top_down(Align::Center);
+        assert!(placer(center_body).prefer_right_to_left(true));
+        assert!(!placer(center_body).prefer_right_to_left(false));
 
         // Horizontal rows are never mirrored by the interface term:
         let row = Layout::left_to_right(Align::Center);

@@ -43,12 +43,12 @@ fn main_cross_rect(direction: Direction, aligned_rect: Rect, min_main: f32, max_
 /// Right-to-left when the layout itself runs right-to-left (or is vertical with
 /// `Align::Max` cross alignment, which [`crate::Layout::prefer_right_to_left`]
 /// already reports as right-to-left), or when
-/// [`crate::Style::right_to_left`] is set inside a vertical `Align::Min` body —
-/// the exact terms of `Placer::prefer_right_to_left`.
+/// [`crate::Style::right_to_left`] is set inside a vertical `Align::Min` or
+/// `Align::Center` body — the exact terms of `Placer::prefer_right_to_left`.
 pub(crate) fn atoms_direction(ui: &Ui) -> Direction {
     let layout = ui.layout();
     if layout.prefer_right_to_left()
-        || ui.is_rtl() && layout.is_vertical() && layout.cross_align == Align::Min
+        || ui.is_rtl() && layout.is_vertical() && layout.cross_align != Align::Max
     {
         Direction::RightToLeft
     } else {
@@ -791,6 +791,37 @@ mod tests {
                         assert_eq!(
                             atoms_direction(ui) == Direction::RightToLeft,
                             placer.prefer_right_to_left(ui.is_rtl()),
+                            "{layout:?} with right_to_left = {rtl}"
+                        );
+                    });
+                });
+                output.textures_delta.clear();
+            }
+        }
+    }
+
+    /// Value pins: under the interface flag, vertical-Center bodies (every
+    /// `ui.vertical_centered`, e.g. dialog button rows) read right-to-left too,
+    /// in both vertical main directions; with the flag off they stay
+    /// left-to-right.
+    #[test]
+    fn atoms_direction_mirrors_vertical_center_bodies_in_rtl() {
+        for layout in [
+            Layout::top_down(Align::Center),
+            Layout::bottom_up(Align::Center),
+        ] {
+            for rtl in [false, true] {
+                let ctx = Context::default();
+                ctx.set_right_to_left(rtl);
+                let mut output = ctx.run_ui(RawInput::default(), |ui| {
+                    ui.with_layout(layout, |ui| {
+                        assert_eq!(
+                            atoms_direction(ui),
+                            if rtl {
+                                Direction::RightToLeft
+                            } else {
+                                Direction::LeftToRight
+                            },
                             "{layout:?} with right_to_left = {rtl}"
                         );
                     });
