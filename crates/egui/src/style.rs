@@ -2076,7 +2076,13 @@ impl Style {
                 "If scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift",
             );
 
-        ui.vertical_centered(|ui| reset_button(ui, self, "Reset style"));
+        // Resetting the style must not silently clear the interface direction
+        // toggled in this same panel: the reset value keeps `right_to_left`.
+        let reset = Self {
+            right_to_left: *right_to_left,
+            ..Self::default()
+        };
+        ui.vertical_centered(|ui| crate::reset_button_with(ui, self, "Reset style", reset));
     }
 }
 
