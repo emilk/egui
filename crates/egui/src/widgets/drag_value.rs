@@ -628,12 +628,22 @@ impl Widget for DragValue<'_> {
                 .gap(0.0)
                 .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size)); // TODO(emilk): find some more generic solution to `min_size`
 
+            // The end-of-range cursor hints follow the reading direction: at the minimum
+            // the only productive drag is toward the reading end (left under a
+            // right-to-left interface), so the physical Resize variants are picked per
+            // reading direction. Only the interface flag decides, like the drag mirror
+            // below.
+            let (start_cursor, end_cursor) = if ui.is_rtl() {
+                (CursorIcon::ResizeWest, CursorIcon::ResizeEast)
+            } else {
+                (CursorIcon::ResizeEast, CursorIcon::ResizeWest)
+            };
             let cursor_icon = if value <= *range.start() {
-                CursorIcon::ResizeEast
+                start_cursor
             } else if value < *range.end() {
                 CursorIcon::ResizeHorizontal
             } else {
-                CursorIcon::ResizeWest
+                end_cursor
             };
 
             let response = ui.add(button);

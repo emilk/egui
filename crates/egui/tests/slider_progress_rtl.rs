@@ -15,8 +15,8 @@
 
 use egui::epaint::{RectShape, Shape};
 use egui::{
-    Align, Color32, Context, DragValue, Event, FullOutput, Layout, Modifiers, PointerButton, Pos2,
-    ProgressBar, RangeSlider, RawInput, Rect, Slider, Ui, Vec2, pos2, vec2,
+    Align, Color32, Context, CursorIcon, DragValue, Event, FullOutput, Layout, Modifiers,
+    PointerButton, Pos2, ProgressBar, RangeSlider, RawInput, Rect, Slider, Ui, Vec2, pos2, vec2,
 };
 
 /// Which mirroring mechanism a test case runs under.
@@ -571,5 +571,68 @@ fn slider_embedded_drag_value_keeps_the_rail_signed_drag() {
     assert!(
         dragged_value(Dir::LayoutRtl) > 0.5,
         "RTL (layout): dragging the number left should increase the value along the rail"
+    );
+}
+
+/// B3: the end-of-range cursor hints follow the interface reading direction: at the
+/// minimum the only productive drag is toward the reading end (physically left under
+/// the flag), so the cursor points West there under the flag, and East at the maximum.
+/// The physical `Resize*` variants are kept — the widget picks the variant per reading
+/// direction. Layout-only right-to-left (flag off) keeps the physical mapping, like
+/// every other flag-driven widget chrome in this file.
+#[test]
+fn drag_value_end_of_range_cursors_follow_the_reading_direction() {
+    fn cursor_at(dir: Dir, value: f64) -> CursorIcon {
+        let ctx = make_ctx(dir);
+        let screen = vec2(400.0, 120.0);
+        let mut value = value;
+        let show = |ui: &mut Ui, value: &mut f64| {
+            rtl_layout(ui, dir, |ui| {
+                ui.add(DragValue::new(value).range(0.0..=1.0));
+            });
+        };
+        // Frame 1 lays the widget out; its value text is the only painted text:
+        let layout = run(&ctx, input(screen), |ui| show(ui, &mut value));
+        let pos = only_text_center(&layout);
+        // Frame 2 hovers the widget, so it publishes its hover cursor:
+        let output = run(
+            &ctx,
+            input_at(screen, 1.0, vec![Event::PointerMoved(pos)]),
+            |ui| show(ui, &mut value),
+        );
+        output.platform_output.cursor_icon
+    }
+
+    assert_eq!(
+        cursor_at(Dir::Ltr, 0.0),
+        CursorIcon::ResizeEast,
+        "LTR: at the minimum the cursor should invite the rightward drag"
+    );
+    assert_eq!(
+        cursor_at(Dir::Ltr, 1.0),
+        CursorIcon::ResizeWest,
+        "LTR: at the maximum the cursor should invite the leftward drag"
+    );
+    assert_eq!(
+        cursor_at(Dir::FlagRtl, 0.0),
+        CursorIcon::ResizeWest,
+        "RTL (flag): at the minimum the only productive drag is leftward, \
+         so the cursor should point West"
+    );
+    assert_eq!(
+        cursor_at(Dir::FlagRtl, 0.5),
+        CursorIcon::ResizeHorizontal,
+        "RTL (flag): mid-range keeps the horizontal resize cursor"
+    );
+    assert_eq!(
+        cursor_at(Dir::FlagRtl, 1.0),
+        CursorIcon::ResizeEast,
+        "RTL (flag): at the maximum the only productive drag is rightward, \
+         so the cursor should point East"
+    );
+    assert_eq!(
+        cursor_at(Dir::LayoutRtl, 0.0),
+        CursorIcon::ResizeEast,
+        "layout-only RTL: the cursor keeps its physical mapping (flag off)"
     );
 }
