@@ -962,3 +962,287 @@ fn digits_only_value_direction_follows_the_interface() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Wrapped right-to-left rows (NG9): rows are produced in logical order, so
+// the cursor machinery and the selection highlight follow the reading order
+// across wrapped rows for the first time. The LTR twins pin the unchanged
+// geometry.
+
+/// The painted text galley whose job text equals `needle`, with the shape
+/// position it was painted at.
+fn painted_galley(
+    output: &FullOutput,
+    needle: &str,
+) -> (std::sync::Arc<egui::epaint::Galley>, Pos2) {
+    fn collect(
+        shape: &Shape,
+        needle: &str,
+        out: &mut Option<(std::sync::Arc<egui::epaint::Galley>, Pos2)>,
+    ) {
+        match shape {
+            Shape::Text(text) if text.galley.job.text == needle => {
+                *out = Some((std::sync::Arc::clone(&text.galley), text.pos));
+            }
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, needle, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = None;
+    for clipped in &output.shapes {
+        collect(&clipped.shape, needle, &mut out);
+    }
+    out.unwrap_or_else(|| panic!("no painted text galley for {needle:?}"))
+}
+
+/// One screen-space bounding rect per painted row carrying selection
+/// vertices (as opposed to [`painted_selection_rect`], which unions them).
+fn painted_selection_row_rects(
+    output: &FullOutput,
+    selection_color: egui::Color32,
+) -> Option<Vec<Rect>> {
+    fn collect(shape: &Shape, color: egui::Color32, out: &mut Vec<Rect>) {
+        match shape {
+            Shape::Text(text) => {
+                for row in &text.galley.rows {
+                    let mut row_rect: Option<Rect> = None;
+                    for vertex in &row.visuals.mesh.vertices {
+                        if vertex.color == color {
+                            let pos = text.pos + row.pos.to_vec2() + vertex.pos.to_vec2();
+                            row_rect = Some(match row_rect {
+                                Some(rect) => rect.union(Rect::from_min_size(pos, Vec2::ZERO)),
+                                None => Rect::from_min_size(pos, Vec2::ZERO),
+                            });
+                        }
+                    }
+                    if let Some(rect) = row_rect {
+                        out.push(rect);
+                    }
+                }
+            }
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, color, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    for clipped in &output.shapes {
+        collect(&clipped.shape, selection_color, &mut out);
+    }
+    if out.is_empty() { None } else { Some(out) }
+}
+
+/// A wrapped RTL galley's cursor machinery is logical-order-correct across
+/// rows: each row's first logical column maps into that row's own band, the
+/// caret advances toward the visual left within a right-to-left row and
+/// top-down across rows, and every logical column round-trips through its
+/// caret position. The LTR twin keeps the historic left-to-right geometry.
+#[test]
+fn wrapped_rtl_cursor_round_trips_through_caret_positions() {
+    for (rtl, text) in [(true, "أول ثاني ثالث"), (false, "one two three")] {
+        let ctx = Context::default();
+        ctx.set_right_to_left(rtl);
+        let output = run(&ctx, |ui| {
+            ui.allocate_ui(vec2(60.0, 90.0), |ui| {
+                ui.label(text);
+            });
+        });
+        let (galley, _) = painted_galley(&output, text);
+        assert!(
+            galley.rows.len() >= 2,
+            "{text:?} must wrap in a 60px field (rtl = {rtl})"
+        );
+        let n: usize = galley
+            .rows
+            .iter()
+            .map(|row| row.char_count_including_newline().0)
+            .sum();
+        assert_eq!(n, text.chars().count(), "rtl = {rtl}");
+
+        // Rows are in reading order: column 0's caret is in the FIRST row's
+        // band, the text-end caret in the LAST row's band, and every row's
+        // first column maps into that row's own band:
+        let caret0 = galley.pos_from_cursor(CCursor::new(0));
+        let first_row = &galley.rows[0];
+        assert!(
+            caret0.min.y >= first_row.min_y() - 1.0 && caret0.max.y <= first_row.max_y() + 1.0,
+            "column 0's caret must sit in the first row's band (rtl = {rtl})"
+        );
+        let caret_n = galley.pos_from_cursor(galley.end());
+        let last_row = galley.rows.last().expect("at least one row");
+        assert!(
+            caret_n.min.y >= last_row.min_y() - 1.0 && caret_n.max.y <= last_row.max_y() + 1.0,
+            "the text-end caret must sit in the last row's band (rtl = {rtl})"
+        );
+        let mut ccursor_index = 0usize;
+        for (k, row) in galley.rows.iter().enumerate() {
+            // Interior row starts are ambiguous CCursors (the previous row's
+            // end is the same index); prefer the next row to probe THIS row:
+            let caret = galley.pos_from_cursor(CCursor {
+                index: egui::epaint::text::CharIndex(ccursor_index),
+                prefer_next_row: true,
+            });
+            assert!(
+                caret.min.y >= row.min_y() - 1.0 && caret.max.y <= row.max_y() + 1.0,
+                "row {k}'s first column must map into row {k}'s band (rtl = {rtl})"
+            );
+            ccursor_index += row.char_count_including_newline().0;
+        }
+
+        // Caret direction within a row: toward the visual left for RTL,
+        // the visual right for LTR. The row's interior columns probe with a
+        // plain CCursor; the row's first column is an ambiguous CCursor (the
+        // previous row's end is the same index) and prefers the next row:
+        ccursor_index = 0usize;
+        for row in &galley.rows {
+            let count = row.char_count_including_newline().0;
+            if count >= 2 {
+                let xs: Vec<f32> = (0..count)
+                    .map(|c| {
+                        let ccursor = if c == 0 {
+                            CCursor {
+                                index: egui::epaint::text::CharIndex(ccursor_index),
+                                prefer_next_row: true,
+                            }
+                        } else {
+                            CCursor::new(ccursor_index + c)
+                        };
+                        galley.pos_from_cursor(ccursor).min.x
+                    })
+                    .collect();
+                for pair in xs.windows(2) {
+                    if rtl {
+                        assert!(
+                            pair[0] >= pair[1] - 1.0,
+                            "RTL carets must not advance to the visual right within a row: {xs:?}"
+                        );
+                    } else {
+                        assert!(
+                            pair[0] <= pair[1] + 1.0,
+                            "LTR carets must not advance to the visual left within a row: {xs:?}"
+                        );
+                    }
+                }
+            }
+            ccursor_index += count;
+        }
+
+        // Round-trip: clicking each column's caret x returns that column:
+        for c in 0..=n {
+            let caret = galley.pos_from_cursor(CCursor::new(c));
+            let back = galley.cursor_from_pos(vec2(caret.min.x, caret.min.y + 1.0));
+            assert_eq!(
+                back.index.0, c,
+                "column {c} of {text:?} must round-trip through its caret (rtl = {rtl})"
+            );
+        }
+    }
+}
+
+/// A selection spanning wrapped RTL rows highlights the right rows in the
+/// reading direction: on every partially-selected row the highlight covers
+/// the selected columns' reading-side extent — reaching the row's reading
+/// end (visual left under RTL) when the selection covers the row's last
+/// column, and the row's reading start (visual right under RTL) when it
+/// covers the row's first column. The LTR twin mirrors.
+#[test]
+fn wrapped_rtl_selection_spans_rows_in_reading_order() {
+    for (rtl, text_str) in [(true, "أول ثاني ثالث"), (false, "one two three")] {
+        let mut text = String::from(text_str);
+        let ctx = Context::default();
+        ctx.set_right_to_left(rtl);
+        let selection_color = ctx.style_of(ctx.theme()).visuals.selection.bg_fill;
+        let mut field = Rect::NOTHING;
+        drop(run(&ctx, |ui| {
+            ui.memory_mut(|mem| mem.request_focus(edit_id()));
+            let mut out = ui
+                .allocate_ui(vec2(60.0, 90.0), |ui| {
+                    TextEdit::multiline(&mut text).id(edit_id()).show(ui)
+                })
+                .inner;
+            out.state.cursor.set_char_range(Some(CCursorRange::two(
+                CCursor::new(1),
+                CCursor::new(text.chars().count() - 2),
+            )));
+            out.state.store(ui.ctx(), edit_id());
+            field = out.response.rect;
+        }));
+
+        let output = run(&ctx, |ui| {
+            let out = ui
+                .allocate_ui(vec2(60.0, 90.0), |ui| {
+                    TextEdit::multiline(&mut text).id(edit_id()).show(ui)
+                })
+                .inner;
+            field = out.response.rect;
+        });
+
+        let (galley, shape_pos) = painted_galley(&output, &text);
+        assert!(
+            galley.rows.len() >= 2,
+            "{text:?} must wrap in a 60px field (rtl = {rtl})"
+        );
+        let selection_rects = painted_selection_row_rects(&output, selection_color)
+            .unwrap_or_else(|| panic!("no selection painted (rtl = {rtl})"));
+
+        // Match each painted selection rect to its row by y band, and check
+        // the highlight's extent against the selected columns' reading side:
+        let mut ccursor_index = 0usize;
+        let mut matched = 0usize;
+        for row in &galley.rows {
+            let row_len = row.char_count_including_newline().0;
+            let selected = (
+                ccursor_index.max(1),
+                (ccursor_index + row_len).min(text.chars().count() - 2),
+            );
+            let row_rect = Rect::from_min_size(shape_pos + row.pos.to_vec2(), row.size);
+            let sel = selection_rects.iter().copied().find(|rect| {
+                rect.top() >= row_rect.top() - 1.0 && rect.bottom() <= row_rect.bottom() + 1.0
+            });
+            if let (Some(sel), true) = (sel, selected.0 < selected.1) {
+                matched += 1;
+                // The highlight reaches the row's reading end iff the
+                // selection covers the row's last column, and its reading
+                // start iff it covers the row's first column:
+                let covers_to_end = selected.1 == ccursor_index + row_len;
+                let covers_from_start = selected.0 == ccursor_index;
+                if covers_to_end {
+                    let reaches_end = if rtl {
+                        sel.left() <= row_rect.left() + EDGE_TOL
+                    } else {
+                        sel.right() >= row_rect.right() - EDGE_TOL
+                    };
+                    assert!(
+                        reaches_end,
+                        "the selection must reach the row's reading end (rtl = {rtl}: selection {sel:?}, row {row_rect:?}, columns {:?})",
+                        (selected.0 - ccursor_index, selected.1 - ccursor_index)
+                    );
+                }
+                if covers_from_start {
+                    let reaches_start = if rtl {
+                        sel.right() >= row_rect.right() - EDGE_TOL
+                    } else {
+                        sel.left() <= row_rect.left() + EDGE_TOL
+                    };
+                    assert!(
+                        reaches_start,
+                        "the selection must reach the row's reading start (rtl = {rtl}: selection {sel:?}, row {row_rect:?}, columns {:?})",
+                        (selected.0 - ccursor_index, selected.1 - ccursor_index)
+                    );
+                }
+            }
+            ccursor_index += row_len;
+        }
+        assert!(
+            matched >= 2,
+            "the selection must span wrapped rows (rtl = {rtl}): {selection_rects:?}"
+        );
+    }
+}

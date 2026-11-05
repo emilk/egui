@@ -5100,6 +5100,8 @@ mod tests {
             "\r\n\t\u{2029}\u{0085}".into(),
             "…".repeat(100),
             "تقرير ٢٠٢٦.pdf ".repeat(20),
+            "أول ٢٠٢٦ ثالث".into(),
+            "\u{2066}أول\u{2069} \u{2067}ثاني\u{2069} ثالث \u{200F}\u{200E}".repeat(6),
         ];
         let directions = [
             None,
@@ -5126,8 +5128,71 @@ mod tests {
                 job.wrap.overflow_character = Some('…');
                 let galley = layout(&mut fonts, 1.0, job.into());
 
+                // One glyph slot per char, preserved by the logical wrap
+                // path when it produced all the rows (no truncation).
+                // Control characters other than tab are dropped by the
+                // shaper (pre-existing), so they are excluded:
+                let droppable = text.chars().any(|c| c.is_control() && c != '\t');
+                if !galley.elided && !droppable {
+                    let total: usize = galley
+                        .rows
+                        .iter()
+                        .map(|placed| placed.row.glyphs.len())
+                        .sum();
+                    assert_eq!(
+                        total,
+                        text.chars().count(),
+                        "glyph slots must equal the char count for {text:?} (direction {direction:?})"
+                    );
+                }
+
                 // Smoke the cursor paths on both galleys:
                 let _ = unwrapped.cursor_from_pos(vec2(0.0, 0.0));
+                let _ = galley.end();
+                let _ = galley.cursor_from_pos(vec2(0.0, 0.0));
+                let _ = galley.pos_from_cursor(galley.end());
+            }
+        }
+
+        // Two-section wrapped RTL jobs (both section orders, mixed with a
+        // pure-LTR section — the unrecorded-edge shape) through the same
+        // wrap + elision gauntlet:
+        let formats = [
+            TextFormat::simple(FontId::proportional(14.0), Color32::RED),
+            TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+        ];
+        for section_texts in [
+            ["تقرير ٢٠٢٦", " aaa bbb الأول ثاني"],
+            ["abcd", " عربي aaa \u{2066}שלום\u{2069} pdf"],
+        ] {
+            let mut text = String::new();
+            let mut sections = Vec::new();
+            for (i, section_text) in section_texts.iter().enumerate() {
+                let start = ByteIndex(text.len());
+                text.push_str(section_text);
+                sections.push(LayoutSection {
+                    leading_space: 0.0,
+                    byte_range: start..ByteIndex(text.len()),
+                    format: formats[i].clone(),
+                });
+            }
+            for direction in directions {
+                let mut job = LayoutJob {
+                    sections: sections.clone(),
+                    text: text.clone(),
+                    wrap: TextWrapping {
+                        max_width: 100.0,
+                        max_rows: 5,
+                        break_anywhere: true,
+                        ..Default::default()
+                    },
+                    break_on_newline: true,
+                    ..Default::default()
+                };
+                job.direction = direction;
+                job.wrap.overflow_character = Some('…');
+                let mut fonts = test_fonts();
+                let galley = layout(&mut fonts, 1.0, job.into());
                 let _ = galley.end();
                 let _ = galley.cursor_from_pos(vec2(0.0, 0.0));
                 let _ = galley.pos_from_cursor(galley.end());
@@ -5820,6 +5885,72 @@ mod tests {
         );
         for glyphs in visible_glyphs_per_row(&galley) {
             assert_x_nondecreasing(&glyphs);
+        }
+    }
+
+    /// Wrapped RTL elision is directed at the READING end: the `…` lands at
+    /// the visual left of the logically-LAST row (which is now the last
+    /// produced row), replacing the row's leading glyphs — including the
+    /// L1-reset trailing break space, which must not strand the `…` behind
+    /// it. The LTR mirror keeps the historic trailing `…`.
+    #[test]
+    fn wrapped_rtl_elision_lands_at_the_reading_end() {
+        let text = "أول ثاني ثالث";
+        // The one-word-per-row width from test A:
+        let twin = layout_unwrapped(text, Some(TextDirection::LeftToRight));
+        let (spans, gaps) = visible_runs(&twin);
+        let wrap_width = (spans[2] + gaps[0]).max(spans[1] + gaps[0]).max(spans[0]) + 0.5;
+
+        for direction in [
+            Some(TextDirection::RightToLeft),
+            None,
+            Some(TextDirection::LeftToRight),
+        ] {
+            let mut fonts = tofu_fonts();
+            let mut job = LayoutJob::simple(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                wrap_width,
+            );
+            job.direction = direction;
+            job.wrap.max_rows = 2;
+            job.wrap.overflow_character = Some('…');
+            let galley = layout(&mut fonts, 1.0, job.into());
+            assert!(galley.elided, "max_rows 2 must elide the third row");
+            assert_eq!(galley.rows.len(), 2);
+            let last = &galley.rows[1];
+            let is_rtl = direction == Some(TextDirection::RightToLeft) || direction.is_none();
+
+            if is_rtl {
+                // The `…` sits at the visual LEFT edge (the reading end), and
+                // nothing renders behind it: its x is at or before every other
+                // glyph's x. The L1-reset break space was dropped with the
+                // other replaced glyphs, not kept in front of the `…`.
+                let first = &last.row.glyphs[0];
+                assert_eq!(
+                    first.chr,
+                    '…',
+                    "glyphs: {:?}",
+                    last.row.glyphs.iter().map(|g| g.chr).collect::<Vec<_>>()
+                );
+                let min_other_x = last
+                    .row
+                    .glyphs
+                    .iter()
+                    .skip(1)
+                    .map(|glyph| glyph.pos.x)
+                    .fold(f32::INFINITY, f32::min);
+                assert!(
+                    first.pos.x <= min_other_x,
+                    "the ellipsis must be at the visual reading end: {} vs {min_other_x}",
+                    first.pos.x
+                );
+            } else {
+                // The LTR mirror: the `…` trails the row's visual right edge.
+                let last_glyph = last.row.glyphs.last().map(|glyph| glyph.chr);
+                assert_eq!(last_glyph, Some('…'));
+            }
         }
     }
 

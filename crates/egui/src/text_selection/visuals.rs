@@ -61,28 +61,42 @@ pub fn paint_text_selection(
             0.0
         };
 
-        let left = if ri == min.row {
-            row.x_offset(min.column)
+        // The selected x span of this row, in row-relative coordinates. The
+        // reading direction decides which edge the caret side pairs with: on
+        // a right-to-left row the selection runs from a caret rightward to
+        // the row's reading START (the ink's visual right edge) when the
+        // range begins at the row's first column, and leftward to the row's
+        // reading END (the visual left, the allocated width and the newline
+        // visualization extending reading-forward) when the range continues
+        // past it.
+        let (span_lo, span_hi) = if ri == min.row && ri == max.row {
+            // Single-row selection: between the two carets.
+            let a = row.x_offset(min.column);
+            let b = row.x_offset(max.column);
+            (a.min(b), a.max(b))
+        } else if ri == min.row {
+            // From the first selected column's caret to the row's reading end:
+            let caret = row.x_offset(min.column);
+            let end = if rtl {
+                ink_max_x - row.size.x - newline_size
+            } else {
+                row.size.x + newline_size
+            };
+            (caret.min(end), caret.max(end))
+        } else if ri == max.row {
+            // From the row's reading start to the last selected column's caret:
+            let caret = row.x_offset(max.column);
+            let start = if rtl { ink_max_x } else { 0.0 };
+            (caret.min(start), caret.max(start))
         } else if rtl {
-            // Full row: from the reading end (visual left), covering the row's
-            // allocated width and the newline visualization, both of which
-            // extend reading-forward (leftward):
-            ink_max_x - row.size.x - newline_size
+            // Full row: from the reading end (visual left) to the reading
+            // start (visual right):
+            (ink_max_x - row.size.x - newline_size, ink_max_x)
         } else {
-            0.0
-        };
-        let right = if ri == max.row {
-            row.x_offset(max.column)
-        } else if rtl {
-            ink_max_x
-        } else {
-            row.size.x + newline_size
+            (0.0, row.size.x + newline_size)
         };
 
-        let rect = Rect::from_min_max(
-            pos2(left.min(right), 0.0),
-            pos2(left.max(right), row.size.y),
-        );
+        let rect = Rect::from_min_max(pos2(span_lo, 0.0), pos2(span_hi, row.size.y));
         let mesh = &mut row.visuals.mesh;
 
         if !row.glyphs.is_empty() {
