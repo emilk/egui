@@ -22,6 +22,12 @@ impl KeyboardShortcut {
         }
     }
 
+    /// Format the shortcut, e.g. `"Ctrl+Shift+F"`.
+    ///
+    /// The result is wrapped in U+2066 LEFT-TO-RIGHT ISOLATE … U+2069 POP
+    /// DIRECTIONAL ISOLATE, so it stays one left-to-right run when embedded in
+    /// right-to-left text (the isolates render as invisible zero-advance
+    /// glyphs, so left-to-right output is unchanged).
     pub fn format(&self, names: &ModifierNames<'_>, is_mac: bool) -> String {
         let mut s = names.format(&self.modifiers, is_mac);
         if !s.is_empty() {
@@ -32,7 +38,12 @@ impl KeyboardShortcut {
         } else {
             s += self.logical_key.name();
         }
-        s
+        // Keep the shortcut one left-to-right run when embedded in
+        // right-to-left text: without the isolation, a trailing neutral glyph
+        // (a separator, or a symbol-form key like `⌃⇧−`) resolves to the
+        // surrounding paragraph direction (UAX #9 N1/N2) and lands reversed
+        // on the wrong side of the run.
+        format!("\u{2066}{s}\u{2069}")
     }
 
     /// Would consuming this shortcut interfere with editing text
@@ -71,12 +82,18 @@ fn format_kb_shortcut() {
     let cmd_shift_f = KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, Key::F);
     assert_eq!(
         cmd_shift_f.format(&ModifierNames::NAMES, false),
-        "Ctrl+Shift+F"
+        "\u{2066}Ctrl+Shift+F\u{2069}"
     );
     assert_eq!(
         cmd_shift_f.format(&ModifierNames::NAMES, true),
-        "Shift+Cmd+F"
+        "\u{2066}Shift+Cmd+F\u{2069}"
     );
-    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, false), "⌃⇧F");
-    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, true), "⇧⌘F");
+    assert_eq!(
+        cmd_shift_f.format(&ModifierNames::SYMBOLS, false),
+        "\u{2066}⌃⇧F\u{2069}"
+    );
+    assert_eq!(
+        cmd_shift_f.format(&ModifierNames::SYMBOLS, true),
+        "\u{2066}⇧⌘F\u{2069}"
+    );
 }

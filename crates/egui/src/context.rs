@@ -2053,19 +2053,34 @@ impl Context {
     }
 
     /// Format the given modifiers in a human-readable way (e.g. `Ctrl+Shift+X`).
+    ///
+    /// The result is wrapped in directional isolates, so it stays one
+    /// left-to-right run when embedded in right-to-left text (see
+    /// [`KeyboardShortcut::format`]).
     pub fn format_modifiers(&self, modifiers: Modifiers) -> String {
         let os = self.os();
 
         let is_mac = os.is_mac();
 
         if is_mac && self.can_show_modifier_symbols() {
-            ModifierNames::SYMBOLS.format(&modifiers, is_mac)
+            format!(
+                "\u{2066}{}\u{2069}",
+                ModifierNames::SYMBOLS.format(&modifiers, is_mac)
+            )
         } else {
-            ModifierNames::NAMES.format(&modifiers, is_mac)
+            format!(
+                "\u{2066}{}\u{2069}",
+                ModifierNames::NAMES.format(&modifiers, is_mac)
+            )
         }
     }
 
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
+    ///
+    /// The result is wrapped in U+2066 LEFT-TO-RIGHT ISOLATE … U+2069 POP
+    /// DIRECTIONAL ISOLATE, so it stays one left-to-right run when embedded in
+    /// right-to-left text. The isolates render as invisible zero-advance
+    /// glyphs, so left-to-right output is unchanged.
     ///
     /// Can be used to get the text for [`crate::Button::shortcut_text`].
     pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
