@@ -108,7 +108,9 @@ impl crate::Demo for LayoutTest {
 
 impl crate::View for LayoutTest {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.label("Tests and demonstrates the limits of the egui layouts");
+        ui.label(crate::i18n::t(
+            "Tests and demonstrates the limits of the egui layouts",
+        ));
         self.content_ui(ui);
         Resize::default()
             .default_size([150.0, 200.0])
@@ -130,7 +132,7 @@ impl crate::View for LayoutTest {
                     ui.with_layout(layout, demo_ui);
                 }
             });
-        ui.label("Resize to see effect");
+        ui.label(crate::i18n::t("Resize to see effect"));
 
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
@@ -141,25 +143,31 @@ impl crate::View for LayoutTest {
 impl LayoutTest {
     pub fn content_ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.layout, LayoutSettings::top_down(), "Top-down");
+            ui.selectable_value(
+                &mut self.layout,
+                LayoutSettings::top_down(),
+                crate::i18n::t("Top-down"),
+            );
             ui.selectable_value(
                 &mut self.layout,
                 LayoutSettings::top_down_justified_centered(),
-                "Top-down, centered and justified",
+                crate::i18n::t("Top-down, centered and justified"),
             );
             ui.selectable_value(
                 &mut self.layout,
                 LayoutSettings::horizontal_wrapped(),
-                "Horizontal wrapped",
+                crate::i18n::t("Horizontal wrapped"),
             );
         });
 
         ui.horizontal(|ui| {
-            ui.label("Main Direction:").on_hover_text(
-                "Under a right-to-left interface the horizontal directions are \
-                 applied relative to the reading direction: a LeftToRight row is \
-                 laid out right-to-left so it follows the reading order",
-            );
+            ui.label(crate::i18n::t("Main Direction:"))
+                .on_hover_text(crate::i18n::t(
+                    "Under a right-to-left interface the horizontal directions are \
+                     applied relative to the reading direction: a LeftToRight row is \
+                     laid out right-to-left so it follows the reading order",
+                ));
+            // The `{Direction:?}` debug spelling is the radio label on purpose.
             for &dir in &[
                 Direction::LeftToRight,
                 Direction::RightToLeft,
@@ -171,38 +179,50 @@ impl LayoutTest {
         });
 
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.layout.main_wrap, "Main wrap")
-                .on_hover_text("Wrap when next widget doesn't fit the current row/column");
+            ui.checkbox(&mut self.layout.main_wrap, crate::i18n::t("Main wrap"))
+                .on_hover_text(crate::i18n::t(
+                    "Wrap when next widget doesn't fit the current row/column",
+                ));
 
             if self.layout.main_wrap {
                 if self.layout.main_dir.is_horizontal() {
-                    ui.add(Slider::new(&mut self.wrap_row_height, 0.0..=200.0).text("Row height"));
+                    ui.add(
+                        Slider::new(&mut self.wrap_row_height, 0.0..=200.0)
+                            .text(crate::i18n::t("Row height")),
+                    );
                 } else {
                     ui.add(
-                        Slider::new(&mut self.wrap_column_width, 0.0..=200.0).text("Column width"),
+                        Slider::new(&mut self.wrap_column_width, 0.0..=200.0)
+                            .text(crate::i18n::t("Column width")),
                     );
                 }
             }
         });
 
         ui.horizontal(|ui| {
-            ui.label("Cross Align:");
+            ui.label(crate::i18n::t("Cross Align:"));
+            // The `{Align:?}` debug spelling is the radio label on purpose.
             for &align in &[Align::Min, Align::Center, Align::Max] {
                 ui.radio_value(&mut self.layout.cross_align, align, format!("{align:?}"));
             }
         });
 
-        ui.checkbox(&mut self.layout.cross_justify, "Cross Justified")
-            .on_hover_text("Try to fill full width/height (e.g. buttons)");
+        ui.checkbox(
+            &mut self.layout.cross_justify,
+            crate::i18n::t("Cross Justified"),
+        )
+        .on_hover_text(crate::i18n::t(
+            "Try to fill full width/height (e.g. buttons)",
+        ));
     }
 }
 
 fn demo_ui(ui: &mut Ui) {
-    ui.add(egui::Label::new("Wrapping text followed by example widgets:").wrap());
+    ui.add(egui::Label::new(crate::i18n::t("Wrapping text followed by example widgets:")).wrap());
     let mut dummy = false;
-    ui.checkbox(&mut dummy, "checkbox");
-    ui.radio_value(&mut dummy, false, "radio");
-    let _ = ui.button("button");
+    ui.checkbox(&mut dummy, crate::i18n::t("checkbox"));
+    ui.radio_value(&mut dummy, false, crate::i18n::t("radio"));
+    let _ = ui.button(crate::i18n::t("button"));
 }
 
 #[cfg(test)]
