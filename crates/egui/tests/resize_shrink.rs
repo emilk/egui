@@ -1473,3 +1473,169 @@ fn plain_label_content_stays_inside_the_title_less_rtl_window() {
         label.get()
     );
 }
+
+// ---------------------------------------------------------------------------
+//
+// Clip-rect growth and debug outlines for content wider than the requested
+// size. A `Resize` that cannot grow past `max_size` renders narrower than its
+// content on every frame, which is the shrink-frame state the clip-rect
+// growth exists for — no drag needed.
+
+/// A plain label that never wraps: its measured width exceeds the container's
+/// clamped `max_size`, so the content overflows past the container's
+/// reading-end edge on every frame.
+fn overflowing_content(ui: &mut Ui, label_rect: &Cell<Rect>) {
+    let response =
+        ui.add(egui::Label::new(egui::RichText::new(UNWRAPPED_TEXT).monospace()).extend());
+    label_rect.set(response.rect);
+}
+
+const UNWRAPPED_TEXT: &str = "a deliberately long unwrapped label";
+
+/// A `Resize` whose width can never grow past `max_size`, so the content
+/// always measures wider than the rendered container.
+fn clamped_resize(id: Id) -> egui::Resize {
+    egui::Resize::default()
+        .id(id)
+        .with_stroke(false)
+        .resizable(false)
+        .default_size(vec2(400.0, 100.0))
+        .max_size(vec2(120.0, f32::INFINITY))
+}
+
+/// The painted text shape of the overflowing label: its absolute ink rect and
+/// the clip rect it was painted with.
+fn label_ink_and_clip(output: &FullOutput) -> (Rect, Rect) {
+    use egui::epaint::Shape;
+
+    for clipped in &output.shapes {
+        if let Shape::Text(text) = &clipped.shape
+            && text.galley.job.text == UNWRAPPED_TEXT
+        {
+            let ink = text.galley.mesh_bounds.translate(text.pos.to_vec2());
+            return (ink, clipped.clip_rect);
+        }
+    }
+    panic!("the overflowing label should paint");
+}
+
+/// Under a right-to-left interface the container grows leftward from its fixed
+/// reading-start (right) edge, and the content overflows past its reading-end
+/// (left) edge; the clip rect must grow leftward with it. Before the fix the
+/// clip stopped at the container's left edge and cut the overflow off.
+#[test]
+fn rtl_clip_rect_grows_past_the_reading_end_overflow() {
+    for (rtl, want_tolerant_clip) in [(true, true), (false, false)] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        let id = Id::unique("resize_clip_growth");
+        let label_rect = Cell::new(Rect::NOTHING);
+        let mut output = FullOutput::default();
+        for i in 0..3 {
+            output = run(
+                &ctx,
+                input_at(vec2(400.0, 300.0), i as f64 * 0.1, vec![]),
+                |ui| {
+                    CentralPanel::default().show(ui, |ui| {
+                        clamped_resize(id).show(ui, |ui| overflowing_content(ui, &label_rect));
+                    });
+                },
+            );
+        }
+        output.textures_delta.clear();
+
+        let (ink, clip) = label_ink_and_clip(&output);
+        assert!(
+            ink.width() > 120.0,
+            "rtl = {rtl}: the label should measure wider than the clamped \
+             container (ink {ink:?})"
+        );
+        if want_tolerant_clip {
+            assert!(
+                clip.left() <= ink.left() + 0.5,
+                "rtl = {rtl}: the clip rect must cover the leftward overflow \
+                 (clip {clip:?}, ink {ink:?})"
+            );
+        } else {
+            // LTR: the container grows rightward from its left edge; the clip
+            // always covered the rightward overflow (unchanged by the fix).
+            assert!(
+                clip.left() <= ink.left() + 0.5,
+                "rtl = {rtl}: the clip rect must cover the rightward overflow \
+                 (clip {clip:?}, ink {ink:?})"
+            );
+        }
+        assert!(
+            clip.right() >= ink.right() - 0.5,
+            "rtl = {rtl}: the clip rect must reach the reading-start side of \
+             the ink (clip {clip:?}, ink {ink:?})"
+        );
+    }
+}
+
+/// The debug outlines are built from the container's reading-start corner: in
+/// a right-to-left interface both outlines' right edges sit on the container's
+/// fixed right edge; in a left-to-right one both left edges sit on the
+/// container's left edge (unchanged by the fix).
+#[test]
+fn debug_outlines_anchor_at_the_reading_start_edge() {
+    use egui::epaint::Shape;
+
+    let debug_rect = |output: &FullOutput, color: egui::Color32| {
+        output
+            .shapes
+            .iter()
+            .filter_map(|clipped| match &clipped.shape {
+                Shape::Rect(rect) => (rect.stroke.color == color).then_some(rect.rect),
+                _ => None,
+            })
+            .next_back()
+            .unwrap_or_else(|| panic!("the {color:?} debug outline should paint"))
+    };
+
+    for rtl in [false, true] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        ctx.all_styles_mut(|style| style.debug.show_resize = true);
+        let id = Id::unique("resize_debug_outline");
+        let label_rect = Cell::new(Rect::NOTHING);
+        let mut output = FullOutput::default();
+        for i in 0..3 {
+            output = run(
+                &ctx,
+                input_at(vec2(400.0, 300.0), i as f64 * 0.1, vec![]),
+                |ui| {
+                    CentralPanel::default().show(ui, |ui| {
+                        clamped_resize(id).show(ui, |ui| overflowing_content(ui, &label_rect));
+                    });
+                },
+            );
+        }
+        output.textures_delta.clear();
+
+        let green = debug_rect(&output, egui::Color32::GREEN);
+        let blue = debug_rect(&output, egui::Color32::LIGHT_BLUE);
+        assert!(
+            (green.width() - blue.width()).abs() > 1.0,
+            "rtl = {rtl}: the two outlines must differ in width for the anchor \
+             to be observable (green {green:?}, blue {blue:?})"
+        );
+        if rtl {
+            assert!(
+                (green.right() - blue.right()).abs() <= 0.5,
+                "rtl = {rtl}: both outlines must hug the container's \
+                 reading-start (right) edge (green {green:?}, blue {blue:?})"
+            );
+        } else {
+            assert!(
+                (green.left() - blue.left()).abs() <= 0.5,
+                "rtl = {rtl}: both outlines must hug the container's \
+                 reading-start (left) edge (green {green:?}, blue {blue:?})"
+            );
+        }
+    }
+}
