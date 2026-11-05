@@ -8,7 +8,7 @@ use epaint::{
 
 use crate::{
     Color32, Context, FontId,
-    emath::{Align2, Pos2, Rangef, Rect, Vec2, vec2},
+    emath::{Align2, Pos2, Rangef, Rect, Vec2, pos2, vec2},
     layers::{LayerId, PaintList, ShapeIdx},
 };
 
@@ -271,13 +271,21 @@ impl Painter {
             (1.0, color),
             StrokeKind::Outside,
         );
-        self.text(
-            rect.min,
-            Align2::LEFT_TOP,
-            text.to_string(),
-            FontId::monospace(12.0),
-            color,
-        );
+        // Choose the label anchor by overflow, not direction: when painting the label
+        // rightward from `rect.min` would run past the clip rect (right-hugging
+        // widgets, mirrored panels under right-to-left), hang it inward from the
+        // right edge instead. When the label fits, the anchor is unchanged, so
+        // left-to-right output is byte-identical. The double layout is fine: this is
+        // a debug-only path, and the probe uses the exact layout `Self::text` below
+        // will use, so the gate cannot mis-measure.
+        let label = text.to_string();
+        let probe = self.layout_no_wrap(label.clone(), FontId::monospace(12.0), color);
+        let (pos, anchor) = if rect.min.x + probe.size().x <= self.clip_rect.max.x {
+            (rect.min, Align2::LEFT_TOP) // unchanged path
+        } else {
+            (pos2(rect.max.x, rect.min.y), Align2::RIGHT_TOP)
+        };
+        self.text(pos, anchor, label, FontId::monospace(12.0), color);
     }
 
     pub fn error(&self, pos: Pos2, text: impl core::fmt::Display) -> Rect {
