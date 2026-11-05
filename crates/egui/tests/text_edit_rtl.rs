@@ -1152,6 +1152,14 @@ fn wrapped_rtl_cursor_round_trips_through_caret_positions() {
 /// end (visual left under RTL) when the selection covers the row's last
 /// column, and the row's reading start (visual right under RTL) when it
 /// covers the row's first column. The LTR twin mirrors.
+///
+/// Known residual (documented, not fixed here): with `keep_trailing_whitespace`
+/// ([`TextEdit`]), a wrapped RTL-base row whose glyph vector leads with the
+/// L1-reset break space excludes that vector-leading space from the halign ink
+/// span (the pre-existing leading-whitespace semantic in
+/// `halign_and_justify_row`), so the covered column highlights up to the
+/// allocated edge rather than the ink edge. Caret positions and hit-testing
+/// are glyph-driven and unaffected.
 #[test]
 fn wrapped_rtl_selection_spans_rows_in_reading_order() {
     for (rtl, text_str) in [(true, "أول ثاني ثالث"), (false, "one two three")] {
