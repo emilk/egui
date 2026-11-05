@@ -18,7 +18,7 @@ use egui::epaint::text::TextDirection;
 use egui::widgets::text_edit::TextEditState;
 use egui::{
     Align2, Context, Event, FullOutput, Id, Modifiers, PointerButton, Pos2, RawInput, Rect,
-    TextEdit, Ui, Vec2,
+    TextEdit, Ui, Vec2, pos2,
     text::{CCursor, CCursorRange},
     vec2,
 };
@@ -538,6 +538,118 @@ fn run_at(ctx: &Context, time: f64, events: Vec<Event>, run_ui: impl FnMut(&mut 
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Hover preview: the opt-in text cursor preview (`Visuals::text_cursor
+// .preview`, default off) paints the caret a click would place, so it must
+// follow the same scrolled-galley mapping as the real caret.
+
+/// Run one ui pass with extra input events, discarding the texture deltas.
+fn run_with_events(ctx: &Context, events: Vec<Event>, run_ui: impl FnMut(&mut Ui)) -> FullOutput {
+    let mut output = ctx.run_ui(
+        RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SCREEN)),
+            events,
+            ..Default::default()
+        },
+        run_ui,
+    );
+    output.textures_delta.clear();
+    output
+}
+
+/// The preview caret ("where would a click land?") tracks the scrolled text:
+/// an overflowing singleline field stores a scroll offset, and the previewed
+/// caret must paint exactly where the real caret for the same galley-local
+/// position paints, in both reading directions.
+///
+/// The preview paints while the pointer interacts with the field (its paint
+/// block reads `Response::interact_pointer_pos`, which egui fills only while
+/// the pointer is down, or on the release frame of a drag). A press and drag
+/// move the real caret with the pointer, but the release frame does *not*
+/// move it again — so on that frame the preview is the only caret near the
+/// release position, 50 px past the last drag position. Before the fix the
+/// preview was translated without the stored scroll offset, which displaced
+/// it past the field's clip and left nothing near the release point.
+#[test]
+fn preview_caret_tracks_the_scrolled_text() {
+    for (rtl, value) in [
+        (true, "سلام سلام سلام سلام سلام سلام سلام سلام "),
+        (false, "lorem lorem lorem lorem lorem lorem lorem lorem "),
+    ] {
+        let mut text = String::from(value);
+        let ctx = Context::default();
+        ctx.set_right_to_left(rtl);
+        blink_off(&ctx);
+        ctx.style_mut_of(ctx.theme(), |style| {
+            style.visuals.text_cursor.preview = true;
+            style.visuals.text_cursor.blink = false;
+        });
+        let mut field = Rect::NOTHING;
+        // Frame 1: focus + a mid-text caret so the clip/scroll branch engages
+        // and stores a non-zero scroll offset:
+        drop(run(&ctx, |ui| {
+            ui.memory_mut(|mem| mem.request_focus(edit_id()));
+            let mut out = ui
+                .allocate_ui(vec2(120.0, 30.0), |ui| {
+                    TextEdit::singleline(&mut text).id(edit_id()).show(ui)
+                })
+                .inner;
+            out.state
+                .cursor
+                .set_char_range(Some(CCursorRange::one(CCursor::new(20))));
+            out.state.store(ui.ctx(), edit_id());
+            field = out.response.rect;
+        }));
+
+        // Press inside the field, drag a little, then release further on. The
+        // press clears the pointer velocity history, so the three pointer
+        // frames rebuild it and the release frame counts as moving. Pressing
+        // and dragging never scrolls past the stored window, so the stored
+        // scroll offset (the preview's missing term before the fix) stays
+        // large enough to displace the preview out of the field's clip.
+        let y = field.center().y;
+        let at = |dx: f32| pos2(field.left() + dx, y);
+        let press = Event::PointerButton {
+            pos: at(18.0),
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: egui::Modifiers::default(),
+        };
+        let release = Event::PointerButton {
+            pos: at(100.0),
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: egui::Modifiers::default(),
+        };
+        let mut output = None;
+        for events in [
+            vec![press],
+            vec![Event::PointerMoved(at(35.0))],
+            vec![Event::PointerMoved(at(50.0))],
+            vec![release],
+        ] {
+            output = Some(run_with_events(&ctx, events, |ui| {
+                let out = ui
+                    .allocate_ui(vec2(120.0, 30.0), |ui| {
+                        TextEdit::singleline(&mut text).id(edit_id()).show(ui)
+                    })
+                    .inner;
+                field = out.response.rect;
+            }));
+        }
+        let output = output.unwrap_or_else(|| panic!("no interaction frames ran"));
+
+        let release_x = field.left() + 100.0;
+        let near_release = painted_line_segments(&output).into_iter().find(|[a, b]| {
+            (a.x - b.x).abs() < 1.0 && (a.y - b.y).abs() > 4.0 && (a.x - release_x).abs() <= 12.0
+        });
+        assert!(
+            near_release.is_some(),
+            "the preview caret must paint within 12 px of the release point \
+             (rtl = {rtl}, release {release_x}, field {field:?})"
+        );
+    }
+}
 // Collapsing a selection with the arrow keys: ArrowLeft/ArrowRight collapse a
 // non-empty selection onto the visual edge they point at (the reading end /
 // start of the row), and typing afterwards lands there. The LTR twins pin the

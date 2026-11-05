@@ -904,8 +904,18 @@ impl<'t> TextEdit<'t> {
                 && ui.input(|i| i.pointer.is_moving())
             {
                 // text cursor preview:
+                // Paint the would-be cursor exactly where the real cursor for
+                // the same galley-local position would paint: the galley is
+                // anchored (and, while scrolling, shifted) such that
+                // `galley_pos == inner_rect.left_top() - state.text_offset` —
+                // the same mapping `cursor_at_pointer` above inverts. (Holds by
+                // definition in the non-scrolling branch, and in the scrolling
+                // branch for the reading-start anchor — every default path.
+                // An overflowing right-to-left field with an explicit center
+                // halign breaks the invariant; the preview is displaced there
+                // both before and after this, so nothing regresses.)
                 let cursor_rect = TSTransform::from_translation(
-                    inner_rect.min.to_vec2() - vec2(galley.rect.left(), 0.0),
+                    (inner_rect.min - state.text_offset).to_vec2() - vec2(galley.rect.left(), 0.0),
                 ) * cursor_rect(&galley, &cursor_at_pointer, row_height);
                 text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
             }
