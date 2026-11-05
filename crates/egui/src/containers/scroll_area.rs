@@ -915,12 +915,17 @@ impl ScrollArea {
             ui.layout().is_vertical() && ui.layout().cross_align == Align::Max;
         let rtl_x =
             rtl && (direction_enabled[0] || current_bar_use.x != 0.0 || parent_seeds_reading_start);
-        // NOTE: two known residuals around this predicate: (1) a vertical-only RTL
-        // area with a reserved bar strip right-anchors through the `current_bar_use.x`
-        // term even when the content is narrow and the x axis auto-shrinks; (2) with
-        // `auto_shrink` enabled the RTL scroll window stays full-width where an LTR
-        // one hugs its content — a pre-existing asymmetry, deliberately left
-        // unchanged.
+        // NOTE: the full-width begin-time rects are deliberate (see above); the end
+        // side shrinks `inner_size` per `auto_shrink` and re-anchors at the reading
+        // start when this predicate holds, so a vertical-only rtl area with
+        // `auto_shrink` reserves the same content-hugging span as its ltr twin,
+        // anchored at the reading start, bar strip on the reading-end edge or not.
+        // (Two residuals this note used to document — bar-driven right-anchoring
+        // of auto-shrunk windows, and a direction asymmetry where the rtl window
+        // stayed full-width where the ltr one hugged its content — are healed;
+        // pinned in `crates/egui/tests/scroll_area_rtl.rs` by
+        // `vertical_auto_shrink_hugs_the_content_width_in_both_directions` and
+        // `vertical_auto_shrink_window_width_is_direction_symmetric`.)
 
         let inner_rect = if rtl && current_bar_use.x != 0.0 {
             // Vertical scroll bar on the reading-end (left) edge under RTL: the exact mirror

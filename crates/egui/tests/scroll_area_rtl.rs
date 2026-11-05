@@ -1349,3 +1349,188 @@ fn direction_flip_keeps_a_non_center_offset_reading_relative() {
         capture.clip
     );
 }
+
+/// One pass over a vertical-only scroll area with a narrow column of buttons,
+/// capturing the area's geometry and the measured width of the parent `Ui`
+/// after the area (the captures the other helpers don't provide). The area is
+/// `auto_shrink([false, true])`, so the x axis follows the content.
+fn narrow_column_pass(
+    ctx: &Context,
+    time: f64,
+    salt: &str,
+    bar_visibility: ScrollBarVisibility,
+    capture: &mut Capture,
+    parent_rect: &mut Rect,
+) -> FullOutput {
+    let mut buttons = Vec::new();
+    let mut clip = Rect::NOTHING;
+    let mut inner_rect = Rect::NOTHING;
+    let mut content_size = Vec2::ZERO;
+
+    let output = run(ctx, input_at(SCREEN, time, vec![]), |ui| {
+        CentralPanel::default()
+            .frame(egui::Frame::NONE)
+            .show(ui, |ui| {
+                // A measuring parent: a nested vertical `Ui` whose `min_rect` hugs
+                // what the scroll area reserves (a panel always fills its offered
+                // space, so it cannot answer this).
+                ui.vertical(|ui| {
+                    let out = ScrollArea::vertical()
+                        .id_salt(salt)
+                        // Explicit rather than the (identical) default, so a future
+                        // default change cannot silently un-hug these pins:
+                        .auto_shrink([true, true])
+                        .scroll_bar_visibility(bar_visibility)
+                        .show(ui, |ui| {
+                            for i in 0..N_COLUMN_BUTTONS {
+                                buttons.push(ui.button(format!("button {i}")).rect);
+                            }
+                            clip = ui.clip_rect();
+                        });
+                    inner_rect = out.inner_rect;
+                    content_size = out.content_size;
+                    *parent_rect = ui.min_rect();
+                });
+            });
+    });
+
+    capture.buttons = buttons;
+    capture.clip = clip;
+    capture.inner_rect = inner_rect;
+    capture.content_size = content_size;
+    output
+}
+
+/// A8: the residuals the NOTE next to `rtl_x` used to document as unresolved,
+/// settled by measurement (they are healed): with `auto_shrink` enabled, a
+/// vertical-only area reserves a content-hugging span in a measuring parent,
+/// anchored at the reading start under rtl exactly like under ltr, with and
+/// without the vertical scroll bar (floating by default, so the bar variant
+/// reserves the same strip-less span). The begin-time viewport stays full-width
+/// by design (the anti-ballooning anchor in `begin`); the reserved span is what
+/// the parent measures.
+#[test]
+fn vertical_auto_shrink_hugs_the_content_width_in_both_directions() {
+    fn case(rtl: bool) {
+        let ctx = context(rtl);
+        let mut capture = Capture::default();
+        let mut parent_rect = Rect::NOTHING;
+
+        // Without a bar strip:
+        narrow_column_pass(
+            &ctx,
+            0.0,
+            "shrink-nobar",
+            ScrollBarVisibility::VisibleWhenNeeded,
+            &mut capture,
+            &mut parent_rect,
+        );
+        assert_near(
+            parent_rect.width(),
+            capture.content_size.x,
+            PIXEL_TOLERANCE,
+            &format!("the reserved span should hug the content width (rtl: {rtl})"),
+        );
+        assert_near(
+            capture.inner_rect.width(),
+            SCREEN.x,
+            PIXEL_TOLERANCE,
+            &format!("the begin-time viewport should stay full-width by design (rtl: {rtl})"),
+        );
+        if rtl {
+            assert_near(
+                parent_rect.right(),
+                SCREEN.x,
+                PIXEL_TOLERANCE,
+                "rtl: the reserved span should anchor at the reading-start (right) edge",
+            );
+        } else {
+            assert_near(
+                parent_rect.left(),
+                0.0,
+                PIXEL_TOLERANCE,
+                "ltr: the reserved span should anchor at the reading-start (left) edge",
+            );
+        }
+
+        // With the vertical scroll bar (AlwaysVisible; it floats over the content
+        // by default, so no strip is reserved):
+        narrow_column_pass(
+            &ctx,
+            0.1,
+            "shrink-bar",
+            ScrollBarVisibility::AlwaysVisible,
+            &mut capture,
+            &mut parent_rect,
+        );
+        assert_near(
+            parent_rect.width(),
+            capture.content_size.x,
+            PIXEL_TOLERANCE,
+            &format!("the reserved span should hug the content width with a bar too (rtl: {rtl})"),
+        );
+        if rtl {
+            assert_near(
+                parent_rect.right(),
+                SCREEN.x,
+                PIXEL_TOLERANCE,
+                "rtl with a bar: the reserved span should anchor at the reading-start \
+                 (right) edge",
+            );
+        } else {
+            assert_near(
+                parent_rect.left(),
+                0.0,
+                PIXEL_TOLERANCE,
+                "ltr with a bar: the reserved span should anchor at the reading-start \
+                 (left) edge",
+            );
+        }
+    }
+
+    case(true);
+    case(false);
+}
+
+/// A9: no direction asymmetry in the auto-shrunk vertical window: the reserved
+/// span's width is the same under rtl and ltr, with and without the bar.
+#[test]
+fn vertical_auto_shrink_window_width_is_direction_symmetric() {
+    fn measure(rtl: bool, salt: &str, bar_visibility: ScrollBarVisibility) -> (f32, f32) {
+        let ctx = context(rtl);
+        let mut capture = Capture::default();
+        let mut parent_rect = Rect::NOTHING;
+        narrow_column_pass(
+            &ctx,
+            0.0,
+            salt,
+            bar_visibility,
+            &mut capture,
+            &mut parent_rect,
+        );
+        (parent_rect.width(), capture.content_size.x)
+    }
+
+    for (salt, bar_visibility) in [
+        ("symmetric-nobar", ScrollBarVisibility::VisibleWhenNeeded),
+        ("symmetric-bar", ScrollBarVisibility::AlwaysVisible),
+    ] {
+        let (rtl_width, rtl_content) = measure(true, salt, bar_visibility);
+        let (ltr_width, ltr_content) = measure(false, salt, bar_visibility);
+        assert_near(
+            rtl_content,
+            ltr_content,
+            PIXEL_TOLERANCE,
+            "the content should measure the same in both directions",
+        );
+        assert_near(
+            rtl_width,
+            ltr_width,
+            PIXEL_TOLERANCE,
+            &format!(
+                "the reserved span's width should be direction-symmetric \
+             (rtl {rtl_width}, ltr {ltr_width})"
+            ),
+        );
+    }
+}
