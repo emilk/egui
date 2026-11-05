@@ -155,3 +155,30 @@ fn test_rtl_toggle_routes_through_language() {
     assert!(!harness.ctx.is_rtl());
     assert_eq!(harness.state().state.language, "en");
 }
+
+/// The app language drives `Context::language` every frame, so text shaping
+/// and the date-picker locale follow the UI language. The round trip
+/// (English → Arabic → English) also pins that switching back clears the
+/// language: a direction-gated `set_language` would leave a stale
+/// `Some("ar")` in an English UI.
+#[test]
+fn test_app_language_drives_context_language() {
+    let mut harness = egui_kittest::Harness::builder()
+        .with_size(Vec2::new(900.0, 600.0))
+        .wgpu()
+        .allow_missing_glyphs()
+        .build_eframe(|cc| WrapApp::new(cc));
+
+    harness.run_steps(2);
+    // The default `state.language` is "" ("empty means English"), which the
+    // reset resolves to EN and now publishes to the context.
+    assert_eq!(harness.ctx.language(), Some("en".to_owned()));
+
+    harness.state_mut().state.language = "ar".to_owned();
+    harness.run_steps(2);
+    assert_eq!(harness.ctx.language(), Some("ar".to_owned()));
+
+    harness.state_mut().state.language = "en".to_owned();
+    harness.run_steps(2);
+    assert_eq!(harness.ctx.language(), Some("en".to_owned()));
+}
