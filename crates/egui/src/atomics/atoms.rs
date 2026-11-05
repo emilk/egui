@@ -20,26 +20,80 @@ impl<'a> Atoms<'a> {
         atoms.into_atoms()
     }
 
-    /// Insert a new [`Atom`] at the end of the list (right side).
+    /// Insert a new [`Atom`] at the reading start of the row (the first atom read).
+    ///
+    /// The atom is prepended to the list; the side it lands on follows the
+    /// container direction: the left side in a left-to-right row, the right side
+    /// in a right-to-left one. This is the reading-order name of
+    /// [`Self::push_left`].
+    pub fn push_start(&mut self, atom: impl Into<Atom<'a>>) {
+        self.push_left(atom);
+    }
+
+    /// Insert a new [`Atom`] at the reading end of the row (the last atom read).
+    ///
+    /// The atom is appended to the list — the reading end of the row, visually
+    /// left under a right-to-left container. This is the reading-order name of
+    /// [`Self::push_right`].
+    pub fn push_end(&mut self, atom: impl Into<Atom<'a>>) {
+        self.push_right(atom);
+    }
+
+    /// Extend the list of atoms by prepending more atoms at the reading start
+    /// (the first atoms read).
+    ///
+    /// The side they land on follows the container direction. This is the
+    /// reading-order name of [`Self::extend_left`].
+    ///
+    /// If you have weird lifetime issues with this, use [`Self::push_start`] in a loop instead.
+    pub fn extend_start(&mut self, atoms: Self) {
+        self.extend_left(atoms);
+    }
+
+    /// Extend the list of atoms by appending more atoms at the reading end
+    /// (the last atoms read).
+    ///
+    /// The side they land on follows the container direction. This is the
+    /// reading-order name of [`Self::extend_right`].
+    ///
+    /// If you have weird lifetime issues with this, use [`Self::push_end`] in a loop instead.
+    pub fn extend_end(&mut self, atoms: Self) {
+        self.extend_right(atoms);
+    }
+
+    /// Append a new [`Atom`] to the end of the list — the reading end of the
+    /// row, visually left under a right-to-left container.
+    ///
+    /// See [`Self::push_end`] for the reading-order name.
     pub fn push_right(&mut self, atom: impl Into<Atom<'a>>) {
         self.0.push(atom.into());
     }
 
-    /// Extend the list of atoms by appending more atoms to the right side.
+    /// Extend the list of atoms by appending more atoms to the end of the list —
+    /// the reading end of the row, visually left under a right-to-left container.
     ///
-    /// If you have weird lifetime issues with this, use [`Self::push_right`] in a loop instead.
+    /// If you have weird lifetime issues with this, use [`Self::push_end`] in a loop instead.
+    ///
+    /// See [`Self::extend_end`] for the reading-order name.
     pub fn extend_right(&mut self, atoms: Self) {
         self.0.extend(atoms.0);
     }
 
-    /// Insert a new [`Atom`] at the beginning of the list (left side).
+    /// Prepend a new [`Atom`] at the beginning of the list — the reading start
+    /// of the row, visually right under a right-to-left container.
+    ///
+    /// See [`Self::push_start`] for the reading-order name.
     pub fn push_left(&mut self, atom: impl Into<Atom<'a>>) {
         self.0.insert(0, atom.into());
     }
 
-    /// Extend the list of atoms by prepending more atoms to the left side.
+    /// Extend the list of atoms by prepending more atoms at the beginning of the
+    /// list — the reading start of the row, visually right under a
+    /// right-to-left container.
     ///
-    /// If you have weird lifetime issues with this, use [`Self::push_left`] in a loop instead.
+    /// If you have weird lifetime issues with this, use [`Self::push_start`] in a loop instead.
+    ///
+    /// See [`Self::extend_start`] for the reading-order name.
     pub fn extend_left(&mut self, mut atoms: Self) {
         core::mem::swap(&mut atoms.0, &mut self.0);
         self.0.extend(atoms.0);
@@ -249,7 +303,7 @@ where
     T: Into<Atom<'a>>,
 {
     fn collect(self, atoms: &mut Atoms<'a>) {
-        atoms.push_right(self);
+        atoms.push_end(self);
     }
 }
 
@@ -346,5 +400,48 @@ mod tests {
         let _: Atoms<'_> = ["Hello", "World"].into_iter().collect();
         let _ = Atoms::from(vec!["Hi"]);
         let _ = Atoms::from(["Hi"].as_slice());
+    }
+
+    /// The reading-order list operations follow list order, which `text()` reads
+    /// back: `push_start` inserts at the reading start (first), `push_end`
+    /// appends at the reading end (last).
+    #[test]
+    fn push_start_and_push_end_follow_reading_order() {
+        let mut atoms = Atoms::default();
+        atoms.push_end("a");
+        atoms.push_start("b");
+        assert_eq!(
+            atoms.text().as_deref(),
+            Some("b a"),
+            "push_start reads first, push_end reads last"
+        );
+
+        let mut atoms = Atoms::default();
+        atoms.push_end("a");
+        let other = {
+            let mut other = Atoms::default();
+            other.push_end("b");
+            other
+        };
+        atoms.extend_end(other);
+        assert_eq!(
+            atoms.text().as_deref(),
+            Some("a b"),
+            "extend_end appends at the reading end"
+        );
+
+        let mut atoms = Atoms::default();
+        atoms.push_end("a");
+        let other = {
+            let mut other = Atoms::default();
+            other.push_end("b");
+            other
+        };
+        atoms.extend_start(other);
+        assert_eq!(
+            atoms.text().as_deref(),
+            Some("b a"),
+            "extend_start prepends at the reading start"
+        );
     }
 }

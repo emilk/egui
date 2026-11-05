@@ -42,8 +42,8 @@ impl Suggestion {
     /// Add weak text to the far right of the suggestion.
     #[inline]
     pub fn description(mut self, description: impl Into<WidgetText>) -> Self {
-        self.content.push_right(Atom::grow());
-        self.content.push_right(description.into().weak());
+        self.content.push_end(Atom::grow());
+        self.content.push_end(description.into().weak());
         self
     }
 }

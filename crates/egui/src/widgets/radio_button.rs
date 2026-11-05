@@ -61,7 +61,7 @@ impl Widget for RadioButton<'_> {
         // The icon goes at the reading start of the atom list; the atom container mirrors
         // the list when the surrounding direction is right-to-left, which places the icon
         // on the reading-start side in both directions.
-        atoms.push_left(Atom::custom(rect_id, icon_size));
+        atoms.push_start(Atom::custom(rect_id, icon_size));
 
         let text = atoms.text().map(String::from);
 

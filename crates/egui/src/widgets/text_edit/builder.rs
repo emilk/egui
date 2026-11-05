@@ -226,7 +226,7 @@ impl<'t> TextEdit<'t> {
     /// Goes in front of any prefix already set, so `.prefix("b").prefix("a")` shows `ab`.
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'static>) -> Self {
-        self.prefix.extend_left(prefix.into_atoms());
+        self.prefix.extend_start(prefix.into_atoms());
         self
     }
 
@@ -235,7 +235,7 @@ impl<'t> TextEdit<'t> {
     /// Goes after any suffix already set, so `.suffix("a").suffix("b")` shows `ab`.
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'static>) -> Self {
-        self.suffix.extend_right(suffix.into_atoms());
+        self.suffix.extend_end(suffix.into_atoms());
         self
     }
 
@@ -733,10 +733,10 @@ impl<'t> TextEdit<'t> {
             // but due to servo/rust-smallvec#146 (also see the comment below).
             let mut atoms: Atoms<'_> = Atoms::new(());
 
-            // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have
-            // smallvec 2.0. Using `extend_right` here won't compile, due to lifetime issues.
+            // TODO(servo/rust-smallvec#146): Use extend_end instead of the loop once we have
+            // smallvec 2.0. Using `extend_end` here won't compile, due to lifetime issues.
             for atom in prefix {
-                atoms.push_right(atom);
+                atoms.push_end(atom);
             }
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
@@ -788,7 +788,7 @@ impl<'t> TextEdit<'t> {
                     // `align` hugs the reading-start edge (see `DefaultStyle`), which
                     // keeps multi line text edits unchanged under a left-to-right
                     // interface.
-                    atoms.push_right(atom.atom_align(align));
+                    atoms.push_end(atom.atom_align(align));
                 }
 
                 // Calculate the empty galley, so it can be read later. The available width is
@@ -807,7 +807,7 @@ impl<'t> TextEdit<'t> {
                 // We need a closure here, so we can calculate the galley based on the available
                 // width (after adding suffix and prefix), for correct wrapping in multi line text
                 // edits
-                atoms.push_right(
+                atoms.push_end(
                     AtomKind::closure(|ui, args| {
                         let mut galley = layouter(ui, text, args.available_size.x);
 
@@ -837,10 +837,10 @@ impl<'t> TextEdit<'t> {
                 );
             }
 
-            // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have
-            // smallvec 2.0. Using `extend_right` here won't compile, due to lifetime issues.
+            // TODO(servo/rust-smallvec#146): Use extend_end instead of the loop once we have
+            // smallvec 2.0. Using `extend_end` here won't compile, due to lifetime issues.
             for atom in suffix {
-                atoms.push_right(atom);
+                atoms.push_end(atom);
             }
 
             let min_height = (min_inner_height + frame.total_margin().sum().y).at_least(min_size.y);

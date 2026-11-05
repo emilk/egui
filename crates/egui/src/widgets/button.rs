@@ -118,10 +118,10 @@ impl<'a> Button<'a> {
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
         let mut button = Self::new(());
         if let Some(image) = image {
-            button.layout.push_right(image);
+            button.layout.push_end(image);
         }
         if let Some(text) = text {
-            button.layout.push_right(text);
+            button.layout.push_end(text);
         }
         button.limit_image_size = true;
         button
@@ -255,14 +255,14 @@ impl<'a> Button<'a> {
     /// See also [`Self::right_text`].
     #[inline]
     pub fn shortcut_text(mut self, shortcut_text: impl IntoAtoms<'a>) -> Self {
-        self.layout.push_right(Atom::grow());
+        self.layout.push_end(Atom::grow());
 
         for mut atom in shortcut_text.into_atoms() {
             atom.kind = match atom.kind {
                 AtomKind::Text(text) => AtomKind::Text(text.weak()),
                 other => other,
             };
-            self.layout.push_right(atom);
+            self.layout.push_end(atom);
         }
 
         self
@@ -271,10 +271,10 @@ impl<'a> Button<'a> {
     /// Show some text on the left side of the button.
     #[inline]
     pub fn left_text(mut self, left_text: impl IntoAtoms<'a>) -> Self {
-        self.layout.push_left(Atom::grow());
+        self.layout.push_start(Atom::grow());
 
         for atom in left_text.into_atoms() {
-            self.layout.push_left(atom);
+            self.layout.push_start(atom);
         }
 
         self
@@ -283,10 +283,10 @@ impl<'a> Button<'a> {
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl IntoAtoms<'a>) -> Self {
-        self.layout.push_right(Atom::grow());
+        self.layout.push_end(Atom::grow());
 
         for atom in right_text.into_atoms() {
-            self.layout.push_right(atom);
+            self.layout.push_end(atom);
         }
 
         self

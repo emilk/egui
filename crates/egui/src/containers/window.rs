@@ -1505,31 +1505,31 @@ fn title_ui(
 
     if rtl {
         if open.is_some() {
-            atoms.push_right(Atom::custom(close_atom_id, button_allocation_size));
+            atoms.push_end(Atom::custom(close_atom_id, button_allocation_size));
         }
 
-        atoms.push_right(Atom::grow());
+        atoms.push_end(Atom::grow());
 
-        atoms.extend_right(title);
+        atoms.extend_end(title);
 
-        atoms.push_right(Atom::grow());
+        atoms.push_end(Atom::grow());
 
         if collapsible {
-            atoms.push_right(Atom::custom(collapse_atom_id, button_allocation_size));
+            atoms.push_end(Atom::custom(collapse_atom_id, button_allocation_size));
         }
     } else {
         if collapsible {
-            atoms.push_right(Atom::custom(collapse_atom_id, button_allocation_size));
+            atoms.push_end(Atom::custom(collapse_atom_id, button_allocation_size));
         }
 
-        atoms.push_right(Atom::grow());
+        atoms.push_end(Atom::grow());
 
-        atoms.extend_right(title);
+        atoms.extend_end(title);
 
-        atoms.push_right(Atom::grow());
+        atoms.push_end(Atom::grow());
 
         if open.is_some() {
-            atoms.push_right(Atom::custom(close_atom_id, button_allocation_size));
+            atoms.push_end(Atom::custom(close_atom_id, button_allocation_size));
         }
     }
 

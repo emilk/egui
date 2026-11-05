@@ -398,8 +398,8 @@ impl<'a> DragValue<'a> {
     pub fn atoms(&self) -> Atoms<'a> {
         let ValueFormat { prefix, suffix, .. } = &self.format;
         let mut atoms = prefix.clone();
-        atoms.push_right(Atom::custom(IdSalt::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
-        atoms.extend_right(suffix.clone());
+        atoms.push_end(Atom::custom(IdSalt::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
+        atoms.extend_end(suffix.clone());
         atoms
     }
 }
