@@ -237,6 +237,13 @@ pub struct InputState {
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     ///
+    /// Caveat for right-to-left content: [`crate::ScrollArea`] deliberately skips the
+    /// horizontal negation for content laid out right-to-left, so there the x
+    /// component follows the mirrored offset axis — offset and content move together
+    /// (see `ScrollArea`). Query the interface direction
+    /// ([`crate::Style::right_to_left`]) before using x as a content offset in custom
+    /// pan code.
+    ///
     /// [`crate::ScrollArea`] will both read and write to this field, so that
     /// at the end of the frame this will be zero if a scroll-area consumed the delta.
     pub smooth_scroll_delta: Vec2,
