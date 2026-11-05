@@ -388,9 +388,35 @@
 //! # });
 //! ```
 //!
-//! ## Installing additional fonts
-//! The default egui fonts only support latin and cyrillic characters, and some emojis.
-//! To use egui with e.g. asian characters you need to install your own font (`.ttf` or `.otf`) using [`Context::set_fonts`].
+//! ## Fonts and scripts
+//! Which scripts egui can render depends on the installed fonts, consulted in this order:
+//!
+//! 1. **The bundled fonts** (the `default_fonts` feature): Latin, Greek and Cyrillic
+//!    characters, plus a few icons and emojis — see [`FontDefinitions::default`].
+//!    On the `egui` crate itself this feature is **off by default**: `eframe` enables it,
+//!    but any other integration must either enable it or install a [`FontProvider`] of its
+//!    own — with neither, every character, Latin included, renders as a tofu box.
+//! 2. **The fonts of the operating system**: on native, `eframe` installs
+//!    `egui_system_font_provider` by default (turn it off with
+//!    `NativeOptions::system_font_fallback`), which looks up each grapheme cluster in the
+//!    system font store (CoreText, DirectWrite, fontconfig, Android), so e.g. Arabic,
+//!    Hebrew and CJK render with a system font. A font that maps Arabic codepoints but
+//!    cannot join them into connected words (no `init`/`medi`/`fina` GSUB features, or an
+//!    AAT `morx` table) is skipped, so Arabic never renders as disconnected letters.
+//! 3. **A [`FontProvider`] you install** — what any integration that is neither `eframe`
+//!    nor a `default_fonts` user should do, e.g.
+//!    `ctx.add_font_provider(Arc::new(egui_system_font_provider::SystemFontProvider::new()));`
+//!    via [`Context::add_font_provider`].
+//! 4. **Fonts you bundle or fetch**: on the web there is no system font store to ask, so
+//!    install font files (TTF or OTF) with [`Context::add_font`] or [`Context::set_fonts`]
+//!    (see [`FontDefinitions`]). When `eframe` runs on the web, the browser's own font
+//!    fallback draws clusters the installed fonts lack, through the canvas glyph
+//!    rasterizer.
+//! 5. **Nothing can draw it**: by default the cluster renders as a tofu box
+//!    ([`MissingGlyphPolicy::Tofu`]). `egui_kittest` instead panics on missing glyphs by
+//!    default; opt out with `Harness::builder().allow_missing_glyphs()`, or install an
+//!    external test font with `Harness::builder().with_rtl_font()` (set the
+//!    `KITTEST_RTL_FONT` environment variable) when an assertion needs real glyphs.
 //!
 //! ## Instrumentation
 //! This crate supports using the [profiling](https://crates.io/crates/profiling) crate for instrumentation.
