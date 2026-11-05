@@ -518,3 +518,117 @@ fn singleline_overflow_scrolls_to_the_caret() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Collapsing a selection with the arrow keys: ArrowLeft/ArrowRight collapse a
+// non-empty selection onto the visual edge they point at (the reading end /
+// start of the row), and typing afterwards lands there. The LTR twins pin the
+// unchanged logical behavior.
+
+/// Builds a key event, spelling all five `Event::Key` fields (`Event` derives
+/// no `Default`, so functional-record-update cannot be used on the variant).
+fn key_event(key: egui::Key, pressed: bool, modifiers: egui::Modifiers) -> egui::Event {
+    egui::Event::Key {
+        key,
+        pressed,
+        modifiers,
+        repeat: false,
+        physical_key: None,
+    }
+}
+
+/// Run one frame with explicit events and discard the texture deltas (these
+/// tests never render).
+fn run_events(ctx: &Context, events: Vec<egui::Event>, run_ui: impl FnMut(&mut Ui)) -> FullOutput {
+    let mut output = ctx.run_ui(
+        RawInput {
+            events,
+            ..input(SCREEN)
+        },
+        run_ui,
+    );
+    output.textures_delta.clear();
+    output
+}
+
+/// Select everything in a focused singleline field, collapse the selection
+/// with `key`, type "X" at the collapsed caret, and return the bound string.
+fn collapse_selection_and_type(rtl: bool, word: &str, key: egui::Key) -> String {
+    let ctx = Context::default();
+    ctx.set_right_to_left(rtl);
+    let mut text = String::from(word);
+
+    // Prime a select-all selection on the focused field:
+    drop(run(&ctx, |ui| {
+        ui.memory_mut(|mem| mem.request_focus(edit_id()));
+        let mut out = TextEdit::singleline(&mut text).id(edit_id()).show(ui);
+        out.state.cursor.set_char_range(Some(CCursorRange::two(
+            CCursor::new(0),
+            CCursor::new(word.chars().count()),
+        )));
+        out.state.store(ui.ctx(), edit_id());
+    }));
+
+    // Collapse the selection onto one of its visual edges:
+    run_events(
+        &ctx,
+        vec![key_event(key, true, egui::Modifiers::NONE)],
+        |ui| {
+            ui.memory_mut(|mem| mem.request_focus(edit_id()));
+            let out = TextEdit::singleline(&mut text).id(edit_id()).show(ui);
+            out.state.store(ui.ctx(), edit_id());
+        },
+    );
+
+    // Type at the collapsed caret:
+    run_events(&ctx, vec![egui::Event::Text("X".into())], |ui| {
+        ui.memory_mut(|mem| mem.request_focus(edit_id()));
+        let out = TextEdit::singleline(&mut text).id(edit_id()).show(ui);
+        out.state.store(ui.ctx(), edit_id());
+    });
+
+    text
+}
+
+/// `ArrowLeft` over a selection collapses the caret onto the reading end of a
+/// right-to-left row — its visual left edge, the logical maximum — so typing
+/// appends after the word.
+#[test]
+fn arrow_left_collapses_onto_the_reading_end_edge() {
+    assert_eq!(
+        collapse_selection_and_type(true, "سلام", egui::Key::ArrowLeft),
+        "سلامX",
+        "ArrowLeft must collapse onto the visual left (reading end) edge of an \
+         RTL row, so typing appends after the word"
+    );
+}
+
+/// `ArrowRight` over a selection collapses the caret onto the reading start of a
+/// right-to-left row — its visual right edge, the logical minimum — so typing
+/// prepends before the word.
+#[test]
+fn arrow_right_collapses_onto_the_reading_start_edge() {
+    assert_eq!(
+        collapse_selection_and_type(true, "سلام", egui::Key::ArrowRight),
+        "Xسلام",
+        "ArrowRight must collapse onto the visual right (reading start) edge of \
+         an RTL row, so typing prepends before the word"
+    );
+}
+
+/// LTR twin: in a left-to-right row the visual edges are the logical ones, so
+/// collapsing keeps putting the caret at the logical start/end and typing
+/// lands exactly as before.
+#[test]
+fn arrow_collapse_keeps_the_logical_edges_ltr() {
+    assert_eq!(
+        collapse_selection_and_type(false, "abc", egui::Key::ArrowLeft),
+        "Xabc",
+        "LTR: ArrowLeft must keep collapsing onto the logical start"
+    );
+    assert_eq!(
+        collapse_selection_and_type(false, "abc", egui::Key::ArrowRight),
+        "abcX",
+        "LTR: ArrowRight must keep collapsing onto the logical end"
+    );
+}

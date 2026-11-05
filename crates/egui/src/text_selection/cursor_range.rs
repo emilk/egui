@@ -125,11 +125,39 @@ impl CCursorRange {
             }
 
             Key::ArrowLeft | Key::ArrowRight if modifiers.is_none() && !self.is_empty() => {
-                if key == Key::ArrowLeft {
-                    *self = Self::one(self.sorted_cursors()[0]);
+                // Collapse the selection onto the visual edge the arrow points at.
+                //
+                // The sorted cursors are in logical order, which matches visual
+                // order only in a left-to-right row: in a right-to-left row the
+                // logical minimum sits at the visual *right* edge, so the choice
+                // is made by caret geometry instead — the visually-earlier
+                // endpoint (upper row, then smaller x) for ArrowLeft, the
+                // visually-later one for ArrowRight, so the two edges agree with
+                // the single-cursor arrow motion. In a left-to-right galley the
+                // geometry reduces to logical order, keeping the old behavior.
+                // A tie (two logical positions sharing one visual edge, possible
+                // at the boundary of runs that counteract the base direction)
+                // falls back to logical order. Like single-cursor motion, this
+                // is approximate inside counteracting runs and across wrapped
+                // right-to-left rows (see `Row` in epaint); multi-row selections
+                // collapse by the caret's own row.
+                const VISUAL_ROW_EPSILON: f32 = 1.0;
+                let [min, max] = self.sorted_cursors();
+                let (min_rect, max_rect) =
+                    (galley.pos_from_cursor(min), galley.pos_from_cursor(max));
+                let min_is_visually_first = min_rect.top() < max_rect.top() - VISUAL_ROW_EPSILON
+                    || (min_rect.top() <= max_rect.top() + VISUAL_ROW_EPSILON
+                        && min_rect.left() <= max_rect.left());
+                let (visually_first, visually_last) = if min_is_visually_first {
+                    (min, max)
                 } else {
-                    *self = Self::one(self.sorted_cursors()[1]);
-                }
+                    (max, min)
+                };
+                *self = Self::one(if key == Key::ArrowLeft {
+                    visually_first
+                } else {
+                    visually_last
+                });
                 true
             }
 
