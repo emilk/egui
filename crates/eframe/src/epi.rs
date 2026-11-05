@@ -83,6 +83,9 @@ pub struct CreationContext<'s> {
     #[cfg(feature = "wgpu_no_default_features")]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
+    /// See [`Self::native_views`].
+    pub(crate) native_views: crate::NativeViews,
+
     /// The root [`winit::window::Window`].
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) window: Option<std::sync::Arc<winit::window::Window>>,
@@ -94,6 +97,14 @@ pub struct CreationContext<'s> {
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
+}
+
+impl CreationContext<'_> {
+    /// The [`NativeViews`](crate::NativeViews) of the root window, which report where egui
+    /// placed the views that the platform draws, such as web views.
+    pub fn native_views(&self) -> &crate::NativeViews {
+        &self.native_views
+    }
 }
 
 #[expect(unsafe_code)]
@@ -134,6 +145,7 @@ impl CreationContext<'_> {
             raw_window_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
             raw_display_handle: Err(HandleError::NotSupported),
+            native_views: crate::NativeViews::detached(),
         }
     }
 
@@ -739,6 +751,9 @@ pub struct Frame {
     /// taken by the app. See [`Frame::request_activation_token`].
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) activation_token: Option<String>,
+
+    /// See [`Self::native_views`].
+    pub(crate) native_views: crate::NativeViews,
 }
 
 // Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
@@ -786,7 +801,14 @@ impl Frame {
             wgpu_render_state: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_surface_config: None,
+            native_views: crate::NativeViews::detached(),
         }
+    }
+
+    /// The [`NativeViews`](crate::NativeViews) of the root window, which report where egui
+    /// placed the views that the platform draws, such as web views.
+    pub fn native_views(&self) -> &crate::NativeViews {
+        &self.native_views
     }
 
     /// True if you are in a web environment.

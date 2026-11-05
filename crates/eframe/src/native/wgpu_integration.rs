@@ -339,6 +339,7 @@ impl<'app> WgpuWinitApp<'app> {
             window: Some(Arc::clone(&window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
+            native_views: integration.frame.native_views().clone(),
         };
         let app = {
             profiling::scope!("user_app_creator");

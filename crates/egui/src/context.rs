@@ -3173,6 +3173,14 @@ impl ContextImpl {
 
         let mut platform_output: PlatformOutput = core::mem::take(&mut viewport.output);
 
+        // This has to come after `Memory::end_pass`, which sorts the layers into their paint
+        // order for this pass.
+        platform_output.native_views = crate::native_view::outputs(
+            &viewport.this_pass.native_views,
+            &self.memory,
+            &viewport.this_pass.widgets,
+        );
+
         if self.memory.should_interrupt_ime()
             && let Some(ime) = &mut platform_output.ime
         {

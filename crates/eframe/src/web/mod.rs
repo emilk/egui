@@ -9,6 +9,7 @@ mod canvas_glyphs;
 mod dropped_file;
 mod events;
 mod input;
+pub(crate) mod native_views;
 mod panic_handler;
 mod text_agent;
 mod web_logger;
@@ -191,8 +192,8 @@ fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Contex
 // ----------------------------------------------------------------------------
 
 /// Set the cursor icon.
-fn set_cursor_icon(canvas: &web_sys::HtmlCanvasElement, cursor: egui::CursorIcon) -> Option<()> {
-    canvas
+fn set_cursor_icon(element: &web_sys::HtmlElement, cursor: egui::CursorIcon) -> Option<()> {
+    element
         .style()
         .set_property("cursor", cursor_web_name(cursor))
         .ok()

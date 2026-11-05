@@ -128,7 +128,7 @@ pub fn adjust_colors(
         }
 
         Shape::Clear(_) => {
-            // Clears to transparent, which has no color to adjust
+            // Transparent black has no color to adjust.
         }
     }
 }

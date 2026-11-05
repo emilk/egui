@@ -114,10 +114,13 @@ impl AppRunner {
             i.pixels_per_point = super::native_pixels_per_point();
         });
 
+        let native_views = crate::NativeViews::new(painter.canvas().clone());
+
         let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
             storage: Some(&storage),
+            native_views: native_views.clone(),
 
             #[cfg(feature = "glow")]
             gl: gl.clone(),
@@ -145,6 +148,8 @@ impl AppRunner {
 
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
+
+            native_views,
         };
 
         let needs_repaint: Arc<NeedRepaint> = Arc::new(NeedRepaint::new(web_options.max_fps));
@@ -299,6 +304,10 @@ impl AppRunner {
                 viewport_output,
             } = full_output;
 
+            self.frame
+                .native_views
+                .place(&self.egui_ctx, &platform_output.native_views);
+
             if viewport_output.len() > 1 {
                 log::warn!("Multiple viewports not yet supported on the web");
             }
@@ -403,6 +412,7 @@ impl AppRunner {
             accesskit_update: _,        // not currently implemented
             num_completed_passes: _,    // handled by `Context::run`
             request_discard_reasons: _, // handled by `Context::run`
+            native_views: _,            // handled by `NativeViews::place` in `logic`
         } = platform_output;
 
         for command in commands {
@@ -421,6 +431,9 @@ impl AppRunner {
         }
 
         super::set_cursor_icon(self.canvas(), cursor_icon);
+        if let Some(input_element) = self.frame.native_views.input_element() {
+            super::set_cursor_icon(input_element, cursor_icon);
+        }
 
         if self.has_focus() {
             // The eframe app has focus.

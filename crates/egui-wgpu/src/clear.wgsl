@@ -1,5 +1,6 @@
-// Clears to transparent black, for `epaint::Primitive::Clear`.
-// The triangle covers the whole target, and the scissor rect limits it to what is cleared.
+// Writes transparent black, for `epaint::Primitive::Clear`.
+// The vertex shader emits one triangle that covers the whole target, and the scissor rect limits
+// it to the cleared rect.
 
 @vertex
 fn vs_main(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {

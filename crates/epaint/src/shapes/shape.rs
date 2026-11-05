@@ -76,11 +76,11 @@ pub enum Shape {
     /// Backend-specific painting.
     Callback(PaintCallback),
 
-    /// Make the pixels of a rect fully transparent, instead of painting over them.
+    /// Sets the pixels of a rect to transparent black, replacing whatever was painted there
+    /// before.
     ///
-    /// Everything painted before in the rect is cleared, and what is painted after blends
-    /// over transparency. Useful for showing something behind the egui surface, like a native
-    /// view or an `<iframe>` under the canvas, if the surface is transparent.
+    /// Shapes painted after it blend over the transparent pixels as usual. Only the part inside
+    /// the clip rect is cleared.
     Clear(Rect),
 }
 
