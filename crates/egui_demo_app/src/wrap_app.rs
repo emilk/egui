@@ -300,6 +300,9 @@ impl eframe::App for WrapApp {
         i18n::set_current(lang);
         // The interface direction follows the language (Arabic reads right-to-left).
         ui.ctx().set_right_to_left(lang.is_rtl());
+        // Text shaping and the date-picker locale follow `Context::language`
+        // (through `Ui::language`); drive it from the same source of truth.
+        ui.ctx().set_language(lang.code());
 
         #[cfg(target_arch = "wasm32")]
         if let Some(anchor) = frame
