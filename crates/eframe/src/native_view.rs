@@ -1,33 +1,39 @@
-//! Native views: UI that the platform draws, not egui, like a web view, a map or a video.
+//! Native views: rects of the UI that the platform draws instead of egui, such as a web view, a
+//! map or a video player.
 //!
-//! egui leaves a rect to a native view with [`egui::NativeView`]. Whatever shows the view
-//! hooks into [`NativeViews`], and eframe hands it where egui left the views after every pass,
-//! before the pass is painted.
+//! The app reserves the rect with the [`egui::NativeView`] widget. The code that shows the view
+//! registers a callback with [`NativeViews::on_place`], and eframe calls it with
+//! [`egui::PlatformOutput::native_views`] once per frame, before the frame is painted.
 //!
-//! eframe also does what all views of a window share. On the web, that's the input: the canvas
-//! is above the views below egui's surface, so eframe lets the pointer through it to where a
-//! view takes the input ([`egui::NativeViewOutput::view_input_areas`]).
+//! eframe also handles what all the views of a window share. On the web, that is the pointer
+//! input: the canvas is in front of the views below egui's surface, so eframe lets the pointer
+//! through the canvas wherever a view takes the input
+//! ([`egui::NativeViewOutput::view_input_areas`]).
 
 use core::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
 use egui::{Context, Id, NativeViewOutput};
 
-/// What [`NativeViews::on_place`] calls.
+/// A callback registered with [`NativeViews::on_place`].
 type PlaceFn = dyn FnMut(&Context, &[NativeViewOutput]);
 
-/// The native views of the app's window, which eframe places. Get it from
-/// [`crate::CreationContext::native_views`] or [`crate::Frame::native_views`].
+/// Reports to the code that shows native views where egui placed them in the app's root window.
 ///
-/// Natively, it's the root window's handle, for the views to go in. On the web, it holds what
-/// the views of the canvas share.
+/// Get it from [`crate::CreationContext::native_views`] or [`crate::Frame::native_views`], and
+/// register a callback with [`Self::on_place`] or [`Self::on_place_view`].
 ///
-/// It's cheap to clone.
+/// Natively, it implements [`raw_window_handle::HasWindowHandle`] with the root window's handle,
+/// so that the views can be added to that window. On the web, it gives access to the canvas and
+/// to the element that the views below the canvas go in (`NativeViews::layer`, web only).
+///
+/// Cloning it is cheap, and all clones share the same callbacks.
 #[derive(Clone)]
 pub struct NativeViews(Rc<Inner>);
 
 struct Inner {
-    /// The hooks of [`NativeViews::on_place`], by key.
+    /// The callbacks registered with [`NativeViews::on_place`], with the key that their
+    /// [`PlaceHook`] removes them by.
     hooks: RefCell<Vec<(u64, Rc<RefCell<PlaceFn>>)>>,
     next_key: Cell<u64>,
 
@@ -68,7 +74,7 @@ impl NativeViews {
         }))
     }
 
-    /// Native views without a window, for tests.
+    /// Creates native views that aren't attached to a window, for tests.
     pub(crate) fn detached() -> Self {
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -85,12 +91,14 @@ impl NativeViews {
         }
     }
 
-    /// Call `place` after every pass of the root viewport, before the pass is painted, with
-    /// where the [`egui::NativeView`]s on screen in it go. A view that isn't in there should
+    /// Registers `place` to be called once per frame of the root viewport, before the frame is
+    /// painted, with the outputs of the [`egui::NativeView`]s that are on screen.
+    ///
+    /// The outputs are those of the frame's last pass. A view that is missing from them should
     /// hide.
     ///
-    /// For something that shows many views, like a bridge to platform text fields. For one view,
-    /// see [`Self::on_place_view`].
+    /// This suits code that shows many views, like a bridge to platform text fields. For a
+    /// single view, see [`Self::on_place_view`].
     ///
     /// eframe calls `place` until the returned [`PlaceHook`] is dropped.
     pub fn on_place(
@@ -107,8 +115,10 @@ impl NativeViews {
         }
     }
 
-    /// Call `place` after every pass of the root viewport, before the pass is painted, with
-    /// where the [`egui::NativeView`] `id` goes: `None` when it isn't on screen, and should hide.
+    /// Registers `place` to be called once per frame of the root viewport, before the frame is
+    /// painted, with the output of the [`egui::NativeView`] `id`.
+    ///
+    /// The output is `None` when the view isn't on screen, and the view should then hide.
     ///
     /// eframe calls `place` until the returned [`PlaceHook`] is dropped.
     pub fn on_place_view(
@@ -127,11 +137,19 @@ impl NativeViews {
         self.0.web.canvas()
     }
 
-    /// The element to put the elements of views below egui's surface in
-    /// ([`egui::NativeViewPlacement::Below`]): a `<div>` just before the canvas, so the canvas paints
-    /// over them. It's `position: fixed` at the top left of the page, with no
-    /// size, so give each view `position: fixed`, and a `z-index` from
-    /// [`NativeViewOutput::z_index`] (plus one).
+    /// Returns the element to add the elements of views below egui's surface
+    /// ([`egui::NativeViewPlacement::Below`]) to.
+    ///
+    /// It is a `<div>` right before the canvas in the document, so the canvas paints over it.
+    /// The `<div>` has `position: fixed` at the top left of the browser viewport and a size of
+    /// zero. It forms its own stacking context, so the `z-index` of a view only orders it among
+    /// the other views in it. Give each view's element `position: fixed`, a `z-index` of
+    /// [`NativeViewOutput::z_index`] plus one, and `pointer-events: auto`, because the `<div>`
+    /// has `pointer-events: none`.
+    ///
+    /// If the canvas has `position: static`, the first call sets it to `position: relative`.
+    /// A positioned element is painted in front of a static one, so this keeps the canvas in
+    /// front of the `<div>`.
     ///
     /// # Errors
     /// If the canvas wasn't in the document when eframe started.
@@ -140,26 +158,27 @@ impl NativeViews {
         self.0.web.layer()
     }
 
-    /// The element that takes egui's pointer input over the views below the canvas, if the
-    /// canvas was in the document when eframe started.
+    /// The invisible element that takes egui's pointer input while views are shown below the
+    /// canvas. `None` if the canvas wasn't in the document when eframe started.
     #[cfg(target_arch = "wasm32")]
     pub(crate) fn shield(&self) -> Option<&web_sys::HtmlElement> {
         self.0.web.shield()
     }
 
-    /// Place the views after a pass of the root viewport, with its `outputs`.
+    /// Routes the pointer input on the web and calls the registered callbacks with the
+    /// `outputs` of a frame of the root viewport.
     #[cfg_attr(
         not(any(feature = "glow", feature = "wgpu_no_default_features")),
         expect(
             dead_code,
-            reason = "Only the runners place views, and they need a renderer"
+            reason = "Only the runners call this, and they exist only with a renderer feature"
         )
     )]
     pub(crate) fn place(&self, ctx: &Context, outputs: &[NativeViewOutput]) {
         #[cfg(target_arch = "wasm32")]
         self.0.web.route_input(ctx, outputs);
 
-        // Not borrowed while the hooks run, so they can add and drop hooks.
+        // Clone the callbacks out, so that a callback can register and drop hooks while it runs.
         let hooks = self
             .0
             .hooks
@@ -168,8 +187,8 @@ impl NativeViews {
             .map(|(_, hook)| Rc::clone(hook))
             .collect::<Vec<_>>();
         for hook in hooks {
-            // A hook that places the views from inside itself, through a pass of its own, is
-            // skipped there.
+            // If a callback runs a frame of its own that calls `place` again, the callback is
+            // still borrowed, and the nested call skips it.
             if let Ok(mut place) = hook.try_borrow_mut() {
                 place(ctx, outputs);
             }
@@ -177,7 +196,8 @@ impl NativeViews {
     }
 }
 
-/// Keeps a hook of [`NativeViews::on_place`] called. Drop it to stop.
+/// Keeps a callback of [`NativeViews::on_place`] or [`NativeViews::on_place_view`]
+/// registered. Dropping it unregisters the callback.
 #[must_use = "The hook stops when this is dropped"]
 pub struct PlaceHook {
     inner: Weak<Inner>,
@@ -204,7 +224,8 @@ impl raw_window_handle::HasWindowHandle for NativeViews {
     fn window_handle(
         &self,
     ) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-        // Safety: the window outlives the app, and so `self`.
+        // SAFETY: eframe keeps the root window alive until after it has dropped the app, which
+        // holds the clones of `self`.
         unsafe {
             Ok(raw_window_handle::WindowHandle::borrow_raw(
                 self.0.raw_window_handle.clone()?,

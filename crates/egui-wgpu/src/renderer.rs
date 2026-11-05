@@ -237,7 +237,8 @@ impl Default for RendererOptions {
 pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
 
-    /// Draws [`Primitive::Clear`]: replaces pixels with transparent black, without blending.
+    /// Draws [`Primitive::Clear`]: overwrites the pixels inside the scissor rect with transparent
+    /// black, without blending.
     clear_pipeline: wgpu::RenderPipeline,
 
     index_buffer: SlicedBuffer,
@@ -505,7 +506,7 @@ impl Renderer {
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: output_color_format,
-                        blend: None, // Replace what is there.
+                        blend: None, // Overwrite the target instead of blending with it.
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                     compilation_options: wgpu::PipelineCompilationOptions::default(),

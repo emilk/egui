@@ -542,12 +542,12 @@ fn prevent_default_and_stop_propagation(
     Ok(())
 }
 
-/// The shield takes the pointer instead of the canvas while native views are below the canvas.
-/// See [`super::native_views`].
+/// Installs the pointer listeners on the shield, which takes the canvas's pointer input while
+/// native views are shown below the canvas. See [`super::native_views`].
 fn install_shield(runner_ref: &WebRunner, shield: &EventTarget) -> Result<(), JsValue> {
     prevent_default_and_stop_propagation(runner_ref, shield, &["contextmenu"])?;
-    // The keyboard focus stays on the canvas: a press on the shield would move it off.
-    // eframe focuses the canvas on the `pointerup` instead.
+    // Cancel the default action of `mousedown`, which would move the keyboard focus off the
+    // canvas. The `pointerup` listener on the document focuses the canvas instead.
     runner_ref.add_event_listener(shield, "mousedown", |event: web_sys::MouseEvent, _| {
         event.prevent_default();
     })?;
@@ -655,8 +655,8 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
     )
 }
 
-/// Returns true if the cursor is above the canvas (or the shield that takes its pointer input),
-/// or if we're dragging something.
+/// Returns true if the cursor is above the canvas (or above the shield that takes its pointer
+/// input), or if we're dragging something.
 /// Pass in the position in browser viewport coordinates (usually event.clientX/Y).
 fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
     let root_node = runner.canvas().get_root_node();

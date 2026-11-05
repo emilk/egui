@@ -225,7 +225,7 @@ pub struct PassState {
 
     pub accesskit_state: Option<AccessKitPassState>,
 
-    /// The native views shown this pass, in the order they were shown.
+    /// The native views on screen this pass, in the order they were added.
     pub(crate) native_views: Vec<crate::native_view::NativeViewShown>,
 
     /// Highlight these widgets the next pass.

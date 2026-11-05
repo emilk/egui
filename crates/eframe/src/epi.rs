@@ -83,7 +83,7 @@ pub struct CreationContext<'s> {
     #[cfg(feature = "wgpu_no_default_features")]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
-    /// The native views of the app's window. See [`Self::native_views`].
+    /// See [`Self::native_views`].
     pub(crate) native_views: crate::NativeViews,
 
     /// The root [`winit::window::Window`].
@@ -100,8 +100,8 @@ pub struct CreationContext<'s> {
 }
 
 impl CreationContext<'_> {
-    /// The native views of the app's window: platform UI shown in egui rects, like web views.
-    /// See [`crate::NativeViews`].
+    /// The [`NativeViews`](crate::NativeViews) of the root window, which report where egui
+    /// placed the views that the platform draws, such as web views.
     pub fn native_views(&self) -> &crate::NativeViews {
         &self.native_views
     }
@@ -752,7 +752,7 @@ pub struct Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) activation_token: Option<String>,
 
-    /// The native views of the app's window. See [`Self::native_views`].
+    /// See [`Self::native_views`].
     pub(crate) native_views: crate::NativeViews,
 }
 
@@ -805,8 +805,8 @@ impl Frame {
         }
     }
 
-    /// The native views of the app's window: platform UI shown in egui rects, like web views.
-    /// See [`crate::NativeViews`].
+    /// The [`NativeViews`](crate::NativeViews) of the root window, which report where egui
+    /// placed the views that the platform draws, such as web views.
     pub fn native_views(&self) -> &crate::NativeViews {
         &self.native_views
     }

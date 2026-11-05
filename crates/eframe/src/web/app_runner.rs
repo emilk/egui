@@ -412,7 +412,7 @@ impl AppRunner {
             accesskit_update: _,        // not currently implemented
             num_completed_passes: _,    // handled by `Context::run`
             request_discard_reasons: _, // handled by `Context::run`
-            native_views: _,            // placed after the pass
+            native_views: _,            // handled by `NativeViews::place` in `logic`
         } = platform_output;
 
         for command in commands {

@@ -1569,7 +1569,7 @@ impl Tessellator {
 
     /// Tessellate a single [`Shape`] into a [`Mesh`].
     ///
-    /// This call can panic the given shape is of [`Shape::Vec`], [`Shape::Callback`] or
+    /// This call panics if the given shape is a [`Shape::Vec`], [`Shape::Callback`] or
     /// [`Shape::Clear`].
     /// For that, use [`Self::tessellate_clipped_shape`] instead.
     /// * `shape`: the shape to tessellate.

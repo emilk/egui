@@ -173,8 +173,9 @@ impl Painter {
             resizing,
             ..
         } = old_state;
-        // Before making the new one: some surfaces can only exist once per window, like one
-        // presenting through a `DirectComposition` target of the window.
+        // Drop the old surface before creating the new one, because some backends allow only
+        // one surface per window. For example, DirectComposition allows only one target per
+        // window.
         drop(old_state);
 
         let surface = self.instance.create_surface(Arc::clone(window))?;

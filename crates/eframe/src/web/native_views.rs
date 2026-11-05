@@ -1,17 +1,21 @@
-//! What the native views of a canvas share: the layer they go in, and the input.
+//! The state that the native views of a canvas share: the element they go in, and the routing
+//! of the pointer input.
 //!
-//! The canvas is above the views below egui's surface ([`egui::NativeViewPlacement::Below`]), so
-//! it would get all of the pointer. A view's input has to get through it, but an element can't
-//! take the pointer in only parts of itself without also being drawn in only those parts.
+//! The canvas is in front of the views below egui's surface
+//! ([`egui::NativeViewPlacement::Below`]), so the browser's hit-testing would send all of the
+//! pointer input to the canvas. The views need the input where egui doesn't take it. CSS can't
+//! limit the hit-testing of an element to part of its area without also clipping its drawing:
+//! `clip-path` clips both.
 //!
-//! So while such a view is shown, the canvas only paints, with `pointer-events: none`, and an
-//! invisible shield over it takes egui's pointer input. eframe listens for the pointer on the
-//! shield like on the canvas. The shield is clipped to leave out where the views take the input
-//! ([`egui::NativeViewOutput::view_input_areas`]), so the pointer there goes to the views. The
-//! canvas is drawn whole, so egui paints over the views up to the last pixel, shadows included.
+//! So while such a view is shown, the canvas only draws and has `pointer-events: none`. Instead,
+//! an invisible "shield" element in front of the canvas and the views takes egui's pointer input,
+//! and eframe listens for pointer events on the shield like on the canvas. The shield's
+//! `clip-path` cuts out the areas where the views take the input
+//! ([`egui::NativeViewOutput::view_input_areas`]), so hit-testing there finds the views. The
+//! canvas isn't clipped, so egui paints over the views down to the last pixel, shadows included.
 //!
-//! The keyboard focus stays on the canvas: the shield isn't focusable, and a press on it
-//! doesn't move the focus.
+//! The keyboard focus stays on the canvas: the shield isn't focusable, and eframe cancels the
+//! default action of a `mousedown` on the shield, which would move the focus.
 
 use core::cell::RefCell;
 use core::fmt::Write as _;
@@ -21,6 +25,7 @@ use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use web_sys::{HtmlCanvasElement, HtmlElement};
 
+/// The web part of [`crate::NativeViews`].
 pub(crate) struct WebNativeViews {
     canvas: HtmlCanvasElement,
 
@@ -32,20 +37,22 @@ pub(crate) struct WebNativeViews {
 
 #[derive(Default)]
 struct State {
-    /// Whether the canvas was made positioned, to stay over the views.
+    /// Whether [`WebNativeViews::layer`] has made sure that the canvas has a non-static
+    /// `position`, which keeps the canvas in front of the views.
     positioned: bool,
 
-    /// The style of the shield last set, to skip setting it again. `None` while it's hidden.
+    /// The `style` attribute last set on the shield, so that an unchanged style isn't set
+    /// again. `None` while the shield is hidden.
     shield_style: Option<String>,
 }
 
-/// What goes with the canvas, just before it.
+/// The element that holds the views below the canvas, inserted right before the canvas.
 struct Layer {
-    /// Holds the views, and the shield. It comes before the canvas, so the canvas is painted
-    /// over it.
+    /// The `position: fixed` container of the views and the shield. It precedes the canvas in
+    /// the document, so a positioned canvas paints in front of it.
     element: HtmlElement,
 
-    /// Takes egui's pointer input while views are shown. See the module docs.
+    /// Takes egui's pointer input while views below the canvas are shown. See the module docs.
     shield: HtmlElement,
 }
 
@@ -57,7 +64,8 @@ impl Drop for Layer {
 
 impl WebNativeViews {
     pub fn new(canvas: HtmlCanvasElement) -> Self {
-        // Made up front, so eframe can listen on the shield from the start.
+        // Create the layer now, so that eframe can install its event listeners on the shield
+        // at startup.
         let layer = Layer::new(&canvas)
             .inspect_err(|err| log::debug!("No native views below the canvas: {err:?}"))
             .ok();
@@ -72,7 +80,7 @@ impl WebNativeViews {
         &self.canvas
     }
 
-    /// The element that takes egui's pointer input over the views. See the module docs.
+    /// The element that takes egui's pointer input in front of the views. See the module docs.
     pub fn shield(&self) -> Option<&HtmlElement> {
         self.layer.as_ref().map(|layer| &layer.shield)
     }
@@ -83,8 +91,8 @@ impl WebNativeViews {
         })?;
         let mut state = self.state.borrow_mut();
         if !state.positioned {
-            // A positioned element is painted over one that isn't, so the canvas has to be
-            // positioned too, to stay over the views.
+            // The layer is positioned, and a positioned element paints in front of a static
+            // one. The canvas needs a non-static `position` too, to stay in front of the views.
             let is_static = web_sys::window()
                 .and_then(|window| window.get_computed_style(&self.canvas).ok().flatten())
                 .and_then(|style| style.get_property_value("position").ok())
@@ -97,8 +105,11 @@ impl WebNativeViews {
         Ok(layer.element.clone())
     }
 
-    /// Have the shield take egui's pointer input while views below the canvas are shown, and
-    /// let the pointer through to where they take the input this pass.
+    /// Updates the shield and the canvas for the views below the canvas in `outputs`.
+    ///
+    /// While such a view is shown, the canvas has `pointer-events: none`, and the shield covers
+    /// the canvas except where the views take the pointer input. Otherwise the shield is hidden
+    /// and the canvas takes the pointer input as usual.
     pub fn route_input(&self, ctx: &Context, outputs: &[NativeViewOutput]) {
         let Some(layer) = &self.layer else {
             return;
@@ -106,15 +117,15 @@ impl WebNativeViews {
         let Ok(mut state) = self.state.try_borrow_mut() else {
             return;
         };
-        // A view above the canvas gets the pointer anyway.
+        // The browser delivers the pointer input to views above the canvas without help.
         let mut below = outputs
             .iter()
             .filter(|output| output.side == NativeViewPlacement::Below)
             .peekable();
         let shield_style = below.peek().is_some().then(|| {
-            // A press that started in egui keeps the pointer until it is released: eframe
-            // follows a drag with the `mousemove` events of the document, which don't come
-            // while the pointer is over a view in an `<iframe>`.
+            // While egui has a pointer button down, the shield covers the views too, so that
+            // egui keeps getting the drag. eframe tracks a drag with `mousemove` events on the
+            // document, and the document gets none while the pointer is over an `<iframe>`.
             let egui_press = ctx.input(|input| input.pointer.any_down());
             let view_areas: Vec<Rect> = if egui_press {
                 Vec::new()
@@ -142,10 +153,12 @@ impl WebNativeViews {
     }
 }
 
-/// Converts ui points to CSS pixels from the top left of `canvas`.
+/// Returns a function that converts rects from ui points to CSS pixels relative to the top left
+/// of `canvas`.
 ///
-/// Those are usually window points (ui points times the zoom factor), but not while the size of
-/// the canvas that egui knows lags behind its size on the page.
+/// One ui point is usually [`Context::zoom_factor`] CSS pixels. While the canvas is resized,
+/// egui's viewport rect can lag behind the canvas's size on the page, so the scale also includes
+/// the ratio between the two.
 fn to_css_pixels(
     ctx: &Context,
     canvas: &HtmlCanvasElement,
@@ -161,10 +174,12 @@ fn to_css_pixels(
     move |rect| rect * scale
 }
 
-/// The style of the shield: over `canvas`, without `view_areas`.
+/// Returns the `style` attribute of the shield: it covers `canvas`, with `view_areas` (in CSS
+/// pixels relative to the canvas) cut out.
 fn shield_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> String {
     let rect = canvas.get_bounding_client_rect();
-    // Over the views, which have a `z-index` of at least 1.
+    // The maximum `z-index` puts the shield in front of the views, whose `z-index` is at
+    // least 1.
     let mut css = format!(
         "position: fixed; left: {}px; top: {}px; width: {}px; height: {}px; \
          z-index: 2147483647; pointer-events: auto;",
@@ -174,8 +189,9 @@ fn shield_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> String {
         rect.height(),
     );
     if !view_areas.is_empty() {
-        // With `evenodd`, the rects are cut out. Those of one view don't overlap, and those of
-        // different ones only if the views do.
+        // The path is the shield's rect followed by the view areas. The `evenodd` fill rule
+        // cuts out each area, but fills a region again where two areas overlap. The areas of
+        // one view don't overlap, so this only happens where two views overlap.
         let mut path = format!("M0 0H{}V{}H0Z", rect.width(), rect.height());
         for Rect { min, max } in view_areas {
             write!(path, "M{} {}H{}V{}H{}Z", min.x, min.y, max.x, max.y, min.x).ok();
@@ -195,8 +211,10 @@ impl Layer {
             .ok_or_else(|| JsValue::from_str("The canvas isn't in the document"))?;
 
         let element: HtmlElement = document.create_element("div")?.unchecked_into();
-        // `position: fixed` makes it a stacking context, so the `z-index` of the views and the
-        // shield only orders them among each other.
+        // `position: fixed` makes the element a stacking context, so the `z-index` of the views
+        // and the shield only orders them within it. Its children inherit
+        // `pointer-events: none`, so the shield and the views have to set
+        // `pointer-events: auto`.
         set_style(
             &element,
             "position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none;",

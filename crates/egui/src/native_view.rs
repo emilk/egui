@@ -8,9 +8,9 @@
 //! Below is not supported on all platforms though, e.g. on Windows it can only be done with the wgpu
 //! dx12 backend.
 //!
-//! egui reports where it paints over a view ([`NativeViewOutput::egui_paint_areas`]) and where
-//! it takes the pointer from it ([`NativeViewOutput::egui_input_areas`]), so tooltips and popups
-//! over a view show and work.
+//! egui also reports where it paints over a view ([`NativeViewOutput::egui_paint_areas`]) and
+//! where it takes the pointer input from the view ([`NativeViewOutput::egui_input_areas`]). With
+//! these, the integration keeps egui's tooltips and popups over a view visible and interactive.
 
 use emath::{Rect, Vec2};
 
@@ -26,28 +26,32 @@ use crate::{Id, LayerId, Memory, Response, Sense, Ui, Widget, WidgetRects};
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum NativeViewPlacement {
-    /// Under egui's surface, showing through where egui clears it.
+    /// The view is under egui's surface and shows through where egui clears the surface to
+    /// transparent.
     ///
-    /// egui paints over the view, shadows and all, but the integration has to let the input
-    /// through the surface to it.
+    /// egui paints over the view, shadows included. The integration has to pass the pointer
+    /// input through the surface to the view.
     #[default]
     Below,
 
-    /// Over egui's surface, like a platform text field on a phone.
+    /// The view is over egui's surface, like a platform text field on a phone.
     ///
-    /// The view gets its input like any platform view, but has to mask out what egui paints
+    /// The view gets its input directly from the platform, but has to mask out what egui paints
     /// over it.
     Above,
 }
 
-/// A rect egui leaves to a native view: UI that the platform draws, like a web view.
+/// A widget that reserves a rect of the UI for a native view, which the platform draws, such as
+/// a web view.
 ///
-/// egui reports where the view goes in [`crate::PlatformOutput::native_views`], at the end of
-/// the pass. A view that isn't on screen in a pass isn't in there, and should hide: one that
-/// isn't shown, is in an invisible [`Ui`], or is clipped out, like when it's scrolled away.
+/// At the end of the pass, egui reports where the view goes in
+/// [`crate::PlatformOutput::native_views`]. A view that is not on screen is missing from that
+/// list, and the integration should hide it. That is the case when the widget wasn't added this
+/// pass, is in an invisible [`Ui`], or is clipped out, for example by scrolling.
 ///
-/// The [`Response`] senses clicks, drags and the keyboard focus, so the view takes part in
-/// egui's focus like a widget. egui doesn't see the input the platform gives the view.
+/// The [`Response`] senses clicks and drags and can take the keyboard focus, so the view takes
+/// part in egui's focus handling like any other widget. egui does not see the input that the
+/// platform delivers to the view itself.
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -66,9 +70,10 @@ pub struct NativeView {
 }
 
 impl NativeView {
-    /// The native view `id`, below egui's surface, which egui clears its rect for.
+    /// Creates the native view `id`, [below](NativeViewPlacement::Below) egui's surface.
     ///
-    /// `id` names the view in [`NativeViewOutput::id`], so it has to be unique among the views.
+    /// `id` identifies the view in [`NativeViewOutput::id`], so it must be unique among the
+    /// native views.
     pub fn new(id: Id) -> Self {
         Self {
             id,
@@ -78,38 +83,40 @@ impl NativeView {
         }
     }
 
-    /// The size of the view's rect. Default: the space available.
+    /// Sets the size of the view's rect. Default: all of the available space.
     #[inline]
     pub fn size(mut self, size: Vec2) -> Self {
         self.size = Some(size);
         self
     }
 
-    /// Whether the view goes below or above egui's surface. Default: [`NativeViewPlacement::Below`].
+    /// Places the view below or above egui's surface. Default: [`NativeViewPlacement::Below`].
     #[inline]
     pub fn side(mut self, side: NativeViewPlacement) -> Self {
         self.side = side;
         self
     }
 
-    /// The view goes above egui's surface, so egui doesn't clear its rect.
+    /// Places the view above egui's surface. egui then doesn't clear the view's rect, unless
+    /// [`Self::clear`] asks for it.
     #[inline]
     pub fn above(self) -> Self {
         self.side(NativeViewPlacement::Above)
     }
 
-    /// The view goes below egui's surface, which egui clears its rect for. The default.
+    /// Places the view below egui's surface, where it shows through the rect that egui clears.
+    /// This is the default.
     #[inline]
     pub fn below(self) -> Self {
         self.side(NativeViewPlacement::Below)
     }
 
-    /// Whether to clear the visible part of the view's rect to transparent, for a view below
-    /// egui's surface to show through.
+    /// Whether egui clears the visible part of the view's rect to transparent with
+    /// [`epaint::Shape::Clear`], so that a view below egui's surface shows through.
     ///
-    /// Default: `true` for a view below egui's surface, `false` above it. Turn it off below the
-    /// surface for a view that something else makes visible, or that should show only where
-    /// egui paints nothing.
+    /// Default: `true` for a view below egui's surface and `false` for one above it. Turn it off
+    /// for a view below the surface that something else makes visible, or that should only show
+    /// where egui paints nothing.
     #[inline]
     pub fn clear(mut self, clear: bool) -> Self {
         self.clear = Some(clear);
@@ -130,7 +137,7 @@ impl Widget for NativeView {
         let response = ui.interact(rect, id, Sense::click_and_drag());
         if ui.is_rect_visible(rect) {
             if clear {
-                // The renderer clips it to the clip rect.
+                // The painter's clip rect limits the clear to the visible part of `rect`.
                 ui.painter().add(epaint::Shape::Clear(rect));
             }
             let shown = NativeViewShown {
@@ -147,53 +154,65 @@ impl Widget for NativeView {
     }
 }
 
-/// Where a native view goes this pass, in ui points.
+/// Where a [`NativeView`] goes this pass, as reported in [`crate::PlatformOutput::native_views`].
+///
+/// All rects are in ui points.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct NativeViewOutput {
-    /// The id given to [`NativeView::new`].
+    /// The id passed to [`NativeView::new`].
     pub id: Id,
 
-    /// Whether the view goes below or above egui's surface.
+    /// Whether the view is below or above egui's surface.
     pub side: NativeViewPlacement,
 
-    /// The full rect of the view.
+    /// The view's full rect, including any part that is clipped out.
     pub rect: Rect,
 
-    /// The part of [`Self::rect`] inside the clip rect of its [`Ui`], rounded to pixels.
+    /// The part of [`Self::rect`] inside the clip rect of the view's [`Ui`], rounded to physical
+    /// pixels.
     pub visible: Rect,
 
-    /// Where egui paints over the view: the areas (windows, popups, …) above it, inside
-    /// [`Self::visible`]. A view above egui's surface masks these out.
+    /// The parts of [`Self::visible`] that egui paints over: the rects of the visible areas
+    /// (windows, popups, tooltips, …) in the layers in front of the view's layer.
+    ///
+    /// A view above egui's surface has to mask these out.
     pub egui_paint_areas: Vec<Rect>,
 
-    /// Where egui takes the pointer from the view: the interactive widgets in the layers above
-    /// it, like the backdrop of a [`crate::Modal`], inside [`Self::visible`].
+    /// The parts of [`Self::visible`] where egui takes the pointer input from the view: the
+    /// interact rects of the interactive widgets in the layers in front of the view's layer,
+    /// such as the backdrop of a [`crate::Modal`].
     ///
-    /// Unlike [`Self::egui_paint_areas`], this leaves out what only shows, like tooltips.
+    /// Unlike [`Self::egui_paint_areas`], this leaves out what egui only paints, such as
+    /// tooltips. A rect that lies inside another one of the list is left out.
     pub egui_input_areas: Vec<Rect>,
 
-    /// Where the view's layer is in egui's paint order: one with a higher index is in front.
+    /// The position of the view's layer in egui's paint order. A view with a higher `z_index`
+    /// is in front of one with a lower `z_index`, and views in the same layer have the same one.
     pub z_index: usize,
 }
 
 impl NativeViewOutput {
-    /// Where the view takes the pointer: [`Self::visible`] without
-    /// [`Self::egui_input_areas`], as rects that don't overlap.
+    /// The parts of [`Self::visible`] where the view takes the pointer input, that is,
+    /// outside [`Self::egui_input_areas`].
+    ///
+    /// The returned rects don't overlap.
     pub fn view_input_areas(&self) -> Vec<Rect> {
         subtract(self.visible, &self.egui_input_areas)
     }
 
-    /// Where the view both takes the pointer and shows, with nothing of egui over it:
-    /// [`Self::visible`] without [`Self::egui_paint_areas`] and [`Self::egui_input_areas`], as
-    /// rects that don't overlap.
+    /// The parts of [`Self::visible`] that egui neither paints over nor takes the pointer input
+    /// from: [`Self::visible`] without [`Self::egui_paint_areas`] and
+    /// [`Self::egui_input_areas`].
+    ///
+    /// The returned rects don't overlap.
     pub fn view_input_and_paint_areas(&self) -> Vec<Rect> {
         let egui_areas = [&self.egui_paint_areas[..], &self.egui_input_areas[..]].concat();
         subtract(self.visible, &egui_areas)
     }
 }
 
-/// A [`NativeView`] shown this pass.
+/// A [`NativeView`] that is on screen this pass.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct NativeViewShown {
     pub id: Id,
@@ -203,7 +222,7 @@ pub(crate) struct NativeViewShown {
     pub visible: Rect,
 }
 
-/// The part of `rect` that `ui` shows, rounded to pixels.
+/// The part of `rect` inside the clip rect of `ui`, rounded to physical pixels.
 fn visible_rect(ui: &Ui, rect: Rect) -> Rect {
     use emath::GuiRounding as _;
 
@@ -211,7 +230,10 @@ fn visible_rect(ui: &Ui, rect: Rect) -> Rect {
         .round_to_pixels(ui.pixels_per_point())
 }
 
-/// Where the views shown this pass go, with the layers in their final order for the pass.
+/// Computes the output of the views on screen this pass.
+///
+/// Call it after [`Memory::end_pass`], which sorts the layers into their paint order for the
+/// pass.
 pub(crate) fn outputs(
     shown: &[NativeViewShown],
     memory: &Memory,
@@ -257,9 +279,10 @@ pub(crate) fn outputs(
         .collect()
 }
 
-/// `rects` without those inside another, like the widgets inside a window.
+/// Removes the rects that lie inside another one of `rects`, such as the widgets inside a window.
 fn without_contained(mut rects: Vec<Rect>) -> Vec<Rect> {
-    // Largest first, so a rect only has to be checked against those kept before it.
+    // Sorting by area, largest first, means a rect can only lie inside one that was kept before
+    // it.
     rects.sort_by(|a, b| b.area().total_cmp(&a.area()));
     let mut kept: Vec<Rect> = Vec::with_capacity(rects.len());
     for rect in rects {
@@ -270,7 +293,7 @@ fn without_contained(mut rects: Vec<Rect>) -> Vec<Rect> {
     kept
 }
 
-/// `rect` without `others`, as rects that don't overlap.
+/// Returns the parts of `rect` outside all of `others`, as rects that don't overlap.
 fn subtract(rect: Rect, others: &[Rect]) -> Vec<Rect> {
     let mut parts = vec![rect];
     for other in others {
@@ -281,8 +304,8 @@ fn subtract(rect: Rect, others: &[Rect]) -> Vec<Rect> {
                 if !cut.is_positive() {
                     return vec![part];
                 }
-                // The strips above and below the cut span the full width, the strips left
-                // and right of it only its height.
+                // The strips above and below the cut span the full width of `part`. The strips
+                // to the left and right of the cut span only its height, so none overlap.
                 [
                     Rect::from_x_y_ranges(part.x_range(), part.min.y..=cut.min.y),
                     Rect::from_x_y_ranges(part.x_range(), cut.max.y..=part.max.y),
@@ -330,7 +353,8 @@ mod tests {
             Rect::from_min_size(pos2(25.0, 25.0), vec2(50.0, 50.0)),
         ];
         let parts = subtract(rect, &others);
-        // 50×50 from the first, plus the 25×25 corners the second adds three of.
+        // The first cuts out 50×50. The second cuts out three more 25×25 squares, because its
+        // fourth one overlaps the first.
         assert_eq!(
             area(&parts),
             100.0 * 100.0 - 50.0 * 50.0 - 3.0 * 25.0 * 25.0
@@ -344,8 +368,8 @@ mod tests {
         assert_eq!(subtract(rect, &[other]), vec![rect]);
     }
 
-    /// Run passes with a native view of 400×300 at the top left of an 800×600 screen, and
-    /// `more` after it, until it has settled. Returns the view's output of the last pass.
+    /// Runs three passes, so the layout settles, with a 400×300 native view at the top left of
+    /// an 800×600 screen followed by `more`. Returns the view's output of the last pass.
     fn view_with(mut more: impl FnMut(&mut crate::Ui)) -> Option<NativeViewOutput> {
         let ctx = Context::default();
         let mut output = None;
@@ -384,8 +408,8 @@ mod tests {
             view.egui_paint_areas[0].contains(pos2(110.0, 110.0)),
             "{view:?}"
         );
-        // The window's own widget covers all of its contents. Its resize handles reach a bit
-        // past it.
+        // The window's own interact rect covers all of its contents, and its resize handles
+        // reach a little past them, so one input area contains the whole paint area.
         assert!(
             view.egui_input_areas
                 .iter()

@@ -200,9 +200,9 @@ pub struct PlatformOutput {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub request_discard_reasons: Vec<RepaintCause>,
 
-    /// Where the native views shown this pass go. See [`crate::NativeView`].
+    /// Where the native views that are on screen this pass go. See [`crate::NativeView`].
     ///
-    /// The integration should hide the views that aren't in here.
+    /// The integration should hide every native view that is missing from this list.
     pub native_views: Vec<crate::NativeViewOutput>,
 }
 
@@ -253,7 +253,7 @@ impl PlatformOutput {
         // egui produces a complete AccessKit tree for each frame, so overwrite rather than append:
         self.accesskit_update = accesskit_update;
 
-        // Only the latest pass shows the views.
+        // Only the latest pass says where the views go.
         self.native_views = native_views;
     }
 
