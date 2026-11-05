@@ -9,7 +9,7 @@
 //! LTR-unchanged regression. No snapshot assertions; painted text geometry only.
 
 use egui::epaint::Shape;
-use egui::{Color32, Context, FullOutput, Pos2, RawInput, Rect, Ui, Vec2, pos2, vec2};
+use egui::{Color32, Context, Event, FullOutput, Pos2, RawInput, Rect, Ui, Vec2, pos2, vec2};
 
 const SCREEN: Vec2 = vec2(400.0, 300.0);
 
@@ -119,5 +119,159 @@ fn debug_rect_label_hangs_inward_only_when_it_overflows_the_clip_rect() {
     assert!(
         (ink.top() - 20.0).abs() < INK_TOLERANCE,
         "a fitting label keeps its top at rect.min.y, got {ink:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+
+/// Raw input with the given pointer events, for driving `debug_text::print`'s anchor.
+fn input_with_events(size: Vec2, events: Vec<Event>) -> RawInput {
+    RawInput {
+        screen_rect: Some(Rect::from_min_size(Pos2::ZERO, size)),
+        events,
+        ..Default::default()
+    }
+}
+
+/// The location text `debug_text::print` stamps next to the entry
+/// (`format!("{}:{}", Location::file(), line)` of the test call site).
+fn painted_location(texts: &[(String, Rect)]) -> &Rect {
+    texts
+        .iter()
+        .find(|(text, _)| text.contains(".rs:"))
+        .map(|(_, rect)| rect)
+        .expect("the debug-text location should paint")
+}
+
+/// `debug_text::print` with the pointer near the right edge (common for right-hugging
+/// widgets under right-to-left): the entry text no longer fits the room right of the
+/// pointer, so the sides flip — the entry hangs leftward from the pointer on a single
+/// line, and the location (metadata) wraps in the narrow strip that remains right of
+/// the pointer.
+///
+/// The assertion is on the *layout*, not the screen bounds: wrapping already keeps the
+/// squashed entry inside the screen, so that would not fail at base.
+///
+/// Gated on `debug_assertions`: `print` compiles to a no-op without it, so under
+/// `cargo test --release` there are no shapes to assert on (CI runs tests in debug).
+#[cfg(debug_assertions)]
+#[test]
+fn debug_text_entries_flip_to_the_roomier_side_only_on_overflow() {
+    // Overflow case: the pointer at x = 380 of a 400 px screen leaves a 20 px column
+    // to the right, which squashes the ~70 px-wide entry into a multi-line tower.
+    let ctx = Context::default();
+    let output = run(
+        &ctx,
+        input_with_events(SCREEN, vec![Event::PointerMoved(pos2(380.0, 150.0))]),
+        |ui| {
+            egui::debug_text::print(ui.ctx(), "DBGTEXTENTRY");
+        },
+    );
+
+    let texts = painted_texts(&output);
+    let entry = painted_rect(&texts, "DBGTEXTENTRY").expect("the entry text should paint");
+    assert!(
+        entry.height() < 20.0,
+        "the entry must be a single line (10 px font), got {entry:?}"
+    );
+    assert!(
+        (entry.right() - 376.0).abs() < INK_TOLERANCE,
+        "the entry should hang leftward from the pointer (right edge at 380 - 4), \
+         got {entry:?}"
+    );
+
+    let location = painted_location(&texts);
+    assert!(
+        (location.left() - 384.0).abs() < INK_TOLERANCE,
+        "the location should grow rightward from pointer + 4 px in the flipped branch, \
+         got {location:?}"
+    );
+
+    // Companion A (today-geometry pin): a left-half pointer with room keeps today's
+    // layout — location right-aligned ending at pointer - 4 px, entry starting at the
+    // pointer, both single-line.
+    let ctx = Context::default();
+    let output = run(
+        &ctx,
+        input_with_events(SCREEN, vec![Event::PointerMoved(pos2(100.0, 150.0))]),
+        |ui| {
+            egui::debug_text::print(ui.ctx(), "DBGTEXTENTRY");
+        },
+    );
+
+    let texts = painted_texts(&output);
+    let entry = painted_rect(&texts, "DBGTEXTENTRY").expect("the entry text should paint");
+    let location = painted_location(&texts);
+    assert!(
+        (location.right() - 96.0).abs() < INK_TOLERANCE,
+        "the location stays right-aligned at pointer - 4 px, got {location:?}"
+    );
+    assert!(
+        (entry.left() - 100.0).abs() < INK_TOLERANCE,
+        "the entry stays left-anchored at the pointer, got {entry:?}"
+    );
+    assert!(
+        entry.height() < 20.0 && location.height() < 20.0,
+        "both stay single-line with room, got entry {entry:?}, location {location:?}"
+    );
+
+    // Companion B (overflow-only-gate pin): a right-half pointer WITH room does not
+    // flip. This fails if the gate is ever loosened back to a right-half heuristic.
+    let ctx = Context::default();
+    let output = run(
+        &ctx,
+        input_with_events(SCREEN, vec![Event::PointerMoved(pos2(250.0, 150.0))]),
+        |ui| {
+            egui::debug_text::print(ui.ctx(), "DBGTEXTENTRY");
+        },
+    );
+
+    let texts = painted_texts(&output);
+    let entry = painted_rect(&texts, "DBGTEXTENTRY").expect("the entry text should paint");
+    let location = painted_location(&texts);
+    assert!(
+        (location.right() - 246.0).abs() < INK_TOLERANCE,
+        "a right-half pointer with room keeps the location left of the pointer, \
+         got {location:?}"
+    );
+    assert!(
+        (entry.left() - 250.0).abs() < INK_TOLERANCE,
+        "a right-half pointer with room keeps the entry right of the pointer, \
+         got {entry:?}"
+    );
+
+    // Companion C (strictly-better pin): a very long entry (natural width beyond the
+    // whole content rect) at a left-half pointer does NOT flip — the right side is the
+    // roomier side, so today's 300 px right-side wrap (readable, not clipped) stays.
+    // This fails if the `room_left > room_right` half of the gate is ever dropped.
+    let ctx = Context::default();
+    let output = run(
+        &ctx,
+        input_with_events(SCREEN, vec![Event::PointerMoved(pos2(100.0, 150.0))]),
+        |ui| {
+            egui::debug_text::print(ui.ctx(), "LONGENTRY".repeat(20));
+        },
+    );
+
+    let texts = painted_texts(&output);
+    let long_entry = texts
+        .iter()
+        .find(|(text, _)| text.starts_with("LONGENTRY"))
+        .map(|(_, rect)| rect)
+        .expect("the long entry text should paint");
+    assert!(
+        (long_entry.left() - 100.0).abs() < INK_TOLERANCE,
+        "a long entry at a left-half pointer wraps on the roomier right side \
+         (left edge at the pointer), got {long_entry:?}"
+    );
+    assert!(
+        long_entry.max.x <= 402.0,
+        "a long entry at a left-half pointer wraps inside the content rect, \
+         got {long_entry:?}"
+    );
+    let location = painted_location(&texts);
+    assert!(
+        (location.right() - 96.0).abs() < INK_TOLERANCE,
+        "the location stays left of the pointer, got {location:?}"
     );
 }
