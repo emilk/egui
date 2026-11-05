@@ -150,6 +150,11 @@ impl Widget for ProgressBar {
             let filled_width = (outer_rect.width() * progress).at_least(min_width);
             // Fill hugs the reading-start edge: left-anchored in LTR (unchanged), right-anchored
             // under RTL. The value still grows left-to-right; only the painted chrome mirrors.
+            // That growth direction is a recorded product decision: a linear indicator whose
+            // fill grows left-to-right in both reading directions keeps its numeric reading
+            // stable, and it matches upstream egui (PR #8815 keeps left-to-right growth too),
+            // even though Material Design's bidirectionality guidance would mirror the
+            // progress front of a linear indicator.
             let inner_rect = Rect::from_min_size(
                 pos2(
                     ui.reading_start_x_w(outer_rect, 0.0, filled_width),
@@ -183,7 +188,8 @@ impl Widget for ProgressBar {
                 let forward = ui.forward();
                 // The arc orbits the fill's progress-front edge (the reading-start side of the
                 // fill under RTL) and sweeps the mirrored way, so the loading indicator mirrors
-                // about the bar's centre line with the interface direction.
+                // about the bar's centre line with the interface direction — deliberately
+                // unlike the bare `Spinner`, which never mirrors (see `Spinner::paint_at`).
                 let orbit_center = if rtl {
                     inner_rect.left_center()
                 } else {
@@ -206,6 +212,9 @@ impl Widget for ProgressBar {
                 let text = match text_kind {
                     ProgressBarText::Custom(text) => text,
                     ProgressBarText::Percentage => {
+                        // ASCII digits and `%` by design: egui core has no locale numeral
+                        // formatting hook, so localized numerals (e.g. Eastern Arabic
+                        // numerals) need a `ValueFormat`-style formatting facility first.
                         format!("{}%", (progress * 100.0) as usize).into()
                     }
                 };
