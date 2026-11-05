@@ -67,9 +67,6 @@ impl PointScale {
 /// (a finite wrap width) — the spans are consumed only by the wrapping path.
 /// Runs accumulate across the `LayoutSection`s a paragraph spans; their
 /// `bytes` stay absolute in `LayoutJob::text`, which makes that safe.
-// The spans are write-only until the wrapping path consumes them (next
-// commit); the unit tests read them, so the expectation is test-gated.
-#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Clone, Debug)]
 struct RecordedBidiRun {
     /// Glyph index range within `Paragraph::glyphs`.
@@ -1035,9 +1032,16 @@ fn rows_from_paragraphs(
                     ends_with_newline: !is_last_paragraph,
                 });
             } else {
-                line_break(&paragraph, job, word_ranges, &mut rows, elided);
-                let placed_row = rows.last_mut().unwrap();
-                placed_row.ends_with_newline = !is_last_paragraph;
+                if wraps_single_rtl_run(&paragraph) {
+                    // The KNOWN LIMITATION, single-run case: wrap the logical
+                    // stream so the rows come out in reading order.
+                    line_break_single_rtl_run(&paragraph, job, word_ranges, &mut rows, elided);
+                } else {
+                    line_break(&paragraph, job, word_ranges, &mut rows, elided);
+                }
+                if let Some(placed_row) = rows.last_mut() {
+                    placed_row.ends_with_newline = !is_last_paragraph;
+                }
             }
         }
     }
@@ -1193,6 +1197,295 @@ fn line_break(
                 }),
                 ends_with_newline: false,
             });
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// One logical block of a paragraph's glyph stream: a base glyph plus the
+/// zero-advance glyphs of its cluster (the same grouping the right-to-left
+/// cursor mapping walks), with the byte range its characters cover and the
+/// geometry needed to stack it.
+///
+/// Blocks are the unit the logical-stream wrap path partitions into rows: a
+/// block is never split across rows, so a cluster is never visually cut.
+struct LogicalBlock {
+    /// Glyph index range within `Paragraph::glyphs`, in emitted (visual)
+    /// stream order.
+    glyphs: Range<usize>,
+
+    /// Byte range within `LayoutJob::text` in LOGICAL character order,
+    /// derived from the glyphs' own chars under the
+    /// `glyphs.len() == char_count` invariant (no dependence on cluster
+    /// tracking, which is breaker-gated).
+    bytes: Range<usize>,
+
+    /// x of the block's first (base) glyph in the emitted stream.
+    // Read by the per-row reorder (next commit), not yet by this one.
+    #[expect(dead_code)]
+    origin: f32,
+
+    /// The block's stacking width: the distance to the next block's origin in
+    /// the emitted stream (the paragraph's ink end for the last one), clamped
+    /// at zero for hostile geometry.
+    width: f32,
+}
+
+/// The paragraph's glyphs as logical blocks, in logical order, for a paragraph
+/// whose glyphs are exactly one right-to-left run: the emitted visual stream
+/// reversed at block level, with byte ranges assigned in logical order
+/// starting at `bytes_start` (the run's first byte).
+fn logical_blocks_of_single_rtl_run(
+    paragraph: &Paragraph,
+    bytes_start: usize,
+) -> Vec<LogicalBlock> {
+    let glyphs = &paragraph.glyphs;
+
+    // Stream blocks: a base glyph plus its trailing zero-advance glyphs.
+    let mut stream_blocks: Vec<(Range<usize>, f32)> = Vec::new();
+    let mut i = 0;
+    while i < glyphs.len() {
+        let mut end = i + 1;
+        while glyphs
+            .get(end)
+            .is_some_and(|glyph| glyph.advance_width <= 0.0)
+        {
+            end += 1;
+        }
+        stream_blocks.push((i..end, glyphs[i].pos.x));
+        i = end;
+    }
+
+    let ink_end = glyphs.last().map_or(0.0, |glyph| glyph.max_x());
+
+    // Logical order is the reverse of the emitted (visual) order; byte ranges
+    // accumulate in logical order from the run's first byte, and each width
+    // is measured in stream order (to the next block's origin).
+    let mut blocks: Vec<LogicalBlock> = Vec::with_capacity(stream_blocks.len());
+    let mut byte_cursor = bytes_start;
+    for stream_idx in (0..stream_blocks.len()).rev() {
+        let (glyph_range, origin) = &stream_blocks[stream_idx];
+        let byte_len: usize = glyphs[glyph_range.clone()]
+            .iter()
+            .map(|glyph| glyph.chr.len_utf8())
+            .sum();
+        let width = match stream_blocks.get(stream_idx + 1) {
+            Some((_, next_origin)) => (*next_origin - *origin).max(0.0),
+            None => (ink_end - *origin).max(0.0),
+        };
+        blocks.push(LogicalBlock {
+            bytes: byte_cursor..byte_cursor + byte_len,
+            glyphs: glyph_range.clone(),
+            origin: *origin,
+            width,
+        });
+        byte_cursor += byte_len;
+    }
+    blocks
+}
+
+/// Whether this overflowing paragraph takes the logical-stream wrap path:
+/// exactly one recorded directional run, right-to-left, covering the
+/// paragraph's whole glyph range. Paragraphs that mix the run with
+/// unrecorded stretches (e.g. a pure-LTR section) keep today's path — their
+/// logical rows can span disjoint stream intervals, which the contiguous
+/// slice construction below cannot express (the general per-row reorder
+/// handles them).
+fn wraps_single_rtl_run(paragraph: &Paragraph) -> bool {
+    let [run] = paragraph.bidi_runs.as_slice() else {
+        return false;
+    };
+    run.rtl && run.glyphs.start == 0 && run.glyphs.end == paragraph.glyphs.len()
+}
+
+/// Push one row as a contiguous slice of the paragraph's emitted stream,
+/// shifted so its first glyph sits at x = 0 (the slice arithmetic of
+/// [`line_break`]), with the row's position at `pos_x`.
+fn push_stream_slice(
+    paragraph: &Paragraph,
+    job: &LayoutJob,
+    glyph_range: Range<usize>,
+    pos_x: f32,
+    out_rows: &mut Vec<PlacedRow>,
+) {
+    let Some(first_glyph) = paragraph.glyphs.get(glyph_range.start) else {
+        return; // empty range: no row to push (never happens for block rows)
+    };
+    let row_start_x = first_glyph.pos.x;
+    let glyphs: Vec<Glyph> = paragraph.glyphs[glyph_range]
+        .iter()
+        .copied()
+        .map(|mut glyph| {
+            glyph.pos.x -= row_start_x;
+            glyph
+        })
+        .collect();
+    let Some(section_index_at_start) = glyphs.first().map(|glyph| glyph.section_index) else {
+        return;
+    };
+    let paragraph_max_x = glyphs.last().map_or(0.0, |glyph| glyph.max_x());
+    out_rows.push(PlacedRow {
+        pos: pos2(pos_x, f32::NAN),
+        row: Arc::new(Row {
+            section_index_at_start,
+            base_direction: resolved_direction(job),
+            glyphs,
+            visuals: Default::default(),
+            size: vec2(paragraph_max_x, 0.0),
+        }),
+        ends_with_newline: false,
+    });
+}
+
+/// Wrap an overflowing paragraph whose glyphs are exactly one right-to-left
+/// run on the LOGICAL stream: blocks are walked in reading order (the reverse
+/// of the emitted visual stream), accumulating widths; break candidates are
+/// registered after the overflow check at each block, exactly like
+/// [`line_break`] registers them per glyph; and each produced row is the
+/// corresponding contiguous slice of the emitted stream (the logical block
+/// range, already in visual order), shifted so its first glyph sits at 0.
+///
+/// The rows therefore come out in logical (reading) order: a wrapped RTL
+/// paragraph reads top-down instead of bottom-up — the single-run case of the
+/// KNOWN LIMITATION described in [`layout_section`]. The break candidate
+/// whitespace block stays in its row (as in `line_break`); per-line UAX #9
+/// L1 resets it to the base level, so on these rows it renders at the visual
+/// reading end (the left edge), pinned by the wrapped oracles.
+///
+/// Mirrors `line_break`'s arithmetic: the leading indent
+/// (`LayoutSection::leading_space`, carried by the first emitted glyph)
+/// counts against the first row's budget; the empty-first-row escape hatch
+/// and the `max_rows`/`elided` checks apply per produced row.
+fn line_break_single_rtl_run(
+    paragraph: &Paragraph,
+    job: &LayoutJob,
+    word_ranges: &[Range<usize>],
+    out_rows: &mut Vec<PlacedRow>,
+    elided: &mut bool,
+) {
+    let wrap_width = job.effective_wrap_width();
+    let blocks = logical_blocks_of_single_rtl_run(paragraph, paragraph.bidi_runs[0].bytes.start);
+
+    // Keeps track of good places to insert a row break if we exceed `wrap_width`.
+    let mut row_break_candidates = RowBreakCandidates::default();
+
+    // Index into `word_ranges`: the next dictionary-word end not yet registered.
+    let mut word_idx = 0;
+
+    // The pen: accumulated width of the current row's blocks. Starts at the
+    // leading indent, mirroring `line_break`'s first row measured from x = 0
+    // (whose glyph max_x values include the indent).
+    let first_row_indentation = paragraph.glyphs[0].pos.x.max(0.0);
+    let mut pen = first_row_indentation;
+    let mut first_row_indentation_left = first_row_indentation > 0.0;
+
+    // Logical block index where the current row starts.
+    let mut row_start = 0usize;
+
+    for b in 0..blocks.len() {
+        if job.wrap.max_rows <= out_rows.len() {
+            *elided = true;
+            break;
+        }
+
+        pen += blocks[b].width;
+        let potential_row_width = pen;
+
+        if wrap_width < potential_row_width {
+            // Row break:
+
+            if first_row_indentation_left
+                && !row_break_candidates.has_good_candidate(job.wrap.break_anywhere)
+            {
+                // Allow the first row to be completely empty, because we know
+                // there will be more space on the next row (as in
+                // `line_break`; the indent is spent on it and excluded from
+                // the following budgets):
+                out_rows.push(PlacedRow {
+                    pos: pos2(0.0, f32::NAN),
+                    row: Arc::new(Row {
+                        section_index_at_start: paragraph.section_index_at_start,
+                        base_direction: resolved_direction(job),
+                        glyphs: vec![],
+                        visuals: Default::default(),
+                        size: Vec2::ZERO,
+                    }),
+                    ends_with_newline: false,
+                });
+                pen -= first_row_indentation;
+                first_row_indentation_left = false;
+            } else if let Some(last_kept) = row_break_candidates.get(job.wrap.break_anywhere) {
+                // The logical blocks [row_start..=last_kept] are consecutive
+                // reversed stream blocks: one contiguous slice, from the
+                // row's visually-leftmost block (the last logical one) to its
+                // visually-rightmost (the first logical one).
+                let stream_range = blocks[last_kept].glyphs.start..blocks[row_start].glyphs.end;
+                push_stream_slice(paragraph, job, stream_range, 0.0, out_rows);
+
+                // Start a new row:
+                row_start = last_kept + 1;
+                pen = 0.0;
+                row_break_candidates.forget_before_idx(row_start);
+            } else {
+                // Found no place to break, so we have to overrun wrap_width.
+            }
+        }
+
+        // Register the block as a break candidate — after the overflow check,
+        // exactly as `line_break` registers each glyph (a block that itself
+        // overflows is never a candidate):
+        let base_glyph = &paragraph.glyphs[blocks[b].glyphs.start];
+        let next_in_stream = paragraph.glyphs.get(blocks[b].glyphs.end);
+        row_break_candidates.add_block(b, base_glyph, next_in_stream);
+
+        // Translate breaker byte ranges into block indices with an ascending
+        // pointer walk over the blocks' logical byte starts (hostile ranges
+        // degrade break quality but never panic). `word_ranges` is only
+        // non-empty when cluster tracking was on, so the indexed vector has
+        // an entry per glyph (guarded by the assert below).
+        if !word_ranges.is_empty() {
+            debug_assert_eq!(
+                paragraph.cluster_byte_starts.len(),
+                paragraph.glyphs.len(),
+                "cluster tracking must cover every glyph when a breaker is engaged"
+            );
+            while let Some(word_end) = word_ranges.get(word_idx).map(|word_range| word_range.end) {
+                let this_start = blocks[b].bytes.start;
+                if this_start >= word_end {
+                    // The word ended before this block; move on to the next word.
+                    word_idx += 1;
+                    continue;
+                }
+                let next_start = blocks.get(b + 1).map(|block| block.bytes.start);
+                if next_start.is_none_or(|next| next >= word_end) {
+                    // This block is the last one whose characters start
+                    // inside the word: register "may break after it".
+                    row_break_candidates.word = Some(b);
+                    word_idx += 1;
+                }
+                break;
+            }
+        }
+    }
+
+    if row_start < blocks.len() {
+        // Final row of text (the logically-last blocks, the emitted stream's
+        // head):
+
+        if job.wrap.max_rows <= out_rows.len() {
+            *elided = true; // can't fit another row
+        } else {
+            let stream_range = blocks[blocks.len() - 1].glyphs.start..blocks[row_start].glyphs.end;
+            // As in `line_break`: the leading indent survives as the row's
+            // position only when the whole paragraph is a single row; rows
+            // after a break sit at zero (the stream is contiguous).
+            let paragraph_min_x = if row_start == 0 {
+                first_row_indentation
+            } else {
+                0.0
+            };
+            push_stream_slice(paragraph, job, stream_range, paragraph_min_x, out_rows);
         }
     }
 }
@@ -1968,6 +2261,27 @@ impl RowBreakCandidates {
             .into_iter()
             .max()
             .flatten()
+    }
+
+    /// [`Self::add`] for a logical block: the block's base glyph plays the
+    /// role of `glyphs[0]`, and the glyph that follows the block in the
+    /// emitted stream plays `glyphs[1]` (`None` at the paragraph end).
+    fn add_block(&mut self, index: usize, base: &Glyph, next_in_stream: Option<&Glyph>) {
+        let chr = base.chr;
+        const NON_BREAKING_SPACE: char = '\u{A0}';
+        if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
+            self.space = Some(index);
+        } else if is_cjk(chr) && next_in_stream.is_none_or(|glyph| is_cjk_break_allowed(glyph.chr))
+        {
+            self.cjk = Some(index);
+        } else if chr == '-' {
+            self.dash = Some(index);
+        } else if chr.is_ascii_punctuation() {
+            self.punctuation = Some(index);
+        } else if next_in_stream.is_some_and(|glyph| is_cjk(glyph.chr)) {
+            self.pre_cjk = Some(index);
+        }
+        self.any = Some(index);
     }
 
     fn has_good_candidate(&self, break_anywhere: bool) -> bool {
@@ -4806,5 +5120,246 @@ mod tests {
         );
         assert_close(placed.pos.x, -30.0);
         assert_close(placed.row.size.x, 30.0);
+    }
+
+    // -------------------------------------------------------------------------
+    // NG9 wrapped-row oracles (fail-before evidence: see the commit messages).
+    //
+    // All wrap-width measurements come from an LTR-pinned twin of the oracle
+    // job (same text, `round_output_to_gui = false`, infinite width): the
+    // twin's halign pass is skipped entirely (LTR jobs are not flipped), so
+    // its glyph x values are exactly the emitted values the wrap compares,
+    // and every measured quantity is a span or gap, never an absolute x.
+    // The synthetic tofu fonts serve every glyph with an advance that is a
+    // whole number of physical pixels, so the twin's spans are bit-identical
+    // to the widths the oracle's wrap compares. Each intended row's width is
+    // its content INCLUDING its trailing break space; `W` is the maximum of
+    // those over all intended rows (the final row contributes its bare
+    // content) plus 0.5 px, with per-boundary asserts.
+
+    /// The visible glyphs of every row of a galley as `(chr, x, advance)`.
+    fn visible_glyphs_per_row(galley: &Galley) -> Vec<Vec<(char, f32, f32)>> {
+        galley
+            .rows
+            .iter()
+            .map(|placed| {
+                placed
+                    .row
+                    .glyphs
+                    .iter()
+                    .filter(|g| g.advance_width > 0.0)
+                    .map(|g| (g.chr, g.pos.x, g.advance_width))
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// The visible non-whitespace glyphs of every row, in stored (visual)
+    /// order.
+    fn visible_chars_per_row(galley: &Galley) -> Vec<Vec<char>> {
+        galley
+            .rows
+            .iter()
+            .map(|placed| {
+                placed
+                    .row
+                    .glyphs
+                    .iter()
+                    .filter(|g| g.advance_width > 0.0 && !g.chr.is_whitespace())
+                    .map(|g| g.chr)
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// One row with no wrapping, from the synthetic tofu fonts at ppp 1.0
+    /// (every advance a whole number of physical pixels).
+    fn layout_unwrapped(text: &str, direction: Option<TextDirection>) -> Galley {
+        let mut fonts = tofu_fonts();
+        let mut job = LayoutJob::simple(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        job.direction = direction;
+        job.round_output_to_gui = false;
+        layout(&mut fonts, 1.0, job.into())
+    }
+
+    /// Lay out with a finite wrap width, from the synthetic tofu fonts.
+    fn layout_wrapped(text: &str, direction: Option<TextDirection>, wrap_width: f32) -> Galley {
+        let mut fonts = tofu_fonts();
+        let mut job = LayoutJob::simple(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            wrap_width,
+        );
+        job.direction = direction;
+        job.round_output_to_gui = false;
+        layout(&mut fonts, 1.0, job.into())
+    }
+
+    /// The whitespace-separated visible runs of a single-row stream: each
+    /// run's span (last `max_x` − first x) and the gaps between consecutive
+    /// runs (next run's first x − previous run's last `max_x`). A run boundary
+    /// is a gap in the stream (the filtered-out space's advance).
+    fn visible_runs(galley: &Galley) -> (Vec<f32>, Vec<f32>) {
+        assert_eq!(galley.rows.len(), 1, "expected a single-row galley");
+        let glyphs: Vec<(char, f32, f32)> = galley.rows[0]
+            .row
+            .glyphs
+            .iter()
+            .filter(|g| g.advance_width > 0.0 && !g.chr.is_whitespace())
+            .map(|g| (g.chr, g.pos.x, g.advance_width))
+            .collect();
+        let mut spans = Vec::new();
+        let mut gaps = Vec::new();
+        let mut run_first = 0usize;
+        for i in 1..=glyphs.len() {
+            let boundary =
+                i == glyphs.len() || glyphs[i].1 - (glyphs[i - 1].1 + glyphs[i - 1].2) > 0.5;
+            if boundary {
+                spans.push(glyphs[i - 1].1 + glyphs[i - 1].2 - glyphs[run_first].1);
+                if i < glyphs.len() {
+                    gaps.push(glyphs[i].1 - (glyphs[i - 1].1 + glyphs[i - 1].2));
+                }
+                run_first = i;
+            }
+        }
+        (spans, gaps)
+    }
+
+    /// A — a wrapped pure-RTL paragraph reads top-down: one word per row, in
+    /// logical order. Fail-before: the old path sliced the emitted visual
+    /// stream from its visually-left (logically-last) end, producing the rows
+    /// bottom-up (`ثالث` / `ثاني` / `أول`).
+    #[test]
+    fn wrapped_pure_rtl_reads_top_down() {
+        let text = "أول ثاني ثالث";
+
+        // Wrap width measured from the LTR twin (a single run emits the same
+        // stream in both bases): `ثالث ␣ ثاني ␣ أول`, so run 0 = ثالث,
+        // run 1 = ثاني, run 2 = أول.
+        let twin = layout_unwrapped(text, Some(TextDirection::LeftToRight));
+        let (spans, gaps) = visible_runs(&twin);
+        assert_eq!(
+            spans.len(),
+            3,
+            "the twin's stream is three words: {spans:?}"
+        );
+        assert_eq!(gaps.len(), 2, "spans {spans:?} gaps {gaps:?}");
+        let (w_awwal, w_thani, w_thalith) = (spans[2], spans[1], spans[0]);
+        let s = gaps[0];
+        assert!(
+            (gaps[1] - s).abs() < 1e-3,
+            "the tofu space advance is uniform: {spans:?} {gaps:?}"
+        );
+        let wrap_width = (w_awwal + s).max(w_thani + s).max(w_thalith) + 0.5;
+        // Per-boundary asserts: each intended row's content + break space
+        // fits, the next word overflows, and the final row's bare content
+        // fits:
+        assert!(
+            w_awwal + s <= wrap_width && w_awwal + s + w_thani > wrap_width,
+            "spans {spans:?} gaps {gaps:?} W {wrap_width}"
+        );
+        assert!(
+            w_thani + s <= wrap_width && w_thani + s + w_thalith > wrap_width,
+            "spans {spans:?} gaps {gaps:?} W {wrap_width}"
+        );
+        assert!(w_thalith <= wrap_width, "W {wrap_width}");
+
+        for direction in [Some(TextDirection::RightToLeft), None] {
+            let galley = layout_wrapped(text, direction, wrap_width);
+            assert_eq!(galley.rows.len(), 3, "one word per row");
+            let chars = visible_chars_per_row(&galley);
+            assert_eq!(chars[0], ['ل', 'و', 'أ'], "row 0 renders أول: {chars:?}");
+            assert_eq!(
+                chars[1],
+                ['ي', 'ن', 'ا', 'ث'],
+                "row 1 renders ثاني: {chars:?}"
+            );
+            assert_eq!(
+                chars[2],
+                ['ث', 'ل', 'ا', 'ث'],
+                "row 2 renders ثالث: {chars:?}"
+            );
+            // Row invariant: x non-decreasing, and one glyph slot per char of
+            // the row's logical slice (the word plus its trailing break
+            // space):
+            for glyphs in visible_glyphs_per_row(&galley) {
+                assert_x_nondecreasing(&glyphs);
+            }
+            let counts: Vec<usize> = galley
+                .rows
+                .iter()
+                .map(|placed| placed.row.glyphs.len())
+                .collect();
+            assert_eq!(counts, vec![4, 5, 4], "glyph slots per row: {counts:?}");
+        }
+
+        // Two words then one: W = w(أول) + s + w(ثاني) + s + 0.5.
+        let wrap_width2 = w_awwal + s + w_thani + s + 0.5;
+        assert!(w_awwal + s + w_thani + s <= wrap_width2);
+        assert!(w_awwal + s + w_thani + s + w_thalith > wrap_width2);
+        assert!(w_thalith <= wrap_width2);
+        let galley = layout_wrapped(text, Some(TextDirection::RightToLeft), wrap_width2);
+        assert_eq!(galley.rows.len(), 2);
+        let chars = visible_chars_per_row(&galley);
+        // Row 0 reads `أول ثاني` right-to-left: أول at the visual RIGHT, so
+        // the stored visual order is ثاني's glyphs first:
+        assert_eq!(chars[0], ['ي', 'ن', 'ا', 'ث', 'ل', 'و', 'أ'], "{chars:?}");
+        assert_eq!(chars[1], ['ث', 'ل', 'ا', 'ث'], "{chars:?}");
+        for glyphs in visible_glyphs_per_row(&galley) {
+            assert_x_nondecreasing(&glyphs);
+        }
+    }
+
+    /// Single-row byte-identity pins for the wrapped-oracle strings, captured
+    /// from the pre-NG9 tree (tofu fonts, ppp 1.0, infinite width): the
+    /// no-wrap early-out path must stay byte-identical across the wrap-path
+    /// refactor.
+    #[test]
+    fn wrapped_oracle_strings_single_row_are_byte_identical() {
+        let glyphs = visible_glyphs(&layout_unwrapped("أول ثاني ثالث", None));
+        let expected: Vec<(char, f32, f32)> = [
+            ('ث', 0.0, 9.0),
+            ('ل', 9.0, 9.0),
+            ('ا', 18.0, 9.0),
+            ('ث', 27.0, 9.0),
+            (' ', 36.0, 9.0),
+            ('ي', 45.0, 9.0),
+            ('ن', 54.0, 9.0),
+            ('ا', 63.0, 9.0),
+            ('ث', 72.0, 9.0),
+            (' ', 81.0, 9.0),
+            ('ل', 90.0, 9.0),
+            ('و', 99.0, 9.0),
+            ('أ', 108.0, 9.0),
+        ]
+        .into();
+        assert_glyphs_close(&glyphs, &expected);
+
+        let glyphs = visible_glyphs(&layout_unwrapped(
+            "عربي aaa bbb",
+            Some(TextDirection::RightToLeft),
+        ));
+        let expected: Vec<(char, f32, f32)> = [
+            ('a', 0.0, 9.0),
+            ('a', 9.0, 9.0),
+            ('a', 18.0, 9.0),
+            (' ', 27.0, 9.0),
+            ('b', 36.0, 9.0),
+            ('b', 45.0, 9.0),
+            ('b', 54.0, 9.0),
+            (' ', 63.0, 9.0),
+            ('ي', 72.0, 9.0),
+            ('ب', 81.0, 9.0),
+            ('ر', 90.0, 9.0),
+            ('ع', 99.0, 9.0),
+        ]
+        .into();
+        assert_glyphs_close(&glyphs, &expected);
     }
 }
