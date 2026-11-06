@@ -17,8 +17,8 @@ use egui::epaint::Shape;
 use egui::epaint::text::TextDirection;
 use egui::widgets::text_edit::TextEditState;
 use egui::{
-    Align2, Context, Event, FullOutput, Id, Modifiers, PointerButton, Pos2, RawInput, Rect,
-    TextEdit, Ui, Vec2, pos2,
+    Align2, Color32, Context, Event, FullOutput, Id, ImeEvent, Modifiers, PointerButton, Pos2,
+    RawInput, Rect, Stroke, TextEdit, Ui, Vec2, pos2,
     text::{CCursor, CCursorRange},
     vec2,
 };
@@ -1237,6 +1237,387 @@ fn wrapped_rtl_selection_spans_rows_in_reading_order() {
         assert!(
             matched >= 2,
             "the selection must span wrapped rows (rtl = {rtl}): {selection_rects:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Per-run selection on mixed-bidi rows: on a bidirectionally reordered row the
+// glyphs are stored in visual order while cursor columns are logical, so a
+// logical column range crossing a run boundary maps to a visually disjoint
+// set of glyph slots. Selection recoloring, highlight rects and IME
+// underlines must follow the runs instead of one contiguous span.
+
+/// The selection glyph-recolor color, set on the test style so recolored
+/// vertices are identifiable against every theme's text color.
+const RECOLOR_COLOR: Color32 = Color32::from_rgb(255, 120, 0);
+
+/// Slack around derived pixel expectations (the values come from the laid-out
+/// galley itself, so only float noise is tolerated).
+const PX_TOL: f32 = 0.5;
+
+/// Focus a singleline edit, select the logical char range `lo..hi`, paint one
+/// frame with the selection, and return (output, selection background color).
+fn run_with_selection(text: &mut String, lo: usize, hi: usize) -> (FullOutput, Color32) {
+    let ctx = Context::default();
+    let selection_color = ctx.style_of(ctx.theme()).visuals.selection.bg_fill;
+    ctx.style_mut_of(ctx.theme(), |style| {
+        style.visuals.selection.stroke = Stroke::new(1.0, RECOLOR_COLOR);
+    });
+    drop(run(&ctx, |ui| {
+        ui.memory_mut(|mem| mem.request_focus(edit_id()));
+        let mut out = TextEdit::singleline(&mut *text).id(edit_id()).show(ui);
+        out.state
+            .cursor
+            .set_char_range(Some(CCursorRange::two(CCursor::new(lo), CCursor::new(hi))));
+        out.state.store(ui.ctx(), edit_id());
+    }));
+    let output = run(&ctx, |ui| {
+        TextEdit::singleline(&mut *text).id(edit_id()).show(ui);
+    });
+    (output, selection_color)
+}
+
+/// The glyph stream (one char per glyph slot, in visual order) and the
+/// tessellated color of each glyph slot of `needle`'s single-row galley.
+fn painted_row_glyphs(output: &FullOutput, needle: &str) -> (String, Vec<Color32>) {
+    let (galley, _) = painted_galley(output, needle);
+    assert_eq!(galley.rows.len(), 1, "expected a single row for {needle:?}");
+    let row = &galley.rows[0];
+    let stream: String = row.glyphs.iter().map(|glyph| glyph.chr).collect();
+    let colors: Vec<Color32> = row
+        .glyphs
+        .iter()
+        .map(|glyph| row.visuals.mesh.vertices[glyph.first_vertex as usize].color)
+        .collect();
+    (stream, colors)
+}
+
+/// The painted selection highlights as one rect per selection quad, read out
+/// of the tessellated meshes: the selection-colored triangle pairs (the row's
+/// glyph triangles were moved aside to make room for them, so every
+/// selection-colored 6-index chunk is one quad).
+fn painted_selection_rects(output: &FullOutput, selection_color: Color32) -> Vec<Rect> {
+    fn collect(shape: &Shape, color: Color32, out: &mut Vec<Rect>) {
+        match shape {
+            Shape::Text(text) => {
+                for placed_row in &text.galley.rows {
+                    let mesh = &placed_row.visuals.mesh;
+                    let vertex_pos = |i: u32| {
+                        text.pos
+                            + placed_row.pos.to_vec2()
+                            + mesh.vertices[i as usize].pos.to_vec2()
+                    };
+                    for tri in mesh.indices.chunks_exact(6) {
+                        // A quad's two triangles reference its four corners
+                        // as [a, b, c, a, c, d]:
+                        let [a, b, c2, d] = [tri[0], tri[1], tri[2], tri[5]];
+                        if ![a, b, c2, d]
+                            .iter()
+                            .all(|i| mesh.vertices[*i as usize].color == color)
+                        {
+                            continue;
+                        }
+                        let corners = [vertex_pos(a), vertex_pos(b), vertex_pos(c2), vertex_pos(d)];
+                        let mut rect = Rect::from_min_size(corners[0], Vec2::ZERO);
+                        for corner in corners {
+                            rect = rect.union(Rect::from_min_size(corner, Vec2::ZERO));
+                        }
+                        out.push(rect);
+                    }
+                }
+            }
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, color, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    for clipped in &output.shapes {
+        collect(&clipped.shape, selection_color, &mut out);
+    }
+    out
+}
+
+/// The horizontal line segments painted at the single row's underline y (the
+/// row's bottom edge) — the IME preedit underline.
+fn painted_underline_segments(output: &FullOutput, needle: &str) -> Vec<[Pos2; 2]> {
+    let (galley, shape_pos) = painted_galley(output, needle);
+    assert_eq!(galley.rows.len(), 1, "expected a single row for {needle:?}");
+    let placed_row = &galley.rows[0];
+    let underline_y = shape_pos.y + placed_row.pos.y + placed_row.size.y;
+    painted_line_segments(output)
+        .into_iter()
+        .filter(|[a, b]| {
+            (a.y - b.y).abs() < PX_TOL
+                && (a.y - underline_y).abs() < PX_TOL
+                && (b.y - underline_y).abs() < PX_TOL
+        })
+        .collect()
+}
+
+/// The selection box of glyph slots `[lo, hi)` of a single-row galley, in
+/// screen space.
+fn painted_glyph_box(output: &FullOutput, needle: &str, lo: usize, hi: usize) -> (Pos2, Pos2) {
+    let (galley, shape_pos) = painted_galley(output, needle);
+    let placed_row = &galley.rows[0];
+    let row_origin = shape_pos + placed_row.pos.to_vec2();
+    let glyphs = &placed_row.glyphs;
+    (
+        pos2(row_origin.x + glyphs[lo].pos.x, row_origin.y),
+        pos2(row_origin.x + glyphs[hi - 1].max_x(), row_origin.y),
+    )
+}
+
+/// Selecting `"c أ"` (logical chars 2..5) of the mixed row
+/// `"abc أبج xyz"` recolors exactly the glyph slots the selection covers in
+/// visual order — {2, 3} for the Latin run and 6 for the embedded Arabic
+/// run's first-read char — and leaves the rest of the embedded run (`ج`
+/// slot 4, `ب` slot 5) at the text color. A contiguous slot span would
+/// recolor the unselected `ج` and miss the selected `أ`.
+#[test]
+fn mixed_row_selection_recolors_per_run() {
+    let mut text = String::from("abc أبج xyz");
+    let (output, _) = run_with_selection(&mut text, 2, 5);
+    let (stream, colors) = painted_row_glyphs(&output, &text);
+    assert_eq!(stream, "abc جبأ xyz", "the visual glyph stream");
+    assert_eq!(colors.len(), 11);
+    for slot in [2usize, 3, 6] {
+        assert_eq!(
+            colors[slot], RECOLOR_COLOR,
+            "selected slot {slot} must carry the selection recolor"
+        );
+    }
+    for slot in [0usize, 1, 4, 5, 7, 8, 9, 10] {
+        assert_ne!(
+            colors[slot], RECOLOR_COLOR,
+            "unselected slot {slot} must keep the text color"
+        );
+    }
+}
+
+/// The same selection paints one highlight rect per visually-contiguous run
+/// group — `"c"`'s box and `أ`'s box — and neither rect crosses the
+/// unselected `ج` between them. One merged rect over the logical span would
+/// cross it.
+#[test]
+fn mixed_row_selection_rects_are_per_run() {
+    let mut text = String::from("abc أبج xyz");
+    let (output, selection_color) = run_with_selection(&mut text, 2, 5);
+    let rects = painted_selection_rects(&output, selection_color);
+    assert_eq!(
+        rects.len(),
+        2,
+        "one rect per run group (slot-sorted, left to right): {rects:?}"
+    );
+    let (c_lo, c_hi) = painted_glyph_box(&output, &text, 2, 4);
+    let (alef_lo, alef_hi) = painted_glyph_box(&output, &text, 6, 7);
+    assert!(
+        (rects[0].left() - c_lo.x).abs() <= PX_TOL && (rects[0].right() - c_hi.x).abs() <= PX_TOL,
+        "the first rect must span the Latin group's box {c_lo:?}..{c_hi:?}: {rects:?}"
+    );
+    assert!(
+        (rects[1].left() - alef_lo.x).abs() <= PX_TOL
+            && (rects[1].right() - alef_hi.x).abs() <= PX_TOL,
+        "the second rect must span the selected Arabic char's box {alef_lo:?}..{alef_hi:?}: {rects:?}"
+    );
+    // The unselected `ج` sits between the two groups; no rect may cross it
+    // (shrink its box so touching group edges don't count as crossing):
+    let (jeem_lo, jeem_hi) = painted_glyph_box(&output, &text, 4, 5);
+    let jeem = Rect::from_min_max(pos2(jeem_lo.x + PX_TOL, 0.0), pos2(jeem_hi.x - PX_TOL, 1.0));
+    for rect in &rects {
+        assert!(
+            !rect.intersects(jeem),
+            "no selection rect may cross the unselected ج's box {jeem:?}: {rect:?}"
+        );
+    }
+}
+
+/// The same per-run recoloring under a right-to-left base: selecting
+/// logical chars 2..5 of `"ملف PDF"` (`"ف P"`) recolors the slots of the
+/// Arabic run's tail and the Latin run's first char — {4, 3} and {0} — and
+/// leaves the unselected `D`/`F` (slots 1, 2) at the text color. The
+/// whole-row mirror of the logical span recolors the unselected `F` and
+/// misses the selected `P`.
+#[test]
+fn rtl_base_mixed_row_selection_recolors_per_run() {
+    let mut text = String::from("ملف PDF");
+    let (output, _) = run_with_selection(&mut text, 2, 5);
+    let (stream, colors) = painted_row_glyphs(&output, &text);
+    assert_eq!(stream, "PDF فلم", "the visual glyph stream");
+    assert_eq!(colors.len(), 7);
+    for slot in [0usize, 3, 4] {
+        assert_eq!(
+            colors[slot], RECOLOR_COLOR,
+            "selected slot {slot} must carry the selection recolor"
+        );
+    }
+    for slot in [1usize, 2, 5, 6] {
+        assert_ne!(
+            colors[slot], RECOLOR_COLOR,
+            "unselected slot {slot} must keep the text color"
+        );
+    }
+}
+
+/// Selecting exactly the embedded word `أبج` (logical chars 4..7) covers one
+/// visually-contiguous slot block: one group, one rect spanning the word's
+/// box, and the word's three slots recolored. Run-aligned selections keep
+/// the single-span geometry.
+#[test]
+fn mixed_row_run_boundary_edges() {
+    let mut text = String::from("abc أبج xyz");
+    let (output, selection_color) = run_with_selection(&mut text, 4, 7);
+    let (stream, colors) = painted_row_glyphs(&output, &text);
+    assert_eq!(stream, "abc جبأ xyz", "the visual glyph stream");
+    for slot in [4usize, 5, 6] {
+        assert_eq!(
+            colors[slot], RECOLOR_COLOR,
+            "selected slot {slot} must carry the selection recolor"
+        );
+    }
+    for slot in [0usize, 1, 2, 3, 7, 8, 9, 10] {
+        assert_ne!(
+            colors[slot], RECOLOR_COLOR,
+            "unselected slot {slot} must keep the text color"
+        );
+    }
+    let rects = painted_selection_rects(&output, selection_color);
+    assert_eq!(rects.len(), 1, "one contiguous group: {rects:?}");
+    let (word_lo, word_hi) = painted_glyph_box(&output, &text, 4, 7);
+    assert!(
+        (rects[0].left() - word_lo.x).abs() <= PX_TOL
+            && (rects[0].right() - word_hi.x).abs() <= PX_TOL,
+        "the rect must span the word's box {word_lo:?}..{word_hi:?}: {rects:?}"
+    );
+}
+
+/// A level-uniform row (pure Arabic, pure Latin) keeps the single-span
+/// selection: exactly one rect with the full single-span anchor edges, and
+/// every glyph recolored.
+#[test]
+fn uniform_rows_keep_single_rect() {
+    for (value, rtl_row) in [("سلام عربي", true), ("hello world", false)] {
+        let mut text = String::from(value);
+        let char_count = text.chars().count();
+        let (output, selection_color) = run_with_selection(&mut text, 0, char_count);
+        let (_, colors) = painted_row_glyphs(&output, &text);
+        for (slot, color) in colors.iter().enumerate() {
+            assert_eq!(
+                *color, RECOLOR_COLOR,
+                "select-all recolors every glyph of a uniform row (slot {slot})"
+            );
+        }
+        let rects = painted_selection_rects(&output, selection_color);
+        assert_eq!(
+            rects.len(),
+            1,
+            "a level-uniform row paints one selection rect ({value:?}): {rects:?}"
+        );
+        let (galley, shape_pos) = painted_galley(&output, &text);
+        let placed_row = &galley.rows[0];
+        let row_origin = shape_pos + placed_row.pos.to_vec2();
+        let glyphs = &placed_row.glyphs;
+        // The single-span anchors: between the two carets — under RTL the
+        // row's ink edges, under LTR the first glyph's left edge and the
+        // row's advance width.
+        let (left, right) = if rtl_row {
+            (
+                row_origin.x + glyphs.iter().map(|g| g.pos.x).fold(f32::INFINITY, f32::min),
+                row_origin.x
+                    + glyphs
+                        .iter()
+                        .map(|g| g.max_x())
+                        .fold(f32::NEG_INFINITY, f32::max),
+            )
+        } else {
+            (
+                row_origin.x + glyphs[0].pos.x,
+                row_origin.x + placed_row.size.x,
+            )
+        };
+        assert!(
+            (rects[0].left() - left).abs() <= PX_TOL && (rects[0].right() - right).abs() <= PX_TOL,
+            "the single rect must span the single-span anchors {left}..{right} ({value:?}): {rects:?}"
+        );
+    }
+}
+
+/// An IME preedit spanning the run boundary underlines each run group's box
+/// separately: composing `"c أ"` at the caret between `"ab"` and `"بج"`
+/// (the field's text becomes `"abc أبج xyz"`, composition over logical
+/// columns 2..5) paints the underline for `"c"`'s box and for `أ`'s box,
+/// skipping the unselected `ج` between them. One merged segment would
+/// underline it.
+#[test]
+fn ime_preedit_underline_follows_bidi_runs() {
+    let mut text = String::from("abبج xyz");
+    let ctx = Context::default();
+    blink_off(&ctx);
+    drop(run(&ctx, |ui| {
+        ui.memory_mut(|mem| mem.request_focus(edit_id()));
+        let mut out = TextEdit::singleline(&mut text).id(edit_id()).show(ui);
+        out.state
+            .cursor
+            .set_char_range(Some(CCursorRange::one(CCursor::new(2))));
+        out.state.store(ui.ctx(), edit_id());
+    }));
+    let output = run_events(
+        &ctx,
+        vec![Event::Ime(ImeEvent::Preedit {
+            text: String::from("c أ"),
+            active_range_chars: None,
+        })],
+        |ui| {
+            ui.memory_mut(|mem| mem.request_focus(edit_id()));
+            TextEdit::singleline(&mut text).id(edit_id()).show(ui);
+        },
+    );
+    assert_eq!(text, "abc أبج xyz", "the preedit text is inserted");
+    let mut segments = painted_underline_segments(&output, &text);
+    segments.sort_by_key(|[a, b]| (a.x.min(b.x) as i32, a.x.max(b.x) as i32));
+    assert_eq!(
+        segments.len(),
+        2,
+        "one underline segment per run group: {segments:?}"
+    );
+    let (c_lo, c_hi) = painted_glyph_box(&output, &text, 2, 4);
+    let (alef_lo, alef_hi) = painted_glyph_box(&output, &text, 6, 7);
+    assert!(
+        (segments[0][0].x - c_lo.x).abs() <= PX_TOL && (segments[0][1].x - c_hi.x).abs() <= PX_TOL,
+        "the first segment must span the Latin group's box {c_lo:?}..{c_hi:?}: {segments:?}"
+    );
+    assert!(
+        (segments[1][0].x - alef_lo.x).abs() <= PX_TOL
+            && (segments[1][1].x - alef_hi.x).abs() <= PX_TOL,
+        "the second segment must span the selected Arabic char's box {alef_lo:?}..{alef_hi:?}: {segments:?}"
+    );
+}
+
+/// Selections outside the row's column range degrade to the fast path
+/// without panicking: an empty row paints no real highlight, and a mixed row
+/// with both columns past its end recolors nothing.
+#[test]
+fn out_of_range_selections_take_the_fast_path_without_panicking() {
+    let mut empty = String::new();
+    let (output, selection_color) = run_with_selection(&mut empty, 5, 9);
+    let rects = painted_selection_rects(&output, selection_color);
+    assert!(
+        rects.iter().all(|rect| rect.width() <= PX_TOL),
+        "an empty row paints no real highlight: {rects:?}"
+    );
+
+    let mut text = String::from("abc أبج xyz");
+    let (output, _) = run_with_selection(&mut text, 50, 60);
+    let (stream, colors) = painted_row_glyphs(&output, &text);
+    assert_eq!(stream, "abc جبأ xyz");
+    for (slot, color) in colors.iter().enumerate() {
+        assert_ne!(
+            *color, RECOLOR_COLOR,
+            "an out-of-range selection recolors nothing (slot {slot})"
         );
     }
 }

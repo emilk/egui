@@ -1323,7 +1323,7 @@ impl Row {
     /// empty-run handling: cells are never empty. All-level-0 rows (legacy
     /// deserialized galleys) skip the replay entirely (`0 | 1 > 0`), so their
     /// cells stay in visual order: the content reads as left-to-right.
-    fn logical_cell_order(&self, cells: &[Range<usize>]) -> Vec<usize> {
+    pub fn logical_cell_order(&self, cells: &[Range<usize>]) -> Vec<usize> {
         let level_of = |i: usize| -> u8 {
             cells
                 .get(i)
