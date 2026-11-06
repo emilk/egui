@@ -1569,10 +1569,10 @@ impl RowReorder<'_> {
         }
 
         // The row's byte range relative to the span, clamped and snapped to
-        // char boundaries: hostile shapes (a cluster standing in for a
-        // replacement char) can drift the `chr.len_utf8()` sums — that may
-        // degrade reorder quality, but never panics (the crate asserts range
-        // bounds and slices its text by the range).
+        // char boundaries. Hostile shapes (a cluster standing in for a
+        // replacement char) can drift the `chr.len_utf8()` sums of the
+        // fallback attribution; the clamping below then converts that into
+        // an empty or end-equal range, which may degrade reorder quality.
         let span_len = self.text.len();
         let mut rel_start = blocks[row_range.start]
             .bytes
@@ -1592,7 +1592,21 @@ impl RowReorder<'_> {
             rel_end -= 1;
         }
 
-        let (levels, runs) = self.info.visual_runs(rel_start..rel_end);
+        // A hostile shape can still leave an empty or end-equal range after
+        // clamping and boundary snapping; unicode-bidi indexes
+        // `levels[line.start]` unchecked after an `<=` assert, so resolve runs
+        // only for a non-empty in-span range. Blocks no run claims are placed in
+        // logical order by the fallback below — the row and its glyphs are
+        // always kept. (This no-op semantics is the cross-framework convention,
+        // not a local workaround: typst guards the same call caller-side with
+        // "The bidi crate panics for empty lines" (typst-layout/src/inline/
+        // line.rs), and FriBidi's fribidi_reorder_line treats len == 0 as a
+        // success no-op — see github.com/fribidi/fribidi lib/fribidi-bidi.c.)
+        let (levels, runs) = if rel_start < rel_end && rel_start < span_len {
+            self.info.visual_runs(rel_start..rel_end)
+        } else {
+            (Vec::new(), Vec::new())
+        };
 
         // Place the blocks in the row's visual run order. Blocks no run
         // claims (hostile byte drift, or an empty clamped range) are kept in
