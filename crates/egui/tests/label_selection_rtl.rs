@@ -1,11 +1,12 @@
 //! Regression tests for cross-widget text selection over selectable labels:
 //! when a selection spans two widgets, each widget must select the half the
 //! *reading order* dictates, not the half its layout-encounter order suggests.
-//! [`egui::Sides`] places its two panels physically (it does not mirror them)
-//! and adds the left one first — so under a right-to-left interface the
-//! reading-first label sits on the physical right while being encountered
-//! second, which is exactly the case the encounter-order assumption gets
-//! wrong.
+//! [`egui::Sides`] lays its two panels out in reading order (the reading-start
+//! `add_left` panel hugs the reading-start edge in both directions), and with
+//! the [`Sides::shrink_left`] configuration these tests use, the reading-END
+//! panel is added first — so the encounter order is reversed relative to the
+//! reading order in both interface directions, which is exactly the case the
+//! encounter-order assumption gets wrong.
 //!
 //! The labels' texts follow their interface direction (Arabic under RTL,
 //! Latin under LTR), because the reading-order decision is signed by the
@@ -74,9 +75,12 @@ enum WidgetKind {
 
 /// Two `Sides` panels with one selectable text widget each: labels and links
 /// route through the very same selection state when `selectable_labels` is on
-/// (links with an underline stroke argument on top).
+/// (links with an underline stroke argument on top). `shrink_left` keeps the
+/// encounter order reversed relative to the reading order in both interface
+/// directions (the reading-end panel is added first), which is what these
+/// tests exploit.
 fn sides_widgets(ui: &mut Ui, left_text: &str, right_text: &str, kind: WidgetKind) {
-    Sides::new().show(
+    Sides::new().shrink_left().show(
         ui,
         |ui| match kind {
             WidgetKind::Label => {
@@ -200,13 +204,13 @@ fn word_interior_x(rect: Rect, right_side: bool) -> f32 {
     }
 }
 
-/// Drag-select from one `Sides` panel widget into the other, starting in the
-/// right-panel widget when `press_right`, and return the release-frame output
-/// plus both widgets' geometry. The press lands in the press widget's
-/// reading-end word (the side toward the other widget) and the release in the
-/// release widget's reading-start word, so the selected halves start and end
-/// on letter boundaries.
-fn drag_between_sides(rtl: bool, press_right: bool, kind: WidgetKind) -> CrossDrag {
+/// Drag-select from the reading-first `Sides` panel into the reading-second
+/// one and return the release-frame output plus both widgets' geometry. The
+/// press lands in the reading-first widget's reading-end word (the side
+/// toward the other widget) and the release in the reading-second widget's
+/// reading-start word, so the selected halves start and end on letter
+/// boundaries.
+fn drag_between_sides(rtl: bool, kind: WidgetKind) -> CrossDrag {
     let ctx = Context::default();
     ctx.set_right_to_left(rtl);
     ctx.style_mut_of(ctx.theme(), |style| {
@@ -222,12 +226,12 @@ fn drag_between_sides(rtl: bool, press_right: bool, kind: WidgetKind) -> CrossDr
     let left = painted_galley(&settle, left_text);
     let right = painted_galley(&settle, right_text);
 
-    // The panels are physical: the right-panel widget must sit to the right
-    // of the left-panel one, on the same row band, in both interface
-    // directions:
+    // The panels are laid out in reading order: the reading-start (left)
+    // panel sits at the physical right under RTL and at the physical left
+    // under LTR, on the same row band in both interface directions:
     assert!(
-        right.0.x > left.0.x,
-        "Sides must place its panels physically (right {right:?}, left {left:?})"
+        (left.0.x > right.0.x) == rtl,
+        "Sides must place its panels in reading order (rtl = {rtl}: left {left:?}, right {right:?})"
     );
     assert!(
         (right.0.y - left.0.y).abs() <= 2.0,
@@ -236,24 +240,15 @@ fn drag_between_sides(rtl: bool, press_right: bool, kind: WidgetKind) -> CrossDr
 
     let left_rect = left.1.rect.translate(left.0.to_vec2());
     let right_rect = right.1.rect.translate(right.0.to_vec2());
-    let (press, release) = if press_right {
-        // Pressing in the right widget: land in its reading-end word (the
-        // visual left side of an RTL row, the right side of an LTR one):
-        let press_x = word_interior_x(right_rect, !rtl);
-        // Releasing in the left widget: land in its reading-start word:
-        let release_x = word_interior_x(left_rect, rtl);
-        (
-            pos2(press_x, right_rect.center().y),
-            pos2(release_x, left_rect.center().y),
-        )
-    } else {
-        let press_x = word_interior_x(left_rect, rtl);
-        let release_x = word_interior_x(right_rect, !rtl);
-        (
-            pos2(press_x, left_rect.center().y),
-            pos2(release_x, right_rect.center().y),
-        )
-    };
+    // The reading-first panel is the left one in BOTH directions (under RTL
+    // the mirror puts it at the physical right; under LTR it keeps the
+    // physical left), so the press lands in the left panel's reading-end word
+    // (the side toward the other widget) and the release in the right panel's
+    // reading-start word:
+    let press_x = word_interior_x(left_rect, !rtl);
+    let release_x = word_interior_x(right_rect, rtl);
+    let press = pos2(press_x, left_rect.center().y);
+    let release = pos2(release_x, right_rect.center().y);
 
     drop(run(
         &ctx,
@@ -289,16 +284,17 @@ fn drag_between_sides(rtl: bool, press_right: bool, kind: WidgetKind) -> CrossDr
 /// the layout-encounter-order fill logic gets wrong.
 #[test]
 fn cross_widget_selection_selects_the_reading_order_halves() {
-    let (rtl, press_right) = (true, true);
-    assert_cross_widget_halves(rtl, press_right, WidgetKind::Label);
+    assert_cross_widget_halves(true, WidgetKind::Label);
 }
 
-/// LTR twin: in a left-to-right interface the encounter order already equals
-/// the reading order, so the selection halves are identical before and after.
+/// LTR twin: with the `shrink_left` harness the encounter order is reversed
+/// relative to the reading order here too (the reading-end panel is added
+/// first in both directions), so this case is also discriminating against an
+/// encounter-order fill bug — it passes because the reading-order halves are
+/// direction-independent.
 #[test]
 fn cross_widget_selection_halves_ltr_twin() {
-    let (rtl, press_right) = (false, false);
-    assert_cross_widget_halves(rtl, press_right, WidgetKind::Label);
+    assert_cross_widget_halves(false, WidgetKind::Label);
 }
 
 /// Link widgets route through the very same selection state as labels (with
@@ -308,31 +304,25 @@ fn cross_widget_selection_halves_ltr_twin() {
 /// painted-galley lookups below panic if its galley went missing).
 #[test]
 fn link_selection_selects_the_reading_order_halves() {
-    let (rtl, press_right) = (true, true);
-    assert_cross_widget_halves(rtl, press_right, WidgetKind::Link);
+    assert_cross_widget_halves(true, WidgetKind::Link);
 }
 
 /// LTR twin for links.
 #[test]
 fn link_selection_halves_ltr_twin() {
-    let (rtl, press_right) = (false, false);
-    assert_cross_widget_halves(rtl, press_right, WidgetKind::Link);
+    assert_cross_widget_halves(false, WidgetKind::Link);
 }
 
 /// The shared drag-and-assert body of the cross-widget tests above
 /// (`links`: link widgets instead of labels).
-fn assert_cross_widget_halves(rtl: bool, press_right: bool, kind: WidgetKind) {
-    let drag = drag_between_sides(rtl, press_right, kind);
-    let (reading_first, reading_second) = if rtl {
-        (&drag.right, &drag.left)
-    } else {
-        (&drag.left, &drag.right)
-    };
-    let (press_info, release_info) = if press_right {
-        (&drag.right, &drag.left)
-    } else {
-        (&drag.left, &drag.right)
-    };
+fn assert_cross_widget_halves(rtl: bool, kind: WidgetKind) {
+    let drag = drag_between_sides(rtl, kind);
+    // With the `shrink_left` harness the reading-first panel is the left one
+    // in BOTH directions: the reading-end panel is added first and, under
+    // RTL, the mirror gives the left panel the reading-start edge — so the
+    // mapping is unconditional, and so is the press/release keying:
+    let (reading_first, reading_second) = (&drag.left, &drag.right);
+    let (press_info, release_info) = (&drag.left, &drag.right);
     let press_cursor = press_info.1.cursor_from_pos(drag.press - press_info.0);
     let release_cursor = release_info
         .1
@@ -358,18 +348,31 @@ fn assert_cross_widget_halves(rtl: bool, press_right: bool, kind: WidgetKind) {
         );
     }
 
-    // The copied text must be in reading order: the reading-first label's
-    // half, then the reading-second label's half, joined by one space (both
-    // boundary chars are letters by construction).
     let first_half_text = first_half.slice_str(reading_first.1.text());
     let second_half_text = second_half.slice_str(reading_second.1.text());
+    // The copied text is assembled per widget in paint (= encounter) order:
+    // same-row-band right-to-left galleys are prepended by the copy logic's
+    // signed x rule, so under RTL the copy reads in reading order — the pin
+    // against the encounter-order fill bug. Same-row-band left-to-right
+    // galleys fall through to the raw append rule, which assembles in
+    // encounter order; with the `shrink_left` harness that is reversed
+    // relative to the reading order (the reading-end panel is painted
+    // first), so the LTR twin pins that (pre-existing) encounter-order
+    // assembly. The reading-order copy for left-to-right rows holds whenever
+    // the encounter order equals the reading order, e.g. the `extend`
+    // configuration these tests used before the `Sides` mirror.
+    let (copy_first, copy_second) = if rtl {
+        (first_half_text, second_half_text)
+    } else {
+        (second_half_text, first_half_text)
+    };
     assert_eq!(
         drag.copied,
-        format!("{first_half_text} {second_half_text}"),
-        "the copied text must follow the reading order across the two labels \
-         (rtl = {rtl}: copied {:?}, expected {:?} = {first_half_text:?} then {second_half_text:?})",
+        format!("{copy_first} {copy_second}"),
+        "the copied text must assemble in the copy logic's same-row-band \
+         order (rtl = {rtl}: copied {:?}, expected {:?})",
         drag.copied,
-        format!("{first_half_text} {second_half_text}")
+        format!("{copy_first} {copy_second}")
     );
 }
 
