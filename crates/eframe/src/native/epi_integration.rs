@@ -181,6 +181,9 @@ pub struct EpiIntegration {
     last_auto_save: Instant,
     pub beginning: Instant,
     is_first_frame: bool,
+
+    /// Whether the root builder permits the automatic reveal after the first painted frame.
+    show_root_after_first_frame: bool,
     pub egui_ctx: egui::Context,
 
     /// Input that we have received, but not yet given to egui,
@@ -292,6 +295,7 @@ impl EpiIntegration {
                 .checked_sub(web_time::Duration::from_secs_f64(egui_ctx.time()))
                 .unwrap_or_else(Instant::now),
             is_first_frame: true,
+            show_root_after_first_frame: native_options.viewport.visible != Some(false),
             egui_ctx,
         }
     }
@@ -440,7 +444,7 @@ impl EpiIntegration {
 
     pub fn post_rendering(&mut self, window: &winit::window::Window) {
         profiling::function_scope!();
-        if core::mem::take(&mut self.is_first_frame) {
+        if core::mem::take(&mut self.is_first_frame) && self.show_root_after_first_frame {
             if let Some(window_settings) = &self.restored_window_settings {
                 window_settings.before_first_show(window);
             }
