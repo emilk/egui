@@ -403,7 +403,13 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
             log::trace!("Woke up to check next_repaint_time");
         }
 
-        self.check_redraw_requests(event_loop);
+        // `check_redraw_requests` runs the app directly for invisible, minimized and overdue
+        // windows, so the event loop must be current: an immediate viewport the app opens in that
+        // pass needs it to create its window (without it the viewport's callback never runs and
+        // `show_viewport_immediate` panics).
+        event_loop_context::with_event_loop_context(event_loop, move || {
+            self.check_redraw_requests(event_loop);
+        });
     }
 
     fn window_event(
