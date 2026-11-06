@@ -13,7 +13,7 @@ use crate::{
         face_store::FontFaceKey,
         fonts::FontsImpl,
         styled_metrics::StyledMetrics,
-        unicode::{is_cjk, is_cjk_break_allowed, is_combining_mark},
+        unicode::{is_breaking_space, is_cjk, is_cjk_break_allowed, is_combining_mark},
     },
 };
 
@@ -1412,8 +1412,7 @@ struct RowBreakCandidates {
 impl RowBreakCandidates {
     fn add(&mut self, index: usize, glyphs: &[Glyph]) {
         let chr = glyphs[0].chr;
-        const NON_BREAKING_SPACE: char = '\u{A0}';
-        if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
+        if is_breaking_space(chr) {
             self.space = Some(index);
         } else if is_cjk(chr) && (glyphs.len() == 1 || is_cjk_break_allowed(glyphs[1].chr)) {
             self.cjk = Some(index);
@@ -2222,6 +2221,29 @@ mod tests {
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
             vec!["日本語とEnglishの混在した", "文章"]
         );
+    }
+
+    #[test]
+    fn test_no_break_spaces() {
+        let row_texts = |text: &str| {
+            let mut fonts = test_fonts();
+            let mut layout_job = LayoutJob::single_section(text.into(), TextFormat::default());
+            layout_job.wrap.max_width = 90.0;
+            let galley = layout(&mut fonts, 1.0, layout_job.into());
+            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            row_texts("Sum: 123\u{2009}456\u{2009}789"),
+            vec!["Sum: 123\u{2009}456\u{2009}", "789"]
+        );
+        for no_break_space in ['\u{00A0}', '\u{2007}', '\u{202F}'] {
+            let number = format!("123{no_break_space}456{no_break_space}789");
+            assert_eq!(
+                row_texts(&format!("Sum: {number}")),
+                vec!["Sum: ".to_owned(), number]
+            );
+        }
     }
 
     #[test]
