@@ -950,7 +950,7 @@ fn digits_only_value_direction_follows_the_interface() {
 }
 
 // ---------------------------------------------------------------------------
-// Wrapped right-to-left rows (NG9): rows are produced in logical order, so
+// Wrapped right-to-left rows: rows are produced in logical order, so
 // the cursor machinery and the selection highlight follow the reading order
 // across wrapped rows for the first time. The LTR twins pin the unchanged
 // geometry.

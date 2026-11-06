@@ -77,7 +77,7 @@ fn indent_once(layout: Layout) -> (Rect, Rect, Vec<ClippedShape>) {
     (parent_max, child_max, output.shapes)
 }
 
-/// A1 + A2, layout-predicate path: under `top_down(Align::Max)` (which prefers
+/// Layout-predicate path: under `top_down(Align::Max)` (which prefers
 /// right-to-left) the indented child rect is inset from the parent's reading (right)
 /// edge and the guide vline sits at the reading-edge icon column; under
 /// `top_down(Align::Min)` both keep today's left-side geometry.
@@ -134,7 +134,7 @@ fn indent_vertical(rtl: bool) -> (Rect, Rect, Vec<ClippedShape>) {
     (parent_max, child_max, output.shapes)
 }
 
-/// A3, flag path: with [`egui::Style::right_to_left`] set, a plain `ui.vertical`
+/// Flag path: with [`egui::Style::right_to_left`] set, a plain `ui.vertical`
 /// indents from the reading edge too — indent is a direction-aware consumer of the
 /// flag. Content alignment is deliberately not asserted: cross alignment stays with
 /// the layout.
@@ -203,7 +203,7 @@ fn collapsing_body(layout: Option<Layout>, rtl: bool) -> (Rect, Rect) {
     (parent_max, body_max)
 }
 
-/// A4: under the flag path (`set_right_to_left` + plain `ui.vertical`, where every
+/// Under the flag path (`set_right_to_left` + plain `ui.vertical`, where every
 /// nested level is a vertical `Align::Min` body) the collapsing body indents from the
 /// reading edge; under LTR from the left, unchanged. A third case pins the
 /// pre-existing non-propagation of the layout-predicate path into collapsing bodies:
@@ -254,7 +254,7 @@ fn stub_case(layout: Layout) -> (Rect, Vec<ClippedShape>) {
     (child_min, output.shapes)
 }
 
-/// A5: with `Spacing::indent_ends_with_horizontal_line`, the stub grows from the
+/// With `Spacing::indent_ends_with_horizontal_line`, the stub grows from the
 /// vline foot toward the reading end — left in RTL, right in LTR.
 #[test]
 fn indent_ends_with_horizontal_line_mirrors() {

@@ -25,7 +25,7 @@ fn run_frames(ctx: &Context, n: usize, mut f: impl FnMut(&mut Ui)) {
     }
 }
 
-/// A21.1: a sizing pass with a cross-`Align::Max` body (the mirrored-body shape)
+/// A sizing pass with a cross-`Align::Max` body (the mirrored-body shape)
 /// measures the rows' natural width anchored on the reading-start edge, in both
 /// directions: the measured width must not depend on the reading direction, the offered
 /// width, or the cross alignment; the anchor edge follows the reading start (the left
@@ -92,7 +92,7 @@ fn sizing_pass_min_rect_is_direction_independent() {
     }
 }
 
-/// A21.5: the root-`Ui` half of the sizing-pass canonicalization ([`Ui::new`]) also holds
+/// The root-`Ui` half of the sizing-pass canonicalization ([`Ui::new`]) also holds
 /// in LTR, where it newly fires: a vertical cross-`Align::Max` root body over an offered
 /// rect measures the rows' natural width anchored at the offered rect's left edge,
 /// offered-width independent, like its cross-`Align::Min` counterpart. This mirrors the
@@ -154,7 +154,7 @@ fn root_sizing_pass_min_rect_is_left_anchored_in_ltr() {
     );
 }
 
-/// A21.2: a menu popup's persisted [`AreaState::size`] width matches in both directions:
+/// A menu popup's persisted [`AreaState::size`] width matches in both directions:
 /// the RTL sizing pass must not lock a direction-dependent width into the area state
 /// that every steady frame reuses.
 #[test]
@@ -192,7 +192,7 @@ fn popup_width_matches_in_rtl_and_ltr() {
     );
 }
 
-/// A21.3: the sizing pass does not leak into the visible frames: after the sizing pass,
+/// The sizing pass does not leak into the visible frames: after the sizing pass,
 /// the steady-frame body still reports the mirrored cross alignment and direction flag,
 /// and its layout stays right-anchored in the offered rect.
 #[test]
@@ -242,7 +242,7 @@ fn visible_frame_keeps_the_mirrored_layout() {
     );
 }
 
-/// A21.4: the sizing-pass canonicalization mutates only the child's local layout copy:
+/// The sizing-pass canonicalization mutates only the child's local layout copy:
 /// the direction flag and the caller's layout are untouched during and after the pass,
 /// so there is nothing to restore. Under RTL the construction-time mirror resolves the
 /// vertical `Align::Min` root body (and the canonicalized `Align::Max` child, after its

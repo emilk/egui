@@ -46,7 +46,7 @@ fn ctx_with_direction(rtl: bool) -> Context {
     ctx
 }
 
-/// A1: the reading-start/end helpers hug the reading edge of the given rect in both
+/// The reading-start/end helpers hug the reading edge of the given rect in both
 /// directions, and the width-aware start helper grows the anchored element inward.
 #[test]
 fn reading_start_x_hugs_the_reading_edge_in_both_directions() {
@@ -95,7 +95,7 @@ fn reading_start_x_hugs_the_reading_edge_in_both_directions() {
     );
 }
 
-/// A2: the align helpers mirror and `forward` flips, so
+/// The align helpers mirror and `forward` flips, so
 /// `reading_start_x(rect, 0.0) + forward() * d` walks the reading direction in both.
 #[test]
 fn start_and_end_align2_mirror() {
@@ -174,7 +174,7 @@ fn painted_fill(rtl: bool, progress: f32) -> (Rect, Rect) {
     (bar, fills[0])
 }
 
-/// A4: the progress fill hugs the reading start — left-anchored under LTR, right-anchored
+/// The progress fill hugs the reading start — left-anchored under LTR, right-anchored
 /// under RTL, same width in both; the min-width floor and the 0..=1 clamp apply in both.
 #[test]
 fn progress_fill_hugs_the_reading_start() {
@@ -232,7 +232,7 @@ fn progress_fill_hugs_the_reading_start() {
     }
 }
 
-/// A5: the indeterminate arc orbits the fill's progress-front edge and sweeps the mirrored
+/// The indeterminate arc orbits the fill's progress-front edge and sweeps the mirrored
 /// way: at equal times each RTL arc point is the x-mirror of the LTR point within the bar
 /// (same count, same y), so the loading indicator mirrors about the bar's centre line.
 #[test]
@@ -293,7 +293,7 @@ fn progress_indeterminate_arc_mirrors_about_the_bar_center() {
     }
 }
 
-/// A3: `mirrored_x` flips the UV rect about x, and a later explicit `uv` call wins,
+/// `mirrored_x` flips the UV rect about x, and a later explicit `uv` call wins,
 /// as with any builder.
 #[test]
 fn mirrored_x_flips_the_uv_rect() {
@@ -337,7 +337,7 @@ fn textured_rects(output: &FullOutput, id: TextureId) -> Vec<(Rect, Rect)> {
         .collect()
 }
 
-/// A3: the mirrored UV reaches the painted shape: a plain image paints the unit UV rect,
+/// The mirrored UV reaches the painted shape: a plain image paints the unit UV rect,
 /// a `mirrored_x` image paints the flipped one.
 #[test]
 fn mirrored_uv_reaches_the_painted_shape() {

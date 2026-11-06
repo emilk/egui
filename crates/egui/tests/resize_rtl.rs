@@ -161,7 +161,7 @@ impl Harness {
 
 // ---------------------------------------------------------------------------
 
-/// A1: under RTL the corner grip sits in the bottom-left corner *of the container*
+/// Under RTL the corner grip sits in the bottom-left corner *of the container*
 /// (its left edge on the container's left edge), under LTR in the bottom-right
 /// corner, and the grip stays inside the container in both directions. The RTL
 /// case runs the repro that pins the end-of-frame fix: a horizontal
@@ -233,7 +233,7 @@ fn grip_is_bottom_left_under_rtl_bottom_right_under_ltr() {
     );
 }
 
-/// A2: a drag along the reading direction grows the container while the
+/// A drag along the reading direction grows the container while the
 /// reading-start edge stays fixed (right under RTL, left under LTR); the top
 /// edge is fixed in both directions.
 #[test]
@@ -294,7 +294,7 @@ fn resize_drag_keeps_reading_start_edge_fixed() {
     );
 }
 
-/// A3: the same pointer movement *relative to the grip* (mirrored in x) yields
+/// The same pointer movement *relative to the grip* (mirrored in x) yields
 /// the same resulting size in both directions — the correctness of the x
 /// negation in the drag delta.
 #[test]
@@ -320,7 +320,7 @@ fn drag_delta_is_direction_symmetric() {
     );
 }
 
-/// A4: the grip cursor matches the grip diagonal: `ResizeNeSw` under RTL
+/// The grip cursor matches the grip diagonal: `ResizeNeSw` under RTL
 /// (bottom-left grip), `ResizeNwSe` under LTR (bottom-right grip).
 #[test]
 fn cursor_icon_matches_grip_diagonal() {
@@ -344,7 +344,7 @@ fn cursor_icon_matches_grip_diagonal() {
     }
 }
 
-/// A5: over-shrink drags clamp to exactly the configured min size
+/// Over-shrink drags clamp to exactly the configured min size
 /// (± 1 rounding) in both directions — the floor is direction-independent.
 #[test]
 fn min_size_floor_identical_in_both_directions() {
@@ -373,7 +373,7 @@ fn min_size_floor_identical_in_both_directions() {
     }
 }
 
-/// A6: in a horizontal RTL parent, the widget placed after the `Resize` container
+/// In a horizontal RTL parent, the widget placed after the `Resize` container
 /// does not intersect the container rect once the container is wider than its
 /// content (the cursor advance must be anchored on the container, not on the
 /// content's `min_rect`); under LTR the next widget sits right of the container.
@@ -438,7 +438,7 @@ fn next_widget_does_not_overlap_after_resize_under_rtl() {
     );
 }
 
-/// A7: persisted state survives a direction flip: drag the container to a
+/// Persisted state survives a direction flip: drag the container to a
 /// non-default size under RTL, flip the flag between frames, and the size is
 /// preserved while the anchor edge switches (and flips back symmetrically).
 #[test]
@@ -486,7 +486,7 @@ fn resize_state_persists_across_direction_flip() {
     );
 }
 
-/// A8: a resizable `Window` keeps its reading-start edge fixed while its size
+/// A resizable `Window` keeps its reading-start edge fixed while its size
 /// changes: under RTL the right edge stays put and the left edge moves by the
 /// width delta; under LTR the left edge stays put. Covers growth, the no-drift
 /// case, content shrink (windows never auto-shrink with their content, so the
@@ -724,7 +724,7 @@ fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
     }
 }
 
-/// A9: a resizable [`Window`] paints its grip in the bottom-right corner under
+/// A resizable [`Window`] paints its grip in the bottom-right corner under
 /// LTR and the bottom-left corner under RTL — the grip mirrors with the
 /// reading direction, like the `Resize` container's grip (the window's corner
 /// selection always prefers the bottom-right, and a movable window enables
@@ -829,7 +829,7 @@ fn window_grip_corner_mirrors_under_rtl() {
 }
 
 // ---------------------------------------------------------------------------
-// W1-W3: the window edge strips. A window's sides are drag strips
+// The window edge strips. A window's sides are drag strips
 // (`resize_grab_radius_side` = 3.0 wide, corners excluded by
 // `resize_grab_radius_corner` = 10.0); `PossibleInteractions` gates which
 // sides exist, and under RTL the pivot is the reading-start corner.
@@ -851,7 +851,8 @@ struct WindowHarness {
 
 /// The window body: a plain label, or a vertically-filling `ScrollArea` (the
 /// window then renders at its requested height, so a vertical edge drag
-/// resizes instead of translating — the content-height quirk W3 pins).
+/// resizes instead of translating — the content-height quirk pinned by
+/// `window_top_edge_on_content_height_window_translates`).
 enum Body {
     Label,
     Filling,
@@ -949,7 +950,7 @@ impl WindowHarness {
     }
 }
 
-/// W1: a movable window's edge strips move exactly the dragged side: the
+/// A movable window's edge strips move exactly the dragged side: the
 /// right-edge strip drags only the right edge, the left-edge strip only the
 /// left edge, and (with a vertically-filling body, so the window renders at
 /// its requested height) the bottom strip only the bottom edge and the top
@@ -1145,7 +1146,7 @@ fn window_edge_strip_drag_moves_exactly_that_side() {
     }
 }
 
-/// W2: a non-movable window keeps only its reading-end resize strips:
+/// A non-movable window keeps only its reading-end resize strips:
 /// `PossibleInteractions` gates each side off when the pivot sits on it and
 /// the window cannot be moved, so under RTL the right (reading-start) strip
 /// does not exist — a drag there changes nothing — while the left (reading-end)
@@ -1227,15 +1228,15 @@ fn window_edge_strip_non_movable_side_gating() {
     }
 }
 
-/// W3: CHARACTERIZATION TEST — this pins CURRENT behavior, not desired
+/// This pins CURRENT behavior, not desired
 /// behavior. A titled window whose body does not fill the offered height
 /// renders at content height on y (the inner `Resize` is not resizable and
 /// non-filling content never fills the offered height), so a top-edge drag
 /// re-pins the pivot corner at the dragged rect while the height re-derives
 /// from the content: the window *translates* by the drag delta instead of
 /// resizing. The quirk is direction-neutral (no RTL branch in the y path) —
-/// it is recorded here so a follow-up issue inherits its oracle; it must
-/// never be read as an RTL regression guard.
+/// it is recorded here so a follow-up change inherits the reference
+/// behavior; it must never be read as an RTL regression guard.
 #[test]
 fn window_top_edge_on_content_height_window_translates() {
     for (rtl, pos) in [(true, pos2(650.0, 50.0)), (false, pos2(100.0, 50.0))] {

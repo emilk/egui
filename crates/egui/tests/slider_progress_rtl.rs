@@ -129,7 +129,7 @@ fn rail_of(output: &FullOutput, widget: Rect, rail_color: Color32) -> Rect {
     rails[0]
 }
 
-/// A1/A2: under either mirroring mechanism, a slider's trailing fill hugs the rail's
+/// Under either mirroring mechanism, a slider's trailing fill hugs the rail's
 /// reading-start (right) edge; left-to-right keeps hugging the left edge.
 #[test]
 fn slider_fill_hugs_the_reading_start_edge() {
@@ -201,7 +201,7 @@ fn slider_fill_hugs_the_reading_start_edge() {
     }
 }
 
-/// A3: the same physical press x picks ~75 % of the range left-to-right and ~25 %
+/// The same physical press x picks ~75 % of the range left-to-right and ~25 %
 /// right-to-left: the value↔x map mirrors, the pointer is not remapped.
 #[test]
 fn slider_pointer_maps_physical_x_through_the_mirrored_range() {
@@ -245,7 +245,7 @@ fn slider_pointer_maps_physical_x_through_the_mirrored_range() {
     );
 }
 
-/// A4: the progress fill hugs the reading-start edge under the interface flag (its chrome
+/// The progress fill hugs the reading-start edge under the interface flag (its chrome
 /// follows the flag, not the local layout), spans progress × bar width, fills the whole bar
 /// at 1.0, and at 0.0 only the corner-radius cap remains, at the reading-start edge.
 #[test]
@@ -324,7 +324,7 @@ fn progress_fill_hugs_the_reading_start_edge_and_clamps() {
     }
 }
 
-/// A5: the range slider's fill spans the two handles, so the shared mirrored geometry
+/// The range slider's fill spans the two handles, so the shared mirrored geometry
 /// carries it: low = 0, high = 25 paints the reading-start quarter in both directions.
 #[test]
 fn range_slider_fill_mirrors_with_the_shared_geometry() {
@@ -379,7 +379,7 @@ fn range_slider_fill_mirrors_with_the_shared_geometry() {
     let _ = rtl_widget;
 }
 
-/// A6: the speed a slider hands its `DragValue` is signed: positive left-to-right, negative
+/// The speed a slider hands its `DragValue` is signed: positive left-to-right, negative
 /// under either mirroring mechanism, same magnitude. The sign is intentional — it makes
 /// dragging and stepping the number beside the rail move the value the rail's way, exactly
 /// like an inverted range — so a future "fix" that makes it positive must fail here loudly
@@ -492,7 +492,7 @@ fn drag_by(
     )
 }
 
-/// B1: a standalone `DragValue` follows the interface reading direction: dragging
+/// A standalone `DragValue` follows the interface reading direction: dragging
 /// toward the reading end (physically left under the flag) increases the value, while
 /// the same leftward drag decreases it in LTR. Layout-only right-to-left (flag off)
 /// keeps the LTR-ward drag, like every other flag-driven widget chrome in this file:
@@ -534,7 +534,7 @@ fn standalone_drag_value_drags_toward_the_reading_direction() {
     );
 }
 
-/// B2: the `DragValue` beside a slider rail keeps the rail's signed drag under every
+/// The `DragValue` beside a slider rail keeps the rail's signed drag under every
 /// direction: its speed is the signed gradient (negative under either mirroring
 /// mechanism, pinned by `slider_drag_value_speed_stays_signed_under_rtl`), so dragging
 /// the NUMBER toward the reading end (physically left) increases the value without any
@@ -574,7 +574,7 @@ fn slider_embedded_drag_value_keeps_the_rail_signed_drag() {
     );
 }
 
-/// B3: the end-of-range cursor hints follow the interface reading direction: at the
+/// The end-of-range cursor hints follow the interface reading direction: at the
 /// minimum the only productive drag is toward the reading end (physically left under
 /// the flag), so the cursor points West there under the flag, and East at the maximum.
 /// The physical `Resize*` variants are kept — the widget picks the variant per reading

@@ -1,18 +1,18 @@
 //! Regression tests for the id-clash debug overlay through the real mirrored
 //! layout path, under left-to-right and right-to-left interfaces.
 //!
-//! The landed flip (anchor the label inward from the widget's right edge when
+//! The anchor flip (anchor the label inward from the widget's right edge when
 //! painting it rightward would run past the content rect) is pinned here through
-//! the chain the original issue documented: a real `CollapsingHeader` inside the
+//! the real-world chain that motivates it: a real `CollapsingHeader` inside the
 //! root `Ui` of a mirrored interface, whose content-sized rect hugs the window's
-//! right edge under right-to-left. The landed `debug_overlay_rtl.rs` pins the
+//! right edge under right-to-left. `debug_overlay_rtl.rs` pins the
 //! same overlay only with synthetic rects in LTR.
 //!
 //! The flip's one residue — a label wider than the room between the content
 //! rect's left edge and the widget's right edge still painting off-window on
 //! the left — is closed by a direction-symmetric horizontal clamp of the
 //! flipped anchor (`widget_rect.right().at_least(content_rect.min.x +
-//! text_width)`); the narrow-screen tests pin it red-at-base in both
+//! text_width)`); the narrow-screen tests pin the clamp in both
 //! directions and in both vertical branches, and the wide-screen tests pin
 //! that a label which fits is never moved.
 //!
@@ -99,7 +99,7 @@ fn painted_layout<'a>(texts: &'a [PaintedText], needle: &str) -> Option<&'a Rect
 /// Tolerance for layout-box (anchor) assertions. The layout box is the exact
 /// geometry the debug anchors compute from widget/clip rects, independent of
 /// glyph bearings and therefore of the font provider; the slack only absorbs
-/// float noise. (Mirrors the landed constant in `debug_overlay_rtl.rs`.)
+/// float noise. (Mirrors the constant in `debug_overlay_rtl.rs`.)
 const ANCHOR_TOLERANCE: f32 = 0.5;
 
 /// Two collapsing headers sharing an id, the real-path clash generator.
@@ -280,8 +280,8 @@ fn id_clash_error_stays_inside_the_window_when_it_cannot_fit_ltr() {
 
 // ---------------------------------------------------------------------------
 
-/// RTL twin of the narrow-screen clamp test, through the issue's exact
-/// scenario: the clashing header rects hug the window's right edge under a
+/// RTL twin of the narrow-screen clamp test, through the exact
+/// scenario that motivates the flip: the clashing header rects hug the window's right edge under a
 /// right-to-left interface, the flipped label overflows the 120 px window on
 /// the left, and the clamp must keep its reading start at or inside the
 /// window's left edge.

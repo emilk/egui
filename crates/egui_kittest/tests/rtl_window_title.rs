@@ -86,7 +86,7 @@ fn sized_window_app(ui: &mut egui::Ui, state: &mut Captured) {
     capture(state, shown);
 }
 
-/// B1: the close button sits at the reading end's mirror — hugging the window's
+/// The close button sits at the reading end's mirror — hugging the window's
 /// left edge under RTL (the Arabic-Windows convention), its right edge under LTR —
 /// and clicking it still closes the window.
 #[test]
@@ -125,7 +125,7 @@ fn close_button_sits_at_the_reading_end_mirror() {
     }
 }
 
-/// B2: the collapse triangle sits on the opposite end from the close button in
+/// The collapse triangle sits on the opposite end from the close button in
 /// both directions (the mirrored atom list), and each button hugs its own window
 /// edge.
 #[test]
@@ -174,7 +174,7 @@ fn collapse_button_sits_on_the_opposite_end_from_close() {
     }
 }
 
-/// B3a: the mirrored carves keep both title-bar buttons out of the drag band: a
+/// The mirrored carves keep both title-bar buttons out of the drag band: a
 /// drag that starts inside the ×, or inside the collapse triangle (which the
 /// carve cuts out with its own mirrored branch), moves the window not at all, in
 /// either direction, and leaves it open.
@@ -214,7 +214,8 @@ fn drag_on_the_close_button_does_not_move_the_window() {
         // The mirrored collapse-button carve gets the same contract: a drag that
         // starts inside the collapse triangle must not move the window either.
         // (A carve that cuts at the wrong edge leaves the button inside the drag
-        // band; the band-midpoint drags of B3b would not notice that.)
+        // band; the band-midpoint drags of `drag_on_the_title_band_moves_the_window`
+        // would not notice that.)
         let collapse = harness.get_by_label("Hide").rect();
         let before = harness.state().window;
 
@@ -238,7 +239,7 @@ fn drag_on_the_close_button_does_not_move_the_window() {
     }
 }
 
-/// B3b: the band between the two buttons stays the drag-to-move band in both
+/// The band between the two buttons stays the drag-to-move band in both
 /// directions: a drag that starts on it moves the window by the drag delta.
 #[test]
 fn drag_on_the_title_band_moves_the_window() {
@@ -275,7 +276,7 @@ fn drag_on_the_title_band_moves_the_window() {
     }
 }
 
-/// B4: the two `Atom::grow()` spacers keep the title galley centred between the
+/// The two `Atom::grow()` spacers keep the title galley centred between the
 /// close and collapse buttons through the mirrored rebuild. The title text has no
 /// accessibility node, so the observable is its paint shape.
 #[test]

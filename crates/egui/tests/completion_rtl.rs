@@ -4,7 +4,7 @@
 //! end — the visual left in a right-to-left popup, the visual right in a
 //! left-to-right one.
 //!
-//! Characterization only (no fail-before): the doc wording was LTR-physical,
+//! Behavioral pin: the doc wording was LTR-physical,
 //! not the behavior. If these assertions ever fail, the mirrored atom stream
 //! is broken and the fix belongs in the atom layout, not in this test.
 

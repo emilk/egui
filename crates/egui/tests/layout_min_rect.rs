@@ -57,7 +57,7 @@ fn measure_with(ctx: &Context, layout: Layout, mut contents: impl FnMut(&mut Ui)
     rect
 }
 
-/// A1: a centered body measures its content, not the full desired width, and the widget
+/// A centered body measures its content, not the full desired width, and the widget
 /// stays centered in the 300-wide desired rect (which spans 8..308 inside the panel).
 #[test]
 fn vertical_center_min_rect_is_content_tight() {
@@ -75,7 +75,7 @@ fn vertical_center_min_rect_is_content_tight() {
     );
 }
 
-/// A2: the same plain widget measures the same width under `Min`, `Center` and `Max`,
+/// The same plain widget measures the same width under `Min`, `Center` and `Max`,
 /// with placement mirrored and unchanged.
 #[test]
 fn vertical_cross_align_measurement_parity() {
@@ -99,7 +99,7 @@ fn vertical_cross_align_measurement_parity() {
     );
 }
 
-/// A3: a nested centered body no longer leaks its full-width stretched frame into the
+/// A nested centered body no longer leaks its full-width stretched frame into the
 /// parent: a `Min` body and a `Max` body each measure the mirrored 175 pt content span.
 #[test]
 fn vertical_max_and_min_mirror_with_centered_child() {
@@ -118,7 +118,7 @@ fn vertical_max_and_min_mirror_with_centered_child() {
     assert_eq!(max.max, pos2(308.0, 18.0));
 }
 
-/// A4 golden: a plain `Align::Min` body keeps its exact pre-change geometry.
+/// Golden pin: a plain `Align::Min` body keeps its exact pre-change geometry.
 #[test]
 fn min_layout_measurement_unchanged() {
     let rect = measure(Layout::top_down(Align::Min), |ui| {
@@ -127,7 +127,7 @@ fn min_layout_measurement_unchanged() {
     assert_eq!(rect, Rect::from_min_max(pos2(8.0, 8.0), pos2(58.0, 18.0)));
 }
 
-/// A5 gate guard: horizontal rows keep folding their frame, whose height is the row
+/// Gate guard: horizontal rows keep folding their frame, whose height is the row
 /// height (`interact_size.y`), and a following widget starts one item spacing below it.
 #[test]
 fn horizontal_row_measurement_unchanged() {
@@ -172,7 +172,7 @@ fn horizontal_row_measurement_unchanged() {
     );
 }
 
-/// A6: the same centered measurement holds under a right-to-left UI — the fold must not
+/// The same centered measurement holds under a right-to-left UI — the fold must not
 /// key on the direction flag. The widget stays centered in the desired region, whose
 /// anchor mirrors with the interface direction (the region right-hugs under RTL, so its
 /// center is the LTR center mirrored about the screen center).
@@ -191,7 +191,7 @@ fn rtl_measurement_is_direction_independent() {
     );
 }
 
-/// A7 guard: the grid arm of the measurement fold — a grid body keeps folding its
+/// Guard: the grid arm of the measurement fold — a grid body keeps folding its
 /// cell-derived frame, so a widget narrower (and shorter) than its cell must not make
 /// the grid cell report a content-tight `min_rect` (the `else frame_rect` arm of
 /// `Placer::advance_after_rects`; grids are the one non-horizontal layout that keeps

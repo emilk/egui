@@ -9,8 +9,8 @@
 //! policy is [`egui::MissingGlyphPolicy::Panic`], which panics naming the
 //! codepoint and family.
 //!
-//! **This test passes on the parent commit by design** — it is a regression
-//! guard for the documented default, not a fail-before probe.
+//! **This test passes by design** — it is a regression
+//! guard for the documented default, not a probe of an old defect.
 //!
 //! **Flip rule:** a future change that ships real default coverage (bundled
 //! glyphs or a default font provider) must flip this test and the

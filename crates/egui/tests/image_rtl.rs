@@ -6,7 +6,7 @@
 //! bidi isolates (unit-tested in `widgets/image.rs`).
 //!
 //! The glyphs of a reordered row are stored in visual (left-to-right) order; see
-//! `layout_bidi.rs` for the underlying run-segmentation oracles. Every mirrored case
+//! `layout_bidi.rs` for the underlying run-segmentation tests. Every mirrored case
 //! asserts its left-to-right counterpart.
 
 use egui::epaint::Shape;

@@ -122,7 +122,7 @@ fn drag_separator(
     show_in_area(ctx, ctor, area, rect);
 }
 
-/// A1: `Panel::start` lands at the reading start (left in LTR, right in RTL).
+/// `Panel::start` lands at the reading start (left in LTR, right in RTL).
 #[test]
 fn start_panel_lands_at_the_reading_start() {
     let ltr = panel_rect(false, Panel::start);
@@ -138,7 +138,7 @@ fn start_panel_lands_at_the_reading_start() {
     );
 }
 
-/// A1: `Panel::end` is the exact mirror of `Panel::start` in both directions.
+/// `Panel::end` is the exact mirror of `Panel::start` in both directions.
 #[test]
 fn end_panel_mirrors_start() {
     // LTR: `end` sits on the right half, mirroring `start` about the screen centre:
@@ -178,7 +178,7 @@ fn end_panel_mirrors_start() {
     );
 }
 
-/// A2: the physical constructors never follow the reading direction.
+/// The physical constructors never follow the reading direction.
 #[test]
 fn physical_constructors_do_not_follow_direction() {
     let left = panel_rect(true, Panel::left);
@@ -194,7 +194,7 @@ fn physical_constructors_do_not_follow_direction() {
     );
 }
 
-/// A3: a `Panel::start` keeps its persisted width when the reading direction flips
+/// A `Panel::start` keeps its persisted width when the reading direction flips
 /// between frames — only the anchor edge moves. Fails if the panel id were
 /// direction-keyed.
 #[test]
@@ -251,7 +251,7 @@ fn size_survives_a_direction_flip() {
     );
 }
 
-/// A4 (#7930, left side): with a `Panel::left` whose anchor edge sits away from the
+/// Upstream issue #7930, left side: with a `Panel::left` whose anchor edge sits away from the
 /// screen edge (nested `Ui`), dragging the separator leftward past the anchor edge
 /// clamps at `min_size` (96.0), and a continued deeper drag never grows the panel
 /// again — the drag direction does not reverse.
@@ -298,7 +298,7 @@ fn drag_past_the_anchor_edge_clamps_left() {
     );
 }
 
-/// A5 (#7930, right side): symmetric case for `Panel::right` — dragging the
+/// Upstream issue #7930, right side: symmetric case for `Panel::right` — dragging the
 /// separator rightward past its right-edge anchor clamps at `min_size` and stays
 /// there. All pointer x stay inside the 600-wide screen.
 #[test]
@@ -412,7 +412,7 @@ fn separator_cursor(rtl: bool, ctor: fn(&'static str) -> Panel) -> CursorIcon {
     output.platform_output.cursor_icon
 }
 
-/// A6: the separator cursor follows the resolved side.
+/// The separator cursor follows the resolved side.
 #[test]
 fn cursor_icons_follow_the_resolved_side() {
     assert_eq!(

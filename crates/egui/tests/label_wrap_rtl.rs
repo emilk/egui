@@ -8,8 +8,8 @@
 //! All assertions measure painted-ink geometry from `glyph.logical_rect()`
 //! translated by `text.pos + row.pos` (exact, no raster wobble) and rects
 //! captured inside the ui closure — never pixels, never absolute font
-//! metrics. Test roles (fail-before vs characterization) are stated on each
-//! test so a green-both-sides test is never mistaken for a fail-before.
+//! metrics. Each test's doc states whether it pins a regression or guards
+//! the current behavior, so the two are never confused.
 
 use egui::epaint::TextShape;
 use egui::{CentralPanel, Context, Label, Pos2, RawInput, Rect, Shape, Ui, vec2};
@@ -109,20 +109,22 @@ fn indent_of(rtl: bool, max_rect: Rect, cursor: Rect) -> f32 {
     }
 }
 
-/// T6 (fail-before): an RTL interface's wrapping-horizontal label continues
+/// An RTL interface's wrapping-horizontal label continues
 /// from the reading start — row 0 starts on line 0 indented by the leftover
 /// space, later rows hug the container's reading-start (right) edge, and the
-/// response covers the inks without poking past the edge. Red at base: the
-/// old LTR-only gate sent the label to the else branch, where no continuation
-/// indent exists (clause (ii) measures ≈ 0 ≠ indent).
+/// response covers the inks without poking past the edge. The old LTR-only
+/// gate sent the label to the else branch, where no continuation indent
+/// exists (clause (ii) measures ≈ 0 ≠ indent).
 #[test]
 fn rtl_wrap_continues_from_the_reading_start_with_the_first_row_indented() {
-    // Chosen widths (recorded per the plan): a 240 px container; the short
+    // Chosen widths: a 240 px container; the short
     // first label "سلام" leaves most of line 0 free — enough for the
     // continuation's first word, so its row 0 starts on line 0 with the
     // leftover space as its indent; `كلمة كثيرة طويلة ` x 6 wraps well past
     // 3 rows at that width (asserted below). Arabic rides the logical wrap
-    // path (recorded bidi runs) — the unit pin is T5b in epaint.
+    // path (recorded bidi runs) — the unit pin is
+    // `line_break_logically_threads_the_leading_advance_onto_the_reading_first_row`
+    // in epaint.
     let long = "كلمة كثيرة طويلة ".repeat(6);
     let (max_rect, cursor, response, text) = wrap_case(true, "سلام", &long);
     let indent = indent_of(true, max_rect, cursor);
@@ -146,7 +148,7 @@ fn rtl_wrap_continues_from_the_reading_start_with_the_first_row_indented() {
         // galley origin, which the box wobble displaces from the container
         // edge — a wrapped row keeps its break space in its box (its advance
         // is part of the row's kept size), so `galley.rect.right()` pokes
-        // that far past the ink and displaces ALL rows equally (the §9
+        // that far past the ink and displaces ALL rows equally (the
         // trailing-whitespace class; 9 px for the default font's space at
         // 14 px). The ink never pokes PAST the edge:
         let wobble = text.galley.rect.right();
@@ -162,7 +164,7 @@ fn rtl_wrap_continues_from_the_reading_start_with_the_first_row_indented() {
             ink.right(),
             max_rect.right()
         );
-        // (ii) THE RED CLAUSE: the indent. The shared paint translation
+        // (ii) THE INDENT CLAUSE: the indent. The shared paint translation
         // cancels the anchor wobble, so this difference is the indent up to
         // per-row pixel rounding:
         assert!(
@@ -184,10 +186,9 @@ fn rtl_wrap_continues_from_the_reading_start_with_the_first_row_indented() {
     );
 }
 
-/// T7 (LTR twin — byte-identity pin, NOT a fail-before): the LTR fast path
+/// LTR twin — byte-identity pin: the LTR fast path
 /// is verbatim unchanged — the first row's ink starts `indent` px in from the
-/// left edge, later rows hug it. Green at base by construction; any failure
-/// is a regression.
+/// left edge, later rows hug it. Any failure is a regression.
 #[test]
 fn ltr_wrap_is_unchanged() {
     let long = "lorem ipsum dolor ".repeat(5);
@@ -217,10 +218,12 @@ fn ltr_wrap_is_unchanged() {
     }
 }
 
-/// T8 (fail-before): a pure-Latin label in an RTL interface is stamped RTL
+/// A pure-Latin label in an RTL interface is stamped RTL
 /// (first-strong) and takes the RTL arm — it gains the reading-start indent.
 /// Latin records no bidi runs, so this rides the LEGACY wrap path (the unit
-/// pin is T5 in epaint). Red at base: the else branch has no indent.
+/// pin is `line_break_threads_the_leading_advance_onto_the_first_glyph_row`
+/// in epaint). The else branch has no indent, so without the RTL arm the
+/// indent would be lost.
 #[test]
 fn latin_label_in_an_rtl_interface_takes_the_reading_start_indent() {
     let long = "lorem ipsum dolor ".repeat(5);
@@ -239,8 +242,7 @@ fn latin_label_in_an_rtl_interface_takes_the_reading_start_indent() {
     }
 }
 
-/// T9 (characterization — green at base AND after; pins the `base_rtl` key):
-/// a digits-only label in an RTL interface resolves no strong direction
+/// A digits-only label in an RTL interface resolves no strong direction
 /// (first-strong inference finds none), is NOT stamped, and stays on the else
 /// branch — giving it the RTL arm would put the indent at its reading END.
 /// All rows keep the else branch's uniform right-anchored ink: no indent.
@@ -260,14 +262,13 @@ fn digits_only_label_in_an_rtl_interface_stays_out_of_the_rtl_arm() {
     }
 }
 
-/// T10 (characterization — green at base AND after; pins the reroute): an
-/// Arabic label in an LTR interface resolves RTL but the layout's main
+/// An Arabic label in an LTR interface resolves RTL but the layout's main
 /// direction disagrees, so it must NOT take the fast path. It never gets a
 /// continuation indent: the else branch never sets `leading_space`, so the
 /// epaint threading cannot inset it, and the RIGHT-anchored else branch pins
-/// every row's ink right to the same galley x. The rows' absolute x MAY shift
-/// between the base and the reroute (the reroute's deliberate behavior
-/// change); only the no-indent invariant is pinned here.
+/// every row's ink right to the same galley x. The rows' absolute x may shift
+/// with the branch routing (a deliberate behavior change); only the
+/// no-indent invariant is pinned here.
 #[test]
 fn arabic_label_in_an_ltr_interface_wraps_without_the_fast_path() {
     let long = "كلمة كثيرة طويلة ".repeat(4);
@@ -286,15 +287,15 @@ fn arabic_label_in_an_ltr_interface_wraps_without_the_fast_path() {
     }
 }
 
-/// T11 (fail-before in clause (ii); clause (i) is a green-both-sides
-/// geometry pin): inside T6's setup, row 0's hit rect
-/// (`rect_without_leading_space` translated by the paint pos) extends ≈ the
+/// Row 0's hit rect inside
+/// `rtl_wrap_continues_from_the_reading_start_with_the_first_row_indented`'s
+/// setup: it extends ≈ the
 /// indent past row 0's ink on the reading-start side — the hit rect includes
-/// the indent gap that the response gives back. Red at base: the else branch
+/// the indent gap that the response gives back. The else branch
 /// anchors row 0 with no advance, so the gap collapses to ≈ the break space
-/// (a few px), far below the indent. If a trailing break space rides row 0 in
-/// practice it ADDS to the post-fix gap, so the assertion is the one-sided
-/// `≥ indent − 3` form.
+/// (a few px), far below the indent — clause (ii) pins the indent gap. If a
+/// trailing break space rides row 0 in practice it ADDS to the gap, so the
+/// assertion is the one-sided `≥ indent − 3` form.
 #[test]
 fn rtl_wrap_row_response_rects_track_the_ink() {
     let long = "كلمة كثيرة طويلة ".repeat(6);
@@ -304,7 +305,8 @@ fn rtl_wrap_row_response_rects_track_the_ink() {
     let inks = row_inks(&text);
     assert!(inks.len() >= 2, "the continuation label must wrap");
 
-    // (i) green both sides (structural): every later row's box rect contains
+    // (i) structural (holds under either branch routing): every later row's
+    // box rect contains
     // that row's ink, up to 2 px of slack (negative-offset continuation
     // glyphs may poke a few px past the box edge):
     for (i, row) in text.galley.rows.iter().enumerate().skip(1) {

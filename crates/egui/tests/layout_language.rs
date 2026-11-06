@@ -3,7 +3,7 @@
 //! [`egui::UiBuilder::language`]/[`egui::Ui::language`], and the widget
 //! stamping of `LayoutJob::language`.
 //!
-//! A16-5 (no behaviour change for `language: None`) is also asserted here:
+//! No behaviour change for `language: None` is also asserted here:
 //! the default context language is `None` and setting a language changes no
 //! layout geometry.
 
@@ -35,7 +35,7 @@ fn run<R>(ctx: &Context, size: Vec2, run_ui: impl FnOnce(&mut Ui) -> R + 'static
     result.expect("the ui closure always runs")
 }
 
-/// A16-4/A16-2: the context language is stamped onto widget text from every
+/// The context language is stamped onto widget text from every
 /// job-building path: `WidgetText::Text`, `WidgetText::RichText`, `Label`,
 /// and `TextEdit`.
 #[test]
@@ -85,7 +85,7 @@ fn context_language_stamps_widget_text() {
     });
 }
 
-/// A16-3: a `UiBuilder::language` override wins over the context language,
+/// A `UiBuilder::language` override wins over the context language,
 /// is inherited by nested scopes, and does not leak into sibling scopes.
 #[test]
 fn ui_builder_language_overrides_subtree_and_inherits() {
@@ -118,7 +118,7 @@ fn ui_builder_language_overrides_subtree_and_inherits() {
     });
 }
 
-/// A16-4: an explicit `LayoutJob::language` wins over the ambient language,
+/// An explicit `LayoutJob::language` wins over the ambient language,
 /// both through `WidgetText::into_galley` and through `Label`.
 #[test]
 fn explicit_job_language_wins_over_ambient() {
@@ -155,7 +155,7 @@ fn explicit_job_language_wins_over_ambient() {
     });
 }
 
-/// A16-5: the language is `None` by default, and setting one changes no layout
+/// The language is `None` by default, and setting one changes no layout
 /// geometry: two galleys of the same text with and without a context language
 /// have equal rows and rect.
 #[test]

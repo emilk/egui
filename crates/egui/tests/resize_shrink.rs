@@ -286,7 +286,7 @@ const WINDOW_STROKE: f32 = 1.0;
 
 // ---------------------------------------------------------------------------
 
-/// T1: a `Window` with width-filling content shrinks under a negative-dx drag
+/// A `Window` with width-filling content shrinks under a negative-dx drag
 /// with the reading-start edge fixed: under LTR the left edge stays put and the
 /// right edge moves left; under RTL the right edge stays put and the left edge
 /// moves right. This is the case the grow-only `desired_size` re-pin used to
@@ -350,7 +350,7 @@ fn window_shrink_drag_shrinks_with_reading_start_edge_fixed() {
     );
 }
 
-/// T2: after a shrink drag, idle frames do not grow the window back to the
+/// After a shrink drag, idle frames do not grow the window back to the
 /// stale pre-drag content size (regression for the sizing-pass stale re-pin:
 /// `last_content_size` must never feed a grow-only re-pin with a value bigger
 /// than what the user dragged to).
@@ -399,7 +399,7 @@ fn shrink_survives_idle_frames_without_growing_back() {
     }
 }
 
-/// T3: an over-shrink drag clamps to exactly the configured minimum *width*
+/// An over-shrink drag clamps to exactly the configured minimum *width*
 /// (+- 1 rounding) with the anchored (reading-start) edge fixed in both
 /// directions — the floor is the constant min, never the current size.
 /// A `Window` renders at its content's measured height (its inner `Resize` runs
@@ -408,7 +408,7 @@ fn shrink_survives_idle_frames_without_growing_back() {
 /// window's height is content-bound in BOTH directions. The width floor binds
 /// because the body claims the offered width; it is the floor this test pins. The
 /// both-dimension floor on plain `Resize` containers is covered by
-/// `resize_rtl.rs` `min_size_floor_identical_in_both_directions` (A5).
+/// `resize_rtl.rs` `min_size_floor_identical_in_both_directions`.
 #[test]
 fn over_shrink_clamps_to_min_size_anchored_edge_fixed() {
     const SCREEN: Vec2 = vec2(700.0, 500.0);
@@ -478,7 +478,7 @@ fn over_shrink_clamps_to_min_size_anchored_edge_fixed() {
     );
 }
 
-/// T4: growth still works: dragging a window edge outward grows the window by
+/// Growth still works: dragging a window edge outward grows the window by
 /// the drag delta with the reading-start edge fixed, and the grown size is
 /// stable across idle frames (the idle grow-to-content re-pin is unchanged).
 #[test]
@@ -530,7 +530,7 @@ fn growth_drag_still_grows_with_reading_start_edge_fixed() {
     );
 }
 
-/// T5: a shrink stops at the content's measured minimum width: content wider
+/// A shrink stops at the content's measured minimum width: content wider
 /// than the window (a long non-wrapping label) pins the shrink at the content
 /// size, with the anchored edge fixed. This records the residual
 /// content-min pin precisely: the floor is the content minimum measured at the
@@ -580,7 +580,7 @@ fn shrink_stops_at_content_minimum_width_anchored_edge_fixed() {
 
 // ---------------------------------------------------------------------------
 
-/// T6: behavioral pin for the corner-grip drag path with `max_passes = 1` (as
+/// Behavioral pin for the corner-grip drag path with `max_passes = 1` (as
 /// when the multi-pass budget is consumed by something else in a real frame):
 /// with the pointer dragging the corner grip, the first frame after the move
 /// already reports the requested shrink, with the reading-start edge fixed, and
@@ -591,18 +591,18 @@ fn shrink_stops_at_content_minimum_width_anchored_edge_fixed() {
 /// still unset), and by the move frame the minimum is cached and
 /// `last_content_size` was freshly refreshed in `end`, so this frame would be
 /// green even without the active-resize gate in `Resize::end`. The gate's
-/// genuinely observable effects are pinned by the three siblings: T7
-/// (`window_edge_drag_requested_shrink_survives_a_final_sizing_pass`) drives
+/// genuinely observable effects are pinned by the three siblings:
+/// `window_edge_drag_requested_shrink_survives_a_final_sizing_pass` drives
 /// the window edge-drag path, where the consumed `requested_size` arrives from
 /// the previous frame and the first consuming frame is the sizing pass (there
 /// the stale `last_content_size` re-pins through the window render and the idle
 /// grow-to-content, not through the gated re-pin, which only runs for containers
-/// that show how large they are); T8
-/// (`sizing_pass_final_reports_the_requested_shrink_on_a_plain_resize`) drives a
+/// that show how large they are);
+/// `sizing_pass_final_reports_the_requested_shrink_on_a_plain_resize` drives a
 /// plain `Resize` whose sizing pass is the final pass, pinning that frame's
 /// render at the requested size (which the sizing-pass seed alone already
-/// guarantees there); and T9
-/// (`mid_drag_height_grows_live_to_the_content_measurement`) pins the drag
+/// guarantees there); and
+/// `mid_drag_height_grows_live_to_the_content_measurement` pins the drag
 /// frames themselves: the width stays at the request while the height grows
 /// live to the fresh measurement.
 /// A plain `Resize` with a width-filling separator is the smallest reproducible
@@ -710,7 +710,7 @@ fn first_drag_frame_reports_the_requested_shrink_even_without_a_second_pass() {
 
 // ---------------------------------------------------------------------------
 
-/// T7: the active-resize gate's observable sizing-pass effect, through the
+/// The active-resize gate's observable sizing-pass effect, through the
 /// window edge-drag path with the sizing pass as the final pass (`max_passes =
 /// 1`, as when the multi-pass budget is consumed by something else in a real
 /// frame): pressing a window resize corner and moving the pointer inward within
@@ -723,8 +723,8 @@ fn first_drag_frame_reports_the_requested_shrink_even_without_a_second_pass() {
 /// must keep the shrunk size instead of bouncing back to the pre-drag size.
 /// This test pins the sizing-pass seed in `Resize::end` (the stale measurement
 /// must not re-pin through the window render or the idle grow-to-content); the
-/// gated width re-pin is pinned by T9
-/// (`mid_drag_height_grows_live_to_the_content_measurement`).
+/// gated width re-pin is pinned by
+/// `mid_drag_height_grows_live_to_the_content_measurement`.
 #[test]
 fn window_edge_drag_requested_shrink_survives_a_final_sizing_pass() {
     const SCREEN: Vec2 = vec2(700.0, 500.0);
@@ -846,7 +846,7 @@ fn window_edge_drag_requested_shrink_survives_a_final_sizing_pass() {
 
 // ---------------------------------------------------------------------------
 
-/// T8: a plain `Resize` whose sizing pass is the final pass (`max_passes = 1`,
+/// A plain `Resize` whose sizing pass is the final pass (`max_passes = 1`,
 /// as when the multi-pass budget is consumed by something else in a real
 /// frame). Pressing the corner grip and moving the pointer within the same
 /// frame makes that very frame the sizing pass that consumes the shrunk
@@ -859,14 +859,16 @@ fn window_edge_drag_requested_shrink_survives_a_final_sizing_pass() {
 /// requested size before the size loop) makes the grow-only re-pin in `end` a
 /// no-op on this frame; while the drag stays in flight the active-resize gate
 /// keeps the width re-pin off on the later drag frames, where the fresh
-/// measurement can exceed the request — that gate is pinned by T9
-/// (`mid_drag_height_grows_live_to_the_content_measurement`). The shrunk size
+/// measurement can exceed the request — that gate is pinned by
+/// `mid_drag_height_grows_live_to_the_content_measurement`. The shrunk size
 /// must survive the release: the release frame re-applies the request (the
 /// corner response it reads is from the drag frame) and re-measures the
 /// content at the requested rect, so the idle grow-to-content in `begin` has
 /// no larger value to feed back.
-/// The corner-grip behavioral twin with a second pass is T6; the window
-/// edge-drag twin is T7.
+/// The corner-grip behavioral twin with a second pass is
+/// `first_drag_frame_reports_the_requested_shrink_even_without_a_second_pass`;
+/// the window edge-drag twin is
+/// `window_edge_drag_requested_shrink_survives_a_final_sizing_pass`.
 #[test]
 fn sizing_pass_final_reports_the_requested_shrink_on_a_plain_resize() {
     const SCREEN: Vec2 = vec2(400.0, 300.0);
@@ -989,13 +991,14 @@ fn sizing_pass_final_reports_the_requested_shrink_on_a_plain_resize() {
 const TALL_WRAPPED_TEXT: &str = "wrapped text grows taller as the container narrows, so \
 the fresh measurement on the drag frames exceeds the requested height";
 
-/// The T9 body: wrapped text whose measured height exceeds the settled height
-/// once the container is drag-narrowed.
+/// The wrapped-text body used by
+/// `mid_drag_height_grows_live_to_the_content_measurement`: its measured height
+/// exceeds the settled height once the container is drag-narrowed.
 fn outgrowing_wrapped_text(ui: &mut Ui) {
     ui.label(TALL_WRAPPED_TEXT.repeat(3));
 }
 
-/// T9: the container height grows live to the content's measurement while a
+/// The container height grows live to the content's measurement while a
 /// resize drag is in flight. Content that measures taller at the narrowed
 /// width — wrapped text that gets taller as the container narrows — must grow
 /// the rendered height on the drag frames themselves, with the reading-start
@@ -1004,7 +1007,7 @@ fn outgrowing_wrapped_text(ui: &mut Ui) {
 /// requested rect, so the drag-time grow-only re-pin of the height tracks what
 /// the content needs now; only the width re-pin stays gated off while the drag
 /// is in flight, so the user-driven width keeps exactly the requested size.
-/// With the height re-pin gated off too (the pre-issue-04 behavior), the
+/// With the height re-pin gated off too, the
 /// rendered height stayed at the request for the whole drag and the pending
 /// growth snapped in on release — that snap is the symptom pinned away here:
 /// the release and the idle frames must find the height already grown, and the
@@ -1153,22 +1156,23 @@ fn mid_drag_height_grows_live_to_the_content_measurement() {
 
 // ---------------------------------------------------------------------------
 
-/// The T9-guard body: empty space that fills up the offered rect (the "freely
+/// The guard body for `mid_drag_height_shrink_of_height_filling_content_survives`:
+/// empty space that fills up the offered rect (the "freely
 /// resized" demo shape), whose fresh measurement equals whatever height the
 /// container offers.
 fn height_filling_body(ui: &mut Ui) {
     ui.allocate_space(ui.available_size());
 }
 
-/// T9 guard for the user-driven height: content that fills the offered height
+/// Guard for the user-driven height: content that fills the offered height
 /// measures exactly the requested height on the drag frames, so the drag-time
 /// height re-pin is a no-op there — a diagonal shrink drag must shrink both
 /// the width and the height live, with the reading-start and top edges fixed,
 /// and the shrunk size must survive the release. This is the half of the
 /// active-resize trade the live height growth must not take away: the grow-only
 /// re-pin must never fight the user's shrink of adaptive content (the
-/// pre-issue-04 gate's capability, pinned here with the gate narrowed to the
-/// width only).
+/// active-resize gate's grow-only capability, pinned here with the gate
+/// narrowed to the width only).
 #[test]
 fn mid_drag_height_shrink_of_height_filling_content_survives() {
     const SCREEN: Vec2 = vec2(400.0, 500.0);
@@ -1292,7 +1296,7 @@ fn mid_drag_height_shrink_of_height_filling_content_survives() {
 
 // ---------------------------------------------------------------------------
 
-/// T10: a title-less RTL window hugs its right-anchored content: the settled
+/// A title-less RTL window hugs its right-anchored content: the settled
 /// width exceeds the row width by only the frame's margins and stroke insets,
 /// the reading-start (right) edge stays at its placed position from the first
 /// frame through the idle frames, the settled rect fits on screen, and the LTR
@@ -1362,7 +1366,7 @@ fn title_less_rtl_window_hugs_right_anchored_content_reading_end_slack_zero() {
 
 // ---------------------------------------------------------------------------
 
-/// T11: pixel-level pin that nothing paints in the reading-end gap of a
+/// Pixel-level pin that nothing paints in the reading-end gap of a
 /// title-less RTL window: on a settled frame, the leftmost painted content
 /// (the mirrored row's text, with the window frame's own background and
 /// shadow shapes excluded) starts within the frame's stroke inset of the
@@ -1411,7 +1415,7 @@ fn title_less_rtl_window_has_no_painted_content_at_the_reading_end_edge() {
 
 // ---------------------------------------------------------------------------
 
-/// T12: composition guard for a plain-label body: a plain `ui.label` mirrors
+/// Composition guard for a plain-label body: a plain `ui.label` mirrors
 /// with the body under RTL and right-hugs the reading-start edge, so the
 /// title-less RTL window hugs its content width, stable across idle frames,
 /// and the LTR twin contains the label likewise.

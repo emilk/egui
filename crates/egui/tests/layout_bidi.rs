@@ -60,7 +60,7 @@ fn assert_x_nondecreasing(glyphs: &[(char, f32, f32)]) {
     }
 }
 
-/// The rename-ar oracle: a first-strong RTL paragraph renders in visual order
+/// A first-strong RTL paragraph renders in visual order
 /// — the glyphs read left-to-right as `pdf . ٢٠٢٦ [space] [Arabic word]`,
 /// with the Arabic word's own glyphs running right-to-left.
 #[test]

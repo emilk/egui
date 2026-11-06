@@ -172,7 +172,7 @@ impl Harness {
 
 // ---------------------------------------------------------------------------
 
-/// M1: after the user drags the modal's resize grip by 50 points, the dialog
+/// After the user drags the modal's resize grip by 50 points, the dialog
 /// grows by exactly 50 points (pointer rate) with its reading-start edge fixed:
 /// under RTL the right edge, under LTR the left edge; the top edge does not
 /// move.
@@ -273,7 +273,7 @@ fn modal_grip_drag_keeps_reading_start_edge_fixed() {
     }
 }
 
-/// M2: while the grip drag is in flight (no release), each move frame grows the
+/// While the grip drag is in flight (no release), each move frame grows the
 /// dialog by exactly that frame's pointer delta, and the reported reading-start
 /// edge stays constant across the in-flight frames. Mid-drag the reported edge
 /// sits one frame's growth above its settled value (the new size is folded
@@ -326,7 +326,7 @@ fn modal_grip_drag_rate_is_pointer_rate_mid_drag() {
     }
 }
 
-/// M3: the pin persists after the drag. On release the settled rect is stable
+/// The pin persists after the drag. On release the settled rect is stable
 /// across idle frames (no recentering jump), and a second drag from the new
 /// grip position keeps the same reading-start edge fixed at pointer rate — the
 /// frozen placement size never re-freezes, so the pin stays on the original
@@ -377,10 +377,10 @@ fn modal_stays_put_after_release_and_second_drag() {
     }
 }
 
-/// M4: a vertical grip drag pins the top edge in both directions (the y axis is
+/// A vertical grip drag pins the top edge in both directions (the y axis is
 /// direction-neutral): the dialog grows downward from the pinned top edge at
-/// pointer rate. At base the height doubled (+90 per 50-point drag) and the top
-/// edge ran away upward (−45).
+/// pointer rate. The regression this guards is the height doubling (+90 per
+/// 50-point drag) and the top edge running away upward (−45).
 #[test]
 fn modal_vertical_grip_drag_pins_top_edge() {
     const DRAG: f32 = 50.0;
@@ -421,9 +421,9 @@ fn modal_vertical_grip_drag_pins_top_edge() {
     }
 }
 
-/// M5: without a user resize the modal stays centered — content growth
+/// Without a user resize the modal stays centered — content growth
 /// re-centers it around the screen center, with both edges moving. This guards
-/// the unpinned path (byte-identical to the pre-fix behavior) and that the pin
+/// the unpinned path (its behavior is unchanged) and that the pin
 /// never engages without a drag.
 #[test]
 fn modal_without_drag_stays_centered() {

@@ -155,7 +155,7 @@ fn show_header_triangle(ctx: &Context, size: Vec2, time: f64) -> TriangleUi {
 
 // ---------------------------------------------------------------------------
 
-/// A1: the flag is settable and readable, on both theme branches, survives a
+/// The flag is settable and readable, on both theme branches, survives a
 /// `set_theme` round-trip, and defaults to `false`.
 #[test]
 fn flag_is_settable_on_both_theme_branches() {
@@ -206,7 +206,7 @@ fn flag_is_settable_on_both_theme_branches() {
     }
 }
 
-/// A2: a nested `ui.horizontal` inside a vertical `Align::Min` body mirrors under RTL
+/// A nested `ui.horizontal` inside a vertical `Align::Min` body mirrors under RTL
 /// (its first widget is placed at the row's right edge), and stays left-anchored under LTR.
 #[test]
 fn nested_rows_mirror_in_vertical_bodies() {
@@ -246,7 +246,7 @@ fn nested_rows_mirror_in_vertical_bodies() {
     );
 }
 
-/// A4: the checkbox and radio icons swap to the reading-start (right) side under RTL,
+/// The checkbox and radio icons swap to the reading-start (right) side under RTL,
 /// verified through the painted shapes.
 #[test]
 fn checkbox_and_radio_icons_swap_sides() {
@@ -339,7 +339,7 @@ fn checkbox_and_radio_icons_swap_sides() {
     );
 }
 
-/// A3: the collapsing-header disclosure icon sits at the reading-start edge of the
+/// The collapsing-header disclosure icon sits at the reading-start edge of the
 /// header row under RTL (left edge under LTR), and toggling still opens the body.
 #[test]
 fn collapsing_header_icon_sits_at_reading_start_edge() {
@@ -403,7 +403,7 @@ fn collapsing_header_icon_sits_at_reading_start_edge() {
     );
 }
 
-/// A3: the closed disclosure triangle points at the reading start (left under RTL,
+/// The closed disclosure triangle points at the reading start (left under RTL,
 /// right under LTR) and the fully-open triangle points down in both directions.
 /// This pins the mirrored `closed_rotation` sweep of `paint_default_icon`.
 #[test]
@@ -464,7 +464,7 @@ fn triangle_apex_points_reading_start_when_closed() {
     }
 }
 
-/// A7: the sizing pass measures a cross-`Align::Max` body anchored on the reading-start
+/// The sizing pass measures a cross-`Align::Max` body anchored on the reading-start
 /// edge: `min_rect()` hugs the offered rect's reading-start edge (left under LTR; under
 /// RTL the mirrored body anchors on the right edge), the measured span is
 /// offered-width-independent, and it equals the measurement of an explicit
@@ -536,7 +536,7 @@ fn sizing_pass_measures_from_reading_start_edge() {
     );
 }
 
-/// A8: the `Resize` container anchors on the reading-start edge under RTL
+/// The `Resize` container anchors on the reading-start edge under RTL
 /// (grip in the bottom-left corner, drags along the reading direction grow the rect,
 /// the fixed reading-start edge stays put), and the `min_content_width` floor is
 /// direction-independent.
@@ -684,7 +684,7 @@ fn resize_container_anchors_on_reading_start_edge() {
         rtl_dragged.container
     );
 
-    // A7 guard: over-shrinking clamps to the same content floor in both directions.
+    // Guard: over-shrinking clamps to the same content floor in both directions.
     // LTR: drag far left; RTL: drag far right (the shrinking directions).
     let ltr_min = drag(false, vec2(-500.0, 0.0));
     let rtl_min = drag(true, vec2(500.0, 0.0));

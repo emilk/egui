@@ -97,7 +97,7 @@ fn line_segments(output: &FullOutput) -> Vec<[Pos2; 2]> {
 
 // ---------------------------------------------------------------------------
 
-/// A2: a `Button::new("Open").shortcut_text("Ctrl+O")` inside a right-to-left layout
+/// A `Button::new("Open").shortcut_text("Ctrl+O")` inside a right-to-left layout
 /// paints the shortcut LEFT of the label; in the default layout it stays RIGHT of the
 /// label. LTR pixels are unchanged.
 #[test]
@@ -134,7 +134,7 @@ fn button_atoms_follow_the_layout_direction() {
     }
 }
 
-/// A2 (flag case): with [`egui::Context::set_right_to_left`], the atoms of a button in a
+/// With [`egui::Context::set_right_to_left`], the atoms of a button in a
 /// `ui.horizontal` row mirror the way the row itself mirrors; with the flag off the
 /// shortcut stays right of the label.
 #[test]
@@ -170,7 +170,7 @@ fn button_shortcut_follows_the_interface_flag() {
     }
 }
 
-/// A4: `left_text`/`right_text` extras keep their logical reading order and swap
+/// `left_text`/`right_text` extras keep their logical reading order and swap
 /// physical sides under RTL (`right_text` lands at the physical left, `left_text` at
 /// the physical right); the LTR counterparts mirror them.
 #[test]
@@ -282,7 +282,7 @@ fn button_left_text_lands_on_the_physical_right_under_rtl() {
     }
 }
 
-/// A3: an explicit `Button::direction` wins over the layout default, in both directions.
+/// An explicit `Button::direction` wins over the layout default, in both directions.
 #[test]
 fn explicit_direction_overrides_the_layout() {
     // Forced LTR inside a right-to-left layout keeps today's physical order
@@ -335,7 +335,7 @@ fn explicit_direction_overrides_the_layout() {
     );
 }
 
-/// A5: a button inside a vertical `Align::Max` body (which
+/// A button inside a vertical `Align::Max` body (which
 /// `Layout::prefer_right_to_left` reports as right-to-left, and inside which
 /// `ui.horizontal` already mirrors) mirrors its atoms too; a vertical `Align::Min`
 /// body stays left-to-right with the flag off.
@@ -370,7 +370,7 @@ fn vertical_max_body_mirrors_atoms() {
     }
 }
 
-/// A6: a checkbox/radio inside an explicit right-to-left row has its icon on the
+/// A checkbox/radio inside an explicit right-to-left row has its icon on the
 /// reading-start (right) side with the flag off AND with the flag on (the container
 /// mirrors exactly once); a left-to-right row keeps the icon on the left in both flag
 /// states.
@@ -460,7 +460,7 @@ fn checkbox_and_radio_icons_stay_reading_start_in_rtl_rows() {
     }
 }
 
-/// A7: with the interface flag on, the window close button stays at the top-left and
+/// With the interface flag on, the window close button stays at the top-left and
 /// the title-bar carve stays live: the title bar mirrors its atom list itself, so the
 /// container must not mirror it a second time. The LTR counterpart keeps the close
 /// button at the top-right.

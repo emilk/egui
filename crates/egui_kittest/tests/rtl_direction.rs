@@ -54,7 +54,7 @@ fn window_app(ui: &mut egui::Ui, open: &mut bool) {
         });
 }
 
-/// A5: the window close button sits at the reading end's mirror
+/// The window close button sits at the reading end's mirror
 /// (top-left under RTL, top-right under LTR), and clicking it closes the window.
 #[test]
 fn window_close_button_side_follows_direction() {
@@ -80,7 +80,7 @@ fn window_close_button_side_follows_direction() {
     }
 }
 
-/// A5 (Round 1 fix #1): the title-bar hit-test carve is mirrored together with the
+/// The title-bar hit-test carve is mirrored together with the
 /// atom order, so the title band between the buttons stays interactive in both
 /// directions: double-clicking it still toggles collapse.
 #[test]
@@ -115,7 +115,7 @@ fn window_title_bar_stays_interactive() {
     }
 }
 
-/// A5/A7 (Round 1 fix #6b): at the window's default and minimum size, the first body
+/// At the window's default and minimum size, the first body
 /// widget does not overlap the title bar under RTL (nor under LTR).
 #[test]
 fn window_content_does_not_overlap_title_at_default_size() {
@@ -159,7 +159,7 @@ fn window_content_does_not_overlap_title_at_default_size() {
     }
 }
 
-/// A6: a submenu opens on the reading-end side under RTL (its first item sits to the
+/// A submenu opens on the reading-end side under RTL (its first item sits to the
 /// LEFT of the submenu button) and on the right under LTR. The buttons are centred so
 /// that both reading-end sides have room on screen.
 #[test]
@@ -191,7 +191,7 @@ fn submenu_opens_reading_end_first() {
     }
 }
 
-/// A3: with the window collapse triangle mirrored, the body still opens and closes
+/// With the window collapse triangle mirrored, the body still opens and closes
 /// under RTL (via the "Hide"/"Show" accessibility button).
 #[test]
 fn collapse_triangle_toggle_opens_and_closes_under_rtl() {

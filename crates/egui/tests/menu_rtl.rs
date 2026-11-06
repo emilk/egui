@@ -82,7 +82,7 @@ fn shown_menu_popup(rtl: bool, body: &mut dyn FnMut(&mut Ui)) -> (Rect, Rect) {
 
 // ---------------------------------------------------------------------------
 
-/// A5.1: inside a `Popup::menu` body, a nested `ui.horizontal` row reads
+/// Inside a `Popup::menu` body, a nested `ui.horizontal` row reads
 /// right-to-left under RTL (the second member sits to the LEFT of the first) and
 /// left-to-right under LTR.
 #[test]
@@ -129,7 +129,7 @@ fn menu_popup_body_mirrors_rows_under_rtl() {
     );
 }
 
-/// A5.3: a `Popup::menu` opens below its anchor, hanging from the anchor's
+/// A `Popup::menu` opens below its anchor, hanging from the anchor's
 /// reading-end edge ([`egui::RectAlign::BOTTOM_END`] under RTL, `BOTTOM_START`
 /// under LTR).
 #[test]
@@ -166,7 +166,7 @@ fn menu_popup_opens_at_reading_end_under_rtl() {
     );
 }
 
-/// A5.3: a submenu opens on the reading-direction side of its parent row
+/// A submenu opens on the reading-direction side of its parent row
 /// (to the LEFT under RTL, to the RIGHT under LTR). The "Top" button is placed
 /// mid-screen with `ui.vertical_centered` so that both reading-end sides have room
 /// on screen; that placement is direction-invariant (physical placement mirrors
@@ -286,7 +286,7 @@ fn submenu_opens_on_reading_direction_side_under_rtl() {
     );
 }
 
-/// A5.4: a submenu whose rows are drawn inside a vertical `ScrollArea` (how apps
+/// A submenu whose rows are drawn inside a vertical `ScrollArea` (how apps
 /// bound tall menus to the window) still opens on the reading-direction side of
 /// its row and hugs its content width. The scroll area must place and measure
 /// itself from the layout cursor on its non-scrolling cross axis: right-anchoring
@@ -460,7 +460,7 @@ fn context_menu_rect(rtl: bool, pointer: Pos2) -> Rect {
     popup_area_rect(&ctx, popup_id)
 }
 
-/// A5.3: a context menu grows from the pointer in the reading direction (to the
+/// A context menu grows from the pointer in the reading direction (to the
 /// LEFT under RTL, to the RIGHT under LTR), hanging below the pointer. Each
 /// direction gets an interior anchor with room on its reading side, so the
 /// default align is used unflipped (a shared anchor near the screen edge would
@@ -492,7 +492,7 @@ fn context_menu_grows_leftward_from_pointer_under_rtl() {
     );
 }
 
-/// A5.2: the menu popup's justified width is the rows' natural width, not the
+/// The menu popup's justified width is the rows' natural width, not the
 /// offered area width (600x400 by default), in both directions — and identical
 /// rows measure to the same width in both. This fails if anyone reintroduces
 /// reading-end-anchored sizing on the sizing pass.
@@ -523,7 +523,7 @@ fn menu_popup_sizing_pass_measures_natural_width_under_rtl() {
     );
 }
 
-/// A5.3/A20.3: near the reading-start screen edge the default side does not fit,
+/// Near the reading-start screen edge the default side does not fit,
 /// so the best-align fallback flips the popup to grow towards the reading end;
 /// either way the whole popup stays inside the screen, in both directions.
 #[test]

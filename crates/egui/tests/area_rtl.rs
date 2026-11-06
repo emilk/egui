@@ -69,7 +69,7 @@ fn growing_area_rects(rtl: bool, root: Pos2) -> [Rect; 2] {
     rects.map(|rect| rect.expect("every recorded frame should have run"))
 }
 
-/// T1: under RTL the raw area is rooted at its reading-start (right) edge and
+/// Under RTL the raw area is rooted at its reading-start (right) edge and
 /// widens leftward when its content grows.
 #[test]
 fn rtl_default_area_widens_leftward_from_the_reading_start_edge() {
@@ -89,8 +89,8 @@ fn rtl_default_area_widens_leftward_from_the_reading_start_edge() {
     );
 }
 
-/// T1 twin: under LTR the raw area keeps its left edge pinned and widens
-/// rightward, byte-identical to the pre-mirror behavior.
+/// LTR twin: under LTR the raw area keeps its left edge pinned and widens
+/// rightward — unchanged by the direction mirror.
 #[test]
 fn ltr_default_area_widens_rightward_from_the_left_edge() {
     let root = pos2(500.0, 100.0);
@@ -131,7 +131,7 @@ fn explicit_pivot_rects(rtl: bool, pivot: Align2, root: Pos2) -> [Rect; 2] {
     rects.map(|rect| rect.expect("every recorded frame should have run"))
 }
 
-/// T2: an explicitly set pivot wins over the direction mirror in both
+/// An explicitly set pivot wins over the direction mirror in both
 /// directions. In particular, an explicit `LEFT_TOP` under RTL is honored —
 /// popup screen-edge fallbacks rely on being able to pin the left edge.
 #[test]
@@ -181,7 +181,7 @@ fn popup_rect(rtl: bool, button: Rect) -> Rect {
         .expect("the popup should be shown")
 }
 
-/// T3: a popup keeps its direction-aware placement — hanging below the anchor,
+/// A popup keeps its direction-aware placement — hanging below the anchor,
 /// at its reading-start edge, in both directions.
 #[test]
 fn popup_placement_is_drift_free_in_both_directions() {
@@ -241,7 +241,7 @@ fn menu_rect(rtl: bool, button: Rect) -> Rect {
         .expect("the menu should be shown")
 }
 
-/// T3: a menu keeps its direction-aware placement — hanging below the button,
+/// A menu keeps its direction-aware placement — hanging below the button,
 /// at its reading-start edge, in both directions.
 #[test]
 fn menu_placement_is_drift_free_in_both_directions() {
@@ -291,7 +291,7 @@ fn window_rects(rtl: bool, root: Pos2) -> [Rect; 3] {
     rects
 }
 
-/// T3: a window is drift-free frame over frame in both directions, rooted at
+/// A window is drift-free frame over frame in both directions, rooted at
 /// its reading-start edge under RTL and at its left edge under LTR.
 #[test]
 fn window_placement_is_drift_free_in_both_directions() {
@@ -320,7 +320,7 @@ fn window_placement_is_drift_free_in_both_directions() {
     let _ = first;
 }
 
-/// T4: two simultaneously-visible raw areas cascade without overlapping, and
+/// Two simultaneously-visible raw areas cascade without overlapping, and
 /// the second one aligns with the first one's reading-start edge.
 #[test]
 fn two_automatic_areas_cascade_without_overlap_in_both_directions() {

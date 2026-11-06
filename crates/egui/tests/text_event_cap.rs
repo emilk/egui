@@ -3,11 +3,11 @@
 //! laid out.
 //!
 //! Driven headlessly (no windowing backend, no snapshot/render assertions):
-//! A1 every text-carrying event carried into a pass is cut to the cap, at a character
-//! boundary, before any widget sees it; A2 an IME preedit range past the cut is
-//! dropped; A3 short text and non-text events pass through untouched; A4 an explicit
+//! every text-carrying event carried into a pass is cut to the cap, at a character
+//! boundary, before any widget sees it; an IME preedit range past the cut is
+//! dropped; short text and non-text events pass through untouched; an explicit
 //! `char_limit` finishes the frame with a bounded value and never lays out more;
-//! A5 the default `char_limit` is the event cap — both on a pasted event (already
+//! the default `char_limit` is the event cap — both on a pasted event (already
 //! cut in `begin_pass`) and on the accesskit `SetValue` path, which the begin-pass
 //! cap deliberately leaves uncapped, so there the field's own default limit is the
 //! only bound.
@@ -66,7 +66,7 @@ fn run_edit(
     output
 }
 
-/// A1, A2: every text-carrying event entering a pass is cut to exactly the cap
+/// Every text-carrying event entering a pass is cut to exactly the cap
 /// (at a character boundary: the test string is multi-byte, so a byte-boundary
 /// truncation would panic); the preedit range past the cut is dropped; short
 /// text and non-text events pass through untouched.
@@ -107,7 +107,7 @@ fn oversized_text_events_are_capped_on_begin_pass() {
         assert_eq!(text.chars().count(), MAX, "{e:?}");
     }
 
-    // A2: the highlighted range indexes the pre-truncation text; past the cut
+    // The highlighted range indexes the pre-truncation text; past the cut
     // it would point nowhere, so it is dropped.
     assert!(
         matches!(
@@ -120,12 +120,12 @@ fn oversized_text_events_are_capped_on_begin_pass() {
         "the preedit range past the cut is dropped"
     );
 
-    // A3: short text and non-text events pass through untouched.
+    // Short text and non-text events pass through untouched.
     assert_eq!(events[5], Event::Text("ok".into()));
     assert_eq!(events[6], Event::Copy);
 }
 
-/// A3: a pass carrying only short text and non-text events stores them
+/// A pass carrying only short text and non-text events stores them
 /// byte-identically — the cap changes nothing about legitimate input.
 #[test]
 fn short_text_and_non_text_events_pass_through() {
@@ -139,7 +139,7 @@ fn short_text_and_non_text_events_pass_through() {
     ctx.input(|i| assert_eq!(i.events, events_in));
 }
 
-/// A4: an oversized paste into a `char_limit(6)` field finishes the frame with a
+/// An oversized paste into a `char_limit(6)` field finishes the frame with a
 /// 6-char value, and the layouter never saw more than 6 characters — the layout
 /// cost of the untrimmed text is never paid (trim happens before layout).
 #[test]
@@ -172,7 +172,7 @@ fn text_edit_applies_char_limit_before_layout() {
     );
 }
 
-/// A5: with no explicit limit, `char_limit` defaults to the event cap, so a paste
+/// With no explicit limit, `char_limit` defaults to the event cap, so a paste
 /// larger than the cap leaves at most `MAX_TEXT_EVENT_CHARS` characters in the
 /// field, and the layouter never saw more.
 #[test]
@@ -203,7 +203,7 @@ fn char_limit_defaults_to_the_event_cap() {
     );
 }
 
-/// A5, mechanism: with no explicit limit, the field's default `char_limit` — not the
+/// Mechanism: with no explicit limit, the field's default `char_limit` — not the
 /// begin-pass cap — is what bounds an oversized insert on the one text path
 /// `cap_text_events` deliberately skips: an accesskit `SetValue` request
 /// ([`Event::AccessKitActionRequest`] with [`accesskit::ActionData::Value`]; assistive

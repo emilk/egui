@@ -67,7 +67,7 @@ fn context_menu_rect(right_to_left: bool, anchor: Pos2) -> Rect {
         .expect("the context menu should be shown")
 }
 
-/// A20.1: the default anchor mirrors with the interface direction — the popup's
+/// The default anchor mirrors with the interface direction — the popup's
 /// reading-start edge sits at the pointer (its right edge under RTL, its left
 /// edge under LTR) and it hangs below the pointer in both directions.
 #[test]
@@ -95,7 +95,7 @@ fn context_menu_anchor_side_flips_with_direction() {
     );
 }
 
-/// A20.3: near the reading-start screen edge the default side does not fit, so
+/// Near the reading-start screen edge the default side does not fit, so
 /// the best-align fallback flips to the other side; either way the whole popup
 /// stays inside the screen, in both directions.
 #[test]

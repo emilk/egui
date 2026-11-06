@@ -263,10 +263,10 @@ fn assert_near(actual: f32, expected: f32, tolerance: f32, message: &str) {
 
 // ---------------------------------------------------------------------------
 
-/// A1: under RTL a horizontal `ScrollArea` anchors its content at the viewport's
+/// Under RTL a horizontal `ScrollArea` anchors its content at the viewport's
 /// right edge at offset 0, and after scrolling to `max_offset` the trailing
 /// (leftmost in screen space, last in reading order) button is reachable —
-/// unreachable before the fix. LTR counterpart in the same test.
+/// previously unreachable. LTR counterpart in the same test.
 #[test]
 fn horizontal_content_reaches_its_trailing_end() {
     fn case(rtl: bool) {
@@ -321,7 +321,7 @@ fn horizontal_content_reaches_its_trailing_end() {
     case(false);
 }
 
-/// A1: at offset 0 the first button hugs the reading-start edge — the right edge
+/// At offset 0 the first button hugs the reading-start edge — the right edge
 /// of the viewport under RTL, the left edge under LTR.
 #[test]
 fn horizontal_starts_at_the_reading_start_edge() {
@@ -365,7 +365,7 @@ fn horizontal_starts_at_the_reading_start_edge() {
     case(false);
 }
 
-/// A2: `Ui::scroll_to_rect` reveals a target widget under both directions, and
+/// `Ui::scroll_to_rect` reveals a target widget under both directions, and
 /// `Align::LEFT` aligns with the reading direction: right edges under RTL, left
 /// edges under LTR. (The minimal-reveal variant targets the trailing button; the
 /// align variant targets a middle button, since aligning the trailing button's
@@ -443,7 +443,7 @@ fn scroll_to_rect_brings_the_trailing_widget_into_view() {
     }
 }
 
-/// A2: a pointer drag moves the content with the finger in both directions:
+/// A pointer drag moves the content with the finger in both directions:
 /// a rightward gesture moves the first button right by the drag amount.
 #[test]
 fn drag_follows_the_finger() {
@@ -576,7 +576,7 @@ fn drag_follows_the_finger() {
     case(false);
 }
 
-/// A2: `MouseWheel` and `Ui::scroll_with_delta` follow the content-movement
+/// `MouseWheel` and `Ui::scroll_with_delta` follow the content-movement
 /// convention in both directions: a content-right delta of 30 moves the first
 /// button right by 30.
 #[test]
@@ -715,7 +715,7 @@ enum Variant {
     ScrollWithDelta,
 }
 
-/// A3: with a space-reserving (solid) style the vertical scroll bar and its
+/// With a space-reserving (solid) style the vertical scroll bar and its
 /// reserved space sit on the reading-end edge — left under RTL, right under
 /// LTR — and the content clip rect matches the viewport on x in both
 /// directions (the bar strip is cropped from the correct side).
@@ -817,7 +817,7 @@ fn vertical_scroll_bar_is_on_the_reading_end_edge() {
     case(false, true);
 }
 
-/// A3: `ScrollArea::scroll_bar_rect` overrides stay absolute along the scrolling
+/// `ScrollArea::scroll_bar_rect` overrides stay absolute along the scrolling
 /// axis under RTL, and a horizontal bar's handle travel stays within the override.
 #[test]
 fn scroll_bar_rect_override_still_wins() {
@@ -902,7 +902,7 @@ fn scroll_bar_rect_override_still_wins() {
     }
 }
 
-/// A5: under RTL the horizontal handle at offset 0 sits at the bar's right end,
+/// Under RTL the horizontal handle at offset 0 sits at the bar's right end,
 /// and dragging it toward the reading end (left) increases the offset; mirrored
 /// under LTR.
 #[test]
@@ -1033,7 +1033,7 @@ fn handle_drag_and_position_mirror() {
     case(false);
 }
 
-/// A4: flipping the direction flag between frames preserves the reading position:
+/// Flipping the direction flag between frames preserves the reading position:
 /// the same builder offset reveals the same middle button under both directions,
 /// and the offset stays within `0..=max_offset`.
 #[test]
@@ -1116,7 +1116,7 @@ fn direction_flip_preserves_the_reading_position() {
     );
 }
 
-/// A6: the horizontal fades appear on the side that actually hides content:
+/// The horizontal fades appear on the side that actually hides content:
 /// under RTL the left fade shows from offset 0 and the right fade once the
 /// reading start has been scrolled past; mirrored under LTR.
 #[test]
@@ -1205,17 +1205,17 @@ fn horizontal_fades_mirror() {
     case(false);
 }
 
-/// A7: flipping the direction flag between frames keeps the persisted offset
+/// Flipping the direction flag between frames keeps the persisted offset
 /// reading-relative: a NON-center offset stored under one direction reads back
 /// unchanged after a flip with no builder offset (so `State::load` serves the
 /// persisted offset instead of it being clobbered), and the same reading-relative
 /// span of buttons stays visible. A load-time remap (`x -> max_offset.x - x`)
 /// would teleport the viewport to the opposite end; this pins that none exists.
 ///
-/// The assertions describe today's behavior BY DESIGN: there is no fail-before,
-/// this pin guards the refuted deep finding that claimed the persisted offset
-/// flips meaning at a runtime direction toggle. The ltr twin is the flip back
-/// to ltr, asserted in the same test.
+/// The assertions describe today's behavior by design: they pin that a runtime
+/// direction toggle does not flip the persisted offset's meaning — the reading-
+/// relative interpretation holds in both directions, and the ltr twin is the
+/// flip back to ltr, asserted in the same test.
 #[test]
 fn direction_flip_keeps_a_non_center_offset_reading_relative() {
     fn nearest_button_index(buttons: &[Rect], x: f32) -> usize {
@@ -1402,7 +1402,7 @@ fn narrow_column_pass(
     output
 }
 
-/// A8: the residuals the NOTE next to `rtl_x` used to document as unresolved,
+/// The residuals the NOTE next to `rtl_x` used to document as unresolved,
 /// settled by measurement (they are healed): with `auto_shrink` enabled, a
 /// vertical-only area reserves a content-hugging span in a measuring parent,
 /// anchored at the reading start under rtl exactly like under ltr, with and
@@ -1493,7 +1493,7 @@ fn vertical_auto_shrink_hugs_the_content_width_in_both_directions() {
     case(false);
 }
 
-/// A9: no direction asymmetry in the auto-shrunk vertical window: the reserved
+/// No direction asymmetry in the auto-shrunk vertical window: the reserved
 /// span's width is the same under rtl and ltr, with and without the bar.
 #[test]
 fn vertical_auto_shrink_window_width_is_direction_symmetric() {

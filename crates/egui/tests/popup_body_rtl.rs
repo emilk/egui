@@ -5,8 +5,8 @@
 //! This pins the canonicalization contract ([`egui::Context::set_right_to_left`]
 //! flips a vertical layout's cross align, so the default
 //! `top_down(Align::Min)` body already mirrored); the explicit flag-derived
-//! default in [`egui::Popup::new`] is behavior-preserving by design. There is no
-//! fail-before: the assertions describe today's behavior, guarding it.
+//! default in [`egui::Popup::new`] is behavior-preserving by design: the
+//! assertions describe today's behavior, guarding it.
 //!
 //! Covered: the plain [`egui::PopupKind::Popup`] path ([`egui::Popup::new`]) and
 //! the [`Tooltip`] path ([`egui::PopupKind::Tooltip`], the other [`egui::Popup`]

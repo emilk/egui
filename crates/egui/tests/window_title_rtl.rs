@@ -443,15 +443,15 @@ fn carves(rtl: bool) {
     assert!(!open, "the close button should close the window");
 }
 
-/// task-462 `window-title-growth` pin: an auto-sized window with a long
+/// An auto-sized window with a long
 /// single-text title over a narrow fixed body grows to fit the FULL title in
 /// BOTH directions — the auto-size loop's title-bar `min_width` feedback
 /// converges identically, and the `!auto_sized` shrink gate at the title-bar
-/// atom construction does not apply to auto-sized windows (measured symmetric
-/// at this commit; both directions settle at the full title width). This pins
+/// atom construction does not apply to auto-sized windows (both directions
+/// settle at the full title width). This pins
 /// the shared contract so any future direction asymmetry (one direction
 /// growing, the other truncating to the body) fails here loudly. Passes by
-/// design — a pin, not a fail-before.
+/// design — a behavioral pin, not a regression probe.
 ///
 /// The growth is asserted against a short-title window settled in the same run
 /// (the body-driven baseline) instead of an absolute pixel threshold: the
