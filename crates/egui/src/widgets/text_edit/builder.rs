@@ -1837,7 +1837,7 @@ fn check_for_mutating_key_press(
             } else if let Some(cursor) = cursor_range.single() {
                 if modifiers.alt || modifiers.ctrl {
                     // alt on mac, ctrl on windows
-                    text.delete_previous_word(cursor)
+                    text.delete_previous_word(galley, cursor)
                 } else {
                     text.delete_previous_char(cursor)
                 }
@@ -1853,7 +1853,7 @@ fn check_for_mutating_key_press(
             } else if let Some(cursor) = cursor_range.single() {
                 if modifiers.alt || modifiers.ctrl {
                     // alt on mac, ctrl on windows
-                    text.delete_next_word(cursor)
+                    text.delete_next_word(galley, cursor)
                 } else {
                     text.delete_next_char(cursor)
                 }
@@ -1884,7 +1884,7 @@ fn check_for_mutating_key_press(
 
         Key::W if modifiers.ctrl => {
             let ccursor = if let Some(cursor) = cursor_range.single() {
-                text.delete_previous_word(cursor)
+                text.delete_previous_word(galley, cursor)
             } else {
                 text.delete_selected(cursor_range)
             };

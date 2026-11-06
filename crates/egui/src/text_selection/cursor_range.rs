@@ -2,7 +2,7 @@ use epaint::{Galley, text::CharIndex, text::cursor::CCursor};
 
 use crate::{Event, Id, Key, Modifiers, os::OperatingSystem};
 
-use super::text_cursor_state::{ccursor_next_word, ccursor_previous_word, slice_char_range};
+use super::text_cursor_state::{slice_char_range, visual_word_cursor};
 
 /// A selected text range (could be a range of length zero).
 ///
@@ -314,7 +314,7 @@ fn move_single_cursor(
                 Key::ArrowLeft => {
                     if modifiers.alt || modifiers.ctrl {
                         // alt on mac, ctrl on windows
-                        (ccursor_previous_word(galley, *cursor), None)
+                        (visual_word_cursor(galley, cursor, true), None)
                     } else if modifiers.mac_cmd {
                         (galley.cursor_begin_of_row(cursor), None)
                     } else {
@@ -324,7 +324,7 @@ fn move_single_cursor(
                 Key::ArrowRight => {
                     if modifiers.alt || modifiers.ctrl {
                         // alt on mac, ctrl on windows
-                        (ccursor_next_word(galley, *cursor), None)
+                        (visual_word_cursor(galley, cursor, false), None)
                     } else if modifiers.mac_cmd {
                         (galley.cursor_end_of_row(cursor), None)
                     } else {
