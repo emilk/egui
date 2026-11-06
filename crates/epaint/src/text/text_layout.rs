@@ -187,15 +187,23 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
         };
     }
 
-    // For most of this we ignore the y coordinate:
-
-    // Word boundaries for scripts written without spaces. Engaged only when
-    // someone can use them: a custom breaker is installed, or the bundled
-    // dictionary is compiled in and the text may contain Southeast-Asian
-    // characters — and the text can actually wrap (`line_break` is only
-    // called for overflowing paragraphs).
-    let track_cluster_bytes = job.effective_wrap_width().is_finite()
-        && (job.wrap.line_breaker.is_some() || may_have_sea_text(&job.text));
+    // Per-glyph cluster byte offsets serve two independent consumers, each
+    // with its own engagement condition (both only matter when the job can
+    // actually wrap — `line_break` and `line_break_logically` are only
+    // called for overflowing paragraphs):
+    // - the logical wrap path (`line_break_logically`) needs them for
+    //   cluster-exact row byte ranges whenever the text can record
+    //   directional runs (see `text_may_record_bidi_runs`);
+    // - the breaker consult (`word_ranges`) only when someone can use the
+    //   breaker: a custom breaker is installed, or the bundled dictionary is
+    //   compiled in and the text may contain Southeast-Asian characters.
+    //   That condition must stay exactly as it is: widening it would consult
+    //   breakers on jobs they were never engaged for, changing break
+    //   candidates.
+    let wrap_finite = job.effective_wrap_width().is_finite();
+    let may_consult_breaker = job.wrap.line_breaker.is_some() || may_have_sea_text(&job.text);
+    let track_cluster_bytes =
+        wrap_finite && (may_consult_breaker || text_may_record_bidi_runs(&job.text));
 
     let paragraphs = shape_paragraphs(fonts, pixels_per_point, &job, track_cluster_bytes);
 
@@ -204,7 +212,9 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
     let intrinsic_size = calculate_intrinsic_size(point_scale, &job, &paragraphs);
 
     // Consulted with the full job text; ranges are byte offsets into it.
-    let word_ranges = if track_cluster_bytes {
+    // Gated on the breaker condition only — NOT on the wider cluster
+    // tracking — so the breaker's reach is unchanged.
+    let word_ranges = if wrap_finite && may_consult_breaker {
         let breaker = job
             .wrap
             .line_breaker
@@ -268,6 +278,34 @@ fn may_have_sea_text(text: &str) -> bool {
         let _ = text;
         false
     }
+}
+
+/// Cheap pre-filter for the logical wrap path's cluster tracking: whether the
+/// text contains any character that can make a segment record a directional
+/// run ([`RecordedBidiRun`]) — a right-to-left character (the two blocks
+/// below cover the R/AL/AN bidi classes), or a mark that can split a segment
+/// into multiple runs (the RLM, the isolates, and the explicit
+/// embedding/override marks — `RLE`/`RLO` force a right-to-left run even in
+/// a left-to-right-base paragraph).
+///
+/// A single pass, same style as [`may_have_sea_text`]. This is deliberately
+/// the common-case subset: a false negative (a rare modern RTL block the
+/// scan misses — Adlam, Old Hungarian, Manichaean, Hanifi Rohingya, Yezidi)
+/// degrades gracefully — such a paragraph wraps via the `Σ chr.len_utf8()`
+/// attribution fallback and `place_row`'s guard, never a panic — and
+/// extending the list is a one-line change with no safety impact.
+fn text_may_record_bidi_runs(text: &str) -> bool {
+    text.chars().any(|c| {
+        matches!(
+            c,
+            '\u{0590}'..='\u{08FF}'   // Hebrew, Arabic, Syriac, Thaana, N'Ko, Samaritan, …
+            | '\u{200F}'              // RLM: right-to-left mark
+            | '\u{202A}'..='\u{202E}' // LRE/RLE/PDF/LRO/RLO: embeddings and overrides
+            | '\u{2066}'..='\u{2069}' // LRI/RLI/FSI/PDI: isolates
+            | '\u{FB1D}'..='\u{FDFF}' // Hebrew presentation forms
+            | '\u{FE70}'..='\u{FEFC}' // Arabic presentation forms
+        )
+    })
 }
 
 /// Shape the job's sections into [`Paragraph`]s (one per newline-split
@@ -6614,6 +6652,37 @@ mod tests {
         );
         for glyphs in visible_glyphs_per_row(&galley) {
             assert_x_nondecreasing(&glyphs);
+        }
+    }
+
+    // --- egui-bidi-oob-panic scope tests (splice marker for red-at-base overlays) ---
+
+    /// The tracking predicate recognizes exactly the characters that can
+    /// make a segment record a directional run: the right-to-left blocks
+    /// and the RLM/isolate/embedding marks — and nothing in plain LTR text
+    /// (including the LRM, which is bidi class L and can never force a run).
+    #[test]
+    fn text_may_record_bidi_runs_matches_run_recording_characters() {
+        for text in [
+            "مرحبا",
+            "שלום",
+            "\u{200F}",
+            "\u{202E}reversed",
+            "\u{2066}isolate\u{2069}",
+            "a\u{FEF3}b",
+            "\u{FB50}",
+            "\u{202A}embed",
+        ] {
+            assert!(
+                text_may_record_bidi_runs(text),
+                "{text:?} must be recognized as run-recording"
+            );
+        }
+        for text in ["", "Hello, world!", "123 …!", "\u{200E}\u{202F} \u{2061}"] {
+            assert!(
+                !text_may_record_bidi_runs(text),
+                "{text:?} must not be recognized as run-recording"
+            );
         }
     }
 }
