@@ -1097,20 +1097,18 @@ fn galley_from_rows(
         for glyph in &mut row.glyphs {
             let format = &job.sections[glyph.section_index as usize].format;
 
-            glyph.pos.y = glyph.font_face_ascent
-
+            // `font_ascent` is the ascent of the primary face of the family, i.e. the
+            // baseline of this section's row. Every glyph belongs on that baseline,
+            // whichever fallback face it came from. Text that mixes scripts (latin and
+            // CJK, say) would otherwise end up on several different baselines.
+            glyph.pos.y = glyph.font_ascent
                 // Apply valign to the difference in height of the entire row,
                 // and the line height of this glyph (which is the font height, unless explicitly set):
                 + format.valign.to_factor() * (max_row_height - glyph.line_height)
-
                 // If the line height was set explicitly (e.g. taller than the font),
                 // we always center the text within that line height, like CSS does.
                 // When `line_height` is not set, this is zero.
-                + 0.5 * (glyph.line_height - glyph.font_height)
-
-                // When mixing different `FontImpl` (e.g. latin and emojis),
-                // we always center the difference:
-                + 0.5 * (glyph.font_height - glyph.font_face_height);
+                + 0.5 * (glyph.line_height - glyph.font_height);
 
             glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
         }
@@ -1653,6 +1651,46 @@ mod tests {
                     "a row starts with {first:?} at {glyphs} glyphs wide"
                 );
             }
+        }
+    }
+
+    /// Glyphs from a fallback face must sit on the baseline of the primary face.
+    ///
+    /// The y position used to come from the ascent of whichever face the glyph was
+    /// found in, plus a term centering that face's box in the row. So as soon as a row
+    /// mixed scripts, its glyphs landed on different baselines, and a face much taller
+    /// than the primary one (a CJK fallback, say) was pushed above the row, clipping
+    /// the top of its glyphs.
+    #[test]
+    #[cfg(feature = "monochrome_emoji_fonts")] // Needs a fallback face with non-latin metrics
+    fn glyphs_from_different_faces_share_one_baseline() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = fonts.with_pixels_per_point(1.0);
+
+        // The primary face alone decides the baseline, so latin-only text tells us the
+        // y position that every other glyph in the same section has to share:
+        let latin =
+            fonts.layout_no_wrap("Ag".to_owned(), FontId::proportional(40.0), Color32::WHITE);
+        let expected_y = latin.rows[0].row.glyphs[0].pos.y;
+
+        // The same text again, now with an emoji from a fallback face:
+        let galley = fonts.layout_no_wrap(
+            "Ag👋".to_owned(),
+            FontId::proportional(40.0),
+            Color32::WHITE,
+        );
+        let glyphs = &galley.rows[0].row.glyphs;
+        // Without this the test would pass trivially if no fallback face was involved:
+        assert!(
+            glyphs.iter().any(|g| g.font_face_ascent != g.font_ascent),
+            "expected a glyph from a fallback face with different metrics, but got none"
+        );
+        for glyph in glyphs {
+            assert_eq!(
+                glyph.pos.y, expected_y,
+                "glyph {:?} is not on the baseline of the primary face: {} != {expected_y}",
+                glyph.chr, glyph.pos.y,
+            );
         }
     }
 
