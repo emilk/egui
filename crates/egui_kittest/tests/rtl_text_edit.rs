@@ -7,9 +7,10 @@
 //! painted cursor line segments, and glyph positions from the painted text
 //! shapes), so they survive engine tweaks and renderers.
 //!
-//! On this base cursor columns are logical (0 = the reading start, the visual
-//! right edge of a right-to-left row; the reading end = the visual left edge),
-//! and the arrow keys move the caret one *visual* position, stepping by each
+//! On this base cursor columns are logical (0 = the reading start, anchored
+//! at the reading-side row edge; the reading end sits at the last-read
+//! cell's exit edge — for a uniform row the opposite row edge), and the
+//! arrow keys move the caret one *visual* position, stepping by each
 //! embedded run's own bidi level (`Glyph::bidi_level`): visual-left inside an
 //! embedded LTR run of an RTL row is the logically previous character, etc.;
 //! the bidi *rendering* order is asserted separately from the painted glyphs
@@ -280,7 +281,9 @@ fn test_text_edit_bidi_boundaries() {
     let painted_text = text.clone();
     let mut harness = focused_rtl_edit(&mut text);
 
-    // The end caret and Home at the two visual edges:
+    // Home anchors at the reading start's entry edge (the visual right edge
+    // of this row); the end caret sits at the reading end, after the
+    // last-read Latin glyph — inside the row, left of Home:
     let end_index = cursor_char_index(&harness);
     assert!(end_index > 0, "the focused cursor should start at the end");
     harness.key_press(egui::Key::Home);
@@ -296,8 +299,10 @@ fn test_text_edit_bidi_boundaries() {
     );
     let end_x = caret_x_expect(&harness, "at the end caret");
     assert!(
-        end_x > home_x,
-        "the end caret should sit at the visual right edge: home {home_x:.1}, end {end_x:.1}"
+        end_x < home_x,
+        "the end caret sits at the reading end (after the last-read Latin \
+         glyph), left of Home's reading-start right edge: home {home_x:.1}, \
+         end {end_x:.1}"
     );
 
     // Bidi rendering: the Latin run left of the Arabic run, reading
@@ -357,17 +362,20 @@ fn test_text_edit_bidi_boundaries() {
         "clicking the left edge should land on the Latin side of the boundary, got index {hit}"
     );
 
-    // A selection spanning the direction boundary:
+    // A selection spanning the direction boundary (the bidi reading
+    // teleport): from Home, ArrowLeft steps into the text by the local
+    // levels — the walk crosses from the Arabic run onto the Latin run's
+    // reading-exit caret, so five presses span the whole mixed row:
     harness.key_press(egui::Key::Home);
     harness.run();
     for _ in 0..5 {
-        shift_press(&mut harness, egui::Key::ArrowRight);
+        shift_press(&mut harness, egui::Key::ArrowLeft);
     }
     assert_eq!(
         selection_char_range(&harness),
-        (0, 5),
-        "five shift+ArrowRight presses from Home should span the Latin run \
-         and cross into the Arabic run"
+        (0, 8),
+        "five shift+ArrowLeft presses from Home should span the whole mixed \
+         row, crossing the bidi reading teleport"
     );
 
     // Arabic with mirrored brackets and Arabic-Indic digits:
