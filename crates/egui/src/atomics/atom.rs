@@ -49,6 +49,9 @@ pub struct Atom<'a> {
     /// See [`crate::AtomExt::atom_align`]
     pub align: Align2,
 
+    /// See [`crate::AtomExt::atom_main_axis_end`]
+    pub main_axis_end: bool,
+
     /// The atom type / content
     pub kind: AtomKind<'a>,
 }
@@ -62,6 +65,7 @@ impl Default for Atom<'_> {
             grow: false,
             shrink: false,
             align: Align2::CENTER_CENTER,
+            main_axis_end: false,
             kind: AtomKind::Empty,
         }
     }
@@ -70,8 +74,9 @@ impl Default for Atom<'_> {
 impl<'a> Atom<'a> {
     /// Create an empty [`Atom`] marked as `grow`.
     ///
-    /// This will expand in size, allowing all preceding atoms to be left-aligned,
-    /// and all following atoms to be right-aligned
+    /// This will expand in size, allowing all preceding atoms to hug the
+    /// reading-start edge and all following atoms the reading-end edge,
+    /// whichever physical sides those are
     pub fn grow() -> Self {
         Atom {
             grow: true,
@@ -197,6 +202,7 @@ impl<'a> Atom<'a> {
             intrinsic_size: intrinsic_size.at_least(self.size.unwrap_or_default()),
             grow: self.grow,
             align: self.align,
+            main_axis_end: self.main_axis_end,
             kind: sized,
         }
     }

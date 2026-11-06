@@ -71,64 +71,67 @@ impl crate::View for TextLayoutDemo {
         egui::Grid::new("TextLayoutDemo")
             .num_columns(2)
             .show(ui, |ui| {
-                let label = ui.label("Max rows:");
+                let label = ui.label(crate::i18n::t("Max rows:"));
                 ui.add(egui::DragValue::new(max_rows)).labelled_by(label.id);
                 ui.end_row();
 
-                ui.label("Line-break:");
+                ui.label(crate::i18n::t("Line-break:"));
                 ui.horizontal(|ui| {
-                    ui.radio_value(break_anywhere, false, "word boundaries");
-                    ui.radio_value(break_anywhere, true, "anywhere");
+                    ui.radio_value(break_anywhere, false, crate::i18n::t("word boundaries"));
+                    ui.radio_value(break_anywhere, true, crate::i18n::t("anywhere"));
                 });
                 ui.end_row();
 
-                ui.label("Overflow character:");
+                ui.label(crate::i18n::t("Overflow character:"));
                 ui.horizontal(|ui| {
-                    ui.selectable_value(overflow_character, None, "None");
+                    ui.selectable_value(overflow_character, None, crate::i18n::t("None"));
                     ui.selectable_value(overflow_character, Some('…'), "…");
                     ui.selectable_value(overflow_character, Some('—'), "—");
                     ui.selectable_value(overflow_character, Some('-'), "  -  ");
                 });
                 ui.end_row();
 
-                let label = ui.label("Extra letter spacing:");
+                let label = ui.label(crate::i18n::t("Extra letter spacing:"));
                 ui.add(egui::DragValue::new(extra_letter_spacing).speed(0.1))
                     .labelled_by(label.id);
                 ui.end_row();
 
-                ui.label("Line height:");
+                ui.label(crate::i18n::t("Line height:"));
                 ui.horizontal(|ui| {
                     if ui
-                        .selectable_label(*line_height_pixels == 0, "Default")
+                        .selectable_label(*line_height_pixels == 0, crate::i18n::t("Default"))
                         .clicked()
                     {
                         *line_height_pixels = 0;
                     }
                     if ui
-                        .selectable_label(*line_height_pixels != 0, "Custom")
+                        .selectable_label(*line_height_pixels != 0, crate::i18n::t("Custom"))
                         .clicked()
                     {
                         *line_height_pixels = (pixels_per_point * 20.0).round() as _;
                     }
                     if *line_height_pixels != 0 {
-                        ui.add(egui::DragValue::new(line_height_pixels).suffix(" pixels"));
+                        ui.add(
+                            egui::DragValue::new(line_height_pixels)
+                                .suffix(crate::i18n::t(" pixels")),
+                        );
                     }
                 });
                 ui.end_row();
 
-                ui.label("Horizontal align:");
+                ui.label(crate::i18n::t("Horizontal align:"));
                 ui.horizontal(|ui| {
-                    ui.selectable_value(halign, egui::Align::LEFT, "Left");
-                    ui.selectable_value(halign, egui::Align::Center, "Center");
-                    ui.selectable_value(halign, egui::Align::RIGHT, "Right");
+                    ui.selectable_value(halign, egui::Align::LEFT, crate::i18n::t("Left"));
+                    ui.selectable_value(halign, egui::Align::Center, crate::i18n::t("Center"));
+                    ui.selectable_value(halign, egui::Align::RIGHT, crate::i18n::t("Right"));
                 });
                 ui.end_row();
 
-                ui.label("Justify:");
-                ui.checkbox(justify, "Fill row width");
+                ui.label(crate::i18n::t("Justify:"));
+                ui.checkbox(justify, crate::i18n::t("Fill row width"));
                 ui.end_row();
 
-                ui.label("Text:");
+                ui.label(crate::i18n::t("Text:"));
                 ui.horizontal(|ui| {
                     ui.selectable_value(lorem_ipsum, true, "Lorem Ipsum");
                     ui.selectable_value(lorem_ipsum, false, "La Pasionaria");

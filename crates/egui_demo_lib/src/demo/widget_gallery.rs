@@ -67,7 +67,7 @@ impl crate::Demo for WidgetGallery {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .resizable([true, false]) // resizable so we can shrink if the text edit grows
             .default_width(280.0)
@@ -104,30 +104,35 @@ impl crate::View for WidgetGallery {
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.visible, "Visible")
-                .on_hover_text("Uncheck to hide all the widgets.");
+            ui.checkbox(&mut self.visible, crate::i18n::t("Visible"))
+                .on_hover_text(crate::i18n::t("Uncheck to hide all the widgets."));
             if self.visible {
-                ui.checkbox(&mut self.enabled, "Interactive")
-                    .on_hover_text("Uncheck to inspect how the widgets look when disabled.");
+                ui.checkbox(&mut self.enabled, crate::i18n::t("Interactive"))
+                    .on_hover_text(crate::i18n::t(
+                        "Uncheck to inspect how the widgets look when disabled.",
+                    ));
                 let drag_value = ui.add(
                     egui::DragValue::new(&mut self.opacity)
                         .speed(0.01)
                         .range(0.0..=1.0),
                 );
-                let label = ui.label("Opacity");
-                (drag_value.labelled_by(label.id) | label)
-                    .on_hover_text("Reduce this value to make widgets semi-transparent");
+                let label = ui.label(crate::i18n::t("Opacity"));
+                (drag_value.labelled_by(label.id) | label).on_hover_text(crate::i18n::t(
+                    "Reduce this value to make widgets semi-transparent",
+                ));
             }
         });
 
         ui.separator();
 
         ui.vertical_centered(|ui| {
-            let tooltip_text = "The full egui documentation.\nYou can also click the different widgets names in the left column.";
+            let tooltip_text = crate::i18n::t(
+                "The full egui documentation.\nYou can also click the different widgets names in the left column.",
+            );
             ui.hyperlink("https://docs.rs/egui/").on_hover_text(tooltip_text);
-            ui.add(crate::egui_github_link_file!(
+            ui.add(crate::egui_github_link_file!(crate::i18n::t(
                 "Source code of the widget gallery"
-            ));
+            )));
         });
     }
 }
@@ -151,105 +156,113 @@ impl WidgetGallery {
             with_date_button,
         } = self;
 
-        ui.add(doc_link_label("Label", "label"));
-        ui.label("Welcome to the widget gallery!");
+        ui.add(doc_link_label(crate::i18n::t("Label"), "label"));
+        ui.label(crate::i18n::t("Welcome to the widget gallery!"));
         ui.end_row();
 
-        ui.add(doc_link_label("Hyperlink", "Hyperlink"));
+        ui.add(doc_link_label(crate::i18n::t("Hyperlink"), "Hyperlink"));
         use egui::special_emojis::GITHUB;
         ui.hyperlink_to(
-            format!("{GITHUB} egui on GitHub"),
+            crate::i18n::t(&format!("{GITHUB} egui on GitHub")),
             "https://github.com/emilk/egui",
         );
         ui.end_row();
 
-        ui.add(doc_link_label("TextEdit", "TextEdit"));
-        ui.add(egui::TextEdit::singleline(string).hint_text("Write something here"));
+        ui.add(doc_link_label(crate::i18n::t("TextEdit"), "TextEdit"));
+        ui.add(
+            egui::TextEdit::singleline(string).hint_text(crate::i18n::t("Write something here")),
+        );
         ui.end_row();
 
-        ui.add(doc_link_label("Button", "button"));
-        if ui.button("Click me!").clicked() {
+        ui.add(doc_link_label(crate::i18n::t("Button"), "button"));
+        if ui.button(crate::i18n::t("Click me!")).clicked() {
             *boolean = !*boolean;
         }
         ui.end_row();
 
-        ui.add(doc_link_label("Link", "link"));
-        if ui.link("Click me!").clicked() {
+        ui.add(doc_link_label(crate::i18n::t("Link"), "link"));
+        if ui.link(crate::i18n::t("Click me!")).clicked() {
             *boolean = !*boolean;
         }
         ui.end_row();
 
-        ui.add(doc_link_label("Checkbox", "checkbox"));
-        ui.checkbox(boolean, "Checkbox");
+        ui.add(doc_link_label(crate::i18n::t("Checkbox"), "checkbox"));
+        ui.checkbox(boolean, crate::i18n::t("Checkbox"));
         ui.end_row();
 
-        ui.add(doc_link_label("RadioButton", "radio"));
+        ui.add(doc_link_label(crate::i18n::t("RadioButton"), "radio"));
         ui.horizontal(|ui| {
-            ui.radio_value(radio, Enum::First, "First");
-            ui.radio_value(radio, Enum::Second, "Second");
-            ui.radio_value(radio, Enum::Third, "Third");
+            ui.radio_value(radio, Enum::First, crate::i18n::t("First"));
+            ui.radio_value(radio, Enum::Second, crate::i18n::t("Second"));
+            ui.radio_value(radio, Enum::Third, crate::i18n::t("Third"));
         });
         ui.end_row();
 
-        ui.add(doc_link_label("SelectableLabel", "SelectableLabel"));
+        ui.add(doc_link_label(
+            crate::i18n::t("SelectableLabel"),
+            "SelectableLabel",
+        ));
         ui.horizontal(|ui| {
-            ui.selectable_value(radio, Enum::First, "First");
-            ui.selectable_value(radio, Enum::Second, "Second");
-            ui.selectable_value(radio, Enum::Third, "Third");
+            ui.selectable_value(radio, Enum::First, crate::i18n::t("First"));
+            ui.selectable_value(radio, Enum::Second, crate::i18n::t("Second"));
+            ui.selectable_value(radio, Enum::Third, crate::i18n::t("Third"));
         });
         ui.end_row();
 
-        ui.add(doc_link_label("ComboBox", "ComboBox"));
+        ui.add(doc_link_label(crate::i18n::t("ComboBox"), "ComboBox"));
 
-        egui::ComboBox::from_label("Take your pick")
+        egui::ComboBox::from_label(crate::i18n::t("Take your pick"))
             .selected_text(format!("{radio:?}"))
             .show_ui(ui, |ui| {
-                ui.selectable_value(radio, Enum::First, "First");
-                ui.selectable_value(radio, Enum::Second, "Second");
-                ui.selectable_value(radio, Enum::Third, "Third");
+                ui.selectable_value(radio, Enum::First, crate::i18n::t("First"));
+                ui.selectable_value(radio, Enum::Second, crate::i18n::t("Second"));
+                ui.selectable_value(radio, Enum::Third, crate::i18n::t("Third"));
             });
         ui.end_row();
 
-        let label = ui.add(doc_link_label("Slider", "Slider"));
+        let label = ui.add(doc_link_label(crate::i18n::t("Slider"), "Slider"));
         ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"))
             .labelled_by(label.id);
         ui.end_row();
 
-        let label = ui.add(doc_link_label("RangeSlider", "RangeSlider"));
+        let label = ui.add(doc_link_label(crate::i18n::t("RangeSlider"), "RangeSlider"));
         ui.add(egui::RangeSlider::new(&mut range.min, &mut range.max, 0.0..=360.0).suffix("°"))
             .labelled_by(label.id);
         ui.end_row();
 
-        let label = ui.add(doc_link_label("DragValue", "DragValue"));
+        let label = ui.add(doc_link_label(crate::i18n::t("DragValue"), "DragValue"));
         ui.add(egui::DragValue::new(scalar).speed(1.0))
             .labelled_by(label.id);
         ui.end_row();
 
-        ui.add(doc_link_label("ProgressBar", "ProgressBar"));
+        ui.add(doc_link_label(crate::i18n::t("ProgressBar"), "ProgressBar"));
         let progress = *scalar / 360.0;
         let progress_bar = egui::ProgressBar::new(progress)
             .show_percentage()
             .animate(*animate_progress_bar);
         *animate_progress_bar = ui
             .add(progress_bar)
-            .on_hover_text("The progress bar can be animated!")
+            .on_hover_text(crate::i18n::t("The progress bar can be animated!"))
             .hovered();
         ui.end_row();
 
-        ui.add(doc_link_label("Color picker", "color_edit"));
+        ui.add(doc_link_label(crate::i18n::t("Color picker"), "color_edit"));
         ui.color_edit_button_srgba(color);
         ui.end_row();
 
-        ui.add(doc_link_label("Image", "Image"));
+        ui.add(doc_link_label(crate::i18n::t("Image"), "Image"));
         let egui_icon = egui::include_image!("../../data/icon.svg");
         ui.add(egui::Image::new(egui_icon.clone()));
         ui.end_row();
 
         ui.add(doc_link_label(
-            "Button with image",
+            crate::i18n::t("Button with image"),
             "Button::image_and_text",
         ));
-        if ui.button((egui_icon, "Click me!")).clicked() {
+        if ui
+            .button((egui_icon, crate::i18n::t("Click me!")))
+            .clicked()
+        {
             *boolean = !*boolean;
         }
         ui.end_row();
@@ -259,23 +272,26 @@ impl WidgetGallery {
             let date = date.get_or_insert_with(|| jiff::Zoned::now().date());
             ui.add(doc_link_label_with_crate(
                 "egui_extras",
-                "DatePickerButton",
+                crate::i18n::t("DatePickerButton"),
                 "DatePickerButton",
             ));
             ui.add(egui_extras::DatePickerButton::new(date));
             ui.end_row();
         }
 
-        ui.add(doc_link_label("Separator", "separator"));
+        ui.add(doc_link_label(crate::i18n::t("Separator"), "separator"));
         ui.separator();
         ui.end_row();
 
-        ui.add(doc_link_label("CollapsingHeader", "collapsing"));
-        ui.collapsing("Click to see what is hidden!", |ui| {
+        ui.add(doc_link_label(
+            crate::i18n::t("CollapsingHeader"),
+            "collapsing",
+        ));
+        ui.collapsing(crate::i18n::t("Click to see what is hidden!"), |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("It's a ");
-                ui.add(doc_link_label("Spinner", "spinner"));
+                ui.label(crate::i18n::t("It's a "));
+                ui.add(doc_link_label(crate::i18n::t("Spinner"), "spinner"));
                 ui.add_space(4.0);
                 ui.add(egui::Spinner::new());
             });
@@ -283,13 +299,14 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.hyperlink_to(
-            "Custom widget",
+            crate::i18n::t("Custom widget"),
             super::toggle_switch::url_to_file_source_code(),
         );
-        ui.add(super::toggle_switch::toggle(boolean)).on_hover_text(
-            "It's easy to create your own widgets!\n\
+        ui.add(super::toggle_switch::toggle(boolean))
+            .on_hover_text(crate::i18n::t(
+                "It's easy to create your own widgets!\n\
             This toggle switch is just 15 lines of code.",
-        );
+            ));
         ui.end_row();
     }
 }
@@ -307,7 +324,7 @@ fn doc_link_label_with_crate<'a>(
     move |ui: &mut egui::Ui| {
         ui.hyperlink_to(title, url).on_hover_ui(|ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.label("Search egui docs for");
+                ui.label(crate::i18n::t("Search egui docs for"));
                 ui.code(search_term);
             });
         })

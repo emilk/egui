@@ -1,3 +1,4 @@
+use crate::i18n;
 use egui::{ComboBox, Id, Modal, ProgressBar, Ui, Widget as _, Window};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -34,7 +35,7 @@ impl crate::Demo for Modals {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        Window::new(self.name())
+        Window::new(i18n::t(self.name()))
             .open(open)
             .vscroll(false)
             .resizable(false)
@@ -54,36 +55,39 @@ impl crate::View for Modals {
         } = self;
 
         ui.horizontal(|ui| {
-            if ui.button("Open User Modal").clicked() {
+            if ui.button(i18n::t("Open User Modal")).clicked() {
                 *user_modal_open = true;
             }
 
-            if ui.button("Open Save Modal").clicked() {
+            if ui.button(i18n::t("Open Save Modal")).clicked() {
                 *save_modal_open = true;
             }
         });
 
-        ui.label("Click one of the buttons to open a modal.");
-        ui.label("Modals have a backdrop and prevent interaction with the rest of the UI.");
-        ui.label(
+        ui.label(i18n::t("Click one of the buttons to open a modal."));
+        ui.label(i18n::t(
+            "Modals have a backdrop and prevent interaction with the rest of the UI.",
+        ));
+        ui.label(i18n::t(
             "You can show modals on top of each other and close the topmost modal with \
             escape or by clicking outside the modal.",
-        );
+        ));
 
         if *user_modal_open {
             let modal = Modal::new(Id::unique("Modal A")).show(ui.ctx(), |ui| {
                 ui.set_width(250.0);
 
-                ui.heading("Edit User");
+                ui.heading(i18n::t("Edit User"));
 
-                let label = ui.label("Name:");
+                let label = ui.label(i18n::t("Name:"));
                 ui.text_edit_singleline(name).labelled_by(label.id);
 
-                ComboBox::new("role", "Role")
-                    .selected_text(*role)
+                ComboBox::new("role", i18n::t("Role"))
+                    .selected_text(i18n::t(role))
                     .show_ui(ui, |ui| {
                         for r in Self::ROLES {
-                            ui.selectable_value(role, r, r);
+                            // The stored value stays `user`/`admin`; only the label is translated.
+                            ui.selectable_value(role, r, i18n::t(r));
                         }
                     });
 
@@ -93,10 +97,10 @@ impl crate::View for Modals {
                     ui,
                     |_ui| {},
                     |ui| {
-                        if ui.button("Save").clicked() {
+                        if ui.button(i18n::t("Save")).clicked() {
                             *save_modal_open = true;
                         }
-                        if ui.button("Cancel").clicked() {
+                        if ui.button(i18n::t("Cancel")).clicked() {
                             // You can call `ui.close()` to close the modal.
                             // (This causes the current modals `should_close` to return true)
                             ui.close();
@@ -113,7 +117,7 @@ impl crate::View for Modals {
         if *save_modal_open {
             let modal = Modal::new(Id::unique("Modal B")).show(ui.ctx(), |ui| {
                 ui.set_width(200.0);
-                ui.heading("Save? Are you sure?");
+                ui.heading(i18n::t("Save? Are you sure?"));
 
                 ui.add_space(32.0);
 
@@ -121,11 +125,11 @@ impl crate::View for Modals {
                     ui,
                     |_ui| {},
                     |ui| {
-                        if ui.button("Yes Please").clicked() {
+                        if ui.button(i18n::t("Yes Please")).clicked() {
                             *save_progress = Some(0.0);
                         }
 
-                        if ui.button("No Thanks").clicked() {
+                        if ui.button(i18n::t("No Thanks")).clicked() {
                             ui.close();
                         }
                     },
@@ -140,7 +144,7 @@ impl crate::View for Modals {
         if let Some(progress) = *save_progress {
             Modal::new(Id::unique("Modal C")).show(ui.ctx(), |ui| {
                 ui.set_width(70.0);
-                ui.heading("Saving…");
+                ui.heading(i18n::t("Saving…"));
 
                 ProgressBar::new(progress).ui(ui);
 

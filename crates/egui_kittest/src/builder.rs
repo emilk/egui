@@ -20,7 +20,7 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) fit_contents: bool,
     pub(crate) missing_glyph_policy: egui::MissingGlyphPolicy,
     pub(crate) check_accessibility: bool,
-    pub(crate) context_setup: Option<Box<dyn FnOnce(&egui::Context)>>,
+    pub(crate) context_setup: Vec<Box<dyn FnOnce(&egui::Context)>>,
 
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub(crate) render_every_step: bool,
@@ -49,7 +49,7 @@ impl<State> Default for HarnessBuilder<State> {
             fit_contents: false,
             missing_glyph_policy: egui::MissingGlyphPolicy::Panic,
             check_accessibility: true,
-            context_setup: None,
+            context_setup: Vec::new(),
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step: false,
@@ -135,6 +135,56 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_os(mut self, os: egui::os::OperatingSystem) -> Self {
         self.os = os;
+        self
+    }
+
+    /// Mirror the widget chrome for a right-to-left reading direction
+    /// (an Arabic or Hebrew UI, say).
+    ///
+    /// Sets [`egui::Style::right_to_left`] via [`egui::Context::set_right_to_left`]
+    /// during context setup, so the very first pass is already laid out mirrored.
+    /// Stacks with [`Self::with_context_setup`]: the setups run in the order they
+    /// were registered, before the harness's own test settings.
+    ///
+    /// Pair with [`Harness::right_to_left`] to assert the direction took effect.
+    ///
+    /// Note: this mirrors the *chrome* (layout, alignment, widget order); rendering
+    /// actual Arabic or Hebrew glyphs additionally needs a font that has them
+    /// (see [`Self::with_rtl_font`]).
+    #[inline]
+    pub fn with_right_to_left(mut self, right_to_left: bool) -> Self {
+        self.context_setup.push(Box::new(move |ctx| {
+            ctx.set_right_to_left(right_to_left);
+        }));
+        self
+    }
+
+    /// Install an Arabic-capable font as a fallback font, for tests that render
+    /// RTL scripts.
+    ///
+    /// The font is read at test time from the path in the `KITTEST_RTL_FONT`
+    /// environment variable (absolute, or `~/`-relative), and installed as the
+    /// last fallback of the `Proportional` and `Monospace` families, so Latin
+    /// text keeps rendering with the bundled fonts. Good candidates are
+    /// Noto Naskh Arabic, Noto Sans Arabic or Amiri (all OFL-licensed).
+    ///
+    /// If the variable is unset (or the file cannot be read), the harness is built
+    /// unchanged and a reason is printed; tests that need Arabic (or other
+    /// RTL-script) glyphs should then skip their glyph-dependent assertions
+    /// ([`crate::rtl_font_path`] tells you whether a font was configured).
+    /// Never commit snapshots that depend on this font: they would not
+    /// reproduce on machines without it.
+    ///
+    /// No-op on wasm (kittest tests run natively; env vars and file paths
+    /// don't exist there).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn with_rtl_font(self) -> Self {
+        self.with_context_setup(crate::rtl_font::install_rtl_font)
+    }
+
+    /// No-op on wasm. See the native version for the documentation.
+    #[cfg(target_arch = "wasm32")]
+    pub fn with_rtl_font(self) -> Self {
         self
     }
 
@@ -242,7 +292,7 @@ impl<State> HarnessBuilder<State> {
     /// after this, so they still hold.
     #[inline]
     pub fn with_context_setup(mut self, setup: impl FnOnce(&egui::Context) + 'static) -> Self {
-        self.context_setup = Some(Box::new(setup));
+        self.context_setup.push(Box::new(setup));
         self
     }
 
@@ -292,7 +342,7 @@ impl<State> HarnessBuilder<State> {
         State: eframe::App + 'static,
     {
         let ctx = egui::Context::default();
-        if let Some(setup) = self.context_setup.take() {
+        for setup in self.context_setup.drain(..) {
             setup(&ctx);
         }
 

@@ -1,6 +1,6 @@
 use crate::{
     Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Role, Sense, Shape, Stroke,
-    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, lerp, vec2,
+    TextStyle, TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, lerp, pos2, vec2,
 };
 
 enum ProgressBarText {
@@ -138,11 +138,30 @@ impl Widget for ProgressBar {
             let corner_radius = corner_radius.unwrap_or_else(|| half_height.into());
             ui.painter()
                 .rect_filled(outer_rect, corner_radius, visuals.extreme_bg_color);
-            let min_width =
-                2.0 * f32::max(corner_radius.sw as _, corner_radius.nw as _).at_most(half_height);
+            // The painted chrome follows the interface reading direction, not the local
+            // layout direction: inside a vertical body a `main_dir` check would never fire.
+            let rtl = ui.is_rtl();
+            let min_width = if rtl {
+                // The fill's rounded cap sits on the reading-start edge; keep it visible there.
+                2.0 * f32::max(corner_radius.ne as _, corner_radius.se as _).at_most(half_height)
+            } else {
+                2.0 * f32::max(corner_radius.sw as _, corner_radius.nw as _).at_most(half_height)
+            };
             let filled_width = (outer_rect.width() * progress).at_least(min_width);
-            let inner_rect =
-                Rect::from_min_size(outer_rect.min, vec2(filled_width, outer_rect.height()));
+            // Fill hugs the reading-start edge: left-anchored in LTR (unchanged), right-anchored
+            // under RTL. The value still grows left-to-right; only the painted chrome mirrors.
+            // That growth direction is a recorded product decision: a linear indicator whose
+            // fill grows left-to-right in both reading directions keeps its numeric reading
+            // stable, and it matches upstream egui (PR #8815 keeps left-to-right growth too),
+            // even though Material Design's bidirectionality guidance would mirror the
+            // progress front of a linear indicator.
+            let inner_rect = Rect::from_min_size(
+                pos2(
+                    ui.reading_start_x_w(outer_rect, 0.0, filled_width),
+                    outer_rect.top(),
+                ),
+                vec2(filled_width, outer_rect.height()),
+            );
 
             let (dark, bright) = (0.7, 1.0);
             let color_factor = if animate {
@@ -166,13 +185,23 @@ impl Widget for ProgressBar {
                 let start_angle = time * core::f64::consts::TAU;
                 let end_angle = start_angle + 240f64.to_radians() * time.sin();
                 let circle_radius = half_height - 2.0;
+                let forward = ui.forward();
+                // The arc orbits the fill's progress-front edge (the reading-start side of the
+                // fill under RTL) and sweeps the mirrored way, so the loading indicator mirrors
+                // about the bar's centre line with the interface direction — deliberately
+                // unlike the bare `Spinner`, which never mirrors (see `Spinner::paint_at`).
+                let orbit_center = if rtl {
+                    inner_rect.left_center()
+                } else {
+                    inner_rect.right_center()
+                };
                 let points: Vec<Pos2> = (0..n_points)
                     .map(|i| {
                         let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);
                         let (sin, cos) = angle.sin_cos();
-                        inner_rect.right_center()
-                            + circle_radius * vec2(cos as f32, sin as f32)
-                            + vec2(-half_height, 0.0)
+                        orbit_center
+                            + circle_radius * vec2(cos as f32 * forward, sin as f32)
+                            + vec2(-half_height * forward, 0.0)
                     })
                     .collect();
                 ui.painter()
@@ -183,6 +212,9 @@ impl Widget for ProgressBar {
                 let text = match text_kind {
                     ProgressBarText::Custom(text) => text,
                     ProgressBarText::Percentage => {
+                        // ASCII digits and `%` by design: egui core has no locale numeral
+                        // formatting hook, so localized numerals (e.g. Eastern Arabic
+                        // numerals) need a `ValueFormat`-style formatting facility first.
                         format!("{}%", (progress * 100.0) as usize).into()
                     }
                 };
@@ -192,8 +224,20 @@ impl Widget for ProgressBar {
                     f32::INFINITY,
                     TextStyle::Button,
                 );
-                let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y * 0.5)
-                    + vec2(ui.spacing().item_spacing.x, 0.0);
+                // The text anchors on the bar's reading-start edge (left under a
+                // left-to-right interface, right under a right-to-left one), mirroring
+                // the fill; see `CollapsingHeader` for the same pattern. The galley
+                // paints relative to its own rect, so one with a non-`Align::LEFT`
+                // halign (e.g. a user-supplied `LayoutJob`) keeps filling its allocated
+                // rect from the anchor.
+                let text_pos = pos2(
+                    ui.reading_start_x(outer_rect, ui.spacing().item_spacing.x),
+                    outer_rect.center().y - galley.size().y * 0.5,
+                ) - if rtl {
+                    vec2(galley.rect.right(), 0.0)
+                } else {
+                    vec2(galley.rect.left(), 0.0)
+                };
                 let text_color = visuals
                     .override_text_color
                     .unwrap_or(visuals.selection.stroke.color);

@@ -29,7 +29,7 @@ impl crate::Demo for CompletionDemo {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .default_width(400.0)
             .constrain_to(ui.available_rect_before_wrap())
@@ -50,11 +50,15 @@ impl crate::View for CompletionDemo {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("A ");
             ui.code("CompletionPopup");
-            ui.label(" over a ");
+            ui.label(crate::i18n::t(" over a "));
             ui.code("TextEdit");
-            ui.label(". Type a colon and the name of an emoji, e.g. ");
+            ui.label(crate::i18n::t(
+                ". Type a colon and the name of an emoji, e.g. ",
+            ));
             ui.code(":smile");
-            ui.label(". The arrow keys select, Enter or Tab accepts, and Escape closes the popup.");
+            ui.label(crate::i18n::t(
+                ". The arrow keys select, Enter or Tab accepts, and Escape closes the popup.",
+            ));
         });
 
         let Self { text, emojis } = self;
@@ -66,7 +70,7 @@ impl crate::View for CompletionDemo {
             .show(
                 ui,
                 TextEdit::multiline(text)
-                    .hint_text("Type :smile: …")
+                    .hint_text(crate::i18n::t("Type :smile: …"))
                     .desired_width(f32::INFINITY),
                 |query| suggest_emojis(emojis, query),
             );

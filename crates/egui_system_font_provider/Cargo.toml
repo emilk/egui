@@ -29,9 +29,11 @@ epaint = { workspace = true, features = ["color_fonts"] }
 fontique.workspace = true
 log.workspace = true
 poll-promise.workspace = true
+read-fonts.workspace = true
 skrifa.workspace = true
 sys-locale.workspace = true
 unicode-script.workspace = true
 
 [dev-dependencies]
 egui.workspace = true
+font-test-data = "0.10.1"

@@ -1,3 +1,5 @@
+use crate::i18n;
+
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -9,7 +11,7 @@ impl crate::Demo for About {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(i18n::t(self.name()))
             .default_width(320.0)
             .default_height(480.0)
             .open(open)
@@ -37,35 +39,55 @@ impl crate::View for About {
             ui.add_space(4.0);
         });
 
-        ui.label(format!(
-            "egui is an immediate mode GUI library written in Rust. egui runs natively on {OS_APPLE}{OS_LINUX}{OS_WINDOWS}, and \
-            on the web it is compiled to WebAssembly and rendered with WebGL or WebGPU.{}",
-            if cfg!(target_arch = "wasm32") {
-                " Everything you see is rendered as textured triangles. There is no DOM, HTML, JS or CSS. Just Rust."
-            } else {""}
-        ));
+        let os = format!("{OS_APPLE}{OS_LINUX}{OS_WINDOWS}");
+        // The `{os}` placeholder is filled by `i18n::fmt`, not by `format!`.
+        #[expect(clippy::literal_string_with_formatting_args)]
+        let mut description = i18n::fmt(
+            i18n::t(
+                "egui is an immediate mode GUI library written in Rust. egui runs natively on \
+                {os}, and on the web it is compiled to WebAssembly and rendered with WebGL or \
+                WebGPU.",
+            ),
+            &[("os", os.as_str())],
+        );
+        if cfg!(target_arch = "wasm32") {
+            description.push_str(i18n::t(
+                " Everything you see is rendered as textured triangles. There is no DOM, HTML, \
+                JS or CSS. Just Rust.",
+            ));
+        }
+        ui.label(description);
 
         ui.add_space(12.0);
-        ui.label("egui is easy to use, portable, and fast.");
+        ui.label(i18n::t("egui is easy to use, portable, and fast."));
 
         ui.add_space(12.0);
         about_immediate_mode(ui);
 
         ui.add_space(12.0);
 
-        ui.heading("Links");
+        ui.heading(i18n::t("Links"));
         links(ui);
 
         ui.add_space(12.0);
 
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            ui.weak("egui development is sponsored by ");
+            let sponsored = i18n::t(
+                "egui development is sponsored by {rerun}, a startup building a data platform \
+                for robotics. ",
+            );
+            let (head, tail) = i18n::split_template(sponsored, "rerun");
+            ui.weak(head);
             ui.hyperlink_to("Rerun.io", "https://www.rerun.io/");
-            ui.weak(", a startup building a data platform for robotics. ");
-            ui.weak("For an example of a professional egui app, run ");
+            ui.weak(tail);
+            let example = i18n::t(
+                "For an example of a professional egui app, run {viewer} (in your browser!).",
+            );
+            let (head, tail) = i18n::split_template(example, "viewer");
+            ui.weak(head);
             ui.hyperlink_to("rerun.io/viewer", "https://www.rerun.io/viewer");
-            ui.weak(" (in your browser!).");
+            ui.weak(tail);
         });
 
         ui.add_space(12.0);
@@ -81,7 +103,7 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
 
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("This is how you create a button in egui:");
+        ui.label(i18n::t("This is how you create a button in egui:"));
     });
 
     ui.add_space(8.0);
@@ -97,10 +119,17 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
 
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("There are no callbacks or messages, and no button state to store. ");
-        ui.label("Read more about immediate mode ");
-        ui.hyperlink_to("here", "https://github.com/emilk/egui#why-immediate-mode");
-        ui.label(".");
+        ui.label(i18n::t(
+            "There are no callbacks or messages, and no button state to store. ",
+        ));
+        let read_more = i18n::t("Read more about immediate mode {here}.");
+        let (head, tail) = i18n::split_template(read_more, "here");
+        ui.label(head);
+        ui.hyperlink_to(
+            i18n::t("here"),
+            "https://github.com/emilk/egui#why-immediate-mode",
+        );
+        ui.label(tail);
     });
 }
 
@@ -114,5 +143,5 @@ fn links(ui: &mut egui::Ui) {
         "@ernerfeldt.bsky.social",
         "https://bsky.app/profile/ernerfeldt.bsky.social",
     );
-    ui.hyperlink_to("egui documentation", "https://docs.rs/egui/");
+    ui.hyperlink_to(i18n::t("egui documentation"), "https://docs.rs/egui/");
 }

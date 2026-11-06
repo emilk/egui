@@ -1,7 +1,7 @@
 use emath::{GuiRounding as _, fast_midpoint};
 
 use crate::{
-    Align, Direction,
+    Align, Direction, Style,
     emath::{Align2, NumExt as _, Pos2, Rect, Vec2, pos2, vec2},
 };
 const INFINITY: f32 = f32::INFINITY;
@@ -127,13 +127,34 @@ pub struct Layout {
 
 impl Default for Layout {
     fn default() -> Self {
-        // TODO(emilk): Get from `Style` instead.
+        // Upstream-compatible LTR default — a pure `Default` impl cannot read a
+        // `Style`. `Ui::new` therefore derives its layout with
+        // [`Layout::from_style`] instead; under `Style::right_to_left` the
+        // `Ui::new`/`Ui::new_child` mirror re-maps vertical `Align::Min` bodies
+        // to `Align::Max` (see `Placer::prefer_right_to_left`).
         Self::top_down(Align::LEFT) // This is a very euro-centric default.
     }
 }
 
 /// ## Constructors
 impl Layout {
+    /// The style-derived default layout: vertical [`Align::Min`] under an LTR
+    /// interface, [`Align::Max`] (reading-start anchored) under a right-to-left
+    /// one.
+    ///
+    /// This is what [`Ui::new`][crate::Ui::new] binds when no explicit layout
+    /// is given, so the root `Ui` follows [`Style::right_to_left`]. Raw
+    /// [`Layout::default()`] intentionally stays the upstream-compatible LTR
+    /// default. Reads only the style — `Style::right_to_left` is the single
+    /// direction authority.
+    pub fn from_style(style: &Style) -> Self {
+        Self::top_down(if style.right_to_left {
+            Align::Max
+        } else {
+            Align::Min
+        })
+    }
+
     /// Place elements horizontally, left to right.
     ///
     /// The `valign` parameter controls how to align elements vertically.
@@ -313,6 +334,12 @@ impl Layout {
         self.main_dir().is_vertical()
     }
 
+    /// Prefer placing nested content from the right?
+    ///
+    /// True when the layout itself runs right-to-left, or when it is vertical with
+    /// `Align::Max` cross alignment. The interface-direction term lives in
+    /// `Placer::prefer_right_to_left`, which also mirrors nested rows of vertical
+    /// `Align::Min` and `Align::Center` bodies when `Style::right_to_left` is set.
     pub fn prefer_right_to_left(&self) -> bool {
         self.main_dir == Direction::RightToLeft
             || self.main_dir.is_vertical() && self.cross_align == Align::Max
@@ -496,7 +523,20 @@ impl Layout {
     /// The returned `frame_rect` [`Rect`] will always be justified along the cross axis.
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
-    pub(crate) fn next_frame(&self, region: &Region, child_size: Vec2, spacing: Vec2) -> Rect {
+    ///
+    /// `prefer_right_to_left` is the resolved reading-direction term (the same
+    /// settled predicate `Placer::prefer_right_to_left` computes for placement):
+    /// in a wrapping layout whose main axis is vertical it makes new wrap
+    /// columns grow leftward from the reading-start edge, mirroring the
+    /// rightward growth of the LTR arms. The horizontal arms mirror through
+    /// `Direction::LeftToRight`/`RightToLeft` on their own and ignore the term.
+    pub(crate) fn next_frame(
+        &self,
+        region: &Region,
+        child_size: Vec2,
+        spacing: Vec2,
+        prefer_right_to_left: bool,
+    ) -> Rect {
         region.sanity_check();
         debug_assert!(
             child_size.x >= 0.0 && child_size.y >= 0.0,
@@ -543,25 +583,45 @@ impl Layout {
                     if available_size.y < child_size.y && max_rect.top() < cursor.top() {
                         // New column
                         let new_col_width = cursor.width().max(child_size.x);
-                        cursor = Rect::from_min_max(
-                            pos2(cursor.right() + spacing.x, max_rect.top()),
-                            pos2(cursor.right() + spacing.x + new_col_width, INFINITY),
-                        );
-                        max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        if prefer_right_to_left {
+                            // Reading starts at the right edge, so the new
+                            // wrap column grows leftward from there and the
+                            // available span expands past the reading end:
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.left() - spacing.x - new_col_width, max_rect.top()),
+                                pos2(cursor.left() - spacing.x, INFINITY),
+                            );
+                            max_rect.min.x = max_rect.min.x.min(cursor.min.x);
+                        } else {
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.right() + spacing.x, max_rect.top()),
+                                pos2(cursor.right() + spacing.x + new_col_width, INFINITY),
+                            );
+                            max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        }
                     }
                 }
                 Direction::BottomUp => {
                     if available_size.y < child_size.y && cursor.bottom() < max_rect.bottom() {
                         // New column
                         let new_col_width = cursor.width().max(child_size.x);
-                        cursor = Rect::from_min_max(
-                            pos2(cursor.right() + spacing.x, -INFINITY),
-                            pos2(
-                                cursor.right() + spacing.x + new_col_width,
-                                max_rect.bottom(),
-                            ),
-                        );
-                        max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        if prefer_right_to_left {
+                            // Mirrored wrap-column growth, as in `TopDown`:
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.left() - spacing.x - new_col_width, -INFINITY),
+                                pos2(cursor.left() - spacing.x, max_rect.bottom()),
+                            );
+                            max_rect.min.x = max_rect.min.x.min(cursor.min.x);
+                        } else {
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.right() + spacing.x, -INFINITY),
+                                pos2(
+                                    cursor.right() + spacing.x + new_col_width,
+                                    max_rect.bottom(),
+                                ),
+                            );
+                            max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        }
                     }
                 }
             }

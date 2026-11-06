@@ -31,7 +31,7 @@ impl crate::Demo for Scrolling {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .resizable(true)
             .hscroll(false)
@@ -47,20 +47,36 @@ impl crate::Demo for Scrolling {
 impl crate::View for Scrolling {
     fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.demo, ScrollDemo::ScrollAppearance, "Appearance");
-            ui.selectable_value(&mut self.demo, ScrollDemo::ScrollTo, "Scroll to");
+            ui.selectable_value(
+                &mut self.demo,
+                ScrollDemo::ScrollAppearance,
+                crate::i18n::t("Appearance"),
+            );
+            ui.selectable_value(
+                &mut self.demo,
+                ScrollDemo::ScrollTo,
+                crate::i18n::t("Scroll to"),
+            );
             ui.selectable_value(
                 &mut self.demo,
                 ScrollDemo::ManyLines,
-                "Scroll a lot of lines",
+                crate::i18n::t("Scroll a lot of lines"),
             );
             ui.selectable_value(
                 &mut self.demo,
                 ScrollDemo::LargeCanvas,
-                "Scroll a large canvas",
+                crate::i18n::t("Scroll a large canvas"),
             );
-            ui.selectable_value(&mut self.demo, ScrollDemo::StickToEnd, "Stick to end");
-            ui.selectable_value(&mut self.demo, ScrollDemo::Bidirectional, "Bidirectional");
+            ui.selectable_value(
+                &mut self.demo,
+                ScrollDemo::StickToEnd,
+                crate::i18n::t("Stick to end"),
+            );
+            ui.selectable_value(
+                &mut self.demo,
+                ScrollDemo::Bidirectional,
+                crate::i18n::t("Bidirectional"),
+            );
         });
         ui.separator();
         match self.demo {
@@ -127,7 +143,9 @@ impl ScrollAppearance {
                 ui.selectable_value(visibility, option, format!("{option:?}"));
             }
         });
-        ui.weak("When to show scroll bars; resize the window to see the effect.");
+        ui.weak(crate::i18n::t(
+            "When to show scroll bars; resize the window to see the effect.",
+        ));
 
         ui.add_space(8.0);
 
@@ -137,7 +155,7 @@ impl ScrollAppearance {
 
         ui.add(
             egui::Slider::new(num_lorem_ipsums, 1..=100)
-                .text("Content length")
+                .text(crate::i18n::t("Content length"))
                 .logarithmic(true),
         );
 
@@ -160,9 +178,9 @@ impl ScrollAppearance {
 }
 
 fn huge_content_lines(ui: &mut egui::Ui) {
-    ui.label(
+    ui.label(crate::i18n::t(
         "A lot of rows, but only the visible ones are laid out, so performance is still good:",
-    );
+    ));
     ui.add_space(4.0);
 
     let text_style = TextStyle::Body;
@@ -174,7 +192,11 @@ fn huge_content_lines(ui: &mut egui::Ui) {
         num_rows,
         |ui, row_range| {
             for row in row_range {
-                let text = format!("This is row {}/{}", row + 1, num_rows);
+                // The two `{}`s are filled positionally: `i18n::fmt` handles named
+                // `{name}` placeholders only, and the catalogue keeps this readout positional.
+                let text = crate::i18n::t("This is row {}/{}")
+                    .replacen("{}", &(row + 1).to_string(), 1)
+                    .replacen("{}", &num_rows.to_string(), 1);
                 ui.label(text);
             }
         },
@@ -183,7 +205,9 @@ fn huge_content_lines(ui: &mut egui::Ui) {
 
 fn huge_content_painter(ui: &mut egui::Ui) {
     // This is similar to the other demo, but is fully manual, for when you want to do custom painting.
-    ui.label("A lot of rows, but only the visible ones are painted, so performance is still good:");
+    ui.label(crate::i18n::t(
+        "A lot of rows, but only the visible ones are painted, so performance is still good:",
+    ));
     ui.add_space(4.0);
 
     let font_id = TextStyle::Body.resolve(ui.style());
@@ -205,12 +229,11 @@ fn huge_content_painter(ui: &mut egui::Ui) {
                 let indentation = (i % 100) as f32;
                 let x = ui.min_rect().left() + indentation;
                 let y = ui.min_rect().top() + i as f32 * row_height;
-                let text = format!(
-                    "This is row {}/{}, indented by {} pixels",
-                    i + 1,
-                    num_rows,
-                    indentation
-                );
+                // The three `{}`s are filled positionally (see `huge_content_lines`).
+                let text = crate::i18n::t("This is row {}/{}, indented by {} pixels")
+                    .replacen("{}", &(i + 1).to_string(), 1)
+                    .replacen("{}", &num_rows.to_string(), 1)
+                    .replacen("{}", &indentation.to_string(), 1);
                 let text_rect = ui.painter().text(
                     pos2(x, y),
                     Align2::LEFT_TOP,
@@ -250,7 +273,9 @@ impl Default for ScrollTo {
 
 impl crate::View for ScrollTo {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.label("This shows how you can scroll to a specific item or pixel offset");
+        ui.label(crate::i18n::t(
+            "This shows how you can scroll to a specific item or pixel offset",
+        ));
 
         let num_items = 500;
 
@@ -261,42 +286,61 @@ impl crate::View for ScrollTo {
         let mut scroll_delta = None;
 
         ui.horizontal(|ui| {
-            ui.label("Scroll to a specific item index:");
+            ui.label(crate::i18n::t("Scroll to a specific item index:"));
             track_item |= ui
-                .add(Slider::new(&mut self.track_item, 1..=num_items).text("Track Item"))
+                .add(
+                    Slider::new(&mut self.track_item, 1..=num_items)
+                        .text(crate::i18n::t("Track Item")),
+                )
                 .dragged();
         });
 
         ui.horizontal(|ui| {
-            ui.label("Item align:");
+            ui.label(crate::i18n::t("Item align:"));
             track_item |= ui
-                .radio_value(&mut self.tack_item_align, Some(Align::Min), "Top")
+                .radio_value(
+                    &mut self.tack_item_align,
+                    Some(Align::Min),
+                    crate::i18n::t("Top"),
+                )
                 .clicked();
             track_item |= ui
-                .radio_value(&mut self.tack_item_align, Some(Align::Center), "Center")
+                .radio_value(
+                    &mut self.tack_item_align,
+                    Some(Align::Center),
+                    crate::i18n::t("Center"),
+                )
                 .clicked();
             track_item |= ui
-                .radio_value(&mut self.tack_item_align, Some(Align::Max), "Bottom")
+                .radio_value(
+                    &mut self.tack_item_align,
+                    Some(Align::Max),
+                    crate::i18n::t("Bottom"),
+                )
                 .clicked();
             track_item |= ui
-                .radio_value(&mut self.tack_item_align, None, "None (Bring into view)")
+                .radio_value(
+                    &mut self.tack_item_align,
+                    None,
+                    crate::i18n::t("None (Bring into view)"),
+                )
                 .clicked();
         });
 
         ui.horizontal(|ui| {
-            ui.label("Scroll to a specific offset:");
+            ui.label(crate::i18n::t("Scroll to a specific offset:"));
             go_to_scroll_offset |= ui
                 .add(DragValue::new(&mut self.offset).speed(1.0).suffix("px"))
                 .dragged();
         });
 
         ui.horizontal(|ui| {
-            scroll_top |= ui.button("Scroll to top").clicked();
-            scroll_bottom |= ui.button("Scroll to bottom").clicked();
+            scroll_top |= ui.button(crate::i18n::t("Scroll to top")).clicked();
+            scroll_bottom |= ui.button(crate::i18n::t("Scroll to bottom")).clicked();
         });
 
         ui.horizontal(|ui| {
-            ui.label("Scroll by");
+            ui.label(crate::i18n::t("Scroll by"));
             DragValue::new(&mut self.delta)
                 .speed(1.0)
                 .suffix("px")
@@ -326,12 +370,18 @@ impl crate::View for ScrollTo {
 
                 ui.vertical(|ui| {
                     for item in 1..=num_items {
+                        let item_text = item.to_string();
+                        // The `{item}` placeholder is filled by `i18n::fmt`, not by `format!`.
+                        #[expect(clippy::literal_string_with_formatting_args)]
+                        let text = crate::i18n::fmt(
+                            crate::i18n::t("This is item {item}"),
+                            &[("item", item_text.as_str())],
+                        );
                         if track_item && item == self.track_item {
-                            let response =
-                                ui.colored_label(Color32::YELLOW, format!("This is item {item}"));
+                            let response = ui.colored_label(Color32::YELLOW, text);
                             response.scroll_to_me(self.tack_item_align);
                         } else {
-                            ui.label(format!("This is item {item}"));
+                            ui.label(text);
                         }
                     }
                 });
@@ -347,13 +397,20 @@ impl crate::View for ScrollTo {
             .inner;
         ui.separator();
 
-        ui.label(format!(
-            "Scroll offset: {current_scroll:.0}/{max_scroll:.0} px"
+        // The two offsets are pre-formatted in Rust (format specs never enter a catalogue);
+        // the translated template is filled by `i18n::fmt`, not by `format!`.
+        #[expect(clippy::literal_string_with_formatting_args)]
+        ui.label(crate::i18n::fmt(
+            crate::i18n::t("Scroll offset: {current_scroll}/{max_scroll} px"),
+            &[
+                ("current_scroll", format!("{current_scroll:.0}").as_str()),
+                ("max_scroll", format!("{max_scroll:.0}").as_str()),
+            ],
         ));
 
         ui.separator();
         ui.vertical_centered(|ui| {
-            egui::reset_button(ui, self, "Reset");
+            egui::reset_button(ui, self, crate::i18n::t("Reset"));
             ui.add(crate::egui_github_link_file!());
         });
     }
@@ -368,7 +425,9 @@ struct ScrollStickTo {
 
 impl crate::View for ScrollStickTo {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.label("Rows enter from the bottom, we want the scroll handle to start and stay at bottom unless moved");
+        ui.label(crate::i18n::t(
+            "Rows enter from the bottom, we want the scroll handle to start and stay at bottom unless moved",
+        ));
 
         ui.add_space(4.0);
 
@@ -380,7 +439,13 @@ impl crate::View for ScrollStickTo {
             self.n_items,
             |ui, row_range| {
                 for row in row_range {
-                    let text = format!("This is row {}", row + 1);
+                    let row_text = (row + 1).to_string();
+                    // The `{row}` placeholder is filled by `i18n::fmt`, not by `format!`.
+                    #[expect(clippy::literal_string_with_formatting_args)]
+                    let text = crate::i18n::fmt(
+                        crate::i18n::t("This is row {row}"),
+                        &[("row", row_text.as_str())],
+                    );
                     ui.label(text);
                 }
             },

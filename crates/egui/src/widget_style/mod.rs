@@ -56,6 +56,11 @@ pub struct AtomLayoutStyle {
     /// Alignment of the atoms within the allocated rectangle.
     ///
     /// `None` uses the alignment of the surrounding [`crate::Ui`].
+    ///
+    /// Explicit `Align2` values are physical: they do not mirror when
+    /// [`crate::Style::right_to_left`] is set. A theme that wants the atoms to
+    /// hug the reading-start edge must flip the alignment itself, the way the
+    /// built-in text edit style does with `Align2::LEFT_TOP.flipped_x()`.
     pub align2: Option<Align2>,
 
     /// Minimum size of the atom layout.

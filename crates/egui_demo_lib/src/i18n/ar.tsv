@@ -1,0 +1,925 @@
+# Arabic (ar) catalog. Columns, separated by a TAB:  context <TAB> source <TAB> translation
+#
+#   context  empty           a plain UI string; `source` is the English text in the code
+#            anything else   reserved; such a line is malformed and skipped with a warning
+#   escapes  \n  \t  \\  inside a column. `{name}` placeholders must appear in both columns.
+#   lines starting with # and blank lines are ignored.
+#
+# Clean-room: every entry was written from the plain meaning of the English label using ordinary
+# Modern Standard Arabic computing vocabulary. No proprietary localisation resource, string table
+# or product UI was consulted or copied; add entries the same way. Product and technology names
+# (egui, Rust, WebGL, WebGPU, FPS ...) stay in Latin letters; the trailing "…" of dialog commands
+# and load-bearing whitespace are kept exactly.
+
+# App shell (wrap_app.rs): anchor list, reset buttons, drag-and-drop, language picker
+	✨ Demos	✨ العروض التوضيحية
+	📝 EasyMark editor	📝 محرر EasyMark
+	⬇️ HTTP	⬇️ HTTP
+	🕑 Fractal Clock	🕑 ساعة الفركتال
+	🖼️ Image Viewer	🖼️ عارض الصور
+	🔺 3D painting	🔺 الرسم ثلاثي الأبعاد
+	🎨 Rendering test	🎨 اختبار التصيير
+	💻 Backend	💻 الواجهة الخلفية
+	Reset egui	إعادة تعيين egui
+	Forget scroll, positions, sizes etc	نسيان التمرير والمواضع والأحجام وما إلى ذلك
+	Reset everything	إعادة تعيين كل شيء
+	Dropping files:\n	إفلات الملفات:\n
+	Dropped files	الملفات التي تم إفلاتها
+	🌐 Language	🌐 اللغة
+
+# Backend panel (backend_panel.rs), its tabs included
+	egui windows:	نوافذ egui:
+	Press down all modifiers and hover a widget to see a callstack for it	اضغط على جميع المفاتيح المعدِّلة معًا وأشر إلى أحد العناصر لعرض حزمة الاستدعاء الخاصة به
+	🔈 Screen reader	🔈 قارئ الشاشة
+	Experimental feature: checking this will turn on the screen reader on supported platforms	ميزة تجريبية: تحديد هذا الخيار يشغّل قارئ الشاشة على الأنظمة المدعومة
+	Quit	إنهاء
+	Mode:	الوضع:
+	Reactive	تفاعلي
+	Repaint when there are animations or input (e.g. mouse movement)	إعادة الرسم عند وجود حركات أو إدخال (مثل تحريك الفأرة)
+	Continuous	مستمر
+	Repaint everything each frame	إعادة رسم كل شيء في كل إطار
+	Repainting the UI each frame. FPS: {fps}	إعادة رسم واجهة المستخدم في كل إطار. FPS: {fps}
+	Only running UI code when there are animations or input.	تشغيل شيفرة واجهة المستخدم فقط عند وجود حركات أو إدخال.
+	More…	المزيد…
+	Total ui frames:	إجمالي إطارات واجهة المستخدم:
+	Total ui passes:	إجمالي تمريرات واجهة المستخدم:
+	Wait 2s, then request repaint after another 3s	انتظر ثانيتين، ثم اطلب إعادة الرسم بعد 3 ثوانٍ أخرى
+	Request discard	طلب الاستبعاد
+	Discard denied!	تم رفض الاستبعاد!
+	egui running inside {eframe}.	يعمل egui داخل {eframe}.
+	Build:	البناء:
+	Web info (location)	معلومات الويب (الموقع)
+	Renderer:	المصيّر:
+	Backend:	الواجهة الخلفية:
+	Device Type:	نوع الجهاز:
+	Name:	الاسم:
+	Driver:	المشغّل:
+	Driver info:	معلومات المشغّل:
+	Vendor:	المصنّع:
+	Device:	الجهاز:
+	PCI Bus ID:	معرّف ناقل PCI:
+	Subgroup size:	حجم المجموعة الفرعية:
+	Transient saves memory:	التخزين المؤقت يوفر الذاكرة:
+	Limit bucket:	فئة الحدود:
+	Others:	أخرى:
+	🔳 Fullscreen (F11)	🔳 ملء الشاشة (F11)
+	Fullscreen the window	ملء الشاشة بالنافذة
+	Resize to…	تغيير الحجم إلى…
+	Present mode:	وضع العرض:
+	Desired max frame latency:	أقصى زمن انتقال مطلوب للإطار:
+	Default	افتراضي
+	Lower value = lower latency	القيمة الأقل = زمن انتقال أقل
+	Higher value = higher throughput/FPS	القيمة الأعلى = إنتاجية/FPS أعلى
+	🔧 Settings	🔧 الإعدادات
+	🔍 Inspection	🔍 الفحص
+	📝 Memory	📝 الذاكرة
+	📤 Output Events	📤 أحداث المخرجات
+
+# Frame history (frame_history.rs)
+	Mean CPU usage: {cpu} ms / frame	متوسط استخدام المعالج: {cpu} مللي ثانية / إطار
+	Includes all app logic, egui layout, tessellation, and rendering.\nDoes not include waiting for vsync.	يشمل كل منطق التطبيق وتخطيط egui والتثلث والتصيير.\nلا يشمل انتظار المزامنة الرأسية.
+	📊 CPU usage history	📊 سجل استخدام المعالج
+	egui CPU usage history	سجل استخدام المعالج في egui
+
+# Demo shell (demo_app_windows.rs): sidebar headings, menus and hovers
+	Demos	العروض التوضيحية
+	Tests	الاختبارات
+	Continue to the demo!	تابع إلى العرض التوضيحي!
+	⏷ demos	⏷ العروض التوضيحية
+	Organize windows	ترتيب النوافذ
+	File	ملف
+	Current zoom: {zoom}%	التكبير الحالي: {zoom}%
+	The UI zoom level, on top of the operating system's default value	مستوى تكبير واجهة المستخدم، إضافة إلى القيمة الافتراضية لنظام التشغيل
+	Organize Windows	ترتيب النوافذ
+	Reset egui memory	إعادة تعيين ذاكرة egui
+	About egui	نبذة عن egui
+
+# Demo names (demo_app_windows.rs): the sidebar groups and tests
+	〰 Band	〰 الحزام
+	〰️ Bézier Curve	〰️ منحنى بيزييه
+	⌨️ Code Editor	⌨️ محرر الشيفرة
+	⌨️ Code Example	⌨️ مثال شيفرة
+	😀 Completion	😀 الإكمال
+	♫ Dancing Strings	♫ أوتار راقصة
+	✋ Drag and Drop	✋ السحب والإفلات
+	🖥️ Extra Viewport	🖥️ منفذ عرض إضافي
+	🔤 Font Book	🔤 دليل الخطوط
+	▣ Frame	▣ إطار
+	✨ Highlighting	✨ التمييز
+	⃣ Interactive Container	⃣ حاوية تفاعلية
+	✨ Misc Demos	✨ عروض متنوعة
+	💭 Modals	💭 نوافذ مشروطة
+	👌 Multi Touch	👌 اللمس المتعدد
+	🖊️ Painting	🖊️ الرسم
+	📰 Panels	📰 اللوحات
+	❕ Popups	❕ القوائم المنبثقة
+	🔍 Scene	🔍 المشهد
+	📷 Screenshot	📷 لقطة الشاشة
+	↕️ Scrolling	↕️ التمرير
+	↔️ Sliders	↔️ أشرطة التمرير
+	▣ Strip	▣ الشريط
+	☰ Table	☰ جدول
+	✏️ TextEdit	✏️ تحرير النص
+	📄 Text Layout	📄 تخطيط النص
+	💬 Tooltips	💬 تلميحات الأدوات
+	⟲ Undo Redo	⟲ تراجع وإعادة
+	🗄️ Widget Gallery	🗄️ معرض العناصر
+	🔲 Window Options	🔲 خيارات النافذة
+	Clipboard Test	اختبار الحافظة
+	Cursor Test	اختبار المؤشر
+	Grid Test	اختبار الشبكة
+	ID Test	اختبار المعرّفات
+	Input Event History	سجل أحداث الإدخال
+	Input Test	اختبار الإدخال
+	Layout Test	اختبار التخطيط
+	Manual Layout Test	اختبار التخطيط اليدوي
+	SVG Test	اختبار SVG
+	Tessellation Test	اختبار التثلث
+	Window Resize Test	اختبار تغيير حجم النافذة
+
+# About window (about.rs)
+	egui is an immediate mode GUI library written in Rust. egui runs natively on {os}, and on the web it is compiled to WebAssembly and rendered with WebGL or WebGPU.	egui مكتبة واجهات رسومية فورية مكتوبة بلغة Rust. يعمل egui محليًا على {os}، وعلى الويب يُترجم إلى WebAssembly ويُصيَّر بواسطة WebGL أو WebGPU.
+	 Everything you see is rendered as textured triangles. There is no DOM, HTML, JS or CSS. Just Rust.	 كل ما تراه يُصيَّر كمثلثات مكسوّة بأنسجة. لا يوجد DOM ولا HTML ولا JS ولا CSS. فقط Rust.
+	egui is easy to use, portable, and fast.	egui سهل الاستخدام، قابل للنقل، وسريع.
+	This is how you create a button in egui:	هكذا تنشئ زرًا في egui:
+	There are no callbacks or messages, and no button state to store. 	لا توجد دوال رد نداء ولا رسائل، ولا حالة للزر تُخزَّن. 
+	Read more about immediate mode {here}.	اقرأ المزيد عن الوضع الفوري {here}.
+	here	هنا
+	egui development is sponsored by {rerun}, a startup building a data platform for robotics. 	تطوير egui برعاية {rerun}، وهي شركة ناشئة تبني منصة بيانات للروبوتات. 
+	For an example of a professional egui app, run {viewer} (in your browser!).	لمشاهدة مثال على تطبيق egui احترافي، شغّل {viewer} (في متصفحك!).
+	Links	روابط
+	egui documentation	توثيق egui
+
+# Widget gallery (widget_gallery.rs)
+	Source code of the widget gallery	الشيفرة المصدرية لمعرض العناصر
+	Label	تسمية
+	Welcome to the widget gallery!	مرحبًا بك في معرض العناصر!
+	 egui on GitHub	 egui على GitHub
+	Hyperlink	ارتباط تشعبي
+	TextEdit	تحرير النص
+	Write something here	اكتب شيئًا هنا
+	Button	زر
+	Click me!	انقرني!
+	Link	رابط
+	Checkbox	خانة اختيار
+	RadioButton	زر اختيار
+	First	الأول
+	Second	الثاني
+	Third	الثالث
+	SelectableLabel	تسمية قابلة للاختيار
+	ComboBox	قائمة منسدلة
+	Take your pick	اختر ما شئت
+	Slider	شريط تمرير
+	RangeSlider	شريط تمرير مدى
+	DragValue	قيمة سحب
+	ProgressBar	شريط تقدم
+	The progress bar can be animated!	يمكن تحريك شريط التقدم!
+	Color picker	منتقي الألوان
+	Image	صورة
+	Button with image	زر مع صورة
+	DatePickerButton	زر اختيار التاريخ
+	Separator	فاصل
+	CollapsingHeader	رأس قابل للطي
+	Click to see what is hidden!	انقر لرؤية ما هو مخفي!
+	It's a 	إنه 
+	Spinner	مؤشر دوّار
+	Custom widget	عنصر مخصص
+	It's easy to create your own widgets!\nThis toggle switch is just 15 lines of code.	من السهل إنشاء عناصر واجهة خاصة بك!\nمفتاح التبديل هذا لا يزيد عن 15 سطرًا من الشيفرة.
+	Visible	مرئي
+	Uncheck to hide all the widgets.	أزل التحديد لإخفاء جميع العناصر.
+	Interactive	قابل للتفاعل
+	Uncheck to inspect how the widgets look when disabled.	أزل التحديد لمعرفة شكل العناصر عند تعطيلها.
+	Opacity	العتامة
+	Reduce this value to make widgets semi-transparent	قلّل هذه القيمة لجعل العناصر شبه شفافة
+	The full egui documentation.\nYou can also click the different widgets names in the left column.	توثيق egui الكامل.\nيمكنك أيضًا النقر على أسماء العناصر المختلفة في العمود الأيسر.
+	Search egui docs for	ابحث في توثيق egui عن
+
+# ── Partition P2 (branch craft/i18n-ar-p2): the text demos ─────────────
+# text_edit.rs, password.rs, completion.rs, code_editor.rs, code_example.rs,
+# highlighting.rs, text_layout.rs, about.rs and font_book.rs; audit facts in
+# ar-p2-notes.md on the part branch.
+	Edit this text	حرر هذا النص
+	Advanced usage of 	استخدام متقدم لـ 
+	Horizontal align:	المحاذاة الأفقية:
+	Auto	تلقائي
+	Left	يسار
+	Center	وسط
+	Right	يمين
+	Vertical align:	المحاذاة الرأسية:
+	Top	أعلى
+	Bottom	أسفل
+	Type something!	اكتب شيئًا!
+	Selected text: 	النص المحدد: 
+	Press ctrl+Y to toggle the case of selected text (cmd+Y on Mac)	اضغط ctrl+Y لتبديل حالة الأحرف في النص المحدد (cmd+Y على Mac)
+	Move cursor to the:	انقل المؤشر إلى:
+	start	البداية
+	end	النهاية
+	Show/hide password	إظهار/إخفاء كلمة المرور
+	 over a 	 فوق 
+	. Type a colon and the name of an emoji, e.g. 	. اكتب نقطتين ثم اسم رمز تعبيري، مثل 
+	. The arrow keys select, Enter or Tab accepts, and Escape closes the popup.	. تختار أسهم لوحة المفاتيح، ويقبل Enter أو Tab، ويغلق Escape القائمة المنبثقة.
+	Type :smile: …	اكتب :smile: …
+	An example of syntax highlighting in a TextEdit.	مثال على تمييز الصياغة في TextEdit.
+	Language:	اللغة:
+	Syntax highlighting powered by 	تمييز الصياغة مدعوم بواسطة 
+	Compile the demo with the 	صرّف العرض التوضيحي مع 
+	 feature to enable more accurate syntax highlighting using 	 لتفعيل تمييز صياغة أدق باستخدام 
+	Theme	السمة
+	Code	الشيفرة
+	Example	مثال
+	Name	الاسم
+	 years	 سنة
+	Increment	زيادة
+	{name} is {age}	{name} هو {age}
+	This demo demonstrates highlighting a widget.	يوضّح هذا العرض التوضيحي تمييز أحد العناصر.
+	Hover me to highlight the button!	مرّر الفأرة فوقي لتمييز الزر!
+	Hover the button to highlight the label!	مرّر الفأرة فوق الزر لتمييز التسمية!
+	Max rows:	أقصى عدد للأسطر:
+	Line-break:	كسر السطر:
+	word boundaries	حدود الكلمات
+	anywhere	في أي موضع
+	Overflow character:	حرف التجاوز:
+	None	بلا
+	Extra letter spacing:	تباعد إضافي بين الأحرف:
+	Line height:	ارتفاع السطر:
+	Custom	مخصص
+	 pixels	 بكسل
+	Justify:	ضبط الأسطر:
+	Fill row width	ملء عرض السطر
+	Text:	النص:
+	On web, the browser draws missing glyphs instead. 	على الويب، يرسم المتصفح الأحرف الناقصة بدلًا من ذلك. 
+	On native, eframe falls back to looking for a matching system font. 	وعلى النظام الأصلي، يعود eframe إلى البحث عن خط نظام مطابق. 
+	Bundle fonts with 	ضمّن الخطوط باستخدام 
+	The selected family has {characters} characters, from {fonts} fonts	أحرف العائلة المحددة: {characters}، من {fonts} خطوط
+	In fallback order:	بترتيب الخطوط الاحتياطية:
+	Filter:	التصفية:
+	unknown	غير معروف
+	Hex	سداسي عشري
+	Width	العرض
+	Fonts	الخطوط
+
+# ── Partition P3 (branch craft/i18n-ar-p3): the visual demos and app chrome ─────────────
+# Per-file audit facts in ar-p3-notes.md on the part branch.
+	Stroke:	الحد:
+	Clear Painting	مسح الرسم
+	Paint with your mouse/touch!	ارسم بالفأرة أو باللمس!
+
+# paint_bezier.rs
+	Colors	الألوان
+	Fill color	لون التعبئة
+	Curve Stroke	حد المنحنى
+	Auxiliary Stroke	الحد المساعد
+	Bounding Box Stroke	حد الصندوق المحيط
+	Global tessellation options	خيارات التثلث العامة
+	Quadratic Bézier	بيزييه تربيعي
+	Cubic Bézier	بيزييه تكعيبي
+	Move the points by dragging them.	حرّك النقاط بسحبها.
+	Only convex curves can be accurately filled.	المنحنيات المحدبة وحدها هي التي يمكن تعبئتها بدقة.
+
+# dancing_strings.rs
+	Colored	مُلوَّن
+	Demonstrates how a path can have varying color across its length.	يوضح كيف يمكن أن يتغيّر لون المسار على امتداده.
+
+# band.rs
+	An animated waveform rendered as a rotated band.	موجة متحركة تُصيَّر على هيئة حزام مُدار.
+	Angle	الزاوية
+	Animation speed	سرعة الحركة
+	Fill opacity	عتامة التعبئة
+	Stroke opacity	عتامة الحد
+	Stroke width	عرض الحد
+	Stroke kind	نوع الحد
+	Inside	داخلي
+	Middle	وسطي
+	Outside	خارجي
+
+# frame_demo.rs
+	Reset	إعادة تعيين
+	Content	المحتوى
+
+# scene.rs
+	Scene	المشهد
+	You can pan by scrolling, and zoom using cmd-scroll. Double click on the background to reset view.	يمكنك التحريك بالتمرير، والتكبير بالتمرير مع مفتاح cmd. انقر نقرًا مزدوجًا على الخلفية لإعادة ضبط العرض.
+	Change mousewheel behavior to zoom instead of scroll	تغيير سلوك عجلة الفأرة إلى التكبير بدلًا من التمرير
+	Reset view	إعادة ضبط العرض
+	You can put a widget anywhere	يمكنك وضع عنصر في أي مكان
+
+# scrolling.rs
+	Appearance	المظهر
+	Scroll to	التمرير إلى
+	Scroll a lot of lines	تمرير الكثير من الأسطر
+	Scroll a large canvas	تمرير لوحة كبيرة
+	Stick to end	الالتصاق بالنهاية
+	Bidirectional	ثنائي الاتجاه
+	When to show scroll bars; resize the window to see the effect.	متى تُعرض أشرطة التمرير؛ غيّر حجم النافذة لترى التأثير.
+	Content length	طول المحتوى
+	A lot of rows, but only the visible ones are laid out, so performance is still good:	صفوف كثيرة، لكن الصفوف المرئية فقط هي التي تُرتَّب، فيبقى الأداء جيدًا:
+	A lot of rows, but only the visible ones are painted, so performance is still good:	صفوف كثيرة، لكن الصفوف المرئية فقط هي التي تُرسَم، فيبقى الأداء جيدًا:
+	This is row {row}	هذا هو الصف {row}
+	This is row {}/{}	هذا هو الصف {}/{}
+	This is row {}/{}, indented by {} pixels	هذا هو الصف {}/{}، مُزاح بمقدار {} بكسل
+	This shows how you can scroll to a specific item or pixel offset	يوضح هذا كيف يمكنك التمرير إلى عنصر محدد أو إزاحة محددة بالبكسل
+	Scroll to a specific item index:	التمرير إلى فهرس عنصر محدد:
+	Track Item	العنصر المتعقَّب
+	Item align:	محاذاة العنصر:
+	None (Bring into view)	بلا (إحضاره إلى مجال الرؤية)
+	Scroll to a specific offset:	التمرير إلى إزاحة محددة:
+	Scroll to top	التمرير إلى الأعلى
+	Scroll to bottom	التمرير إلى الأسفل
+	Scroll by	التمرير بمقدار
+	This is item {item}	هذا هو العنصر {item}
+	Rows enter from the bottom, we want the scroll handle to start and stay at bottom unless moved	تدخل الصفوف من الأسفل، ونريد أن يبدأ مقبض التمرير عند الأسفل ويثبت فيه ما لم يُحرَّك
+
+# sliders.rs
+	You can click a slider value to edit it with the keyboard.	يمكنك النقر على قيمة شريط التمرير لتحريرها بلوحة المفاتيح.
+	i32 demo slider	شريط تمرير i32 تجريبي
+	f64 demo slider	شريط تمرير f64 تجريبي
+	Sliders will intelligently pick how many decimals to show. You can always see the full precision value by hovering the value.	تختار أشرطة التمرير بذكاء عدد الأرقام العشرية المعروضة، ويمكنك دائمًا رؤية القيمة بكامل دقتها بالتمرير فوقها.
+	Assign PI	تعيين PI
+	Slider range:	مدى شريط التمرير:
+	left	الأيسر
+	right	الأيمن
+	Toggle trailing color	تبديل اللون اللاحق
+	When enabled, trailing color will be painted up until the handle.	عند التمكين، يُرسم اللون اللاحق حتى المقبض.
+	Use steps	استخدام الخطوات
+	When enabled, the minimal value change would be restricted to a given step.	عند التمكين، يُقيَّد أصغر تغيير في القيمة بخطوة معينة.
+	Slider type:	نوع شريط التمرير:
+	All numeric types (f32, usize, …) are supported.	جميع الأنواع الرقمية (f32، usize، …) مدعومة.
+	Slider orientation:	اتجاه شريط التمرير:
+	Horizontal	أفقي
+	Vertical	رأسي
+	Logarithmic	لوغاريتمي
+	Logarithmic sliders are great for when you want to span a huge range, i.e. from zero to a million.	أشرطة التمرير اللوغاريتمية رائعة عندما تريد تغطية مدى ضخم، كالتمدد من الصفر إلى المليون.
+	Logarithmic sliders can include infinity and zero.	يمكن لأشرطة التمرير اللوغاريتمية أن تشمل اللانهاية والصفر.
+	Clamping:	التقييد:
+	Never	أبدًا
+	Edits	عند التحرير
+	Always	دائمًا
+	If true, the slider will clamp incoming and outgoing values to the given range.	إذا كانت القيمة صحيحة، سيقيّد شريط التمرير القيم الداخلة والخارجة إلى المدى المعطى.
+	If false, the slider can show values outside its range, and you cannot enter new values outside the range.	إذا كانت القيمة خاطئة، يمكن لشريط التمرير عرض قيم خارج مداه، ولن تستطيع إدخال قيم جديدة خارج المدى.
+	Smart Aim	التصويب الذكي
+	Smart Aim will guide you towards round values when you drag the slider so you you are more likely to hit 250 than 247.23	يرشدك التصويب الذكي نحو القيم المستديرة عند سحب شريط التمرير، فمن الأرجح أن تصيب 250 لا 247.23
+
+# strip_demo.rs
+	width: 100%\nheight: 50px	العرض: 100%\nالارتفاع: 50px
+	width: 50%\nheight: remaining	العرض: 50%\nالارتفاع: المتبقي
+	width: 50%\nheight: 1/3 of the red region	العرض: 50%\nالارتفاع: ثلث المنطقة الحمراء
+	width: 120px\nheight: 60px	العرض: 120px\nالارتفاع: 60px
+	width: 70px\n\nheight: 50%, but at least 60px.	العرض: 70px\n\nالارتفاع: 50%، لكن 60px على الأقل.
+
+# table_demo.rs
+	Striped	مخطط
+	Overline some rows	خط علوي لبعض الصفوف
+	Resizable columns	أعمدة قابلة لتغيير الحجم
+	Clickable rows	صفوف قابلة للنقر
+	Table type:	نوع الجدول:
+	Few, manual rows	صفوف قليلة يدوية
+	Thousands of rows of same height	آلاف الصفوف بالارتفاع نفسه
+	Thousands of rows of differing heights	آلاف الصفوف بارتفاعات مختلفة
+	Num rows	عدد الصفوف
+	Row to scroll to	الصف الذي يُمرَّر إليه
+	Row	الصف
+	Clipped text	نص مقصوص
+	Expanding content	محتوى موسِّع
+	Interaction	التفاعل
+	Click me	انقرني
+	Extra thick row	صف سميك جدًا
+	Normal row	صف عادي
+	Thousands of rows of even height	آلاف الصفوف بارتفاع منتظم
+	Row {row_index} has some long text that you may want to clip, or it will take up too much horizontal space!	الصف {row_index} يحتوي نصًّا طويلًا قد ترغب في اقتطاعه، وإلا فسيشغل مساحة أفقية كبيرة جدًا!
+
+# tooltips.rs
+	Tooltips	تلميحات الأدوات
+	The scroll area below has many labels with interactive tooltips. The purpose is to test that the tooltips close when you scroll.	منطقة التمرير أدناه فيها تسميات كثيرة بتلميحات أدوات تفاعلية، والغرض هو اختبار أن التلميحات تُغلق عند التمرير.
+	Try hovering a label below, then scroll!	جرّب التمرير فوق إحدى التسميات أدناه، ثم مرّر!
+	This is line {i}	هذا هو السطر {i}
+	This tooltip is interactive, because the text in it is selectable.	هذا التلميح تفاعلي، لأن النص فيه قابل للتحديد.
+	All labels in this demo have tooltips.	جميع التسميات في هذا العرض لها تلميحات أدوات.
+	Yes, even this one.	نعم، حتى هذه.
+	Some widgets have multiple tooltips!	بعض العناصر لها تلميحات متعددة!
+	The first tooltip.	التلميح الأول.
+	The second tooltip.	التلميح الثاني.
+	Tooltips can contain interactive widgets.	يمكن أن تحوي تلميحات الأدوات عناصر تفاعلية.
+	This tooltip contains a link:	يحوي هذا التلميح رابطًا:
+	The tooltip has a tooltip in it!	التلميح يحتوي تلميحًا بداخله!
+	You can put selectable text in tooltips too.	يمكنك وضع نص قابل للتحديد في التلميحات أيضًا.
+	You can select this text.	يمكنك تحديد هذا النص.
+	This tooltip shows at the mouse cursor.	يظهر هذا التلميح عند مؤشر الفأرة.
+	Move me around!!	حرِّكني في أنحاء الشاشة!!
+	This tooltip was created with	أُنشئ هذا التلميح بواسطة
+	A different tooltip when widget is disabled.	تلميح مختلف عند تعطيل العنصر.
+	You can have different tooltips depending on whether or not a widget is enabled:	يمكن أن تحصل على تلميحات مختلفة بحسب ما إذا كان العنصر ممكّنًا أم لا:
+	Check the tooltip of the button below, and see how it changes depending on whether or not it is enabled.	افحص تلميح الزر أدناه، ولاحظ كيف يتغير بحسب ما إذا كان ممكّنًا أم لا.
+	Enabled	ممكّن
+	Controls whether or not the following button is enabled.	يتحكم فيما إذا كان الزر التالي ممكّنًا.
+	Sometimes clickable	قابل للنقر أحيانًا
+
+# undo_redo.rs
+	Text with undo/redo	نص مع تراجع/إعادة
+	Checkbox with undo/redo	خانة اختيار مع تراجع/إعادة
+	⟲ Undo	⟲ تراجع
+	⟳ Redo	⟳ إعادة
+
+# drag_and_drop.rs
+	Item A	العنصر A
+	Item B	العنصر B
+	Item C	العنصر C
+	Item D	العنصر D
+	Item E	العنصر E
+	Item F	العنصر F
+	Item G	العنصر G
+	Item H	العنصر H
+	Item I	العنصر I
+	Item J	العنصر J
+	Item K	العنصر K
+	This is a simple example of drag-and-drop in egui.	هذا مثال بسيط على السحب والإفلات في egui.
+	Drag items between columns.	اسحب العناصر بين الأعمدة.
+
+# multi_touch.rs
+	This demo only works on devices with multitouch support (e.g. mobiles, tablets, and trackpads).	يعمل هذا العرض فقط على الأجهزة الداعمة للمس المتعدد (كالهواتف المحمولة والأجهزة اللوحية ولوحات التتبع).
+	Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.	جرّب إيماءات اللمس: القرص/المدّ، والتدوير، والضغط بإصبعين أو أكثر.
+	{num_touches}-finger touch	لمس بـ {num_touches} أصابع
+	Input source: {source}	مصدر الإدخال: {source}
+	cursor	المؤشر
+	none	لا شيء
+
+# modals.rs
+	Open User Modal	افتح النافذة المشروطة للمستخدم
+	Open Save Modal	افتح النافذة المشروطة للحفظ
+	Click one of the buttons to open a modal.	انقر أحد الأزرار لفتح نافذة مشروطة.
+	Modals have a backdrop and prevent interaction with the rest of the UI.	للنوافذ المشروطة خلفية معتمة تمنع التفاعل مع بقية واجهة المستخدم.
+	You can show modals on top of each other and close the topmost modal with escape or by clicking outside the modal.	يمكنك عرض نوافذ مشروطة فوق بعضها، وإغلاق النافذة العلوية بمفتاح escape أو بالنقر خارج النافذة.
+	Edit User	تحرير المستخدم
+	Role	الدور
+	user	مستخدم
+	admin	مسؤول
+	Save	حفظ
+	Cancel	إلغاء
+	Save? Are you sure?	حفظ؟ هل أنت متأكد؟
+	Yes Please	نعم، من فضلك
+	No Thanks	لا، شكرًا
+	Saving…	يجري الحفظ…
+
+# popups.rs
+	Open…	افتح…
+	Popups can have submenus	يمكن للقوائم المنبثقة أن تحوي قوائم فرعية
+	SubMenu	قائمة فرعية
+	Item	عنصر
+	Recursive	متداخلة
+	SubMenus can be disabled	يمكن تعطيل القوائم الفرعية
+	I have an icon!	لديّ أيقونة!
+	Item1	عنصر1
+	Item2	عنصر2
+	Item3	عنصر3
+	Item4	عنصر4
+	Very long text for this item that should be wrapped	نص طويل جدًا لهذا العنصر يُفترض أن يُعالَج بالالتفاف
+	Always CloseOnClickOutside	دائمًا CloseOnClickOutside
+	Background	الخلفية
+	Only visible when checked	تظهر فقط عند التحديد
+	Remove myself	أزِلني
+	Click, right-click and hover me!	انقرني بالنقر العادي أو الأيمن، ومرّر فوقي!
+	Popup contents	محتويات القائمة المنبثقة
+	Tooltips are popups, too!	تلميحات الأدوات هي نوافذ منبثقة أيضًا!
+	Reset to defaults	إعادة التعيين إلى الافتراضي
+	parent	الأب
+	child	الابن
+	<Select Preset>	<اختر إعدادًا مسبقًا>
+	Preset	إعداد مسبق
+	gap	الفجوة
+	Closes when the user clicks anywhere (inside or outside)	يُغلق عندما ينقر المستخدم في أي مكان (داخله أو خارجه)
+	Closes when the user clicks outside the popup	يُغلق عندما ينقر المستخدم خارج القائمة المنبثقة
+	Close only when the button is clicked again	يُغلق فقط عند النقر على الزر مرة أخرى
+	Close behavior	سلوك الإغلاق
+
+# misc_demo_window.rs — collapsing headers and demos
+	Misc widgets	عناصر متنوعة
+	Text layout	تخطيط النص
+	System font fallback	احتياطي خطوط النظام
+	Text rotation	تدوير النص
+	Custom Collapsing Header	رأس قابل للطي مخصص
+	Tree	الشجرة
+	Repaint	إعادة الرسم
+	Checkboxes	خانات الاختيار
+	Checkboxes with empty labels take up very little space:	تشغل خانات الاختيار ذات التسميات الفارغة مساحة ضئيلة جدًا:
+	checkbox	خانة اختيار
+	Radiobuttons are similar:	أزرار الاختيار مشابهة:
+	Checkboxes can be in an indeterminate state:	يمكن لخانات الاختيار أن تكون في حالة غير محددة:
+	Check/uncheck all	تحديد الكل أو إزالته
+	Item {index}	عنصر {index}
+	Columns	الأعمدة
+	Column {index} out of {total}	العمود {index} من {total}
+	Delete this	احذف هذا
+	Test box rendering	اختبار رسم الصناديق
+	Resize	تغيير الحجم
+	Right-to-left	من اليمين إلى اليسار
+	This ui can be resized!	يمكن تغيير حجم هذه الواجهة!
+	Just pull the handle on the bottom left	اسحب المقبض الموجود أسفل اليسار فحسب
+	Just pull the handle on the bottom right	اسحب المقبض الموجود أسفل اليمين فحسب
+	Ui Stack	حزمة الواجهة
+	Misc	متنوع
+	You can pretty easily paint your own small icons:	يمكنك رسم أيقوناتك الصغيرة الخاصة بسهولة تامة:
+	Many circles of different sizes	دوائر كثيرة بأحجام مختلفة
+
+# misc_demo_window.rs — label demo
+	Text can have	يمكن أن يكون للنص
+	color	لون
+	and tooltips.	وتلميحات أدوات.
+	This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.	هذا تلميح متعدد الأسطر يوضح أنه يمكنك بسهولة إضافة تلميحات إلى أي عنصر.\nهذا هو السطر الثاني.\nوهذا هو الثالث.
+	You can mix in other widgets into text, like	يمكنك مزج عناصر أخرى داخل النص، مثل
+	this button	هذا الزر
+	The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟📐…).	يدعم الخط الافتراضي جميع المحارف اللاتينية والسيريلية (ИÅđ…) ورموز الرياضيات الشائعة (∫√∞²⅓…) والعديد من الإيموجي (💓🌟📐…).
+	There is currently no support for right-to-left languages.	لا يوجد حاليًا دعم للغات التي تُكتب من اليمين إلى اليسار.
+	See the 🔤 Font Book for more!	انظر 🔤 دليل الخطوط للمزيد!
+	There is also a monospace font.	يوجد أيضًا خط أحادي المسافة.
+	Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::truncate`. When hovered, the label will show the full text.	يمكن ضبط التسميات المحتوية على نص طويل لاقتطاع ما لا يتسع في سطر واحد باستخدام `Label::truncate`، وعند التمرير فوقها تعرض التسمية النص الكامل.
+
+# misc_demo_window.rs — widgets (angle, password)
+	An angle:	زاوية:
+	Each τ represents one turn (τ = 2π)	كل τ تمثل دورة كاملة (τ = 2π)
+	The angle is stored in radians, but presented in degrees	تُخزَّن الزاوية بالراديان، لكنها تُعرض بالدرجات
+	Password:	كلمة السر:
+	See the example code for how to use egui to store UI state	انظر شيفرة المثال لمعرفة كيفية استخدام egui لتخزين حالة واجهة المستخدم
+
+# misc_demo_window.rs — repaint demo
+	Use this to verify if logic is correctly called while in background.	استخدم هذا للتحقق من أن logic يُستدعى بشكل صحيح أثناء العمل في الخلفية.
+	Reset counts	تصفير العدّادات
+	`ui`: {ui}, `logic`: {logic}	`ui`: {ui}، `logic`: {logic}
+	`ui` is incremented in `App::ui` (only runs while visible), `logic` in `App::logic` (runs even while hidden).	يزداد `ui` في `App::ui` (لا يعمل إلا أثناء الظهور)، ويزداد `logic` في `App::logic` (يعمل حتى أثناء الإخفاء).
+	Repaint continuously (every frame)	إعادة الرسم باستمرار (في كل إطار)
+	Repaint after	إعادة الرسم بعد
+	delay	التأخير
+	In the background (during logic)	في الخلفية (أثناء logic)
+	Issue the repaint requests from `App::logic` (which runs even while hidden) instead of `App::ui` (which is skipped while hidden).\n\nWith this enabled, hide this tab for a while, then come back: the `logic` count will have kept climbing.	أصدر طلبات إعادة الرسم من `App::logic` (الذي يعمل حتى أثناء الإخفاء) بدلًا من `App::ui` (الذي يُتخطى أثناء الإخفاء).\n\nمع تمكين هذا، أخفِ هذه اللوحة مدةً ثم عُد إليها: سيكون عدّاد `logic` قد واصل الزيادة.
+	Log each frame	تسجيل كل إطار
+	Log each `ui` and `logic` frame to the console.	سجّل كل إطار من `ui` و`logic` إلى وحدة التحكم.
+
+# misc_demo_window.rs — colors, collapsing header, tree, ui stack, fonts
+	egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha	يتيح لك egui تحرير الألوان المخزّنة كـ sRGBA أو RGBA خطية، وبألفا مضروبة مسبقًا أو بدونها
+	corner_radius	نصف قطر الزاوية
+	stroke_width	عرض الحد
+	num_boxes	عدد الصناديق
+	Example of a collapsing header with custom header:	مثال على رأس قابل للطي بعنوان مخصص:
+	Click to select/unselect	انقر للتحديد أو إلغاء التحديد
+	The body is always custom	المتن مخصص دائمًا
+	Normal collapsing header for comparison	رأس قابل للطي عادي للمقارنة
+	Nothing exciting here	لا شيء مميز هنا
+	delete	حذف
+	child #{i}	الفرع {i}
+	root	الجذر
+	The	إنّ
+	core type is typically deeply nested in	هو النوع الأساسي الذي يتشعب عادةً بعمق داخل تطبيقات
+	applications. To provide context to nested code, it maintains a stack with various information.\n\nThis is how the stack looks like here:	لتوفير السياق للشيفرة المتداخلة، يحافظ على حزمة بمعلومات متنوعة.\n\nهكذا تبدو هذه الحزمة هنا:
+	id	المعرّف
+	kind	النوع
+	Hover on UI's ids to display their origin and max rect.	مرّر فوق معرّفات الواجهة لعرض أصلها ومستطيلها الأقصى.
+	Some non-latin chars to test font fallback:	بعض المحارف غير اللاتينية لاختبار الخطوط الاحتياطية:
+	Arabic	العربية
+	Chinese (simplified)	الصينية (المبسطة)
+	Chinese (traditional)	الصينية (التقليدية)
+	Devanagari	الديفاناغارية
+	Emoji	الإيموجي
+	Hebrew	العبرية
+	Japanese	اليابانية
+	Korean	الكورية
+	Thai	التايلاندية
+
+# misc_demo_window.rs — text-layout fragments (whitespace is load-bearing)
+	This	هذا
+	 is a demonstration of 	 عرضٌ لـ 
+	the egui text layout engine. 	محرّك تخطيط النص في egui. 
+	It supports 	وهو يدعم 
+	different 	ألوانًا 
+	colors, 	مختلفة، 
+	backgrounds, 	وخلفيات، 
+	mixing 	وخلط 
+	fonts, 	الخطوط، 
+	raised text, 	ونصًّا مرفوعًا، 
+	with 	مع 
+	underlining	تسطير
+	 and 	 و 
+	strikethrough	شطب
+	. Of course, 	. وبالطبع، 
+	you can	يمكنك
+	 mix these!	 مزج هذه!
+	angle	الزاوية
+	Anchor	المرساة
+
+# interactive_container.rs
+	This demo showcases how to use 	يستعرض هذا العرض كيفية استخدام 
+	 to create interactive container widgets that may contain other widgets.	 لإنشاء عناصر حاويات تفاعلية قد تحوي عناصر أخرى.
+
+# window_options.rs
+	title:	العنوان:
+	Can the window be moved by dragging?	هل يمكن تحريك النافذة بالسحب؟
+	Constrain window to the screen	تقييد النافذة إلى الشاشة
+	Offset:	الإزاحة:
+	Offset x	الإزاحة x
+	Offset y	الإزاحة y
+	Drag to move:	اسحب للتحريك:
+	Where the user can grab the window to move it	من أين يمكن للمستخدم الإمساك بالنافذة لتحريكها
+	Off	إيقاف
+	Anywhere	في أي مكان
+	The window cannot be dragged to move it (same as movable = false)	لا يمكن سحب النافذة لتحريكها (وكأن movable = false)
+	Anywhere on touch screens, title-bar only otherwise (default)	في أي مكان على شاشات اللمس، وشريط العنوان فقط غير ذلك (الافتراضي)
+	Only the title bar moves the window	شريط العنوان وحده هو من يحرّك النافذة
+	Drag anywhere on the window to move it	اسحب من أي مكان في النافذة لتحريكها
+	This window is on top: {on_top}.	هذه النافذة في المقدمة: {on_top}.
+	Disable for 2 seconds	تعطيل لمدة ثانيتين
+	Close	إغلاق
+	You can collapse / close Windows via Ui::close	يمكنك طي النوافذ أو إغلاقها عبر Ui::close
+
+# extra_viewport.rs
+	This egui integration does not support multiple viewports	تكامل egui هذا لا يدعم منافذ عرض متعددة
+	egui and eframe supports having multiple native windows like this, which egui calls 'viewports'.	يدعم egui وeframe امتلاك نوافذ أصلية متعددة مثل هذه، والتي يسميها egui منافذ عرض (viewports).
+	Here you can see all the open viewports:	هنا يمكنك رؤية جميع منافذ العرض المفتوحة:
+
+# panels.rs
+	Panels	اللوحات
+	Expandable Upper Panel	اللوحة العلوية القابلة للتوسيع
+	Left Panel	اللوحة اليسرى
+	Right Panel	اللوحة اليمنى
+	Bottom panel	اللوحة السفلية
+	Bottom panel (collapsed)	اللوحة السفلية (مطوية)
+	Central Panel	اللوحة المركزية
+	Panel toggles:	مفاتيح تبديل اللوحات:
+
+# wrap_app.rs — remaining app chrome
+	NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.	ملاحظة: بعض المتصفحات القديمة العالقة على WebGL1 دون دعم sRGB لن تجتاز اختبار الألوان.
+	📱 iPhone SE 2nd Gen	📱 iPhone SE الجيل الثاني
+	🖥️ Desktop 720p	🖥️ سطح المكتب 720p
+	🖥️ Desktop 1080p	🖥️ سطح المكتب 1080p
+	Recent output events from egui. These are emitted when you interact with widgets, or move focus between them with TAB. They can be hooked up to a screen reader on supported platforms.	أحداث المخرجات الأخيرة من egui. تصدر هذه الأحداث عند تفاعلك مع العناصر أو عند نقل التركيز بينها بمفتاح TAB، ويمكن توصيلها بقارئ شاشة على الأنظمة المدعومة.
+
+# accessibility_inspector.rs
+	🔎 AccessKit Inspector	🔎 فاحص AccessKit
+	Node ID	معرّف العقدة
+	Value	القيمة
+	Children	الأبناء
+	Actions	الإجراءات
+	Node not found	العقدة غير موجودة
+
+# apps/http_app.rs
+	HTTP requests made using 	تُجرى طلبات HTTP باستخدام 
+	URL:	الرابط:
+	HINT: paste the url of this page into the field above!	تلميح: الصق رابط هذه الصفحة في الحقل أعلاه!
+	Source code for this example	الشيفرة المصدرية لهذا المثال
+	Random image	صورة عشوائية
+	Error	خطأ
+	Response headers	ترويسات الاستجابة
+	Click to copy the response body	انقر لنسخ متن الاستجابة
+	[binary]	[ثنائي]
+
+# apps/image_viewer.rs
+	URI:	المُعرِّف:
+	file…	ملف…
+	min x	أدنى x
+	min y	أدنى y
+	max x	أقصى x
+	max y	أقصى y
+	Rotation	الدوران
+	origin x	الأصل x
+	origin y	الأصل y
+	Background color	لون الخلفية
+	Tint	الصبغة
+	The chosen fit will determine how the image tries to fill the available space	تحدد طريقة الملاءمة المختارة كيف تسعى الصورة لملء المساحة المتاحة
+	Fit	الملاءمة
+	exact size	الحجم الدقيق
+	fraction	الكسر
+	original size	الحجم الأصلي
+	scale	المقياس
+	The calculated size will not exceed the maximum size	لن يتجاوز الحجم المحسوب الحد الأقصى للحجم
+	Aspect ratio is maintained by scaling both sides as necessary	تُحفظ نسبة الأبعاد بتحجيم الضلعين حسب اللزوم
+	Maintain aspect ratio	الحفاظ على نسبة الأبعاد
+	Alt text	النص البديل
+	Forget all images	نسيان جميع الصور
+
+# apps/fractal_clock.rs
+	Settings	الإعدادات
+	The fractal_clock clock is not showing the correct time	ساعة fractal_clock لا تعرض الوقت الصحيح
+	Painted line count: {}	عدد الخطوط المرسومة: {}
+	Paused	إيقاف مؤقت
+	zoom	التكبير
+	Start line width	عرض الخط الابتدائي
+	depth	العمق
+	length factor	عامل الطول
+	luminance factor	عامل الإضاءة
+	width factor	عامل العرض
+	Inspired by a screensaver by Rob Mayoff	مستوحاة من شاشة توقف لـ Rob Mayoff
+
+# apps/custom3d_glow.rs + custom3d_wgpu.rs
+	The triangle is being painted using 	يُرسم المثلث باستخدام 
+	 (Portable Rust graphics API awesomeness)	 (واجهة رسومية محمولة رائعة لـ Rust)
+	It's not a very impressive demo, but it shows you can embed 3D inside of egui.	ليس هذا عرضًا مبهرًا للغاية، لكنه يبيّن أنه يمكن تضمين رسوم ثلاثية الأبعاد داخل egui.
+	Drag to rotate!	اسحب للتدوير!
+
+# lib.rs — the source-code hyperlink macro
+	(source code)	(الشيفرة المصدرية)
+
+# main.rs — window title
+	egui demo app	تطبيق العرض التجريبي لـ egui
+
+# demo/tests windows (clipboard_test.rs, cursor_test.rs, grid_test.rs, id_test.rs,
+# input_event_history.rs, input_test.rs, layout_test.rs, manual_layout_test.rs,
+# tessellation_test.rs, window_resize_test.rs; svg_test.rs has no chrome text)
+	Example text you can copy-and-paste	نص مثال يمكنك نسخه ولصقه
+	egui integrates with the system clipboard.	يتكامل egui مع حافظة النظام.
+	Try copy-cut-pasting text in the text edit below.	جرّب نسخ النص وقصّه ولصقه في محرر النص أدناه.
+	Text to copy	النص المراد نسخه
+	Copy	نسخ
+	Cut	قص
+	Paste	لصق
+	You can also copy images:	يمكنك أيضًا نسخ الصور:
+	Hover to switch cursor icon:	أشِر لتغيير أيقونة المؤشر:
+	Minimum column width	الحد الأدنى لعرض العمود
+	Maximum column width	الحد الأقصى لعرض العمود
+	Rows	الصفوف
+	row {row}	الصف {row}
+	random	عشوائي
+	words	كلمات
+	in	في
+	a	أ
+	order	ترتيب
+	that	التي
+	just	فقط
+	keeps	يواصل
+	going	التقدم
+	with	مع
+	some	بعض
+	more	المزيد
+	Vertical nest1	تداخل رأسي 1
+	Vertical nest2	تداخل رأسي 2
+	First row, second column	الصف الأول، العمود الثاني
+	Horizontal nest1	تداخل أفقي 1
+	Horizontal nest2	تداخل أفقي 2
+	Second row, second column	الصف الثاني، العمود الثاني
+	Scope nest 1	تداخل النطاق 1
+	Scope nest 2	تداخل النطاق 2
+	Third row, second column	الصف الثالث، العمود الثاني
+	Grid nest11	تداخل الشبكة 11
+	Grid nest12	تداخل الشبكة 12
+	Grid nest21	تداخل الشبكة 21
+	Grid nest22	تداخل الشبكة 22
+	Fourth row, second column	الصف الرابع، العمود الثاني
+	Text length	طول النص
+	Fifth row, second column	الصف الخامس، العمود الثاني
+	Name collision example	مثال على تعارض الأسماء
+	Widgets that store state require unique and persisting identifiers so we can track their state between frames.\nFor instance, collapsible headers needs to store whether or not they are open. Their Id:s are derived from their names. If you fail to give them unique names then clicking one will open both. To help you debug this, an error message is printed on screen:	تحتاج العناصر التي تخزّن حالةً إلى معرّفات فريدة دائمة حتى نتمكن من تتبّع حالتها بين الإطارات.\nفعلى سبيل المثال، تحتاج الرؤوس القابلة للطي إلى تخزين ما إذا كانت مفتوحة أم لا، وتُشتق معرّفاتها من أسمائها، فإن لم تمنحها أسماءً فريدة فإن النقر على أحدها يفتح كليهما. ولمساعدتك على تنقيح هذا يُطبع رسالة خطأ على الشاشة:
+	Collapsing header	رأس قابل للطي
+	Contents of first foldable ui	محتويات أول واجهة قابلة للطي
+	Contents of second foldable ui	محتويات الواجهة القابلة للطي الثانية
+	Any widget that can be interacted with also need a unique Id. For most widgets the Id is generated by a running counter. As long as elements are not added or removed, the Id stays the same. This is fine, because during interaction (i.e. while dragging a slider), the number of widgets previously in the same window is most likely not changing (and if it is, the window will have a new layout, and the slider will end up somewhere else, and so aborting the interaction probably makes sense).	يحتاج أي عنصر يمكن التفاعل معه أيضًا إلى معرّف فريد، وفي معظم العناصر يُولَّد المعرّف من عدّاد متزايد، وما دامت العناصر لا تُضاف أو تُزال يبقى المعرّف نفسه. وهذا أمر سليم، لأنه أثناء التفاعل (كإسكابة أحد أشرطة التمرير) من المرجح جدًا ألا يتغير عدد العناصر السابقة في النافذة نفسها (وإن تغيّر فستكون للنافذة تخطيط جديد وسينتهي شريط التمرير في مكان آخر، لذا فمن المنطقي غالبًا إحباط التفاعل).
+	So these buttons have automatic Id:s, and therefore there is no name clash:	لهذه الأزرار معرّفات تلقائية، ومن ثمّ لا يوجد تعارض في الأسماء:
+	Recent history of raw input events to egui.	سجلّ حديث لأحداث الإدخال الخام الواصلة إلى egui.
+	Hover any entry for details.	أشِر إلى أي إدخال لعرض التفاصيل.
+	Include pointer/mouse movements	تضمين حركات المؤشر/الفأرة
+	Clear	مسح
+	Show hover state	إظهار حالة التحويم
+	This tests how egui::Response reports events.\nThe different buttons are sensitive to different things.\nTry interacting with them with any mouse button by clicking, double-clicking, triple-clicking, or dragging them.	يختبر هذا كيفية إبلاغ egui::Response عن الأحداث.\nالأزرار المختلفة حسّاسة لأمور مختلفة.\nجرّب التفاعل معها بأي زر فأرة بالنقر أو النقر المزدوج أو النقر الثلاثي أو سحبها.
+	(empty)	(فارغ)
+	Tests and demonstrates the limits of the egui layouts	يختبر حدود تخطيطات egui ويعرضها
+	Resize to see effect	غيّر الحجم لترى التأثير
+	Top-down	من الأعلى إلى الأسفل
+	Top-down, centered and justified	من الأعلى إلى الأسفل، ممركزة ومضبوطة
+	Horizontal wrapped	أفقي ملتف
+	Main Direction:	الاتجاه الرئيسي:
+	Under a right-to-left interface the horizontal directions are applied relative to the reading direction: a LeftToRight row is laid out right-to-left so it follows the reading order	ضمن واجهة تُقرأ من اليمين إلى اليسار، تُطبَّق الاتجاهات الأفقية بالنسبة إلى اتجاه القراءة: يُرتَّب الصف الممتد من اليسار إلى اليمين من اليمين إلى اليسار ليتبع اتجاه القراءة
+	Main wrap	الالتفاف الرئيسي
+	Wrap when next widget doesn't fit the current row/column	يلتفّ عندما لا يتّسع العنصر التالي في الصف/العمود الحالي
+	Row height	ارتفاع الصف
+	Column width	عرض العمود
+	Cross Align:	المحاذاة المتصالبة:
+	Cross Justified	ضبط متصالب
+	Try to fill full width/height (e.g. buttons)	يحاول ملء العرض/الارتفاع كاملين (مثل الأزرار)
+	Wrapping text followed by example widgets:	نص ملتفّ يتبعه عناصر مثال:
+	radio	زر اختيار
+	button	زر
+	Test widget:	عنصر الاختبار:
+	Widget position:	موضع العنصر:
+	Widget position x	موضع العنصر x
+	Widget position y	موضع العنصر y
+	Widget size:	حجم العنصر:
+	Widget width	عرض العنصر
+	Widget height	ارتفاع العنصر
+	Example button	زر مثال
+	Example label	تسمية مثال
+	Real size	الحجم الحقيقي
+	Zoomed in	بالتكبير
+	Magnification	عامل التكبير
+	Feathering width	عرض التنعيم
+	Paint edges	رسم الحواف
+	Prefabs	قوالب جاهزة
+	Pick a prefab shape	اختر شكلًا جاهزًا
+	Size	الحجم
+	Height	الارتفاع
+	Corner radius	نصف قطر الزوايا
+	Fill	التعبئة
+	Stroke	الحد
+	Blur width	عرض التمويه
+	Round to pixels	التقريب إلى البكسلات
+	↔️ auto-sized	↔️ تلقائي الحجم
+	This window will auto-size based on its contents.	تتّخذ هذه النافذة حجمها تلقائيًا بحسب محتواها.
+	Resize this area:	غيّر حجم هذه المساحة:
+	Resize the above area!	غيّر حجم المساحة أعلاه!
+	↔️ resizable + scroll	↔️ قابل لتغيير الحجم + تمرير
+	This window is resizable and has a scroll area. You can shrink it to any size.	هذه النافذة قابلة لتغيير الحجم وفيها مساحة تمرير، ويمكن تصغيرها إلى أي حجم.
+	↔️ resizable + embedded scroll	↔️ قابل لتغيير الحجم + تمرير مدمج
+	This window is resizable but has no built-in scroll area.	هذه النافذة قابلة لتغيير الحجم لكن ليس فيها مساحة تمرير مدمجة.
+	However, we have a sub-region with a scroll bar:	لكن لدينا منطقة فرعية فيها شريط تمرير:
+	↔️ resizable without scroll	↔️ قابل لتغيير الحجم دون تمرير
+	This window is resizable but has no scroll area. This means it can only be resized to a size where all the contents is visible.	هذه النافذة قابلة لتغيير الحجم لكن ليس فيها مساحة تمرير، ما يعني أنه لا يمكن تغيير حجمها إلا إلى حجمٍ تظهر فيه كل المحتويات.
+	egui will not clip the contents of a window, nor add whitespace to it.	لن يقصّ egui محتويات النافذة ولا يضيف إليها فراغات بيضاء.
+	↔️ resizable with TextEdit	↔️ قابل لتغيير الحجم مع TextEdit
+	Shows how you can fill an area with a widget.	يبيّن كيف يمكن ملء مساحة بعنصر.
+	Type here	اكتب هنا
+	↔️ freely resized	↔️ تغيير حر للحجم
+	This window has empty space that fills up the available space, preventing auto-shrink.	في هذه النافذة مساحة فارغة تمتلئ بالمساحة المتاحة، ما يمنع التقليص التلقائي.
+# app windows — the T2 wiring sweep (fractal_clock local time, the glow 3D sentence,
+# image_viewer UV header and slider labels, backend_panel iPhone preset)
+	Local time: {time}	التوقيت المحلي: {time}
+	 (OpenGL).	 (عبر OpenGL).
+	UV	إحداثيات UV
+	width	العرض
+	height	الارتفاع
+	📱 iPhone 15	📱 آيفون 15
+# demo stragglers (exhaustive sweep of crates/egui_demo_lib/src/demo/*.rs)
+# screenshot.rs
+	This demo showcases how to take screenshots via 	يعرض هذا العرض التوضيحي كيفية التقاط لقطات الشاشة عبر 
+	📷 Take Screenshot	📷 التقاط لقطة شاشة
+	Capture continuously	التقاط مستمر
+	No screenshot taken yet.	لم يتم التقاط أي لقطة شاشة بعد.
+# scrolling.rs — the two offsets are pre-formatted in Rust; `px` is a unit symbol and stays
+	Scroll offset: {current_scroll}/{max_scroll} px	إزاحة التمرير: {current_scroll}/{max_scroll} px
+# misc_demo_window.rs — box-painting sliders
+# misc_demo_window.rs — color-component readouts; the model names stay Latin
+	sRGBA: {r} {g} {b} {a}	sRGBA: {r} {g} {b} {a}
+	sRGBA with premultiplied alpha: {r} {g} {b} {a}	sRGBA مع ألفا مضروبة مسبقًا: {r} {g} {b} {a}
+	Linear RGBA: {r} {g} {b} {a}	Linear RGBA: {r} {g} {b} {a}
+	Linear RGBA with premultiplied alpha: {r} {g} {b} {a}	Linear RGBA مع ألفا مضروبة مسبقًا: {r} {g} {b} {a}
+# easy_mark_editor.rs — the EasyMark editor chrome; the markup literals in the hotkey grid and
+# the EasyMark sample document stay English (they are markup, not chrome)
+	Hotkeys	مفاتيح الاختصار
+	Show rendered	إظهار النتيجة المصيَّرة
+	Highlight editor	تمييز المحرر
+	EasyMark source	مصدر EasyMark
+	two spaces	فراغان
+# rendering_test.rs — the Rendering test window (ColorTest): intro, structure and headings
+	This is made to test that the egui rendering backend is set up correctly.	الغرض من هذا الاختبار هو التأكد من إعداد محرّك تصيير egui بشكل صحيح.
+	The texture sampling should be sRGB-aware, and every other color operation should be done in gamma-space (sRGB). All colors should use pre-multiplied alpha	يجب أن يكون أخذ عينات النسيج واعيًا بـ sRGB، وأن تُجرى كل عمليات الألوان الأخرى في فضاء غاما (sRGB)، وأن تستخدم كل الألوان ألفا مضروبة مسبقًا
+	Color test	اختبار الألوان
+	Text rendering	عرض النص
+	Pixel alignment test	اختبار محاذاة البكسل
+	If anything is blurry, then everything will be blurry, including text.	إذا بدا أي شيء ضبابيًا فسيكون كل شيء ضبابيًا، بما في ذلك النص.
+	You might need a magnifying glass to check this test.	قد تحتاج إلى عدسة مكبّرة لفحص هذا الاختبار.
+	Make sure these test pass even when you zoom in/out and resize the browser.	تأكد من نجاح هذه الاختبارات حتى عند التكبير/التصغير وتغيير حجم المتصفح.
+# rendering_test.rs — the color test: gradients, ground truths and blend labels
+	If the rendering is done right, all groups of gradients will look uniform.	إذا كان التصيير صحيحًا فستبدو كل مجموعات التدرجات متجانسة.
+	Vertex gradients	تدرجات الرؤوس
+	Texture gradients	تدرجات النسيج
+	sRGB color test	اختبار ألوان sRGB
+	Use a color picker to ensure this color is (255, 165, 0) / #ffa500	استخدم منتقي الألوان للتأكد من أن هذا اللون هو (255, 165, 0) / #ffa500
+	orange rgb(255, 165, 0) - vertex	برتقالي rgb(255, 165, 0) - رؤوس
+	orange rgb(255, 165, 0) - texture	برتقالي rgb(255, 165, 0) - نسيج
+	Test that vertex color times texture color is done in gamma space:	اختبر أن ضرب لون الرأس في لون النسيج يُجرى في فضاء غاما:
+	texture	نسيج
+	 vertex color =	 لون الرؤوس =
+	Ground truth (vertices)	الحقيقة المرجعية (رؤوس)
+	Ground truth (texture)	الحقيقة المرجعية (نسيج)
+	A texture that is {n} texels wide	نسيج عرضه {n} تكسل
+	GPU result	نتيجة GPU
+	Test that blending is done in gamma space:	اختبر أن المزج يُجرى في فضاء غاما:
+	Background:	الخلفية:
+	, foreground: 	، المقدمة: 
+	Vertex blending	مزج الرؤوس
+	Texture blending	مزج النسيج
+	Gamma interpolation:	استيفاء غاما:
+	Additive blending: add more and more blue to the red background:	المزج الجمعي: إضافة المزيد والمزيد من الأزرق إلى الخلفية الحمراء:
+	Texture interpolation (texture sampling) should be in gamma space:	يجب أن يكون استيفاء النسيج (أخذ عينات النسيج) في فضاء غاما:
+	gradient	تدرج
+	Ground Truth (CPU gradient) - vertices	الحقيقة المرجعية (تدرج CPU) - رؤوس
+	Ground Truth (CPU gradient) - texture	الحقيقة المرجعية (تدرج CPU) - نسيج
+	Ground Truth (CPU gradient, CPU blending) - vertices	الحقيقة المرجعية (تدرج CPU، مزج CPU) - رؤوس
+	Ground Truth (CPU gradient, CPU blending) - texture	الحقيقة المرجعية (تدرج CPU، مزج CPU) - نسيج
+	CPU gradient, GPU blending - vertices	تدرج CPU، مزج GPU - رؤوس
+	CPU gradient, GPU blending - texture	تدرج CPU، مزج GPU - نسيج
+	Texture of width 2 (test texture sampler)	نسيج بعرض 2 (اختبار عيّنات النسيج)
+	Triangle mesh of width 2 (test vertex decode and interpolation)	شبكة مثلثات بعرض 2 (اختبار فك ترميز الرؤوس والاستيفاء)
+	A triangle mesh that is {n} vertices wide	شبكة مثلثات عرضها {n} رأسًا
+# rendering_test.rs — the pixel-alignment explanations
+	The strokes should align to the physical pixel grid.	يجب أن تتواءم الحدود مع شبكة البكسل الفعلية.
+	The first square should be exactly one physical pixel big.	يجب أن يكون حجم المربع الأول بكسلًا فعليًا واحدًا تمامًا.
+	They should be exactly one physical pixel apart.	يجب أن تكون المسافة بينها بكسلًا فعليًا واحدًا تمامًا.
+	Each subsequent square should be one physical pixel larger than the previous.	يجب أن يكون كل مربع تالٍ أكبر من سابقه بمقدار بكسل فعلي واحد.
+	They should be perfectly aligned to the physical pixel grid.	يجب أن تكون محاذاة تمامًا إلى شبكة البكسل الفعلية.
+	The lines should be exactly one physical pixel wide, one physical pixel apart.	يجب أن يكون عرض كل خط بكسلًا فعليًا واحدًا تمامًا، والمسافة بينها بكسلًا فعليًا واحدًا.
+	They should be perfectly white and black.	يجب أن تكون بيضاء وسوداء نقيّتين تمامًا.
+# rendering_test.rs — blending, feathering and the painted opacity/size readouts
+# (the percentages and font sizes are pre-formatted in Rust; the color-component
+# readout "({} {} {}) on ({} {} {})" is numbers only and stays English)
+	The left side shows how lines of different widths look.	يعرض الجانب الأيسر مظهر الخطوط بأعراض مختلفة.
+	The right side tests text rendering at different opacities and sizes.	يختبر الجانب الأيمن عرض النص بشفافيات وأحجام مختلفة.
+	The top and bottom images should look symmetrical in their intensities.	يفترض أن تبدو الصورتان العلوية والسفلية متناظرتين في شدة ألوانهما.
+	▣ The quick brown fox jumps over the lazy dog and runs away.	▣ قفز الثعلب البني السريع فوق الكلب الكسول ثم هرب بعيدًا.
+	{percent}% white	{percent}% أبيض
+	{percent}% gray	{percent}% رمادي
+	{percent}% black	{percent}% أسود
+	{size}px - The quick brown fox jumps over the lazy dog and runs away.	{size}px - قفز الثعلب البني السريع فوق الكلب الكسول ثم هرب بعيدًا.
+	transparent --> opaque	شفاف --> معتم

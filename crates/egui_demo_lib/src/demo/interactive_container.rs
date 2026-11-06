@@ -1,3 +1,4 @@
+use crate::i18n;
 use egui::{Frame, Label, RichText, Sense, Stroke, UiBuilder, Widget as _};
 
 /// Showcase [`egui::Ui::response`].
@@ -14,7 +15,7 @@ impl crate::Demo for InteractiveContainerDemo {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(i18n::t(self.name()))
             .open(open)
             .resizable(false)
             .default_width(250.0)
@@ -34,9 +35,11 @@ impl crate::View for InteractiveContainerDemo {
 
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            ui.label("This demo showcases how to use ");
+            ui.label(i18n::t("This demo showcases how to use "));
             ui.code("Ui::response");
-            ui.label(" to create interactive container widgets that may contain other widgets.");
+            ui.label(i18n::t(
+                " to create interactive container widgets that may contain other widgets.",
+            ));
         });
 
         let response = ui
@@ -69,7 +72,7 @@ impl crate::View for InteractiveContainerDemo {
                             ui.add_space(32.0);
 
                             ui.horizontal(|ui| {
-                                if ui.button("Reset").clicked() {
+                                if ui.button(i18n::t("Reset")).clicked() {
                                     self.count = 0;
                                 }
                                 if ui.button("+ 100").clicked() {

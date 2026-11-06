@@ -633,6 +633,16 @@ impl State {
                     consumed: self.egui_ctx.egui_wants_pointer_input(),
                 }
             }
+
+            // Forward-compat: a consumer may pin a winit revision that extends
+            // `WindowEvent` with new variants (e.g. dependency-side ordered-IME-reset
+            // signals). Ignore unknown variants: no repaint, not consumed.
+            // Unreachable under the pinned winit, hence the expect.
+            #[expect(unreachable_patterns)]
+            _ => EventResponse {
+                repaint: false,
+                consumed: false,
+            },
         }
     }
 
@@ -779,6 +789,9 @@ impl State {
         //     }
         // }
 
+        // TODO(emilk): when we update to winit >= 0.31, forward
+        // `Ime::DeleteSurrounding { before_bytes, after_bytes }` to
+        // `ImeEvent::DeleteSurroundingBytes` (byte-exact IME deletion).
         match ime {
             // [`winit::event::Ime::Enabled`] means different things in X11 and
             // Wayland, but it doesn't matter to us.
@@ -1121,11 +1134,18 @@ impl State {
             physical_key
         );
 
-        // "Logical OR physical key" is a fallback mechanism for keyboard layouts without Latin characters: it lets them
-        // emit events as if the corresponding keys from the Latin layout were pressed. In this case, clipboard shortcuts
-        // are mapped to the physical keys that normally contain C, X, V, etc.
+        // Resolve the key for shortcut matching. When the integration reports the active
+        // keyboard layout (`RawInput::keyboard_layout_is_latin` / `latin_layout_chars`),
+        // letter shortcuts follow the user's Latin layout instead of the physical QWERTY
+        // position; with no layout data this is exactly `logical_key.or(physical_key)`.
         // See also: https://github.com/emilk/egui/issues/3653
-        if let Some(active_key) = logical_key.or(physical_key) {
+        let active_key = letter_key(
+            logical_key,
+            physical_key,
+            &self.egui_input.latin_layout_chars,
+            self.egui_input.keyboard_layout_is_latin,
+        );
+        if let Some(active_key) = active_key {
             if pressed && self.clipboard_shortcuts {
                 if is_cut_command(self.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Cut);
@@ -1305,6 +1325,12 @@ impl State {
                     },
                 );
             }
+
+            // TODO(emilk): when winit grows a surrounding-text report API, forward
+            // `ime.surrounding_text` (diffed like `ime_cursor_rect_px`; it is an
+            // `Arc`-shared report, so an unchanged frame can be skipped for free), and map
+            // the OS "request surrounding text" event to
+            // `ImeEvent::RequestSurroundingText` + a repaint in `on_ime`.
         } else {
             self.ime_cursor_rect_px = None;
         }
@@ -1561,6 +1587,74 @@ fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::Poi
         winit::event::MouseButton::Back => Some(egui::PointerButton::Extra1),
         winit::event::MouseButton::Forward => Some(egui::PointerButton::Extra2),
         winit::event::MouseButton::Other(_) => None,
+    }
+}
+
+/// Which [`egui::Key`] should a key press be reported as, for shortcut matching?
+///
+/// Merge rule:
+/// 1. With no layout data from the integration (the default), this is exactly
+///    `logical_key.or(physical_key)` — the historical physical-position fallback
+///    for non-Latin layouts (see <https://github.com/emilk/egui/issues/3653>).
+/// 2. On a known non-Latin active layout, the layout-typed key is not a Latin
+///    letter, so the shortcut is resolved through the user's Latin layout instead:
+///    the key corresponding to the character the Latin layout types at the pressed
+///    position (e.g. the Dvorak `'` position, not the QWERTY `Q` position). A
+///    character egui has no key for synthesizes nothing.
+/// 3. On a known Latin active layout, the layout-typed key is trusted; only if egui
+///    could not map the typed character (ö, dead keys, …) is the Latin layout
+///    consulted, so no shortcut is invented for a position the Latin layout does
+///    not map to a key.
+fn letter_key(
+    logical_key: Option<egui::Key>,
+    physical_key: Option<egui::Key>,
+    latin_layout_chars: &[(egui::Key, char)],
+    keyboard_layout_is_latin: Option<bool>,
+) -> Option<egui::Key> {
+    /// The `egui::Key` a single character stands for, using the same
+    /// character-to-key mapping [`key_from_winit_key`] uses for
+    /// `winit::keyboard::Key::Character` (single characters round-trip through
+    /// `Key::from_name`: `'c'` → `Key::C`, `'\''` → `Key::Quote`, `'ö'` → `None`).
+    fn key_for_char(c: char) -> Option<egui::Key> {
+        let mut buf = [0u8; 4];
+        egui::Key::from_name(c.encode_utf8(&mut buf))
+    }
+
+    /// What the user's Latin layout types at the given key position, if reported.
+    fn latin_char_at(
+        position: egui::Key,
+        latin_layout_chars: &[(egui::Key, char)],
+    ) -> Option<char> {
+        latin_layout_chars
+            .iter()
+            .find(|(k, _)| *k == position)
+            .map(|(_, c)| *c)
+    }
+
+    match keyboard_layout_is_latin {
+        // The integration reports nothing: today's behaviour, unchanged.
+        None => logical_key.or(physical_key),
+
+        // A known non-Latin layout is active: ignore the layout-typed key and
+        // resolve through the user's Latin layout.
+        Some(false) => {
+            match physical_key.and_then(|position| latin_char_at(position, latin_layout_chars)) {
+                Some(c) => key_for_char(c),
+                // Position unknown to the Latin layout (arrows, F-keys, …): fall back as today.
+                None => logical_key.or(physical_key),
+            }
+        }
+
+        // A known Latin layout is active: trust the layout-typed key.
+        Some(true) => match logical_key {
+            Some(logical) => Some(logical),
+            None => match physical_key
+                .and_then(|position| latin_char_at(position, latin_layout_chars))
+            {
+                Some(c) => key_for_char(c),
+                None => physical_key,
+            },
+        },
     }
 }
 
@@ -2282,6 +2376,7 @@ pub fn create_winit_window_attributes(
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
         clamp_size_to_monitor_size: _, // Handled in `viewport_builder` in `epi_integration.rs`
         monitor: _, // Handled in `create_window` (needs ActiveEventLoop for monitor handle)
+        layout_direction: _, // Chrome hint; winit exposes no native layout-RTL support, so it is ignored
     } = viewport_builder;
 
     let mut window_attributes = winit::window::WindowAttributes::default()
@@ -2637,6 +2732,10 @@ pub fn short_device_event_description(event: &winit::event::DeviceEvent) -> &'st
         DeviceEvent::Motion { .. } => "DeviceEvent::Motion",
         DeviceEvent::Button { .. } => "DeviceEvent::Button",
         DeviceEvent::Key { .. } => "DeviceEvent::Key",
+        // Forward-compat with consumer-pinned winit revisions that extend `DeviceEvent`
+        // (unreachable under the pinned winit, hence the expect).
+        #[expect(unreachable_patterns)]
+        _ => "DeviceEvent",
     }
 }
 
@@ -2674,5 +2773,263 @@ pub fn short_window_event_description(event: &winit::event::WindowEvent) -> &'st
         WindowEvent::ThemeChanged { .. } => "WindowEvent::ThemeChanged",
         WindowEvent::Occluded { .. } => "WindowEvent::Occluded",
         WindowEvent::PanGesture { .. } => "WindowEvent::PanGesture",
+        // Forward-compat with consumer-pinned winit revisions that extend `WindowEvent`
+        // (unreachable under the pinned winit, hence the expect).
+        #[expect(unreachable_patterns)]
+        _ => "WindowEvent",
+    }
+}
+
+#[cfg(test)]
+mod letter_key_tests {
+    use egui::Key;
+
+    use super::letter_key;
+
+    /// A test case: (`name`, `logical_key`, `physical_key`, `keyboard_layout_is_latin`,
+    /// `latin_layout_chars`, expected key).
+    type Case = (
+        &'static str,
+        Option<Key>,
+        Option<Key>,
+        Option<bool>,
+        &'static [(Key, char)],
+        Option<Key>,
+    );
+
+    const CASES: &[Case] = &[
+        // No layout data from the integration: exactly `logical_key.or(physical_key)`.
+        (
+            "unknown-layout+c",
+            Some(Key::C),
+            Some(Key::C),
+            None,
+            &[(Key::C, 'c')],
+            Some(Key::C),
+        ),
+        (
+            "unknown-cyrillic-logical",
+            Some(Key::Q),
+            Some(Key::Q),
+            None,
+            &[(Key::Q, 'q')],
+            Some(Key::Q),
+        ),
+        (
+            "unknown-no-logical",
+            None,
+            Some(Key::Q),
+            None,
+            &[(Key::Q, 'q')],
+            Some(Key::Q),
+        ),
+        // A known Latin layout is active: the layout-typed key is trusted.
+        (
+            "qwerty+c",
+            Some(Key::C),
+            Some(Key::C),
+            Some(true),
+            &[(Key::C, 'c')],
+            Some(Key::C),
+        ),
+        (
+            "azerty+a-pos",
+            Some(Key::A),
+            Some(Key::Q),
+            Some(true),
+            &[(Key::Q, 'a')],
+            Some(Key::A),
+        ),
+        (
+            "qwertz+y-pos",
+            Some(Key::Y),
+            Some(Key::Z),
+            Some(true),
+            &[(Key::Z, 'y')],
+            Some(Key::Y),
+        ),
+        (
+            "latin+quote-pos",
+            Some(Key::Quote),
+            Some(Key::Quote),
+            Some(true),
+            &[(Key::Quote, '\'')],
+            Some(Key::Quote),
+        ),
+        // The Latin layout types ö at the `;` position; ö has no egui key,
+        // so no letter shortcut is invented for it.
+        (
+            "qwertz-umlaut-no-invented-key",
+            None,
+            Some(Key::Semicolon),
+            Some(true),
+            &[(Key::Semicolon, 'ö')],
+            None,
+        ),
+        (
+            "latin-no-logical-letter-pos",
+            None,
+            Some(Key::C),
+            Some(true),
+            &[(Key::C, 'c')],
+            Some(Key::C),
+        ),
+        // A position the reported Latin data does not cover keeps the physical fallback.
+        (
+            "latin-no-logical-no-entry",
+            None,
+            Some(Key::C),
+            Some(true),
+            &[],
+            Some(Key::C),
+        ),
+        // A known non-Latin layout is active with a QWERTY Latin layout: the key
+        // position resolves through the Latin layout (logical is `None` in the real
+        // pipeline because `Key::from_name` has no Cyrillic/Greek/Hebrew arms).
+        (
+            "ru+c-pos",
+            None,
+            Some(Key::C),
+            Some(false),
+            &[(Key::C, 'c')],
+            Some(Key::C),
+        ),
+        (
+            "ru+q-pos",
+            None,
+            Some(Key::Q),
+            Some(false),
+            &[(Key::Q, 'q')],
+            Some(Key::Q),
+        ),
+        (
+            "ru+v-pos",
+            None,
+            Some(Key::V),
+            Some(false),
+            &[(Key::V, 'v')],
+            Some(Key::V),
+        ),
+        (
+            "el+a-pos",
+            None,
+            Some(Key::A),
+            Some(false),
+            &[(Key::A, 'a')],
+            Some(Key::A),
+        ),
+        (
+            "he+v-pos",
+            None,
+            Some(Key::V),
+            Some(false),
+            &[(Key::V, 'v')],
+            Some(Key::V),
+        ),
+        // A known non-Latin layout with a non-QWERTY Latin layout: the layout-typed
+        // key (the synthetic `Some(...)` logicals here stand in for "whatever the
+        // active layout types") is ignored in favour of the Latin-layout character.
+        (
+            "dvorak-ru+quote-char",
+            Some(Key::Q),
+            Some(Key::Q),
+            Some(false),
+            &[(Key::Q, '\'')],
+            Some(Key::Quote),
+        ),
+        (
+            "dvorak-ru+c-char",
+            None,
+            Some(Key::J),
+            Some(false),
+            &[(Key::J, 'c')],
+            Some(Key::C),
+        ),
+        (
+            "colemak-ru+q-pos",
+            None,
+            Some(Key::Q),
+            Some(false),
+            &[(Key::Q, 'q')],
+            Some(Key::Q),
+        ),
+        (
+            "azerty-ar+a-char",
+            Some(Key::Q),
+            Some(Key::Q),
+            Some(false),
+            &[(Key::Q, 'a')],
+            Some(Key::A),
+        ),
+        // A known non-Latin layout with an unmappable Latin character: no key.
+        (
+            "danish-ru+oe-char",
+            None,
+            Some(Key::Semicolon),
+            Some(false),
+            &[(Key::Semicolon, 'ø')],
+            None,
+        ),
+        // A known non-Latin layout, but the pressed position is not covered by the
+        // reported Latin data (arrows, …): fall back as today.
+        (
+            "nonlatin-arrow-fallback",
+            Some(Key::ArrowRight),
+            Some(Key::ArrowRight),
+            Some(false),
+            &[(Key::C, 'c')],
+            Some(Key::ArrowRight),
+        ),
+        (
+            "nonlatin-uncovered-pos",
+            None,
+            Some(Key::W),
+            Some(false),
+            &[(Key::C, 'c')],
+            Some(Key::W),
+        ),
+    ];
+
+    #[test]
+    fn letter_key_table() {
+        for &(name, logical_key, physical_key, is_latin, latin_layout_chars, expected) in CASES {
+            let actual = letter_key(logical_key, physical_key, latin_layout_chars, is_latin);
+            assert_eq!(actual, expected, "case {name}");
+        }
+    }
+
+    // Regression: without layout data the merge rule is inert for every input shape.
+    #[test]
+    fn letter_key_unchanged_without_layout_data() {
+        for &(name, logical_key, physical_key, ..) in CASES {
+            let actual = letter_key(logical_key, physical_key, &[], None);
+            assert_eq!(actual, logical_key.or(physical_key), "case {name}");
+        }
+    }
+
+    // Dvorak + Russian: `й` sits on the Dvorak `'` position, so the shortcut key is
+    // `Quote`, not the physical fallback `Q`.
+    #[test]
+    fn letter_key_prefers_latin_letter_on_non_latin_layout() {
+        let key = letter_key(
+            Some(Key::Q),
+            Some(Key::Q),
+            &[(Key::Q, '\''), (Key::J, 'c')],
+            Some(false),
+        );
+        assert_eq!(key, Some(Key::Quote));
+    }
+
+    // German ö at the `;` position has no egui key, so no letter shortcut is
+    // invented for it (today's fallback would report the physical `Semicolon`).
+    #[test]
+    fn letter_key_no_letter_for_unmappable_char() {
+        let key = letter_key(
+            None,
+            Some(Key::Semicolon),
+            &[(Key::Semicolon, 'ö')],
+            Some(true),
+        );
+        assert_eq!(key, None);
     }
 }

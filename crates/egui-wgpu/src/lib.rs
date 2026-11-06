@@ -41,9 +41,81 @@ use std::sync::Arc;
 
 use epaint::mutex::RwLock;
 
+/// Which mesh buffer a failed staging write was for.
+///
+/// Returned inside [`WgpuError::StagingAllocationFailed`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StagingBufferKind {
+    /// The index buffer of the egui render pipeline.
+    Index,
+
+    /// The vertex buffer of the egui render pipeline.
+    Vertex,
+}
+
+impl core::fmt::Display for StagingBufferKind {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Index => write!(f, "index"),
+            Self::Vertex => write!(f, "vertex"),
+        }
+    }
+}
+
 /// An error produced by egui-wgpu.
 #[derive(thiserror::Error, Debug)]
 pub enum WgpuError {
+    /// A texture delta referenced a texture that was never allocated.
+    ///
+    /// `partial` is `true` when the delta was a sub-region update
+    /// ([`epaint::ImageDelta::pos`] was `Some`).
+    #[error("Tried to update texture {id:?} that has not been allocated yet{}",
+        if *.partial { " (partial delta)" } else { "" })]
+    TextureNotAllocated {
+        /// The texture id referenced by the delta.
+        id: epaint::TextureId,
+
+        /// Whether the delta was a sub-region update.
+        partial: bool,
+    },
+
+    /// A partial texture delta was aimed at a user-provided texture handle, which only
+    /// wraps a bind group and has no writable GPU texture.
+    #[error("Tried to partially update user texture {0:?}")]
+    UserTextureUpdate(epaint::TextureId),
+
+    /// A partial delta extended past the edge of the already-allocated GPU texture.
+    ///
+    /// Reported instead of issuing the out-of-bounds `write_texture`, which would
+    /// trigger a wgpu validation error.
+    #[error(
+        "Texture delta for {id:?} at position {pos:?} with size {delta_size:?} \
+        exceeds the allocated texture of {texture_size:?}"
+    )]
+    TextureDeltaOutOfBounds {
+        /// The texture id referenced by the delta.
+        id: epaint::TextureId,
+
+        /// Top-left corner of the delta, in texels.
+        pos: [u64; 2],
+
+        /// Size of the delta, in texels.
+        delta_size: [u64; 2],
+
+        /// Size of the already-allocated texture, in texels.
+        texture_size: [u64; 2],
+    },
+
+    /// wgpu could not provide staging memory for the mesh upload of this frame.
+    #[error("Failed to create staging buffer for {kind} data; required {required_bytes} bytes")]
+    StagingAllocationFailed {
+        /// Which mesh buffer the failed staging write was for.
+        kind: StagingBufferKind,
+
+        /// How many bytes the staging write needed.
+        required_bytes: u64,
+    },
+
     #[error(transparent)]
     RequestAdapterError(#[from] wgpu::RequestAdapterError),
 

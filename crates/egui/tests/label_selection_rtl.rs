@@ -1,0 +1,516 @@
+//! Regression tests for cross-widget text selection over selectable labels:
+//! when a selection spans two widgets, each widget must select the half the
+//! *reading order* dictates, not the half its layout-encounter order suggests.
+//! [`egui::Sides`] lays its two panels out in reading order (the reading-start
+//! `add_left` panel hugs the reading-start edge in both directions), and with
+//! the [`Sides::shrink_left`] configuration these tests use, the reading-END
+//! panel is added first — so the encounter order is reversed relative to the
+//! reading order in both interface directions, which is exactly the case the
+//! encounter-order assumption gets wrong.
+//!
+//! The labels' texts follow their interface direction (Arabic under RTL,
+//! Latin under LTR), because the reading-order decision is signed by the
+//! galley's paragraph direction: a mixed-direction widget pair is an
+//! approximation the fill logic documents, not something these tests pin.
+//!
+//! No snapshot assertions; painted selection-rect geometry and copied text
+//! only. Every mirrored case carries its LTR twin, so this file doubles as
+//! the LTR-unchanged regression.
+
+use std::sync::Arc;
+
+use egui::epaint::{Galley, Shape};
+use egui::{
+    Color32, Context, Event, FullOutput, Label, Modifiers, PointerButton, Pos2, RawInput, Rect,
+    Sides, Ui, Vec2, pos2, text::CCursorRange, vec2,
+};
+
+const SCREEN: Vec2 = vec2(400.0, 120.0);
+
+/// The selectable labels, one per `Sides` panel: pure Arabic under RTL (so
+/// both lay out right-to-left) and pure Latin under LTR, matching the
+/// interface's reading direction.
+fn panel_texts(rtl: bool) -> (&'static str, &'static str) {
+    if rtl {
+        ("نهار بارد", "ليل طويل") // (left panel, right panel)
+    } else {
+        ("north wind", "south sun")
+    }
+}
+
+/// The geometry of one label: where its galley was painted and the galley.
+type GalleyInfo = (Pos2, Arc<Galley>);
+
+fn input(time: f64, events: Vec<Event>) -> RawInput {
+    RawInput {
+        time: Some(time),
+        screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SCREEN)),
+        events,
+        ..Default::default()
+    }
+}
+
+/// Run one ui pass and discard the texture deltas (these tests never render).
+fn run(ctx: &Context, time: f64, events: Vec<Event>, run_ui: impl FnMut(&mut Ui)) -> FullOutput {
+    let mut output = ctx.run_ui(input(time, events), run_ui);
+    output.textures_delta.clear();
+    output
+}
+
+fn pointer_button(pos: Pos2, pressed: bool) -> Event {
+    Event::PointerButton {
+        pos,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers: Modifiers::NONE,
+    }
+}
+
+/// The kind of selectable text widget under test.
+#[derive(Clone, Copy)]
+enum WidgetKind {
+    Label,
+    Link,
+}
+
+/// Two `Sides` panels with one selectable text widget each: labels and links
+/// route through the very same selection state when `selectable_labels` is on
+/// (links with an underline stroke argument on top). `shrink_left` keeps the
+/// encounter order reversed relative to the reading order in both interface
+/// directions (the reading-end panel is added first), which is what these
+/// tests exploit.
+fn sides_widgets(ui: &mut Ui, left_text: &str, right_text: &str, kind: WidgetKind) {
+    Sides::new().shrink_left().show(
+        ui,
+        |ui| match kind {
+            WidgetKind::Label => {
+                ui.add(Label::new(left_text).selectable(true));
+            }
+            WidgetKind::Link => {
+                let _response = ui.link(left_text);
+            }
+        },
+        |ui| match kind {
+            WidgetKind::Label => {
+                ui.add(Label::new(right_text).selectable(true));
+            }
+            WidgetKind::Link => {
+                let _response = ui.link(right_text);
+            }
+        },
+    );
+}
+
+/// (galley job text, shape position, galley) for every text shape painted.
+fn painted_galleys(output: &FullOutput) -> Vec<(String, Pos2, Arc<Galley>)> {
+    fn collect(shape: &Shape, out: &mut Vec<(String, Pos2, Arc<Galley>)>) {
+        match shape {
+            Shape::Text(text) => out.push((
+                text.galley.job.text.clone(),
+                text.pos,
+                Arc::clone(&text.galley),
+            )),
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    for clipped in &output.shapes {
+        collect(&clipped.shape, &mut out);
+    }
+    out
+}
+
+/// The ink rect and galley of the painted text whose galley job text equals
+/// `needle`.
+fn painted_galley(output: &FullOutput, needle: &str) -> GalleyInfo {
+    painted_galleys(output)
+        .into_iter()
+        .find(|(text, _, _)| text == needle)
+        .map(|(_, pos, galley)| (pos, galley))
+        .unwrap_or_else(|| panic!("no painted text galley for {needle:?}"))
+}
+
+/// The x-range of the painted selection highlight inside the label whose
+/// galley text is `needle`, if any.
+fn painted_selection_x_range(
+    output: &FullOutput,
+    selection_color: Color32,
+    needle: &str,
+) -> Option<(f32, f32)> {
+    fn collect(shape: &Shape, color: Color32, needle: &str, out: &mut Option<(f32, f32)>) {
+        match shape {
+            Shape::Text(text) if text.galley.job.text == needle => {
+                for row in &text.galley.rows {
+                    for vertex in &row.visuals.mesh.vertices {
+                        if vertex.color == color {
+                            let x = text.pos.x + row.pos.x + vertex.pos.x;
+                            *out = Some(match *out {
+                                Some((min, max)) => (min.min(x), max.max(x)),
+                                None => (x, x),
+                            });
+                        }
+                    }
+                }
+            }
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    collect(shape, color, needle, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = None;
+    for clipped in &output.shapes {
+        collect(&clipped.shape, selection_color, needle, &mut out);
+    }
+    out
+}
+
+/// The screen-space x-range a selection over `range` paints with, computed
+/// from the label's own galley.
+fn expected_x_range(info: &GalleyInfo, range: CCursorRange) -> (f32, f32) {
+    let (shape_pos, galley) = info;
+    let [min, max] = range.sorted_cursors();
+    let lo = galley.pos_from_cursor(min).left() + shape_pos.x;
+    let hi = galley.pos_from_cursor(max).left() + shape_pos.x;
+    (lo.min(hi), lo.max(hi))
+}
+
+/// Everything one cross-widget drag produces.
+struct CrossDrag {
+    output: FullOutput,
+    copied: String,
+    left: GalleyInfo,
+    right: GalleyInfo,
+    selection_color: Color32,
+    press: Pos2,
+    release: Pos2,
+}
+
+/// The x of a point strictly inside a row's first/last word: near the visual
+/// right edge (`right_side`) or the visual left edge, whichever the row reads
+/// from. Word-interior so the selected half's boundary chars are letters.
+fn word_interior_x(rect: Rect, right_side: bool) -> f32 {
+    if right_side {
+        rect.right() - 0.15 * rect.width()
+    } else {
+        rect.left() + 0.15 * rect.width()
+    }
+}
+
+/// Drag-select from the reading-first `Sides` panel into the reading-second
+/// one and return the release-frame output plus both widgets' geometry. The
+/// press lands in the reading-first widget's reading-end word (the side
+/// toward the other widget) and the release in the reading-second widget's
+/// reading-start word, so the selected halves start and end on letter
+/// boundaries.
+fn drag_between_sides(rtl: bool, kind: WidgetKind) -> CrossDrag {
+    let ctx = Context::default();
+    ctx.set_right_to_left(rtl);
+    ctx.style_mut_of(ctx.theme(), |style| {
+        style.interaction.selectable_labels = true;
+        style.interaction.multi_widget_text_select = true;
+    });
+    let selection_color = ctx.style_of(ctx.theme()).visuals.selection.bg_fill;
+    let (left_text, right_text) = panel_texts(rtl);
+    let sides_body = |ui: &mut Ui| sides_widgets(ui, left_text, right_text, kind);
+
+    // Settle the layout and collect the two widgets' galley geometry:
+    let settle = run(&ctx, 0.0, vec![], sides_body);
+    let left = painted_galley(&settle, left_text);
+    let right = painted_galley(&settle, right_text);
+
+    // The panels are laid out in reading order: the reading-start (left)
+    // panel sits at the physical right under RTL and at the physical left
+    // under LTR, on the same row band in both interface directions:
+    assert!(
+        (left.0.x > right.0.x) == rtl,
+        "Sides must place its panels in reading order (rtl = {rtl}: left {left:?}, right {right:?})"
+    );
+    assert!(
+        (right.0.y - left.0.y).abs() <= 2.0,
+        "the two panel widgets must share one row band (right {right:?}, left {left:?})"
+    );
+
+    let left_rect = left.1.rect.translate(left.0.to_vec2());
+    let right_rect = right.1.rect.translate(right.0.to_vec2());
+    // The reading-first panel is the left one in BOTH directions (under RTL
+    // the mirror puts it at the physical right; under LTR it keeps the
+    // physical left), so the press lands in the left panel's reading-end word
+    // (the side toward the other widget) and the release in the right panel's
+    // reading-start word:
+    let press_x = word_interior_x(left_rect, !rtl);
+    let release_x = word_interior_x(right_rect, rtl);
+    let press = pos2(press_x, left_rect.center().y);
+    let release = pos2(release_x, right_rect.center().y);
+
+    drop(run(
+        &ctx,
+        1.0,
+        vec![pointer_button(press, true)],
+        sides_body,
+    ));
+    drop(run(
+        &ctx,
+        1.1,
+        vec![Event::PointerMoved(release)],
+        sides_body,
+    ));
+    let output = run(&ctx, 1.2, vec![pointer_button(release, false)], sides_body);
+    let copy_output = run(&ctx, 1.3, vec![Event::Copy], sides_body);
+
+    CrossDrag {
+        output,
+        copied: copied_text(&copy_output),
+        left,
+        right,
+        selection_color,
+        press,
+        release,
+    }
+}
+
+/// Drag-select from the reading-first label into the reading-second one: each
+/// label must select the half the reading order dictates — the reading-first
+/// label from the press point reading-forward to its end, the reading-second
+/// label from its start up to the release point. Under RTL the `Sides`
+/// encounter order is reversed relative to the reading order, which is what
+/// the layout-encounter-order fill logic gets wrong.
+#[test]
+fn cross_widget_selection_selects_the_reading_order_halves() {
+    assert_cross_widget_halves(true, WidgetKind::Label);
+}
+
+/// LTR twin: with the `shrink_left` harness the encounter order is reversed
+/// relative to the reading order here too (the reading-end panel is added
+/// first in both directions), so this case is also discriminating against an
+/// encounter-order fill bug — it passes because the reading-order halves are
+/// direction-independent.
+#[test]
+fn cross_widget_selection_halves_ltr_twin() {
+    assert_cross_widget_halves(false, WidgetKind::Label);
+}
+
+/// Link widgets route through the very same selection state as labels (with
+/// an underline stroke argument on top), so the reading-order halves and the
+/// reading-order copy must hold for links too — and a selected link must
+/// still paint (its underline + selection-recolor path must not break; the
+/// painted-galley lookups below panic if its galley went missing).
+#[test]
+fn link_selection_selects_the_reading_order_halves() {
+    assert_cross_widget_halves(true, WidgetKind::Link);
+}
+
+/// LTR twin for links.
+#[test]
+fn link_selection_halves_ltr_twin() {
+    assert_cross_widget_halves(false, WidgetKind::Link);
+}
+
+/// The shared drag-and-assert body of the cross-widget tests above
+/// (`links`: link widgets instead of labels).
+fn assert_cross_widget_halves(rtl: bool, kind: WidgetKind) {
+    let drag = drag_between_sides(rtl, kind);
+    // With the `shrink_left` harness the reading-first panel is the left one
+    // in BOTH directions: the reading-end panel is added first and, under
+    // RTL, the mirror gives the left panel the reading-start edge — so the
+    // mapping is unconditional, and so is the press/release keying:
+    let (reading_first, reading_second) = (&drag.left, &drag.right);
+    let (press_info, release_info) = (&drag.left, &drag.right);
+    let press_cursor = press_info.1.cursor_from_pos(drag.press - press_info.0);
+    let release_cursor = release_info
+        .1
+        .cursor_from_pos(drag.release - release_info.0);
+
+    // Expected halves: from the press point reading-forward to the end of
+    // the reading-first label, and from the start of the reading-second
+    // label up to the release point:
+    let first_half = CCursorRange::two(press_cursor, reading_first.1.end());
+    let second_half = CCursorRange::two(reading_second.1.begin(), release_cursor);
+
+    for (info, expected_range, name) in [
+        (reading_first, first_half, "reading-first"),
+        (reading_second, second_half, "reading-second"),
+    ] {
+        let painted = painted_selection_x_range(&drag.output, drag.selection_color, info.1.text())
+            .unwrap_or_else(|| panic!("no selection painted in the {name} label (rtl = {rtl})"));
+        let expected = expected_x_range(info, expected_range);
+        assert!(
+            (painted.0 - expected.0).abs() <= 1.0 && (painted.1 - expected.1).abs() <= 1.0,
+            "the {name} label must select its reading-order half \
+             (rtl = {rtl}: painted {painted:?}, expected {expected:?})"
+        );
+    }
+
+    let first_half_text = first_half.slice_str(reading_first.1.text());
+    let second_half_text = second_half.slice_str(reading_second.1.text());
+    // The copied text is assembled per widget in paint (= encounter) order:
+    // same-row-band right-to-left galleys are prepended by the copy logic's
+    // signed x rule, so under RTL the copy reads in reading order — the pin
+    // against the encounter-order fill bug. Same-row-band left-to-right
+    // galleys fall through to the raw append rule, which assembles in
+    // encounter order; with the `shrink_left` harness that is reversed
+    // relative to the reading order (the reading-end panel is painted
+    // first), so the LTR twin pins that (pre-existing) encounter-order
+    // assembly. The reading-order copy for left-to-right rows holds whenever
+    // the encounter order equals the reading order, e.g. the `extend`
+    // configuration these tests used before the `Sides` mirror.
+    let (copy_first, copy_second) = if rtl {
+        (first_half_text, second_half_text)
+    } else {
+        (second_half_text, first_half_text)
+    };
+    assert_eq!(
+        drag.copied,
+        format!("{copy_first} {copy_second}"),
+        "the copied text must assemble in the copy logic's same-row-band \
+         order (rtl = {rtl}: copied {:?}, expected {:?})",
+        drag.copied,
+        format!("{copy_first} {copy_second}")
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Granular (double-click) drag across two labels on one row: which side of
+// the anchor word the pointer lands on must follow the ANCHOR's reading
+// direction, not the raw screen x.
+
+fn horizontal_labels(ui: &mut Ui, first_text: &str, second_text: &str) {
+    ui.horizontal(|ui| {
+        ui.add(Label::new(first_text).selectable(true));
+        ui.add(Label::new(second_text).selectable(true));
+    });
+}
+
+/// The x of a point strictly inside a row's reading-start (first) word: the
+/// visual right quarter of an RTL row, the visual left quarter of an LTR one.
+fn reading_start_word_x(rect: Rect, rtl: bool) -> f32 {
+    if rtl {
+        rect.right() - 0.15 * rect.width()
+    } else {
+        rect.left() + 0.15 * rect.width()
+    }
+}
+
+/// Double-click the reading-start word of the first label, drag horizontally
+/// into the second label, release there, and copy. The granular anchor is the
+/// double-clicked word; while the pointer is over the second label, the
+/// before/after-anchor decision must be signed by the anchor's reading
+/// direction, so the selection ends up covering the anchor word's
+/// reading-forward span in the first label plus the unit under the pointer in
+/// the second label.
+fn granular_drag_copy(rtl: bool) -> String {
+    let ctx = Context::default();
+    ctx.set_right_to_left(rtl);
+    ctx.style_mut_of(ctx.theme(), |style| {
+        style.interaction.selectable_labels = true;
+        style.interaction.multi_widget_text_select = true;
+    });
+    let (first_text, second_text) = if rtl {
+        ("ليل طويل", "نهار بارد")
+    } else {
+        ("one two", "three four")
+    };
+
+    let settle = run(&ctx, 0.0, vec![], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    });
+    let first = painted_galley(&settle, first_text);
+    let second = painted_galley(&settle, second_text);
+
+    // The mirrored horizontal row places the first label at the reading start
+    // (the right under RTL, the left under LTR), on one row band — so the
+    // layout-encounter order also equals the reading order and the copy text
+    // below is the final reading-order string:
+    let first_rect = first.1.rect.translate(first.0.to_vec2());
+    let second_rect = second.1.rect.translate(second.0.to_vec2());
+    let first_is_reading_first = if rtl {
+        first_rect.left() > second_rect.right() - 1.0
+    } else {
+        first_rect.right() < second_rect.left() + 1.0
+    };
+    assert!(
+        first_is_reading_first,
+        "the first label must sit reading-first (first {first_rect:?}, second {second_rect:?})"
+    );
+    assert!(
+        (first_rect.top() - second_rect.top()).abs() <= 2.0,
+        "the two labels must share one row band (first {first_rect:?}, second {second_rect:?})"
+    );
+
+    let press = pos2(reading_start_word_x(first_rect, rtl), first_rect.center().y);
+    let release = pos2(
+        reading_start_word_x(second_rect, rtl),
+        second_rect.center().y,
+    );
+
+    // Double-click (two presses within the multi-click window at the same
+    // spot), then drag into the second label and release:
+    drop(run(&ctx, 2.0, vec![pointer_button(press, true)], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    }));
+    drop(run(&ctx, 2.1, vec![pointer_button(press, false)], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    }));
+    drop(run(&ctx, 2.2, vec![pointer_button(press, true)], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    }));
+    drop(run(&ctx, 2.3, vec![Event::PointerMoved(release)], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    }));
+    drop(run(&ctx, 2.4, vec![pointer_button(release, false)], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    }));
+    let output = run(&ctx, 2.5, vec![Event::Copy], |ui| {
+        horizontal_labels(ui, first_text, second_text);
+    });
+    copied_text(&output)
+}
+
+/// The text a frame's copy commands put on the clipboard.
+fn copied_text(output: &FullOutput) -> String {
+    output
+        .platform_output
+        .commands
+        .iter()
+        .find_map(|cmd| match cmd {
+            egui::OutputCommand::CopyText(text) => Some(text.clone()),
+            _ => None,
+        })
+        .unwrap_or_default()
+}
+
+/// Double-click the first word of the right (reading-first) label, drag into
+/// the left label and release there: the selection must cover the whole
+/// reading-first label (from the anchor word's start reading-forward) plus
+/// the second label's word under the pointer, copied in reading order. Before
+/// the fix the raw-x compare inverted the sides: the anchor's reading-start
+/// was treated as its end and the picked unit end flipped, garbling the copy.
+#[test]
+fn granular_drag_extends_in_reading_order() {
+    assert_eq!(
+        granular_drag_copy(true),
+        "ليل طويل نهار",
+        "the copied text must be the anchor word's reading-forward span \
+         (the whole first label) followed by the second label's unit, \
+         in reading order"
+    );
+}
+
+/// LTR twin: with an LTR-reading anchor the signed compare reduces to the raw
+/// screen-x compare, so the copied text is unchanged.
+#[test]
+fn granular_drag_reading_order_ltr_twin() {
+    assert_eq!(
+        granular_drag_copy(false),
+        "one two three",
+        "the LTR granular drag must keep copying first-label word-one plus \
+         the second label's unit in encounter (= reading) order"
+    );
+}

@@ -10,7 +10,7 @@ use egui::{
 
 use crate::{
     StripLayout,
-    layout::{CellDirection, CellSize, StripLayoutFlags},
+    layout::{CellDirection, CellSize, StripLayoutFlags, prefer_right_to_left},
 };
 
 // -----------------------------------------------------------------=----------
@@ -734,7 +734,9 @@ impl Table<'_> {
             animated,
         } = scroll_options;
 
-        let cursor_position = ui.cursor().min;
+        // The rect the cells of the body are laid out in, captured from the
+        // body's `StripLayout` (its reading-start edge anchors the columns):
+        let content_rect_cell = core::cell::Cell::new(Rect::NOTHING);
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
             .id_salt(state_id.with("__scroll_area"))
@@ -756,6 +758,7 @@ impl Table<'_> {
         let columns_ref = &columns;
         let widths_ref = &state.column_widths;
         let max_used_widths_ref = &mut max_used_widths;
+        let content_rect_ref = &content_rect_cell;
 
         let scroll_area_out = scroll_area.show(ui, move |ui| {
             let mut scroll_to_y_range = None;
@@ -772,6 +775,7 @@ impl Table<'_> {
                     ui.data_mut(|data| data.remove_temp::<usize>(hovered_row_index_id));
 
                 let layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
+                content_rect_ref.set(layout.rect);
 
                 add_body_contents(TableBody {
                     layout,
@@ -804,7 +808,16 @@ impl Table<'_> {
         let bottom = ui.min_rect().bottom();
 
         let spacing_x = ui.spacing().item_spacing.x;
-        let mut x = cursor_position.x - spacing_x * 0.5;
+
+        // The columns are laid out by `StripLayout`, which mirrors the reading
+        // direction: under RTL the declared columns advance leftward from the
+        // right edge, so the separators and the drag delta mirror too:
+        let rtl = prefer_right_to_left(ui);
+        let mut x = if rtl {
+            content_rect_cell.get().right() + spacing_x * 0.5
+        } else {
+            content_rect_cell.get().left() - spacing_x * 0.5
+        };
         for (i, column_width) in state.column_widths.iter_mut().enumerate() {
             let column = &columns[i];
             let column_is_resizable = column.resizable.unwrap_or(resizable);
@@ -839,7 +852,11 @@ impl Table<'_> {
             }
             *column_width = width_range.clamp(*column_width);
 
-            x += *column_width + spacing_x;
+            x += if rtl {
+                -(*column_width + spacing_x)
+            } else {
+                *column_width + spacing_x
+            };
 
             if column.is_auto() && (is_sizing_pass || !column_is_resizable) {
                 *column_width = width_range.clamp(max_used_widths[i]);
@@ -860,7 +877,10 @@ impl Table<'_> {
                 } else if resize_response.dragged()
                     && let Some(pointer) = ui.ctx().pointer_latest_pos()
                 {
-                    let mut new_width = *column_width + pointer.x - x;
+                    // Under RTL the columns extend leftward, so dragging
+                    // leftward widens the column:
+                    let drag_delta = if rtl { x - pointer.x } else { pointer.x - x };
+                    let mut new_width = *column_width + drag_delta;
                     if !column.clip {
                         // Unless we clip we don't want to shrink below the
                         // size that was actually used.
@@ -874,7 +894,11 @@ impl Table<'_> {
                     }
                     new_width = width_range.clamp(new_width);
 
-                    let x = x - *column_width + new_width;
+                    let x = if rtl {
+                        x + *column_width - new_width
+                    } else {
+                        x - *column_width + new_width
+                    };
                     (p0.x, p1.x) = (x, x);
 
                     *column_width = new_width;

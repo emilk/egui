@@ -2,6 +2,7 @@ use egui::ImageFit;
 use egui::Slider;
 use egui::Vec2;
 use egui::emath::Rot2;
+use egui_demo_lib::i18n;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ImageViewer {
@@ -24,11 +25,14 @@ enum ChosenFit {
 }
 
 impl ChosenFit {
+    /// The display name of the fit, translated for the UI.
     fn as_str(&self) -> &'static str {
+        // Translated here, at the single source of the names, so the combo box and its
+        // options always agree. The English strings stay the catalogue keys.
         match self {
-            Self::ExactSize => "exact size",
-            Self::Fraction => "fraction",
-            Self::OriginalSize => "original size",
+            Self::ExactSize => i18n::t("exact size"),
+            Self::Fraction => i18n::t("fraction"),
+            Self::OriginalSize => i18n::t("original size"),
         }
     }
 }
@@ -52,7 +56,7 @@ impl crate::DemoApp for ImageViewer {
     fn demo_ui(&mut self, ui: &mut egui::Ui, _: &mut eframe::Frame) {
         egui::Panel::top("url bar").show(ui, |ui| {
             ui.horizontal_centered(|ui| {
-                let label = ui.label("URI:");
+                let label = ui.label(i18n::t("URI:"));
                 ui.text_edit_singleline(&mut self.uri_edit_text)
                     .labelled_by(label.id);
                 if ui.small_button("✔️").clicked() {
@@ -62,7 +66,7 @@ impl crate::DemoApp for ImageViewer {
                 }
 
                 #[cfg(not(target_arch = "wasm32"))]
-                if ui.button("file…").clicked()
+                if ui.button(i18n::t("file…")).clicked()
                     && let Some(path) = rfd::FileDialog::new().pick_file()
                 {
                     self.uri_edit_text = format!("file://{}", path.display());
@@ -73,17 +77,17 @@ impl crate::DemoApp for ImageViewer {
 
         egui::Panel::left("controls").show(ui, |ui| {
             // uv
-            ui.label("UV");
-            ui.add(Slider::new(&mut self.image_options.uv.min.x, 0.0..=1.0).text("min x"));
-            ui.add(Slider::new(&mut self.image_options.uv.min.y, 0.0..=1.0).text("min y"));
-            ui.add(Slider::new(&mut self.image_options.uv.max.x, 0.0..=1.0).text("max x"));
-            ui.add(Slider::new(&mut self.image_options.uv.max.y, 0.0..=1.0).text("max y"));
+            ui.label(i18n::t("UV"));
+            ui.add(Slider::new(&mut self.image_options.uv.min.x, 0.0..=1.0).text(i18n::t("min x")));
+            ui.add(Slider::new(&mut self.image_options.uv.min.y, 0.0..=1.0).text(i18n::t("min y")));
+            ui.add(Slider::new(&mut self.image_options.uv.max.x, 0.0..=1.0).text(i18n::t("max x")));
+            ui.add(Slider::new(&mut self.image_options.uv.max.y, 0.0..=1.0).text(i18n::t("max y")));
 
             // rotation
             ui.add_space(2.0);
             let had_rotation = self.image_options.rotation.is_some();
             let mut has_rotation = had_rotation;
-            ui.checkbox(&mut has_rotation, "Rotation");
+            ui.checkbox(&mut has_rotation, i18n::t("Rotation"));
             match (had_rotation, has_rotation) {
                 (true, false) => self.image_options.rotation = None,
                 (false, true) => {
@@ -96,34 +100,34 @@ impl crate::DemoApp for ImageViewer {
             if let Some((rot, origin)) = self.image_options.rotation.as_mut() {
                 let mut angle = rot.angle();
 
-                ui.label("angle");
+                ui.label(i18n::t("angle"));
                 ui.drag_angle(&mut angle);
                 *rot = Rot2::from_angle(angle);
 
-                ui.add(Slider::new(&mut origin.x, 0.0..=1.0).text("origin x"));
-                ui.add(Slider::new(&mut origin.y, 0.0..=1.0).text("origin y"));
+                ui.add(Slider::new(&mut origin.x, 0.0..=1.0).text(i18n::t("origin x")));
+                ui.add(Slider::new(&mut origin.y, 0.0..=1.0).text(i18n::t("origin y")));
             }
 
             // bg_fill
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.color_edit_button_srgba(&mut self.image_options.bg_fill);
-                ui.label("Background color");
+                ui.label(i18n::t("Background color"));
             });
 
             // tint
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.color_edit_button_srgba(&mut self.image_options.tint);
-                ui.label("Tint");
+                ui.label(i18n::t("Tint"));
             });
 
             // fit
             ui.add_space(10.0);
-            ui.label(
+            ui.label(i18n::t(
                 "The chosen fit will determine how the image tries to fill the available space",
-            );
-            egui::ComboBox::from_label("Fit")
+            ));
+            egui::ComboBox::from_label(i18n::t("Fit"))
                 .selected_text(self.chosen_fit.as_str())
                 .show_ui(ui, |ui| {
                     ui.selectable_value(
@@ -151,8 +155,8 @@ impl crate::DemoApp for ImageViewer {
                     let ImageFit::Exact(size) = &mut self.fit else {
                         unreachable!()
                     };
-                    ui.add(Slider::new(&mut size.x, 0.0..=2048.0).text("width"));
-                    ui.add(Slider::new(&mut size.y, 0.0..=2048.0).text("height"));
+                    ui.add(Slider::new(&mut size.x, 0.0..=2048.0).text(i18n::t("width")));
+                    ui.add(Slider::new(&mut size.y, 0.0..=2048.0).text(i18n::t("height")));
                 }
                 ChosenFit::Fraction => {
                     if !matches!(self.fit, ImageFit::Fraction(_)) {
@@ -161,8 +165,8 @@ impl crate::DemoApp for ImageViewer {
                     let ImageFit::Fraction(fract) = &mut self.fit else {
                         unreachable!()
                     };
-                    ui.add(Slider::new(&mut fract.x, 0.0..=1.0).text("width"));
-                    ui.add(Slider::new(&mut fract.y, 0.0..=1.0).text("height"));
+                    ui.add(Slider::new(&mut fract.x, 0.0..=1.0).text(i18n::t("width")));
+                    ui.add(Slider::new(&mut fract.y, 0.0..=1.0).text(i18n::t("height")));
                 }
                 ChosenFit::OriginalSize => {
                     if !matches!(self.fit, ImageFit::Original { .. }) {
@@ -171,29 +175,36 @@ impl crate::DemoApp for ImageViewer {
                     let ImageFit::Original { scale } = &mut self.fit else {
                         unreachable!()
                     };
-                    ui.add(Slider::new(scale, 0.1..=4.0).text("scale"));
+                    ui.add(Slider::new(scale, 0.1..=4.0).text(i18n::t("scale")));
                 }
             }
 
             // max size
             ui.add_space(5.0);
-            ui.label("The calculated size will not exceed the maximum size");
-            ui.add(Slider::new(&mut self.max_size.x, 0.0..=2048.0).text("width"));
-            ui.add(Slider::new(&mut self.max_size.y, 0.0..=2048.0).text("height"));
+            ui.label(i18n::t(
+                "The calculated size will not exceed the maximum size",
+            ));
+            ui.add(Slider::new(&mut self.max_size.x, 0.0..=2048.0).text(i18n::t("width")));
+            ui.add(Slider::new(&mut self.max_size.y, 0.0..=2048.0).text(i18n::t("height")));
 
             // aspect ratio
             ui.add_space(5.0);
-            ui.label("Aspect ratio is maintained by scaling both sides as necessary");
-            ui.checkbox(&mut self.maintain_aspect_ratio, "Maintain aspect ratio");
+            ui.label(i18n::t(
+                "Aspect ratio is maintained by scaling both sides as necessary",
+            ));
+            ui.checkbox(
+                &mut self.maintain_aspect_ratio,
+                i18n::t("Maintain aspect ratio"),
+            );
 
             // alt text
             ui.add_space(5.0);
-            let label = ui.label("Alt text");
+            let label = ui.label(i18n::t("Alt text"));
             ui.text_edit_singleline(&mut self.alt_text)
                 .labelled_by(label.id);
 
             // forget all images
-            if ui.button("Forget all images").clicked() {
+            if ui.button(i18n::t("Forget all images")).clicked() {
                 ui.ctx().forget_all_images();
             }
         });

@@ -339,6 +339,14 @@ pub struct Style {
 
     /// Use a more compact style for menus.
     pub compact_menu_style: bool,
+
+    /// Mirror egui-owned widget chrome and default placements for a right-to-left interface
+    /// language (Arabic, Hebrew, Persian, Urdu): collapsing-header triangles point left,
+    /// checkbox/radio icons swap sides, window title bars put the close button on the left,
+    /// submenus open reading-end first, slider and progress-bar fills grow from the reading
+    /// start. Set it through [`crate::Context::set_right_to_left`]; content geometry
+    /// (canvases, numeric fields) stays left-to-right.
+    pub right_to_left: bool,
 }
 
 // Compile-time check that `Style` is `Send + Sync` on every target.
@@ -467,11 +475,36 @@ pub struct Spacing {
 }
 
 impl Spacing {
-    /// Returns small icon rectangle and big icon rectangle
+    /// Returns small icon rectangle and big icon rectangle.
+    ///
+    /// Anchors at the physical left edge of `rect`; see
+    /// [`Self::icon_rectangles_reading_start`] for the direction-aware variant.
     pub fn icon_rectangles(&self, rect: Rect) -> (Rect, Rect) {
         let icon_width = self.icon_width;
         let big_icon_rect = Rect::from_center_size(
             pos2(rect.left() + icon_width * 0.5, rect.center().y),
+            vec2(icon_width, icon_width),
+        );
+
+        let small_icon_rect =
+            Rect::from_center_size(big_icon_rect.center(), Vec2::splat(self.icon_width_inner));
+
+        (small_icon_rect, big_icon_rect)
+    }
+
+    /// [`Self::icon_rectangles`] anchored at the reading-start edge of `rect`:
+    /// identical in left-to-right interfaces; mirrored to `rect.right() - icon_width/2`
+    /// when `rtl` is set. Prefer this over [`Self::icon_rectangles`], whose anchor is
+    /// the physical left edge.
+    pub fn icon_rectangles_reading_start(&self, rect: Rect, rtl: bool) -> (Rect, Rect) {
+        let icon_width = self.icon_width;
+        let anchor_x = if rtl {
+            rect.right() - icon_width * 0.5
+        } else {
+            rect.left() + icon_width * 0.5
+        };
+        let big_icon_rect = Rect::from_center_size(
+            pos2(anchor_x, rect.center().y),
             vec2(icon_width, icon_width),
         );
 
@@ -1202,7 +1235,8 @@ pub struct Visuals {
     /// Show a background behind collapsing headers.
     pub collapsing_header_frame: bool,
 
-    /// Draw a vertical line left of indented region, in e.g. [`crate::CollapsingHeader`].
+    /// Draw a vertical line at the reading edge of indented regions (on the left in
+    /// left-to-right layouts), in e.g. [`crate::CollapsingHeader`].
     pub indent_has_left_vline: bool,
 
     /// Whether or not Grids and Tables should be striped by default
@@ -1555,6 +1589,7 @@ impl Default for Style {
             always_scroll_the_only_direction: false,
             scroll_animation: ScrollAnimation::default(),
             compact_menu_style: true,
+            right_to_left: false,
         }
     }
 }
@@ -1913,6 +1948,7 @@ impl Style {
             always_scroll_the_only_direction,
             scroll_animation,
             compact_menu_style,
+            right_to_left,
         } = self;
 
         crate::Grid::new("_options").show(ui, |ui| {
@@ -2007,6 +2043,14 @@ impl Style {
                     .suffix(" s"),
             );
             ui.end_row();
+
+            ui.label("Right-to-left");
+            ui.checkbox(right_to_left, "Mirror widget chrome")
+                .on_hover_text(
+                    "Mirror egui-owned widget chrome (triangles, icons, title bars, menus) \
+                     and slider/progress fills for right-to-left interface languages",
+                );
+            ui.end_row();
         });
 
         ui.collapsing("🔠 Text styles", |ui| text_styles_ui(ui, text_styles));
@@ -2032,7 +2076,13 @@ impl Style {
                 "If scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift",
             );
 
-        ui.vertical_centered(|ui| reset_button(ui, self, "Reset style"));
+        // Resetting the style must not silently clear the interface direction
+        // toggled in this same panel: the reset value keeps `right_to_left`.
+        let reset = Self {
+            right_to_left: *right_to_left,
+            ..Self::default()
+        };
+        ui.vertical_centered(|ui| crate::reset_button_with(ui, self, "Reset style", reset));
     }
 }
 
@@ -2612,7 +2662,7 @@ impl Visuals {
             ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
             ui.checkbox(
                 indent_has_left_vline,
-                "Paint a vertical line to the left of indented regions",
+                "Draw a vertical line at the reading edge of indented regions",
             );
 
             ui.checkbox(striped, "Default stripes on grids and tables");
@@ -3291,5 +3341,64 @@ pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAx
 impl Widget for &mut FontTweak {
     fn ui(self, ui: &mut Ui) -> Response {
         font_tweak_ui(ui, self, &[])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use emath::{Pos2, Rect, Vec2, pos2};
+
+    use super::Spacing;
+
+    /// A helper cell rect and the spacing the icon helpers read their sizes from.
+    fn fixture() -> (Rect, Spacing) {
+        let rect = Rect::from_min_size(pos2(100.0, 50.0), Vec2::splat(40.0));
+        (rect, Spacing::default())
+    }
+
+    /// The reading-start variant is identical to `icon_rectangles` in a
+    /// left-to-right interface.
+    #[test]
+    fn icon_rectangles_reading_start_matches_ltr_anchor() {
+        let (rect, spacing) = fixture();
+        assert_eq!(
+            spacing.icon_rectangles_reading_start(rect, false),
+            spacing.icon_rectangles(rect),
+            "the reading-start anchor is the physical left edge in a left-to-right \
+             interface"
+        );
+    }
+
+    /// Under a right-to-left interface the anchor mirrors to the right edge; the
+    /// icon keeps its size and vertical position.
+    #[test]
+    fn icon_rectangles_reading_start_mirrors_in_rtl() {
+        let (rect, spacing) = fixture();
+        let (small, big) = spacing.icon_rectangles_reading_start(rect, true);
+        assert!(
+            (big.center().x - (rect.right() - spacing.icon_width * 0.5)).abs() < 1e-5,
+            "the big icon center should sit at right - icon_width/2, got {:?}",
+            big.center()
+        );
+        assert_eq!(big.size(), Vec2::splat(spacing.icon_width));
+        assert!((big.center().y - rect.center().y).abs() < 1e-5);
+        assert_eq!(
+            small.center(),
+            big.center(),
+            "the small icon stays concentric"
+        );
+    }
+
+    /// The small icon is concentric with the big icon in both directions.
+    #[test]
+    fn icon_rectangles_small_icon_is_concentric() {
+        let (rect, spacing) = fixture();
+        for rtl in [false, true] {
+            let (small, big) = spacing.icon_rectangles_reading_start(rect, rtl);
+            assert_eq!(small.center(), big.center(), "rtl = {rtl}");
+            assert_eq!(small.size(), Vec2::splat(spacing.icon_width_inner));
+        }
+        let (_, big_ltr) = spacing.icon_rectangles(rect);
+        assert_eq!(big_ltr.center(), Pos2::new(100.0 + 7.0, 70.0));
     }
 }

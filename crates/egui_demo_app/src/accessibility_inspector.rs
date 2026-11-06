@@ -8,6 +8,7 @@ use egui::{
     Button, Color32, Context, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label,
     Modifiers, Panel, RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
 };
+use egui_demo_lib::i18n;
 
 /// This [`egui::Plugin`] adds an inspector panel.
 ///
@@ -88,7 +89,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
         ui.enable_accesskit();
 
         Panel::right("accessibility_inspector").show(ui, |ui| {
-            ui.heading("🔎 AccessKit Inspector");
+            ui.heading(i18n::t("🔎 AccessKit Inspector"));
             if let Some(selected_node) = self.selected_node {
                 Panel::bottom("details_panel")
                     .frame(Frame::new())
@@ -136,35 +137,35 @@ impl AccessibilityInspectorPlugin {
             egui::Grid::new("node_details_grid")
                 .num_columns(2)
                 .show(ui, |ui| {
-                    ui.label("Node ID");
+                    ui.label(i18n::t("Node ID"));
                     ui.strong(format!("{selected_node:?}"));
                     ui.end_row();
 
-                    ui.label("Role");
+                    ui.label(i18n::t("Role"));
                     ui.strong(format!("{:?}", node.role()));
                     ui.end_row();
 
-                    ui.label("Label");
+                    ui.label(i18n::t("Label"));
                     ui.add(
                         Label::new(RichText::new(node.label().unwrap_or_default()).strong())
                             .truncate(),
                     );
                     ui.end_row();
 
-                    ui.label("Value");
+                    ui.label(i18n::t("Value"));
                     ui.add(
                         Label::new(RichText::new(node.value().unwrap_or_default()).strong())
                             .truncate(),
                     );
                     ui.end_row();
 
-                    ui.label("Children");
+                    ui.label(i18n::t("Children"));
                     ui.label(RichText::new(node.children().len().to_string()).strong());
 
                     ui.end_row();
                 });
 
-            ui.label("Actions");
+            ui.label(i18n::t("Actions"));
             ui.horizontal_wrapped(|ui| {
                 // Iterate through all possible actions via the `Action::n` helper.
                 let mut current_action = 0;
@@ -190,7 +191,7 @@ impl AccessibilityInspectorPlugin {
                 }
             });
         } else {
-            ui.label("Node not found");
+            ui.label(i18n::t("Node not found"));
         }
     }
 
@@ -199,7 +200,12 @@ impl AccessibilityInspectorPlugin {
             || node
                 .value()
                 .as_deref()
-                .is_some_and(|l| l.contains("AccessKit Inspector"))
+                // The heading is translated, so in a non-English UI the tree must skip its
+                // translated text too.
+                .is_some_and(|l| {
+                    l.contains("AccessKit Inspector")
+                        || l.contains(i18n::t("🔎 AccessKit Inspector"))
+                })
         {
             return;
         }

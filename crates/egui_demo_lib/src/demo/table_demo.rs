@@ -48,7 +48,7 @@ impl crate::Demo for TableDemo {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .default_width(400.0)
             .constrain_to(ui.available_rect_before_wrap())
@@ -67,30 +67,34 @@ impl crate::View for TableDemo {
 
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
-                ui.checkbox(&mut self.striped, "Striped");
-                ui.checkbox(&mut self.overline, "Overline some rows");
-                ui.checkbox(&mut self.resizable, "Resizable columns");
-                ui.checkbox(&mut self.clickable, "Clickable rows");
+                ui.checkbox(&mut self.striped, crate::i18n::t("Striped"));
+                ui.checkbox(&mut self.overline, crate::i18n::t("Overline some rows"));
+                ui.checkbox(&mut self.resizable, crate::i18n::t("Resizable columns"));
+                ui.checkbox(&mut self.clickable, crate::i18n::t("Clickable rows"));
             });
 
-            ui.label("Table type:");
-            ui.radio_value(&mut self.demo, DemoType::Manual, "Few, manual rows");
+            ui.label(crate::i18n::t("Table type:"));
+            ui.radio_value(
+                &mut self.demo,
+                DemoType::Manual,
+                crate::i18n::t("Few, manual rows"),
+            );
             ui.radio_value(
                 &mut self.demo,
                 DemoType::ManyHomogeneous,
-                "Thousands of rows of same height",
+                crate::i18n::t("Thousands of rows of same height"),
             );
             ui.radio_value(
                 &mut self.demo,
                 DemoType::ManyHeterogenous,
-                "Thousands of rows of differing heights",
+                crate::i18n::t("Thousands of rows of differing heights"),
             );
 
             if self.demo != DemoType::Manual {
                 ui.add(
                     egui::Slider::new(&mut self.num_rows, 0..=100_000)
                         .logarithmic(true)
-                        .text("Num rows"),
+                        .text(crate::i18n::t("Num rows")),
                 );
             }
 
@@ -104,14 +108,14 @@ impl crate::View for TableDemo {
                 let slider_response = ui.add(
                     egui::Slider::new(&mut self.scroll_to_row_slider, 0..=max_rows)
                         .logarithmic(true)
-                        .text("Row to scroll to"),
+                        .text(crate::i18n::t("Row to scroll to")),
                 );
                 if slider_response.changed() {
                     self.scroll_to_row = Some(self.scroll_to_row_slider);
                 }
             }
 
-            reset = ui.button("Reset").clicked();
+            reset = ui.button(crate::i18n::t("Reset")).clicked();
         });
 
         ui.separator();
@@ -147,10 +151,17 @@ impl TableDemo {
             .max(ui.spacing().interact_size.y);
 
         let available_height = ui.available_height();
+        // Cell contents read in the reading direction, vertically centered
+        // in both directions:
+        let cell_layout = if ui.is_rtl() {
+            egui::Layout::right_to_left(egui::Align::Center)
+        } else {
+            egui::Layout::left_to_right(egui::Align::Center)
+        };
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
             .resizable(self.resizable)
-            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+            .cell_layout(cell_layout)
             .column(Column::auto())
             .column(
                 Column::remainder()
@@ -182,7 +193,7 @@ impl TableDemo {
                     egui::Sides::new().show(
                         ui,
                         |ui| {
-                            ui.strong("Row");
+                            ui.strong(crate::i18n::t("Row"));
                         },
                         |ui| {
                             self.reversed ^=
@@ -191,16 +202,16 @@ impl TableDemo {
                     );
                 });
                 header.col(|ui| {
-                    ui.strong("Clipped text");
+                    ui.strong(crate::i18n::t("Clipped text"));
                 });
                 header.col(|ui| {
-                    ui.strong("Expanding content");
+                    ui.strong(crate::i18n::t("Expanding content"));
                 });
                 header.col(|ui| {
-                    ui.strong("Interaction");
+                    ui.strong(crate::i18n::t("Interaction"));
                 });
                 header.col(|ui| {
-                    ui.strong("Content");
+                    ui.strong(crate::i18n::t("Content"));
                 });
             })
             .body(|mut body| match self.demo {
@@ -228,14 +239,14 @@ impl TableDemo {
                                 expanding_content(ui);
                             });
                             row.col(|ui| {
-                                ui.checkbox(&mut self.checked, "Click me");
+                                ui.checkbox(&mut self.checked, crate::i18n::t("Click me"));
                             });
                             row.col(|ui| {
                                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                                 if is_thick {
-                                    ui.heading("Extra thick row");
+                                    ui.heading(crate::i18n::t("Extra thick row"));
                                 } else {
-                                    ui.label("Normal row");
+                                    ui.label(crate::i18n::t("Normal row"));
                                 }
                             });
 
@@ -264,12 +275,14 @@ impl TableDemo {
                             expanding_content(ui);
                         });
                         row.col(|ui| {
-                            ui.checkbox(&mut self.checked, "Click me");
+                            ui.checkbox(&mut self.checked, crate::i18n::t("Click me"));
                         });
                         row.col(|ui| {
                             ui.add(
-                                egui::Label::new("Thousands of rows of even height")
-                                    .wrap_mode(TextWrapMode::Extend),
+                                egui::Label::new(crate::i18n::t(
+                                    "Thousands of rows of even height",
+                                ))
+                                .wrap_mode(TextWrapMode::Extend),
                             );
                         });
 
@@ -298,14 +311,14 @@ impl TableDemo {
                             expanding_content(ui);
                         });
                         row.col(|ui| {
-                            ui.checkbox(&mut self.checked, "Click me");
+                            ui.checkbox(&mut self.checked, crate::i18n::t("Click me"));
                         });
                         row.col(|ui| {
                             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                             if thick_row(row_index) {
-                                ui.heading("Extra thick row");
+                                ui.heading(crate::i18n::t("Extra thick row"));
                             } else {
-                                ui.label("Normal row");
+                                ui.label(crate::i18n::t("Normal row"));
                             }
                         });
 
@@ -330,9 +343,15 @@ fn expanding_content(ui: &mut egui::Ui) {
     ui.add(egui::Separator::default().horizontal());
 }
 
+// The `{row_index}` placeholder is filled by `i18n::fmt`, not by `format!`.
+#[expect(clippy::literal_string_with_formatting_args)]
 fn long_text(row_index: usize) -> String {
-    format!(
-        "Row {row_index} has some long text that you may want to clip, or it will take up too much horizontal space!"
+    let row_index = row_index.to_string();
+    crate::i18n::fmt(
+        crate::i18n::t(
+            "Row {row_index} has some long text that you may want to clip, or it will take up too much horizontal space!",
+        ),
+        &[("row_index", row_index.as_str())],
     )
 }
 

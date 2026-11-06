@@ -6,6 +6,8 @@ use egui::{
     vec2, widgets::color_picker::show_color,
 };
 
+use crate::i18n::{fmt, t};
+
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
 
 const BLACK: Color32 = Color32::BLACK;
@@ -39,10 +41,16 @@ impl ColorTest {
             ui.add(crate::egui_github_link_file!());
         });
 
-        ui.horizontal_wrapped(|ui|{
-            ui.label("This is made to test that the egui rendering backend is set up correctly.");
+        ui.horizontal_wrapped(|ui| {
+            ui.label(t(
+                "This is made to test that the egui rendering backend is set up correctly.",
+            ));
             ui.add(egui::Label::new("❓").sense(egui::Sense::click()))
-                .on_hover_text("The texture sampling should be sRGB-aware, and every other color operation should be done in gamma-space (sRGB). All colors should use pre-multiplied alpha");
+                .on_hover_text(t(
+                    "The texture sampling should be sRGB-aware, and every other color operation \
+                     should be done in gamma-space (sRGB). All colors should use pre-multiplied \
+                     alpha",
+                ));
         });
 
         ui.separator();
@@ -51,13 +59,13 @@ impl ColorTest {
 
         ui.separator();
 
-        ui.collapsing("Color test", |ui| {
+        ui.collapsing(t("Color test"), |ui| {
             self.color_test(ui);
         });
 
         ui.separator();
 
-        ui.heading("Text rendering");
+        ui.heading(t("Text rendering"));
 
         text_on_bg(ui, Color32::from_gray(200), Color32::from_gray(230)); // gray on gray
         text_on_bg(ui, Color32::from_gray(140), Color32::from_gray(28)); // dark mode normal text
@@ -71,26 +79,33 @@ impl ColorTest {
         blending_and_feathering_test(ui);
     }
 
+    // The `{n}` placeholder is filled by `i18n::fmt`, not by `format!`.
     fn color_test(&mut self, ui: &mut Ui) {
-        ui.label("If the rendering is done right, all groups of gradients will look uniform.");
+        ui.label(t(
+            "If the rendering is done right, all groups of gradients will look uniform.",
+        ));
 
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.vertex_gradients, "Vertex gradients");
-            ui.checkbox(&mut self.texture_gradients, "Texture gradients");
+            ui.checkbox(&mut self.vertex_gradients, t("Vertex gradients"));
+            ui.checkbox(&mut self.texture_gradients, t("Texture gradients"));
         });
 
-        ui.heading("sRGB color test");
-        ui.label("Use a color picker to ensure this color is (255, 165, 0) / #ffa500");
+        ui.heading(t("sRGB color test"));
+        ui.label(t(
+            "Use a color picker to ensure this color is (255, 165, 0) / #ffa500",
+        ));
         ui.scope(|ui| {
             ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
             let g = Gradient::one_color(Color32::from_rgb(255, 165, 0));
-            self.vertex_gradient(ui, "orange rgb(255, 165, 0) - vertex", WHITE, &g);
-            self.tex_gradient(ui, "orange rgb(255, 165, 0) - texture", WHITE, &g);
+            self.vertex_gradient(ui, t("orange rgb(255, 165, 0) - vertex"), WHITE, &g);
+            self.tex_gradient(ui, t("orange rgb(255, 165, 0) - texture"), WHITE, &g);
         });
 
         ui.separator();
 
-        ui.label("Test that vertex color times texture color is done in gamma space:");
+        ui.label(t(
+            "Test that vertex color times texture color is done in gamma space:",
+        ));
         ui.scope(|ui| {
             let tex_color = Color32::from_rgb(64, 128, 255);
             let vertex_color = Color32::from_rgb(128, 196, 196);
@@ -98,19 +113,19 @@ impl ColorTest {
 
             ui.horizontal(|ui| {
                 let color_size = ui.spacing().interact_size;
-                ui.label("texture");
+                ui.label(t("texture"));
                 show_color(ui, tex_color, color_size);
                 ui.label(" * ");
                 show_color(ui, vertex_color, color_size);
-                ui.label(" vertex color =");
+                ui.label(t(" vertex color ="));
             });
 
             ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
 
             {
                 let g = Gradient::one_color(ground_truth);
-                self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
-                self.tex_gradient(ui, "Ground truth (texture)", WHITE, &g);
+                self.vertex_gradient(ui, t("Ground truth (vertices)"), WHITE, &g);
+                self.tex_gradient(ui, t("Ground truth (texture)"), WHITE, &g);
             }
 
             ui.horizontal(|ui| {
@@ -118,19 +133,24 @@ impl ColorTest {
                 let tex = self.tex_mngr.get(ui.ctx(), &g);
                 let texel_offset = 0.5 / (g.0.len() as f32);
                 let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
+                let texels = g.0.len().to_string();
                 ui.add(
                     Image::from_texture((tex.id(), GRADIENT_SIZE))
                         .tint(vertex_color)
                         .uv(uv),
                 )
-                .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
-                ui.label("GPU result");
+                // The `{n}` placeholder is filled by `i18n::fmt`, not by `format!`.
+                .on_hover_text(fmt(
+                    t("A texture that is {n} texels wide"),
+                    &[("n", texels.as_str())],
+                ));
+                ui.label(t("GPU result"));
             });
         });
 
         ui.separator();
 
-        ui.label("Test that blending is done in gamma space:");
+        ui.label(t("Test that blending is done in gamma space:"));
         ui.scope(|ui| {
             let background = Color32::from_rgb(200, 60, 10);
             let foreground = Color32::from_rgba_unmultiplied(108, 65, 200, 82);
@@ -138,21 +158,21 @@ impl ColorTest {
 
             ui.horizontal(|ui| {
                 let color_size = ui.spacing().interact_size;
-                ui.label("Background:");
+                ui.label(t("Background:"));
                 show_color(ui, background, color_size);
-                ui.label(", foreground: ");
+                ui.label(t(", foreground: "));
                 show_color(ui, foreground, color_size);
             });
             ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
             {
                 let g = Gradient::one_color(ground_truth);
-                self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
-                self.tex_gradient(ui, "Ground truth (texture)", WHITE, &g);
+                self.vertex_gradient(ui, t("Ground truth (vertices)"), WHITE, &g);
+                self.tex_gradient(ui, t("Ground truth (texture)"), WHITE, &g);
             }
             {
                 let g = Gradient::one_color(foreground);
-                self.vertex_gradient(ui, "Vertex blending", background, &g);
-                self.tex_gradient(ui, "Texture blending", background, &g);
+                self.vertex_gradient(ui, t("Vertex blending"), background, &g);
+                self.tex_gradient(ui, t("Texture blending"), background, &g);
             }
         });
 
@@ -161,7 +181,7 @@ impl ColorTest {
         // TODO(emilk): test color multiplication (image tint),
         // to make sure vertex and texture color multiplication is done in gamma space.
 
-        ui.label("Gamma interpolation:");
+        ui.label(t("Gamma interpolation:"));
         self.show_gradients(ui, WHITE, (RED, GREEN), Interpolation::Gamma);
 
         ui.separator();
@@ -181,7 +201,9 @@ impl ColorTest {
         self.show_gradients(ui, BLACK, (TRANSPARENT, WHITE), Interpolation::Gamma);
         ui.separator();
 
-        ui.label("Additive blending: add more and more blue to the red background:");
+        ui.label(t(
+            "Additive blending: add more and more blue to the red background:",
+        ));
         self.show_gradients(
             ui,
             RED,
@@ -191,7 +213,9 @@ impl ColorTest {
 
         ui.separator();
 
-        ui.label("Texture interpolation (texture sampling) should be in gamma space:");
+        ui.label(t(
+            "Texture interpolation (texture sampling) should be in gamma space:",
+        ));
         self.show_gradients(ui, WHITE, (RED, GREEN), Interpolation::Gamma);
     }
 
@@ -207,10 +231,10 @@ impl ColorTest {
         ui.horizontal(|ui| {
             let color_size = ui.spacing().interact_size;
             if !is_opaque {
-                ui.label("Background:");
+                ui.label(t("Background:"));
                 show_color(ui, bg_fill, color_size);
             }
-            ui.label("gradient");
+            ui.label(t("gradient"));
             show_color(ui, left, color_size);
             ui.label("-");
             show_color(ui, right, color_size);
@@ -220,26 +244,26 @@ impl ColorTest {
             ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
             if is_opaque {
                 let g = Gradient::ground_truth_gradient(left, right, interpolation);
-                self.vertex_gradient(ui, "Ground Truth (CPU gradient) - vertices", bg_fill, &g);
-                self.tex_gradient(ui, "Ground Truth (CPU gradient) - texture", bg_fill, &g);
+                self.vertex_gradient(ui, t("Ground Truth (CPU gradient) - vertices"), bg_fill, &g);
+                self.tex_gradient(ui, t("Ground Truth (CPU gradient) - texture"), bg_fill, &g);
             } else {
                 let g = Gradient::ground_truth_gradient(left, right, interpolation)
                     .with_bg_fill(bg_fill);
                 self.vertex_gradient(
                     ui,
-                    "Ground Truth (CPU gradient, CPU blending) - vertices",
+                    t("Ground Truth (CPU gradient, CPU blending) - vertices"),
                     bg_fill,
                     &g,
                 );
                 self.tex_gradient(
                     ui,
-                    "Ground Truth (CPU gradient, CPU blending) - texture",
+                    t("Ground Truth (CPU gradient, CPU blending) - texture"),
                     bg_fill,
                     &g,
                 );
                 let g = Gradient::ground_truth_gradient(left, right, interpolation);
-                self.vertex_gradient(ui, "CPU gradient, GPU blending - vertices", bg_fill, &g);
-                self.tex_gradient(ui, "CPU gradient, GPU blending - texture", bg_fill, &g);
+                self.vertex_gradient(ui, t("CPU gradient, GPU blending - vertices"), bg_fill, &g);
+                self.tex_gradient(ui, t("CPU gradient, GPU blending - texture"), bg_fill, &g);
             }
 
             let g = Gradient::endpoints(left, right);
@@ -247,12 +271,17 @@ impl ColorTest {
             match interpolation {
                 Interpolation::Linear => {}
                 Interpolation::Gamma => {
-                    self.tex_gradient(ui, "Texture of width 2 (test texture sampler)", bg_fill, &g);
+                    self.tex_gradient(
+                        ui,
+                        t("Texture of width 2 (test texture sampler)"),
+                        bg_fill,
+                        &g,
+                    );
 
                     // vertex shader uses gamma
                     self.vertex_gradient(
                         ui,
-                        "Triangle mesh of width 2 (test vertex decode and interpolation)",
+                        t("Triangle mesh of width 2 (test vertex decode and interpolation)"),
                         bg_fill,
                         &g,
                     );
@@ -261,6 +290,7 @@ impl ColorTest {
         });
     }
 
+    // The `{n}` placeholder is filled by `i18n::fmt`, not by `format!`.
     fn tex_gradient(&mut self, ui: &mut Ui, label: &str, bg_fill: Color32, gradient: &Gradient) {
         if !self.texture_gradients {
             return;
@@ -269,27 +299,32 @@ impl ColorTest {
             let tex = self.tex_mngr.get(ui.ctx(), gradient);
             let texel_offset = 0.5 / (gradient.0.len() as f32);
             let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
+            let texels = gradient.0.len().to_string();
             ui.add(
                 Image::from_texture((tex.id(), GRADIENT_SIZE))
                     .bg_fill(bg_fill)
                     .uv(uv),
             )
-            .on_hover_text(format!(
-                "A texture that is {} texels wide",
-                gradient.0.len()
+            // The `{n}` placeholder is filled by `i18n::fmt`, not by `format!`.
+            .on_hover_text(fmt(
+                t("A texture that is {n} texels wide"),
+                &[("n", texels.as_str())],
             ));
             ui.label(label);
         });
     }
 
+    // The `{n}` placeholder is filled by `i18n::fmt`, not by `format!`.
     fn vertex_gradient(&self, ui: &mut Ui, label: &str, bg_fill: Color32, gradient: &Gradient) {
         if !self.vertex_gradients {
             return;
         }
         ui.horizontal(|ui| {
-            vertex_gradient(ui, bg_fill, gradient).on_hover_text(format!(
-                "A triangle mesh that is {} vertices wide",
-                gradient.0.len()
+            // The `{n}` placeholder is filled by `i18n::fmt`, not by `format!`.
+            let vertices = gradient.0.len().to_string();
+            vertex_gradient(ui, bg_fill, gradient).on_hover_text(fmt(
+                t("A triangle mesh that is {n} vertices wide"),
+                &[("n", vertices.as_str())],
             ));
             ui.label(label);
         });
@@ -432,12 +467,16 @@ impl TextureManager {
 ///
 /// Requires eyes and a magnifying glass to verify.
 pub fn pixel_test(ui: &mut Ui) {
-    ui.heading("Pixel alignment test");
-    ui.label("If anything is blurry, then everything will be blurry, including text.");
-    ui.label("You might need a magnifying glass to check this test.");
+    ui.heading(t("Pixel alignment test"));
+    ui.label(t(
+        "If anything is blurry, then everything will be blurry, including text.",
+    ));
+    ui.label(t("You might need a magnifying glass to check this test."));
 
     if cfg!(target_arch = "wasm32") {
-        ui.label("Make sure these test pass even when you zoom in/out and resize the browser.");
+        ui.label(t(
+            "Make sure these test pass even when you zoom in/out and resize the browser.",
+        ));
     }
 
     ui.add_space(4.0);
@@ -454,7 +493,7 @@ pub fn pixel_test(ui: &mut Ui) {
 }
 
 fn pixel_test_strokes(ui: &mut Ui) {
-    ui.label("The strokes should align to the physical pixel grid.");
+    ui.label(t("The strokes should align to the physical pixel grid."));
     let color = if ui.style().visuals.dark_mode {
         egui::Color32::WHITE
     } else {
@@ -495,10 +534,16 @@ fn pixel_test_strokes(ui: &mut Ui) {
 }
 
 fn pixel_test_squares(ui: &mut Ui) {
-    ui.label("The first square should be exactly one physical pixel big.");
-    ui.label("They should be exactly one physical pixel apart.");
-    ui.label("Each subsequent square should be one physical pixel larger than the previous.");
-    ui.label("They should be perfectly aligned to the physical pixel grid.");
+    ui.label(t(
+        "The first square should be exactly one physical pixel big.",
+    ));
+    ui.label(t("They should be exactly one physical pixel apart."));
+    ui.label(t(
+        "Each subsequent square should be one physical pixel larger than the previous.",
+    ));
+    ui.label(t(
+        "They should be perfectly aligned to the physical pixel grid.",
+    ));
 
     let color = if ui.style().visuals.dark_mode {
         egui::Color32::WHITE
@@ -535,8 +580,10 @@ fn pixel_test_lines(ui: &mut Ui) {
     let pixels_per_point = ui.pixels_per_point();
     let n = (96.0 * pixels_per_point) as usize;
 
-    ui.label("The lines should be exactly one physical pixel wide, one physical pixel apart.");
-    ui.label("They should be perfectly white and black.");
+    ui.label(t(
+        "The lines should be exactly one physical pixel wide, one physical pixel apart.",
+    ));
+    ui.label(t("They should be perfectly white and black."));
 
     let hspace_px = pixels_per_point * 4.0;
 
@@ -576,9 +623,13 @@ fn pixel_test_lines(ui: &mut Ui) {
 }
 
 fn blending_and_feathering_test(ui: &mut Ui) {
-    ui.label("The left side shows how lines of different widths look.");
-    ui.label("The right side tests text rendering at different opacities and sizes.");
-    ui.label("The top and bottom images should look symmetrical in their intensities.");
+    ui.label(t("The left side shows how lines of different widths look."));
+    ui.label(t(
+        "The right side tests text rendering at different opacities and sizes.",
+    ));
+    ui.label(t(
+        "The top and bottom images should look symmetrical in their intensities.",
+    ));
 
     let size = vec2(512.0, 512.0);
     let (response, painter) = ui.allocate_painter(size, Sense::hover());
@@ -607,10 +658,13 @@ fn text_on_bg(ui: &mut egui::Ui, fg: Color32, bg: Color32) {
 
     ui.horizontal(|ui| {
         ui.label(
-            RichText::from("▣ The quick brown fox jumps over the lazy dog and runs away.")
-                .background_color(bg)
-                .color(fg),
+            RichText::from(t(
+                "▣ The quick brown fox jumps over the lazy dog and runs away.",
+            ))
+            .background_color(bg)
+            .color(fg),
         );
+        // A color-component readout: numbers only, so it stays English.
         ui.label(format!(
             "({} {} {}) on ({} {} {})",
             fg.r(),
@@ -623,28 +677,32 @@ fn text_on_bg(ui: &mut egui::Ui, fg: Color32, bg: Color32) {
     });
 }
 
+// The `{percent}` / `{size}` placeholders are filled by `i18n::fmt`, not by `format!`.
+#[expect(clippy::literal_string_with_formatting_args)]
 fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Color32) {
     {
         let mut y = 0.0;
         for opacity in [1.00, 0.50, 0.25, 0.10, 0.05, 0.02, 0.01, 0.00] {
+            // The percentage is pre-formatted in Rust: format specs never enter a catalogue.
+            let percent = format!("{:.0}", 100.0 * opacity);
             painter.text(
                 rect.center_top() + vec2(0.0, y),
                 Align2::LEFT_TOP,
-                format!("{:.0}% white", 100.0 * opacity),
+                fmt(t("{percent}% white"), &[("percent", percent.as_str())]),
                 FontId::proportional(14.0),
                 Color32::WHITE.gamma_multiply(opacity),
             );
             painter.text(
                 rect.center_top() + vec2(80.0, y),
                 Align2::LEFT_TOP,
-                format!("{:.0}% gray", 100.0 * opacity),
+                fmt(t("{percent}% gray"), &[("percent", percent.as_str())]),
                 FontId::proportional(14.0),
                 Color32::GRAY.gamma_multiply(opacity),
             );
             painter.text(
                 rect.center_top() + vec2(160.0, y),
                 Align2::LEFT_TOP,
-                format!("{:.0}% black", 100.0 * opacity),
+                fmt(t("{percent}% black"), &[("percent", percent.as_str())]),
                 FontId::proportional(14.0),
                 Color32::BLACK.gamma_multiply(opacity),
             );
@@ -652,11 +710,14 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
         }
 
         for font_size in [6.0, 7.0, 8.0, 9.0, 10.0, 12.0, 14.0] {
+            // The `{size}` placeholder is filled by `i18n::fmt`, not by `format!`.
+            let size = font_size.to_string();
             painter.text(
                 rect.center_top() + vec2(0.0, y),
                 Align2::LEFT_TOP,
-                format!(
-                    "{font_size}px - The quick brown fox jumps over the lazy dog and runs away."
+                fmt(
+                    t("{size}px - The quick brown fox jumps over the lazy dog and runs away."),
+                    &[("size", size.as_str())],
                 ),
                 FontId::proportional(font_size),
                 color,
@@ -697,7 +758,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
     painter.text(
         rect.left_top(),
         Align2::LEFT_CENTER,
-        "transparent --> opaque",
+        t("transparent --> opaque"),
         FontId::monospace(10.0),
         color,
     );

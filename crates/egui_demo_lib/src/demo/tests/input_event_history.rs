@@ -71,7 +71,7 @@ impl crate::Demo for InputEventHistory {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .default_width(800.0)
             .open(open)
             .resizable(true)
@@ -109,11 +109,13 @@ impl crate::View for InputEventHistory {
             ui.add(crate::egui_github_link_file!());
         });
 
-        ui.label("Recent history of raw input events to egui.");
-        ui.label("Hover any entry for details.");
+        ui.label(crate::i18n::t(
+            "Recent history of raw input events to egui.",
+        ));
+        ui.label(crate::i18n::t("Hover any entry for details."));
         ui.checkbox(
             &mut self.include_pointer_movements,
-            "Include pointer/mouse movements",
+            crate::i18n::t("Include pointer/mouse movements"),
         );
 
         ui.add_space(8.0);

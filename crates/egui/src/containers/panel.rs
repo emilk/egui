@@ -180,6 +180,10 @@ impl PanelSide {
 /// [`top`](Panel::top) or [`bottom`](Panel::bottom))
 /// of a [`Ui`] or screen.
 ///
+/// The logical constructors [`start`](Panel::start) and [`end`](Panel::end) follow
+/// the interface reading direction ([`crate::Style::right_to_left`]) instead of a
+/// fixed physical side.
+///
 /// The order in which you add panels matter!
 /// The first panel you add will always be the outermost, and the last you add will always be the innermost.
 ///
@@ -206,6 +210,12 @@ impl PanelSide {
 #[must_use = "You should call .show()"]
 pub struct Panel {
     side: PanelSide,
+
+    /// Whether [`Self::side`] is logical (set by [`Self::start`] / [`Self::end`]): the panel
+    /// mirrors to the interface reading direction ([`crate::Style::right_to_left`]) at show time.
+    /// Physical panels ([`Self::left`], [`Self::right`], [`Self::top`], [`Self::bottom`])
+    /// never follow it.
+    follows_reading_direction: bool,
 
     /// Combined with the parent [`Ui::scope_id`] to form the [`Id`] of the panel.
     id_salt: IdSalt,
@@ -249,6 +259,9 @@ impl Panel {
     /// Create a left panel.
     ///
     /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_left_panel"`.
+    ///
+    /// This constructor is physical: the panel stays on this side regardless of the interface
+    /// reading direction. See [`Self::start`] / [`Self::end`] for the logical counterparts.
     pub fn left(id_salt: impl AsIdSalt) -> Self {
         Self::new(PanelSide::Left, id_salt)
     }
@@ -256,6 +269,9 @@ impl Panel {
     /// Create a right panel.
     ///
     /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_right_panel"`.
+    ///
+    /// This constructor is physical: the panel stays on this side regardless of the interface
+    /// reading direction. See [`Self::start`] / [`Self::end`] for the logical counterparts.
     pub fn right(id_salt: impl AsIdSalt) -> Self {
         Self::new(PanelSide::Right, id_salt)
     }
@@ -278,6 +294,28 @@ impl Panel {
         Self::new(PanelSide::Bottom, id_salt).resizable(false)
     }
 
+    /// Create a panel at the reading start: the left side in a left-to-right interface,
+    /// the right side in a right-to-left one.
+    ///
+    /// The side is resolved against [`crate::Style::right_to_left`] each frame the panel is
+    /// shown; the panel's [`Id`] (and therefore its persisted [`PanelState`] size) does not
+    /// depend on the direction, so a user-resized width survives a direction flip.
+    pub fn start(id_salt: impl AsIdSalt) -> Self {
+        let mut panel = Self::new(PanelSide::Left, id_salt);
+        panel.follows_reading_direction = true;
+        panel
+    }
+
+    /// Create a panel at the reading end: the right side in a left-to-right interface,
+    /// the left side in a right-to-left one.
+    ///
+    /// See [`Self::start`] for how the side resolves.
+    pub fn end(id_salt: impl AsIdSalt) -> Self {
+        let mut panel = Self::new(PanelSide::Right, id_salt);
+        panel.follows_reading_direction = true;
+        panel
+    }
+
     /// Create a panel.
     ///
     /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_panel"`.
@@ -294,6 +332,7 @@ impl Panel {
 
         Self {
             side,
+            follows_reading_direction: false,
             id_salt: IdSalt::new(id_salt),
             frame: None,
             resizable: true,
@@ -692,7 +731,7 @@ impl Panel {
         mut is_expanded: Option<&mut bool>,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let side = self.side;
+        let side = self.resolved_side(parent_ui.is_rtl());
         let id = self.id(parent_ui);
         let resizable = self.resizable;
         let show_separator_line = self.show_separator_line;
@@ -717,18 +756,17 @@ impl Panel {
         // without reporting that extra size to the parent!
         let max_rect = {
             let mut max_rect = available_rect;
-            self.side
-                .set_rect_size(&mut max_rect, self.outer_size_range.max);
+            side.set_rect_size(&mut max_rect, self.outer_size_range.max);
             max_rect
         };
 
         let mut outer_size = self
             .outer_size(parent_ui)
-            .at_most(available_rect.size_along(self.side.axis()));
+            .at_most(available_rect.size_along(side.axis()));
 
         let mut outer_rect = {
             let mut outer_rect = available_rect;
-            self.side.set_rect_size(&mut outer_rect, outer_size);
+            side.set_rect_size(&mut outer_rect, outer_size);
             outer_rect
         };
 
@@ -861,8 +899,7 @@ impl Panel {
         });
 
         if self.outer_size_range.max < inner_response.response.rect.size_along(axis) {
-            self.side
-                .set_rect_size(&mut inner_response.response.rect, self.outer_size_range.max);
+            side.set_rect_size(&mut inner_response.response.rect, self.outer_size_range.max);
         }
 
         // `Frame::show` returns the panel's (shifted) _outer_ rect, including margin & border.
@@ -900,7 +937,7 @@ impl Panel {
         };
 
         if resize_hover || is_resizing {
-            parent_ui.set_cursor_icon(self.cursor_icon(outer_size));
+            parent_ui.set_cursor_icon(self.cursor_icon(side, outer_size));
         }
 
         let is_animating = 0.0 < self.slide_fraction && self.slide_fraction < 1.0;
@@ -975,8 +1012,24 @@ impl Panel {
         parent_ui.scope_id().with_salt(self.id_salt)
     }
 
+    /// The physical side to show the panel on this frame: logical panels
+    /// ([`Self::start`]/[`Self::end`]) mirror to the interface reading direction;
+    /// physical panels are returned unchanged.
+    fn resolved_side(&self, right_to_left: bool) -> PanelSide {
+        if self.follows_reading_direction && right_to_left {
+            match self.side {
+                PanelSide::Left => PanelSide::Right,
+                PanelSide::Right => PanelSide::Left,
+                physical => physical,
+            }
+        } else {
+            self.side
+        }
+    }
+
     /// The configured [`Frame`], or the default side/top panel frame for this [`Ui`].
     fn resolve_frame(&self, ui: &Ui) -> Frame {
+        let side = self.resolved_side(ui.is_rtl());
         let mut frame = self
             .frame
             .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
@@ -993,7 +1046,7 @@ impl Panel {
             let widgets = &ui.style().visuals.widgets;
             let stroke_width = widgets.noninteractive.bg_stroke.width.round() as i8;
 
-            let margin_side = self.side.resize_margin_mut(&mut frame.outer_margin);
+            let margin_side = side.resize_margin_mut(&mut frame.outer_margin);
             *margin_side = (*margin_side).saturating_add(stroke_width);
         }
 
@@ -1008,7 +1061,7 @@ impl Panel {
     /// panel's resize handle also keeps an in-progress drag-to-collapse gesture
     /// alive, so the user can drag the panel straight back out without releasing.
     fn collapsed_resize_handle(&self, ui: &Ui, is_expanded: &mut bool) {
-        let side = self.side;
+        let side = self.resolved_side(ui.is_rtl());
         let axis = side.axis();
 
         let available_rect = ui.available_rect_before_wrap();
@@ -1057,7 +1110,7 @@ impl Panel {
             // Advertise that the panel can be pulled out. Also keeps the resize
             // cursor for a drag that started before the panel closed, instead of
             // snapping back to the default mid-gesture.
-            ui.set_cursor_icon(self.cursor_icon(0.0));
+            ui.set_cursor_icon(self.cursor_icon(side, 0.0));
         }
 
         if response.dragged()
@@ -1134,15 +1187,16 @@ impl Panel {
         is_expanded: Option<bool>,
         ui: &Ui,
     ) -> Response {
-        let resize_pos = self.side.resize_pos(outer_rect);
+        let side = self.resolved_side(ui.is_rtl());
+        let resize_pos = side.resize_pos(outer_rect);
         let panel_axis_range = Rangef::point(resize_pos);
-        let cross_range = outer_rect.range_along(self.side.cross_axis());
-        let (resize_x, resize_y) = if self.side.axis() == 0 {
+        let cross_range = outer_rect.range_along(side.cross_axis());
+        let (resize_x, resize_y) = if side.axis() == 0 {
             (panel_axis_range, cross_range)
         } else {
             (cross_range, panel_axis_range)
         };
-        let amount = ui.style().interaction.resize_grab_radius_side * self.side.axis_unit();
+        let amount = ui.style().interaction.resize_grab_radius_side * side.axis_unit();
 
         // Use `resize_id_source` so collapsed/expanded panels in
         // `show_switched` share one resize widget.
@@ -1152,7 +1206,7 @@ impl Panel {
 
         // Expose the resize handle to assistive technologies:
         // https://github.com/emilk/egui/issues/8557
-        let axis = self.side.axis();
+        let axis = side.axis();
         let available_size = available_rect.size_along(axis);
         // The sizes the user can actually reach. Beyond `outer_size_range`,
         // an expanded panel can be collapsed (size zero), and a collapsed panel
@@ -1257,7 +1311,7 @@ impl Panel {
         Some(base_size + steps * step_size)
     }
 
-    fn cursor_icon(&self, outer_size: f32) -> CursorIcon {
+    fn cursor_icon(&self, side: PanelSide, outer_size: f32) -> CursorIcon {
         // When this panel is the collapsed view of `show_switched`
         // (`resize_id_source` is set), dragging past `max_size` triggers
         // drag-to-expand — so the user can always grow further. Treat the cap
@@ -1272,21 +1326,21 @@ impl Panel {
 
         if outer_size <= self.outer_size_range.min {
             // Can only grow (toward the resizable side):
-            match self.side {
+            match side {
                 PanelSide::Left => CursorIcon::ResizeEast,
                 PanelSide::Right => CursorIcon::ResizeWest,
                 PanelSide::Top => CursorIcon::ResizeSouth,
                 PanelSide::Bottom => CursorIcon::ResizeNorth,
             }
         } else if outer_size < max_for_cursor {
-            if self.side.axis() == 0 {
+            if side.axis() == 0 {
                 CursorIcon::ResizeHorizontal
             } else {
                 CursorIcon::ResizeVertical
             }
         } else {
             // Can only shrink (toward the fixed side):
-            match self.side {
+            match side {
                 PanelSide::Left => CursorIcon::ResizeWest,
                 PanelSide::Right => CursorIcon::ResizeEast,
                 PanelSide::Top => CursorIcon::ResizeNorth,
@@ -1424,4 +1478,30 @@ impl CentralPanel {
 fn clamp_to_range(x: f32, range: Rangef) -> f32 {
     let range = range.as_positive();
     x.clamp(range.min, range.max)
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolved_side_truth_table() {
+        // Logical constructors follow the reading direction:
+        assert_eq!(Panel::start("p").resolved_side(false), PanelSide::Left);
+        assert_eq!(Panel::start("p").resolved_side(true), PanelSide::Right);
+        assert_eq!(Panel::end("p").resolved_side(false), PanelSide::Right);
+        assert_eq!(Panel::end("p").resolved_side(true), PanelSide::Left);
+
+        // Physical constructors never follow it (`top`/`bottom` never set the flag):
+        assert_eq!(Panel::left("p").resolved_side(false), PanelSide::Left);
+        assert_eq!(Panel::left("p").resolved_side(true), PanelSide::Left);
+        assert_eq!(Panel::right("p").resolved_side(false), PanelSide::Right);
+        assert_eq!(Panel::right("p").resolved_side(true), PanelSide::Right);
+        assert_eq!(Panel::top("p").resolved_side(false), PanelSide::Top);
+        assert_eq!(Panel::top("p").resolved_side(true), PanelSide::Top);
+        assert_eq!(Panel::bottom("p").resolved_side(false), PanelSide::Bottom);
+        assert_eq!(Panel::bottom("p").resolved_side(true), PanelSide::Bottom);
+    }
 }

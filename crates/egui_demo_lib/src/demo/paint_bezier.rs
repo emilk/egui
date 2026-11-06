@@ -46,40 +46,42 @@ impl Default for PaintBezier {
 
 impl PaintBezier {
     pub fn ui_control(&mut self, ui: &mut egui::Ui) {
-        ui.collapsing("Colors", |ui| {
+        ui.collapsing(crate::i18n::t("Colors"), |ui| {
             Grid::new("colors")
                 .num_columns(2)
                 .spacing([12.0, 8.0])
                 .striped(true)
                 .show(ui, |ui| {
-                    ui.label("Fill color");
+                    ui.label(crate::i18n::t("Fill color"));
                     ui.color_edit_button_srgba(&mut self.fill);
                     ui.end_row();
 
-                    ui.label("Curve Stroke");
+                    ui.label(crate::i18n::t("Curve Stroke"));
                     ui.add(&mut self.stroke);
                     ui.end_row();
 
-                    ui.label("Auxiliary Stroke");
+                    ui.label(crate::i18n::t("Auxiliary Stroke"));
                     ui.add(&mut self.aux_stroke);
                     ui.end_row();
 
-                    ui.label("Bounding Box Stroke");
+                    ui.label(crate::i18n::t("Bounding Box Stroke"));
                     ui.add(&mut self.bounding_box_stroke);
                     ui.end_row();
                 });
         });
 
-        ui.collapsing("Global tessellation options", |ui| {
+        ui.collapsing(crate::i18n::t("Global tessellation options"), |ui| {
             let mut tessellation_options = ui.ctx().tessellation_options(|to| *to);
             tessellation_options.ui(ui);
             ui.tessellation_options_mut(|to| *to = tessellation_options);
         });
 
-        ui.radio_value(&mut self.degree, 3, "Quadratic Bézier");
-        ui.radio_value(&mut self.degree, 4, "Cubic Bézier");
-        ui.label("Move the points by dragging them.");
-        ui.small("Only convex curves can be accurately filled.");
+        ui.radio_value(&mut self.degree, 3, crate::i18n::t("Quadratic Bézier"));
+        ui.radio_value(&mut self.degree, 4, crate::i18n::t("Cubic Bézier"));
+        ui.label(crate::i18n::t("Move the points by dragging them."));
+        ui.small(crate::i18n::t(
+            "Only convex curves can be accurately filled.",
+        ));
     }
 
     pub fn ui_content(&mut self, ui: &mut Ui) -> egui::Response {
@@ -167,7 +169,7 @@ impl crate::Demo for PaintBezier {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        Window::new(self.name())
+        Window::new(crate::i18n::t(self.name()))
             .open(open)
             .vscroll(false)
             .resizable(false)

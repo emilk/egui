@@ -30,10 +30,11 @@ impl DeduplicatedHistory {
                 for HistoryEntry { text, repeated } in self.history.iter().rev() {
                     ui.horizontal(|ui| {
                         if text.is_empty() {
-                            ui.weak("(empty)");
+                            ui.weak(crate::i18n::t("(empty)"));
                         } else {
                             ui.label(text);
                         }
+                        // A ` x3`-style repeat count: language-neutral numeric readout.
                         if 1 < *repeated {
                             ui.weak(format!(" x{repeated}"));
                         }
@@ -60,7 +61,7 @@ impl crate::Demo for InputTest {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .default_width(800.0)
             .open(open)
             .resizable(true)
@@ -82,18 +83,21 @@ impl crate::View for InputTest {
         });
 
         ui.horizontal(|ui| {
-            if ui.button("Clear").clicked() {
+            if ui.button(crate::i18n::t("Clear")).clicked() {
                 *self = Default::default();
             }
 
-            ui.checkbox(&mut self.show_hovers, "Show hover state");
+            ui.checkbox(&mut self.show_hovers, crate::i18n::t("Show hover state"));
         });
 
+        // The label names the `Response::interact` API, so it stays English.
         ui.checkbox(&mut self.late_interaction, "Use Response::interact");
 
-        ui.label("This tests how egui::Response reports events.\n\
+        ui.label(crate::i18n::t(
+            "This tests how egui::Response reports events.\n\
             The different buttons are sensitive to different things.\n\
-            Try interacting with them with any mouse button by clicking, double-clicking, triple-clicking, or dragging them.");
+            Try interacting with them with any mouse button by clicking, double-clicking, triple-clicking, or dragging them.",
+        ));
 
         ui.columns(4, |columns| {
             for (i, (sense_name, sense)) in [
@@ -122,6 +126,8 @@ impl crate::View for InputTest {
     }
 }
 
+// Event-log readouts (`Clicked`, `contains_pointer`, …) mix prose with API/debug
+// identifiers, so they stay English like the `{:?}` readouts they sit next to.
 fn response_summary(response: &egui::Response, show_hovers: bool) -> String {
     use core::fmt::Write as _;
 

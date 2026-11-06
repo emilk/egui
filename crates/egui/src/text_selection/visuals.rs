@@ -46,34 +46,72 @@ pub fn paint_text_selection(
     for ri in min.row..=max.row {
         let placed_row = &mut galley.rows[ri];
         let row = Arc::make_mut(&mut placed_row.row);
+        let rtl = row.base_direction == epaint::text::TextDirection::RightToLeft;
+        // The row's ink right edge in row-relative coordinates — the reading
+        // start of a right-to-left row (0.0 for an empty row):
+        let ink_max_x = row
+            .glyphs
+            .iter()
+            .map(|glyph| glyph.max_x())
+            .fold(0.0, f32::max);
 
-        let left = if ri == min.row {
-            row.x_offset(min.column)
+        let newline_size = if ri != max.row && placed_row.ends_with_newline {
+            row.height() * 0.5 // visualize that we select the newline
         } else {
             0.0
         };
-        let right = if ri == max.row {
-            row.x_offset(max.column)
-        } else {
-            let newline_size = if placed_row.ends_with_newline {
-                row.height() * 0.5 // visualize that we select the newline
+
+        // The selected x span of this row, in row-relative coordinates. The
+        // reading direction decides which edge the caret side pairs with: on
+        // a right-to-left row the selection runs from a caret rightward to
+        // the row's reading START (the ink's visual right edge) when the
+        // range begins at the row's first column, and leftward to the row's
+        // reading END (the visual left, the allocated width and the newline
+        // visualization extending reading-forward) when the range continues
+        // past it.
+        let (span_lo, span_hi) = if ri == min.row && ri == max.row {
+            // Single-row selection: between the two carets.
+            let a = row.x_offset(min.column);
+            let b = row.x_offset(max.column);
+            (a.min(b), a.max(b))
+        } else if ri == min.row {
+            // From the first selected column's caret to the row's reading end:
+            let caret = row.x_offset(min.column);
+            let end = if rtl {
+                ink_max_x - row.size.x - newline_size
             } else {
-                0.0
+                row.size.x + newline_size
             };
-            row.size.x + newline_size
+            (caret.min(end), caret.max(end))
+        } else if ri == max.row {
+            // From the row's reading start to the last selected column's caret:
+            let caret = row.x_offset(max.column);
+            let start = if rtl { ink_max_x } else { 0.0 };
+            (caret.min(start), caret.max(start))
+        } else if rtl {
+            // Full row: from the reading end (visual left) to the reading
+            // start (visual right):
+            (ink_max_x - row.size.x - newline_size, ink_max_x)
+        } else {
+            (0.0, row.size.x + newline_size)
         };
 
-        let rect = Rect::from_min_max(pos2(left, 0.0), pos2(right, row.size.y));
+        let rect = Rect::from_min_max(pos2(span_lo, 0.0), pos2(span_hi, row.size.y));
         let mesh = &mut row.visuals.mesh;
 
         if !row.glyphs.is_empty() {
             // Change color of the selected text:
-            let first_glyph_index = if ri == min.row { min.column.0 } else { 0 };
-            let last_glyph_index = if ri == max.row {
-                max.column.0
-            } else {
-                row.glyphs.len()
-            };
+            let len = row.glyphs.len();
+            let mut first_glyph_index = if ri == min.row { min.column.0 } else { 0 };
+            let mut last_glyph_index = if ri == max.row { max.column.0 } else { len };
+            if rtl {
+                // Glyphs are stored in visual order while the columns are
+                // logical: mirror the slot range into the visual glyph slots.
+                let start = first_glyph_index.min(len);
+                let end = last_glyph_index.min(len);
+                first_glyph_index = len - end;
+                last_glyph_index = len - start;
+            }
 
             let first_vertex_index = row
                 .glyphs
@@ -272,6 +310,16 @@ pub fn paint_cursor_end(painter: &Painter, visuals: &Visuals, cursor_rect: Rect)
 
     painter.line_segment([top, bottom], stroke);
 
+    // The dead roof/floor block below is the natural home for a bidi
+    // caret-affinity indicator, should one ever be wanted: at a mixed-direction
+    // run boundary a single visual edge hosts two logical caret positions
+    // (logical-before vs logical-after), and roof/floor strokes are how such an
+    // affinity choice could be made visible. Landing it first needs an exact
+    // logical↔visual mapping inside runs that counteract the base direction —
+    // i.e. the stored per-row run map documented as not-yet-implemented in
+    // epaint's `Row` (see the epaint commit that made `Row::x_offset`
+    // direction-aware). Visualizing an approximation now would change default
+    // visuals for every user, so the block stays as scaffolded.
     if false {
         // Roof/floor:
         let extrusion = 3.0;

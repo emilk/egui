@@ -71,6 +71,9 @@ pub struct Ui {
     /// This is an optimization, so we don't call [`Ui::remember_min_rect`] multiple times at the
     /// end of a [`Ui::scope`].
     min_rect_already_remembered: bool,
+
+    /// Subtree language override; `None` inherits from [`Context::language`].
+    language: Option<String>,
 }
 
 /// Allow using [`Ui`] like a [`Context`].
@@ -107,6 +110,8 @@ impl Ui {
             accessibility_label,
             accessibility_role,
             classes,
+            language,
+            right_to_left,
         } = ui_builder;
 
         let layer_id = layer_id.unwrap_or_else(LayerId::background);
@@ -118,11 +123,41 @@ impl Ui {
 
         let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
         let clip_rect = max_rect;
-        let layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
-        let style = style.unwrap_or_else(|| ctx.global_style());
+        let mut style = style.unwrap_or_else(|| ctx.global_style());
+        // A per-subtree direction override flips this subtree's own style once,
+        // before the default layout below and the mirror further down read the
+        // flag, so every direction consumer follows by construction. One
+        // `Style` clone per boundary that actually flips; none otherwise. The
+        // override is pinned for the subtree's lifetime (see
+        // `UiBuilder::right_to_left`).
+        if let Some(rtl) = right_to_left
+            && rtl != style.right_to_left
+        {
+            Arc::make_mut(&mut style).right_to_left = rtl;
+        }
+        let mut layout = layout.unwrap_or_else(|| Layout::from_style(&style));
         let sense = sense.unwrap_or_else(Sense::hover);
         let classes = classes.with_class(class::ROOT);
+
+        // The sizing measurement must not depend on the reading direction: with `Align::Max`
+        // cross alignment the sizing pass seeds the root `min_rect` at the far edge of the
+        // offered area, so the measured span is offered-width-dependent. Measure like
+        // `Align::Min` in both directions; the show pass keeps the caller's alignment.
+        // This is the root-`Ui` part of the canonicalization in `Ui::new_child`.
+        // Under a right-to-left interface the mirror below turns this `Min` back into `Max`,
+        // so only LTR measures like `Min`.
+        if sizing_pass && layout.cross_align == Align::Max {
+            layout.cross_align = Align::Min;
+        }
+
+        // A vertical `Align::Min` body under a right-to-left interface anchors its
+        // bare content on the reading-start (right) edge, the same term that mirrors
+        // its nested rows. Resolved once here so placement, galley halign, the
+        // min_rect seed and the width setters all follow one effective cross align.
+        if style.right_to_left && layout.is_vertical() && layout.cross_align == Align::Min {
+            layout.cross_align = Align::Max;
+        }
 
         // A root `Ui` has no parent to derive a unique id from,
         // so the caller must provide a globally unique id, which serves as both:
@@ -152,6 +187,7 @@ impl Ui {
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
+            language,
         };
 
         if let Some(accessibility_parent) = accessibility_parent {
@@ -223,6 +259,8 @@ impl Ui {
             accessibility_label,
             accessibility_role,
             classes,
+            language,
+            right_to_left,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
@@ -237,7 +275,17 @@ impl Ui {
             painter.set_invisible();
         }
         let sizing_pass = self.sizing_pass || sizing_pass;
-        let style = style.unwrap_or_else(|| Arc::clone(&self.style));
+        let mut style = style.unwrap_or_else(|| Arc::clone(&self.style));
+        // A per-subtree direction override flips this subtree's own style once,
+        // before the mirror further down reads the flag, so every direction
+        // consumer follows by construction. One `Style` clone per boundary that
+        // actually flips; none otherwise. The override is pinned for the
+        // subtree's lifetime (see `UiBuilder::right_to_left`).
+        if let Some(rtl) = right_to_left
+            && rtl != style.right_to_left
+        {
+            Arc::make_mut(&mut style).right_to_left = rtl;
+        }
         let sense = sense.unwrap_or_else(Sense::hover);
 
         if sizing_pass {
@@ -245,6 +293,18 @@ impl Ui {
             // so that we measure the only the space we _need_.
             layout.cross_justify = false;
             if layout.cross_align == Align::Center {
+                layout.cross_align = Align::Min;
+            }
+            // The sizing measurement must not depend on the reading direction: with
+            // `Align::Max` the sizing pass seeds the child's `min_rect` at the far edge of
+            // the offered area, so the measurement is reading-end-anchored and
+            // offered-width-dependent for anything that consumes the child's
+            // `min_rect().min` (e.g. a `Resize` container's cursor advance). The size
+            // itself stays natural. Measure like `Align::Min` in both directions; the show
+            // pass keeps the mirrored alignment.
+            // Under a right-to-left interface the mirror below turns this `Min` back into `Max`,
+            // so only LTR measures like `Min`.
+            if layout.cross_align == Align::Max {
                 layout.cross_align = Align::Min;
             }
         }
@@ -263,6 +323,14 @@ impl Ui {
         let next_auto_id_salt = unique_id.value().wrapping_add(1);
 
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
+
+        // A vertical `Align::Min` body under a right-to-left interface anchors its
+        // bare content on the reading-start (right) edge, the same term that mirrors
+        // its nested rows. Resolved once here so placement, galley halign, the
+        // min_rect seed and the width setters all follow one effective cross align.
+        if style.right_to_left && layout.is_vertical() && layout.cross_align == Align::Min {
+            layout.cross_align = Align::Max;
+        }
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -288,6 +356,7 @@ impl Ui {
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
+            language: language.or_else(|| self.language.clone()),
         };
 
         if disabled {
@@ -417,6 +486,119 @@ impl Ui {
     /// Reset to the default style set in [`Context`].
     pub fn reset_style(&mut self) {
         self.style = self.ctx().global_style();
+    }
+
+    /// Is the interface drawn right-to-left?
+    ///
+    /// This reads the [`Style`] of this [`Ui`], so a per-`Ui` override with
+    /// [`Self::style_mut`] works. Use [`Context::is_rtl`] to read the global setting.
+    ///
+    /// Example:
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// assert!(!ui.is_rtl());
+    /// ui.style_mut().right_to_left = true;
+    /// assert!(ui.is_rtl());
+    /// # });
+    /// ```
+    #[inline]
+    pub fn is_rtl(&self) -> bool {
+        self.style.right_to_left
+    }
+
+    /// The language text in this `Ui` should be laid out in, as a BCP 47 tag:
+    /// this subtree's [`UiBuilder::language`] override, else [`Context::language`].
+    ///
+    /// Widgets stamp this onto their [`crate::text::LayoutJob`]s. `None` means unspecified.
+    #[inline]
+    pub fn language(&self) -> Option<String> {
+        self.language.clone().or_else(|| self.ctx().language())
+    }
+
+    /// The reading-start x for content offset `off` inward from `rect`'s start edge:
+    /// `rect.left() + off` left-to-right, `rect.right() - off` right-to-left.
+    ///
+    /// Hand-painted chrome (chevrons, header rules, fills) anchored through this mirrors with
+    /// the interface direction. See also [`Self::reading_start_x_w`] when the width of the
+    /// anchored element is known, and [`Self::reading_end_x`] for the end edge.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 20.0));
+    /// assert!((ui.reading_start_x(rect, 7.0) - (rect.left() + 7.0)).abs() < 1e-4);
+    /// # });
+    /// ```
+    #[inline]
+    pub fn reading_start_x(&self, rect: Rect, off: f32) -> f32 {
+        if self.is_rtl() {
+            rect.right() - off
+        } else {
+            rect.left() + off
+        }
+    }
+
+    /// The min-x of a `w`-wide element hugging `rect`'s reading-start edge with margin `off`:
+    /// `rect.left() + off` left-to-right, `rect.right() - off - w` right-to-left, so the element
+    /// grows inward from the start edge in both directions.
+    ///
+    /// Use with [`Rect::from_min_size`] when the element's size is known before its anchor
+    /// (a progress fill, a thumbnail column).
+    #[inline]
+    pub fn reading_start_x_w(&self, rect: Rect, off: f32, w: f32) -> f32 {
+        if self.is_rtl() {
+            rect.right() - off - w
+        } else {
+            rect.left() + off
+        }
+    }
+
+    /// The reading-end x for content offset `off` inward from `rect`'s end edge:
+    /// `rect.right() - off` left-to-right, `rect.left() + off` right-to-left.
+    #[inline]
+    pub fn reading_end_x(&self, rect: Rect, off: f32) -> f32 {
+        if self.is_rtl() {
+            rect.left() + off
+        } else {
+            rect.right() - off
+        }
+    }
+
+    /// [`Align2`] for [`Painter::text`](crate::Painter::text) hugging the reading-start edge:
+    /// `LEFT_CENTER` left-to-right, `RIGHT_CENTER` right-to-left.
+    ///
+    /// Composes with [`Self::reading_start_x`].
+    #[inline]
+    pub fn start_align2(&self) -> Align2 {
+        if self.is_rtl() {
+            Align2::RIGHT_CENTER
+        } else {
+            Align2::LEFT_CENTER
+        }
+    }
+
+    /// [`Align2`] for [`Painter::text`](crate::Painter::text) hugging the reading-end edge
+    /// (a shortcut hint): `RIGHT_CENTER` left-to-right, `LEFT_CENTER` right-to-left.
+    #[inline]
+    pub fn end_align2(&self) -> Align2 {
+        if self.is_rtl() {
+            Align2::LEFT_CENTER
+        } else {
+            Align2::RIGHT_CENTER
+        }
+    }
+
+    /// `1.0`, or `-1.0` right-to-left: multiply an x offset written for left-to-right by it.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 20.0));
+    /// let x = ui.reading_start_x(rect, 0.0) + ui.forward() * 8.0; // 8 px into the reading direction
+    /// assert!((x - (rect.left() + 8.0)).abs() < 1e-4);
+    /// # });
+    /// ```
+    #[inline]
+    pub fn forward(&self) -> f32 {
+        if self.is_rtl() { -1.0 } else { 1.0 }
     }
 
     /// The current spacing options for this [`Ui`].
@@ -741,6 +923,14 @@ impl Ui {
 
     /// Set the maximum width of the ui.
     /// You won't be able to shrink it below the current minimum size.
+    ///
+    /// The span is anchored at the layout's horizontal alignment
+    /// ([`Layout::horizontal_align`]): a vertical body claims from its
+    /// `cross_align` edge — under a right-to-left interface that is the
+    /// reading-start (right) edge for the [`Align::Max`] bodies popups and
+    /// menus use, and the same edge the body's content starts on for
+    /// [`Align::Min`] bodies. The anchor does not depend on the interface
+    /// direction, so measured sizes are direction-independent.
     pub fn set_max_width(&mut self, width: f32) {
         self.placer.set_max_width(width);
     }
@@ -762,6 +952,14 @@ impl Ui {
 
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
+    ///
+    /// The span is anchored at the layout's horizontal alignment
+    /// ([`Layout::horizontal_align`]): a vertical body claims from its
+    /// `cross_align` edge — under a right-to-left interface that is the
+    /// reading-start (right) edge for the [`Align::Max`] bodies popups and
+    /// menus use, and the same edge the body's content starts on for
+    /// [`Align::Min`] bodies. The anchor does not depend on the interface
+    /// direction, so measured sizes are direction-independent.
     pub fn set_min_width(&mut self, width: f32) {
         debug_assert!(
             0.0 <= width,
@@ -825,6 +1023,14 @@ impl Ui {
     }
 
     /// `ui.set_width_range(min..=max);` is equivalent to `ui.set_min_width(min); ui.set_max_width(max);`.
+    ///
+    /// The span is anchored at the layout's horizontal alignment
+    /// ([`Layout::horizontal_align`]): a vertical body claims from its
+    /// `cross_align` edge — under a right-to-left interface that is the
+    /// reading-start (right) edge for the [`Align::Max`] bodies popups and
+    /// menus use, and the same edge the body's content starts on for
+    /// [`Align::Min`] bodies. The anchor does not depend on the interface
+    /// direction, so measured sizes are direction-independent.
     pub fn set_width_range(&mut self, width: impl Into<Rangef>) {
         let width = width.into();
         self.set_min_width(width.min);
@@ -839,6 +1045,14 @@ impl Ui {
     }
 
     /// Set both the minimum and maximum width.
+    ///
+    /// The span is anchored at the layout's horizontal alignment
+    /// ([`Layout::horizontal_align`]): a vertical body claims from its
+    /// `cross_align` edge — under a right-to-left interface that is the
+    /// reading-start (right) edge for the [`Align::Max`] bodies popups and
+    /// menus use, and the same edge the body's content starts on for
+    /// [`Align::Min`] bodies. The anchor does not depend on the interface
+    /// direction, so measured sizes are direction-independent.
     pub fn set_width(&mut self, width: f32) {
         self.set_min_width(width);
         self.set_max_width(width);
@@ -1363,7 +1577,9 @@ impl Ui {
     /// Returns where to put the widget.
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
         let item_spacing = self.spacing().item_spacing;
-        let frame_rect = self.placer.next_space(desired_size, item_spacing);
+        let frame_rect = self
+            .placer
+            .next_space(desired_size, item_spacing, self.reading_rtl());
         debug_assert!(!frame_rect.any_nan(), "frame_rect is nan in allocate_space");
         let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
@@ -1373,6 +1589,25 @@ impl Ui {
         register_rect(self, widget_rect);
 
         widget_rect
+    }
+
+    /// The resolved reading-direction term: `true` when content should be
+    /// placed from the right edge — the settled predicate
+    /// ([`Placer::prefer_right_to_left`]) that mirrors nested rows, wrap
+    /// columns, grid cells and the mirrored `horizontal*` constructors.
+    fn reading_rtl(&self) -> bool {
+        self.placer.prefer_right_to_left(self.is_rtl())
+    }
+
+    /// A horizontal row layout that follows the reading direction: rightward
+    /// rows under LTR, leftward rows under RTL (the settled predicate), with
+    /// the row's vertical alignment.
+    pub(crate) fn mirrored_horizontal_layout(&self, valign: Align) -> Layout {
+        if self.reading_rtl() {
+            Layout::right_to_left(valign)
+        } else {
+            Layout::left_to_right(valign)
+        }
     }
 
     /// Allocate a specific part of the [`Ui`].
@@ -1464,7 +1699,9 @@ impl Ui {
             "Negative desired size: {desired_size:?}"
         );
         let item_spacing = self.spacing().item_spacing;
-        let frame_rect = self.placer.next_space(desired_size, item_spacing);
+        let frame_rect = self
+            .placer
+            .next_space(desired_size, item_spacing, self.reading_rtl());
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
         self.scope_dyn(
             UiBuilder::new().max_rect(child_rect).layout(layout),
@@ -1676,6 +1913,10 @@ impl Ui {
     ///
     /// See also [`Self::add`] and [`Self::add_sized`] and [`Self::put`].
     pub fn place(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
+        // Direction-safe by construction: `centered_and_justified` crosses on
+        // `Align::Center`, which never mirrors, and the vertical main axis
+        // never mirrors. Prefer deriving direction via `new_child`/`scope_builder`
+        // (which apply the RTL mirror) when a new helper needs one.
         self.new_child(
             UiBuilder::new()
                 .max_rect(max_rect)
@@ -1689,6 +1930,8 @@ impl Ui {
     ///
     /// See also [`Self::add`], [`Self::add_sized`], and [`Self::place`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
+        // Direction-safe: `Align::Center` cross never mirrors and the vertical
+        // main axis never mirrors (see `place`).
         self.scope_builder(
             UiBuilder::new()
                 .max_rect(max_rect)
@@ -2351,7 +2594,9 @@ impl Ui {
         CollapsingHeader::new(heading).show(self, add_contents)
     }
 
-    /// Create a child ui which is indented to the right.
+    /// Create a child ui which is indented from the reading edge (to the right in
+    /// left-to-right layouts; mirrored under right-to-left, see
+    /// [`crate::Style::right_to_left`]).
     ///
     /// The `id_salt` here be anything at all.
     // TODO(emilk): remove `id_salt` argument?
@@ -2376,8 +2621,15 @@ impl Ui {
         );
 
         let indent = self.spacing().indent;
+        // Follow the reading direction: the same settled predicate the mirrored `horizontal*`
+        // constructors and Grid use.
+        let rtl = self.placer.prefer_right_to_left(self.is_rtl());
         let mut child_rect = self.placer.available_rect_before_wrap();
-        child_rect.min.x += indent;
+        if rtl {
+            child_rect.max.x -= indent;
+        } else {
+            child_rect.min.x += indent;
+        }
 
         let mut child_ui = self.new_child(UiBuilder::new().id_salt(id_salt).max_rect(child_rect));
         let ret = add_contents(&mut child_ui);
@@ -2391,19 +2643,31 @@ impl Ui {
             }
 
             let stroke = self.visuals().widgets.noninteractive.bg_stroke;
-            let left_top = child_rect.min - 0.5 * indent * Vec2::X;
-            let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
+            // In left-to-right layouts the line runs through the disclosure-icon column, half an
+            // indent left of the child contents; mirrored, it runs through the mirrored icon column
+            // at the reading edge. (`child_rect` has already been shrunk above.)
+            let vline_x = if rtl {
+                child_rect.max.x + 0.5 * indent
+            } else {
+                child_rect.min.x - 0.5 * indent
+            };
+            let vline_top = pos2(vline_x, child_rect.top());
+            let vline_bottom = pos2(vline_x, child_ui.min_rect().bottom() - 2.0);
 
             if left_vline {
-                // draw a faint line on the left to mark the indented section
-                self.painter.line_segment([left_top, left_bottom], stroke);
+                // draw a faint line on the reading edge to mark the indented section
+                self.painter.line_segment([vline_top, vline_bottom], stroke);
             }
 
             if end_with_horizontal_line {
                 let fudge = 2.0; // looks nicer with button rounding in collapsing headers
-                let right_bottom = pos2(child_ui.min_rect().right() - fudge, left_bottom.y);
+                let stub_x = if rtl {
+                    child_ui.min_rect().left() + fudge
+                } else {
+                    child_ui.min_rect().right() - fudge
+                };
                 self.painter
-                    .line_segment([left_bottom, right_bottom], stroke);
+                    .line_segment([vline_bottom, pos2(stub_x, vline_bottom.y)], stroke);
             }
         }
 
@@ -2447,12 +2711,9 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         let initial_size = self.available_size_before_wrap();
-        let layout = if self.placer.prefer_right_to_left() {
-            Layout::right_to_left(Align::Center)
-        } else {
-            Layout::left_to_right(Align::Center)
-        }
-        .with_cross_align(Align::Center);
+        // `right_to_left`/`left_to_right` put their argument on the cross
+        // axis, so the constructor alone is `Center`-crossed.
+        let layout = self.mirrored_horizontal_layout(Align::Center);
         self.allocate_ui_with_layout_dyn(initial_size, layout, Box::new(add_contents))
     }
 
@@ -2462,12 +2723,7 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         let initial_size = self.available_size_before_wrap();
-        let layout = if self.placer.prefer_right_to_left() {
-            Layout::right_to_left(Align::Center)
-        } else {
-            Layout::left_to_right(Align::Center)
-        }
-        .with_cross_align(Align::Min);
+        let layout = self.mirrored_horizontal_layout(Align::Min);
         self.allocate_ui_with_layout_dyn(initial_size, layout, Box::new(add_contents))
     }
 
@@ -2503,12 +2759,9 @@ impl Ui {
             self.spacing().interact_size.y, // Assume there will be something interactive on the horizontal layout
         );
 
-        let layout = if self.placer.prefer_right_to_left() {
-            Layout::right_to_left(Align::Center)
-        } else {
-            Layout::left_to_right(Align::Center)
-        }
-        .with_main_wrap(main_wrap);
+        let layout = self
+            .mirrored_horizontal_layout(Align::Center)
+            .with_main_wrap(main_wrap);
 
         self.allocate_ui_with_layout_dyn(initial_size, layout, add_contents)
     }
@@ -2607,6 +2860,8 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
+        // Direction-safe: `Align::Center` cross never mirrors and the vertical
+        // main axis never mirrors (see `place`).
         self.scope_builder(
             UiBuilder::new().layout(Layout::centered_and_justified(Direction::TopDown)),
             add_contents,
@@ -2665,11 +2920,22 @@ impl Ui {
         let spacing = self.spacing().item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
-        let top_left = self.cursor().min;
+        let cursor = self.cursor();
+        let top_left = cursor.min;
+        // Columns are enumerated from the reading-start edge, like `Grid` cells
+        // (see `Grid::next_cell`): the first column hugs that edge under RTL.
+        let rtl = self.placer().prefer_right_to_left(self.is_rtl());
 
         let mut columns: Vec<Self> = (0..num_columns)
             .map(|col_idx| {
-                let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+                let pos_x = if rtl {
+                    cursor.max.x
+                        - ((col_idx + 1) as f32) * column_width
+                        - (col_idx as f32) * spacing
+                } else {
+                    top_left.x + (col_idx as f32) * (column_width + spacing)
+                };
+                let pos = pos2(pos_x, top_left.y);
                 let child_rect = Rect::from_min_max(
                     pos,
                     pos2(pos.x + column_width, self.max_rect().right_bottom().y),
@@ -2677,7 +2943,12 @@ impl Ui {
                 let mut column_ui = self.new_child(
                     UiBuilder::new()
                         .max_rect(child_rect)
-                        .layout(Layout::top_down_justified(Align::LEFT)),
+                        // Direction-safe: `Align::LEFT` is `Align::Min`, and
+                        // `new_child` re-maps vertical `Align::Min` to
+                        // `Align::Max` under RTL, so column content is
+                        // reading-start aligned alongside the mirrored
+                        // enumeration above.
+                        .layout(Layout::top_down_justified(Align::Min)),
                 );
                 column_ui.set_width(column_width);
                 column_ui
@@ -2697,7 +2968,19 @@ impl Ui {
         let total_required_width = total_spacing + max_column_width * (num_columns as f32);
 
         let size = vec2(self.available_width().max(total_required_width), max_height);
-        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+        // Anchor the advance rect at the reading-start edge: on overflow it
+        // must grow past the reading end (left), mirroring the LTR rect, which
+        // grows rightward from `top_left`. When everything fits a fresh region
+        // the two forms coincide (cursor width == available width == `size.x`).
+        let advance_rect = if rtl {
+            Rect::from_min_max(
+                pos2(cursor.max.x - size.x, top_left.y),
+                pos2(cursor.max.x, top_left.y + size.y),
+            )
+        } else {
+            Rect::from_min_size(top_left, size)
+        };
+        self.advance_cursor_after_rect(advance_rect);
         result
     }
 
@@ -2723,10 +3006,19 @@ impl Ui {
         let spacing = self.spacing().item_spacing.x;
         let total_spacing = spacing * (NUM_COL as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (NUM_COL as f32);
-        let top_left = self.cursor().min;
+        let cursor = self.cursor();
+        let top_left = cursor.min;
+        // Columns are enumerated from the reading-start edge, like `Grid` cells
+        // (see `Grid::next_cell`): the first column hugs that edge under RTL.
+        let rtl = self.placer().prefer_right_to_left(self.is_rtl());
 
         let mut columns = core::array::from_fn(|col_idx| {
-            let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+            let pos_x = if rtl {
+                cursor.max.x - ((col_idx + 1) as f32) * column_width - (col_idx as f32) * spacing
+            } else {
+                top_left.x + (col_idx as f32) * (column_width + spacing)
+            };
+            let pos = pos2(pos_x, top_left.y);
             let child_rect = Rect::from_min_max(
                 pos,
                 pos2(pos.x + column_width, self.max_rect().right_bottom().y),
@@ -2734,7 +3026,10 @@ impl Ui {
             let mut column_ui = self.new_child(
                 UiBuilder::new()
                     .max_rect(child_rect)
-                    .layout(Layout::top_down_justified(Align::LEFT)),
+                    // Direction-safe: `Align::Min` is re-mapped to `Align::Max`
+                    // by `new_child` under RTL (see the mirrored enumeration
+                    // above).
+                    .layout(Layout::top_down_justified(Align::Min)),
             );
             column_ui.set_width(column_width);
             column_ui
@@ -2752,7 +3047,19 @@ impl Ui {
         let total_required_width = total_spacing + max_column_width * (NUM_COL as f32);
 
         let size = vec2(self.available_width().max(total_required_width), max_height);
-        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+        // Anchor the advance rect at the reading-start edge: on overflow it
+        // must grow past the reading end (left), mirroring the LTR rect, which
+        // grows rightward from `top_left`. When everything fits a fresh region
+        // the two forms coincide (cursor width == available width == `size.x`).
+        let advance_rect = if rtl {
+            Rect::from_min_max(
+                pos2(cursor.max.x - size.x, top_left.y),
+                pos2(cursor.max.x, top_left.y + size.y),
+            )
+        } else {
+            Rect::from_min_size(top_left, size)
+        };
+        self.advance_cursor_after_rect(advance_rect);
         result
     }
 
