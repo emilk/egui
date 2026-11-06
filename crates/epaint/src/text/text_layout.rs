@@ -271,7 +271,7 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
 /// Southeast-Asian script block is above U+0800, so any candidate char's
 /// UTF-8 encoding starts with a byte >= 0xE0. Constant-folded to `false`
 /// without the feature.
-fn may_have_sea_text(text: &str) -> bool {
+pub(crate) fn may_have_sea_text(text: &str) -> bool {
     if cfg!(feature = "sea_dictionary") {
         text.bytes().any(|b| b >= 0xE0)
     } else {
@@ -2864,7 +2864,7 @@ mod tests {
         text::galley_cache::GalleyCache,
     };
 
-    fn test_fonts() -> FontsImpl {
+    pub(crate) fn test_fonts() -> FontsImpl {
         let mut definitions = FontDefinitions::default();
         if definitions.families.values().all(Vec::is_empty) {
             // The `default_fonts` feature is off (a plain `cargo test -p epaint`),
@@ -4566,7 +4566,7 @@ mod tests {
         }
     }
 
-    fn layout_with_direction(text: &str, direction: Option<TextDirection>) -> Galley {
+    pub(crate) fn layout_with_direction(text: &str, direction: Option<TextDirection>) -> Galley {
         let mut fonts = test_fonts();
         let mut job = LayoutJob::simple(
             text.to_owned(),
@@ -7562,5 +7562,431 @@ mod tests {
                 );
             }
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Visual word stepping: word arrows walk between word-edge stops in the row's
+// visual frame (the word-granularity mirror of the local-level character
+// stepping above).
+
+#[cfg(test)]
+mod word_step_tests {
+    use alloc::{sync::Arc, vec, vec::Vec};
+
+    use super::super::super::{Color32, FontId, Galley};
+    use super::super::{CharIndex, LineBreaker, WordStep};
+    use super::tests::{layout_with_direction, test_fonts};
+    use super::{LayoutJob, TextDirection, layout};
+    use crate::text::cursor::CCursor;
+
+    /// A cursor at a column of the galley's first row.
+    fn at(column: usize) -> CCursor {
+        CCursor::new(column)
+    }
+
+    /// Walk word steps from `start` until the walk exits the row, returning
+    /// the visited columns (the start first) and the exit. A walk that stays
+    /// within the row for more than `limit` steps fails the cap.
+    fn walk(galley: &Galley, start: usize, left: bool, limit: usize) -> (Vec<usize>, WordStep) {
+        let mut columns = vec![start];
+        let mut cursor = at(start);
+        for _ in 0..limit {
+            match galley.step_one_word_visually(&cursor, left) {
+                WordStep::Within(next) => {
+                    cursor = next;
+                    columns.push(next.index.0);
+                }
+                exit @ WordStep::Exit { .. } => return (columns, exit),
+            }
+        }
+        panic!("the word walk never exited within {limit} steps: {columns:?}");
+    }
+
+    /// Assert the visited columns' visual boundaries step strictly in one
+    /// direction: decreasing toward the visual left, increasing toward the
+    /// visual right.
+    fn assert_visually_monotone(galley: &Galley, columns: &[usize], left: bool) {
+        let (boundary_of_column, _) = galley.rows[0].row.visual_caret_boundaries();
+        let k_of = |column: usize| {
+            boundary_of_column
+                .get(column)
+                .copied()
+                .flatten()
+                .unwrap_or_else(|| {
+                    panic!("column {column} has no visual boundary in the walk {columns:?}")
+                })
+        };
+        for pair in columns.windows(2) {
+            let (from, to) = (k_of(pair[0]), k_of(pair[1]));
+            if left {
+                assert!(
+                    to < from,
+                    "the visually-left walk {columns:?} must strictly decrease \
+                     in visual boundary ({from} -> {to})"
+                );
+            } else {
+                assert!(
+                    to > from,
+                    "the visually-right walk {columns:?} must strictly increase \
+                     in visual boundary ({from} -> {to})"
+                );
+            }
+        }
+    }
+
+    /// Word arrows step between word-edge stops in the row's *visual* frame,
+    /// by each word's own bidi level — the word-granularity mirror of the
+    /// character arrows' local-level stepping.
+    ///
+    /// Columns stay logical (0 = the reading start, anchored by the row's base
+    /// direction). Hand-derived expectations, from the boundary→column tables
+    /// of `visual_caret_boundaries` (e.g. عربي abc maps columns
+    /// 0..=8 onto boundaries 8,7,6,5,4,0,1,2,3):
+    ///
+    /// * `"تقرير جميل"` (uniform RTL): Left 0→5→10 then exits through the
+    ///   visual left edge; Right 10→6→0 then exits through the visual right
+    ///   edge.
+    /// * `"عربي abc"` (RTL base, mixed): Left 0→4→5 then clamps-exits (the
+    ///   historic next-step lands back inside the row); Right 5→8→0, inverse-
+    ///   consistent with the Left walk.
+    /// * `"abc عربي"` (LTR base, mixed): the vice-versa; Right 0→3→4 then
+    ///   clamps-exits, Left 4→8→0.
+    /// * `"Hello world"` under an RTL base (all glyphs level 2, the
+    ///   Latin-value-under-RTL-chrome shape): the walk reproduces the historic
+    ///   logical walk exactly — Left 11→6→0, Right 0→5→11.
+    /// * `"www.example.com"` under an RTL base: dots split the walk — Right
+    ///   0→3→11→15, Left 15→12→4→0 — and the comma of `"hello, world"` rides
+    ///   with the word before it (Left from the end lands at 7), a triple
+    ///   space is transparent (`Left from the end lands at 8`).
+    /// * `"hello world"` in an LTR row takes the historic walk directly: the
+    ///   step exits with an empty clamp window for every cursor.
+    #[test]
+    fn mixed_direction_rows_step_words_by_local_level() {
+        // "تقرير جميل", uniform RTL: the whole row reads right-to-left.
+        let galley = layout_with_direction("تقرير جميل", Some(TextDirection::RightToLeft));
+        assert_eq!(galley.rows.len(), 1);
+        assert_eq!(galley.end().index.0, 10, "one glyph slot per char");
+        let (left_columns, left_exit) = walk(&galley, 0, true, 8);
+        assert_eq!(left_columns, vec![0, 5, 10]);
+        let WordStep::Exit {
+            reading_forward,
+            row_range,
+        } = left_exit
+        else {
+            panic!("the left walk must exit through the row's visual edge");
+        };
+        assert!(
+            reading_forward,
+            "exiting a right-to-left row leftward continues reading forward"
+        );
+        assert_eq!(
+            row_range,
+            CharIndex::ZERO..CharIndex(11),
+            "the natural exit clamps to the row's own caret columns, reading \
+             end included"
+        );
+        let (right_columns, right_exit) = walk(&galley, 10, false, 8);
+        assert_eq!(right_columns, vec![10, 6, 0]);
+        let WordStep::Exit {
+            reading_forward,
+            row_range,
+        } = right_exit
+        else {
+            panic!("the right walk must exit through the row's visual edge");
+        };
+        assert!(!reading_forward);
+        assert_eq!(row_range, CharIndex::ZERO..CharIndex(11));
+        assert_visually_monotone(&galley, &left_columns, true);
+        assert_visually_monotone(&galley, &right_columns, false);
+
+        // "عربي abc", RTL base with an embedded LTR run:
+        let galley = layout_with_direction("عربي abc", Some(TextDirection::RightToLeft));
+        assert_eq!(galley.rows.len(), 1);
+        assert_eq!(galley.end().index.0, 8);
+        let (left_columns, left_exit) = walk(&galley, 0, true, 8);
+        assert_eq!(left_columns, vec![0, 4, 5]);
+        let WordStep::Exit {
+            reading_forward,
+            row_range,
+        } = left_exit
+        else {
+            panic!("the left walk from abc's visually-left edge must exit");
+        };
+        assert!(reading_forward);
+        assert_eq!(row_range, CharIndex::ZERO..CharIndex(9));
+        let (right_columns, right_exit) = walk(&galley, 5, false, 8);
+        assert_eq!(right_columns, vec![5, 8, 0]);
+        let WordStep::Exit {
+            reading_forward,
+            row_range,
+        } = right_exit
+        else {
+            panic!("the right walk from the reading start must exit");
+        };
+        assert!(!reading_forward);
+        assert_eq!(row_range, CharIndex::ZERO..CharIndex(9));
+        // Inverse consistency: each key reverses the other's landings.
+        assert_visually_monotone(&galley, &left_columns, true);
+        assert_visually_monotone(&galley, &right_columns, false);
+
+        // "abc عربي", LTR base with an embedded RTL run:
+        let galley = layout_with_direction("abc عربي", Some(TextDirection::LeftToRight));
+        assert_eq!(galley.rows.len(), 1);
+        assert_eq!(galley.end().index.0, 8);
+        let (right_columns, right_exit) = walk(&galley, 0, false, 8);
+        assert_eq!(right_columns, vec![0, 3, 4]);
+        let WordStep::Exit {
+            reading_forward,
+            row_range,
+        } = right_exit
+        else {
+            panic!("the right walk from before عربي must exit");
+        };
+        assert!(reading_forward);
+        assert_eq!(row_range, CharIndex::ZERO..CharIndex(9));
+        let (left_columns, left_exit) = walk(&galley, 4, true, 8);
+        assert_eq!(left_columns, vec![4, 8, 0]);
+        let WordStep::Exit {
+            reading_forward,
+            row_range,
+        } = left_exit
+        else {
+            panic!("the left walk from the reading start must exit");
+        };
+        assert!(!reading_forward);
+        assert_eq!(row_range, CharIndex::ZERO..CharIndex(9));
+        assert_visually_monotone(&galley, &left_columns, true);
+        assert_visually_monotone(&galley, &right_columns, false);
+
+        // "Hello world" under an RTL base: all glyphs at level 2 read
+        // left-to-right, so the visual walk must reproduce the historic
+        // logical walk exactly.
+        let galley = layout_with_direction("Hello world", Some(TextDirection::RightToLeft));
+        assert_eq!(galley.rows.len(), 1);
+        let (left_columns, left_exit) = walk(&galley, 11, true, 8);
+        assert_eq!(left_columns, vec![11, 6, 0]);
+        let WordStep::Exit {
+            reading_forward,
+            row_range,
+        } = left_exit
+        else {
+            panic!("the left walk from the text start must exit");
+        };
+        assert!(!reading_forward);
+        assert_eq!(row_range, CharIndex::ZERO..CharIndex(12));
+        let (right_columns, right_exit) = walk(&galley, 0, false, 8);
+        assert_eq!(right_columns, vec![0, 5, 11]);
+        let WordStep::Exit {
+            reading_forward,
+            row_range,
+        } = right_exit
+        else {
+            panic!("the right walk from the text end must exit");
+        };
+        assert!(reading_forward);
+        assert_eq!(row_range, CharIndex::ZERO..CharIndex(12));
+        assert_visually_monotone(&galley, &left_columns, true);
+        assert_visually_monotone(&galley, &right_columns, false);
+
+        // Dots and punctuation are transparent: the preceding word's
+        // visually-right edge sits at the dot, the following word's
+        // visually-left edge sits after it.
+        let galley = layout_with_direction("www.example.com", Some(TextDirection::RightToLeft));
+        let (right_columns, _) = walk(&galley, 0, false, 8);
+        assert_eq!(right_columns, vec![0, 3, 11, 15]);
+        let (left_columns, _) = walk(&galley, 15, true, 8);
+        assert_eq!(left_columns, vec![15, 12, 4, 0]);
+
+        // A comma rides with the word before it; a run of spaces is one
+        // transparent gap.
+        let galley = layout_with_direction("hello, world", Some(TextDirection::RightToLeft));
+        let (left_columns, _) = walk(&galley, 12, true, 8);
+        assert_eq!(left_columns, vec![12, 7, 0]);
+        let galley = layout_with_direction("hello   world", Some(TextDirection::RightToLeft));
+        assert_eq!(
+            walk(&galley, 13, true, 8).0,
+            vec![13, 8, 0],
+            "the space run is transparent"
+        );
+        assert_eq!(walk(&galley, 0, false, 8).0, vec![0, 5, 13]);
+
+        // A pure left-to-right row takes the historic walk directly: every
+        // step exits with an empty clamp window (the caller's logical result
+        // passes through unclamped).
+        let galley = layout_with_direction("hello world", None);
+        for column in 0..=galley.end().index.0 {
+            for left in [true, false] {
+                match galley.step_one_word_visually(&at(column), left) {
+                    WordStep::Within(_) => {
+                        panic!("an LTR row must hand every step to the caller")
+                    }
+                    WordStep::Exit {
+                        reading_forward,
+                        row_range,
+                    } => {
+                        assert_eq!(
+                            reading_forward, !left,
+                            "an LTR row's reading sense is the key direction"
+                        );
+                        assert!(
+                            row_range.is_empty(),
+                            "an LTR row must never clamp the caller's result"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// Bounded word walks over hostile input never panic, stay within the
+    /// galley's bounds and terminate — on unwrapped, wrapped and elided
+    /// layouts alike (the same corpus as `bidi_hostile_input_does_not_panic`).
+    #[test]
+    fn word_step_walks_on_hostile_input_terminate_and_stay_in_bounds() {
+        let hostile: Vec<String> = vec![
+            String::new(),
+            "\u{FFFD}".into(),
+            "\u{FFFD}\u{FFFD}a\u{FFFD}".into(),
+            "a\u{0301}".into(),
+            "\u{0301}a".into(),
+            "\u{061C}".into(),
+            "\u{200F}\u{200E}".repeat(50),
+            "aרbعc".repeat(40),
+            "\u{2066}تقرير\u{2069} pdf \u{2067}שלום\u{2069}".into(),
+            "\r\n\t\u{2029}\u{0085}".into(),
+            "…".repeat(100),
+            "تقرير ٢٠٢٦.pdf ".repeat(20),
+            "أول ٢٠٢٦ ثالث".into(),
+            "\u{2066}أول\u{2069} \u{2067}ثاني\u{2069} ثالث \u{200F}\u{200E}".repeat(6),
+        ];
+        let directions = [
+            None,
+            Some(TextDirection::LeftToRight),
+            Some(TextDirection::RightToLeft),
+        ];
+
+        for text in &hostile {
+            for direction in directions {
+                let unwrapped = layout_with_direction(text, direction);
+
+                let mut fonts = test_fonts();
+                let mut job = LayoutJob::simple(
+                    text.clone(),
+                    FontId::proportional(14.0),
+                    Color32::WHITE,
+                    100.0,
+                );
+                job.direction = direction;
+                job.wrap.max_rows = 5;
+                job.wrap.overflow_character = Some('…');
+                let wrapped = layout(&mut fonts, 1.0, job.into());
+
+                for galley in [&unwrapped, &wrapped] {
+                    let end = galley.end().index.0;
+                    for &left in &[true, false] {
+                        for start in [0, end] {
+                            let mut cursor = at(start);
+                            // A within-row walk strictly monotones in visual
+                            // boundary, so it can land at most once per
+                            // column: more steps than columns means a bug.
+                            for _ in 0..=end + 1 {
+                                let WordStep::Within(next) =
+                                    galley.step_one_word_visually(&cursor, left)
+                                else {
+                                    break; // exited: the caller takes over
+                                };
+                                assert!(
+                                    next.index.0 <= end,
+                                    "word walk landed at {} beyond the galley \
+                                     end {end} for {text:?} (direction \
+                                     {direction:?})",
+                                    next.index.0
+                                );
+                                cursor = next;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// A breaker that splits the Thai fixture into its dictionary words, as
+    /// the bundled `sea_dictionary` breaker would.
+    struct ThaiWords;
+
+    impl LineBreaker for ThaiWords {
+        fn word_boundaries(&self, text: &str) -> Vec<core::ops::Range<usize>> {
+            ["ภาษาไทย", "ครับ"]
+                .into_iter()
+                .filter_map(|word| text.find(word).map(|start| start..start + word.len()))
+                .collect()
+        }
+    }
+
+    /// Word navigation consumes the job's line breaker: in a script written
+    /// without spaces the dictionary words subdivide the one unbroken UAX #29
+    /// run, so the visual walk stops on the same edges the wrapping does —
+    /// the seam is consumed, never re-derived.
+    #[test]
+    fn word_step_stops_at_line_breaker_dictionary_words() {
+        let text = "ภาษาไทยครับ";
+        let galley = |breaker: Option<Arc<dyn LineBreaker>>| {
+            let mut fonts = test_fonts();
+            let mut job = LayoutJob::simple(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            job.direction = Some(TextDirection::RightToLeft);
+            job.wrap.line_breaker = breaker;
+            layout(&mut fonts, 1.0, job.into())
+        };
+
+        let with_breaker = galley(Some(Arc::new(ThaiWords)));
+        assert_eq!(with_breaker.rows.len(), 1);
+        assert_eq!(with_breaker.end().index.0, 11);
+        assert_eq!(
+            walk(&with_breaker, 0, false, 8).0,
+            vec![0, 7, 11],
+            "the dictionary words are the word stops"
+        );
+        assert_eq!(
+            walk(&with_breaker, 11, true, 8).0,
+            vec![11, 7, 0],
+            "the dictionary words are the word stops in both directions"
+        );
+    }
+
+    /// Without the bundled dictionary (the default) and without a custom
+    /// breaker, a script written without spaces stays one unbroken run: the
+    /// word walk crosses it whole.
+    #[cfg(not(feature = "sea_dictionary"))]
+    #[test]
+    fn word_step_crosses_unbroken_sea_runs_without_a_breaker() {
+        let text = "ภาษาไทยครับ";
+        let mut fonts = test_fonts();
+        let mut job = LayoutJob::simple(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        job.direction = Some(TextDirection::RightToLeft);
+        let galley = layout(&mut fonts, 1.0, job.into());
+        assert_eq!(galley.rows.len(), 1);
+        assert_eq!(galley.end().index.0, 11);
+        assert_eq!(
+            walk(&galley, 0, false, 8).0,
+            vec![0, 11],
+            "the whole run is one word stop"
+        );
+        assert_eq!(
+            walk(&galley, 11, true, 8).0,
+            vec![11, 0],
+            "the whole run is one word stop in both directions"
+        );
     }
 }

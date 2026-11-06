@@ -10,6 +10,7 @@ use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 pub use font_types::Tag;
 use smallvec::SmallVec;
+use unicode_segmentation::UnicodeSegmentation as _;
 
 /// The base reading direction of a paragraph of text.
 ///
@@ -1663,6 +1664,34 @@ impl Row {
         }
     }
 
+    /// Fast path for word stepping: true when the whole-text logical word walk
+    /// already moves the caret the way the visual word arrows must, i.e. the
+    /// row is empty or every glyph sits at embedding level 0 under a
+    /// left-to-right base direction. Strictly narrower than
+    /// [`Self::is_bidi_homogeneous_with_base`]: uniform right-to-left rows are
+    /// deliberately excluded (their visual word edges run the other way, which
+    /// is exactly what the level-aware walk corrects), while an all-even row
+    /// under a right-to-left base reads left-to-right and stays on the
+    /// level-aware walk.
+    fn is_ltr_homogeneous(&self) -> bool {
+        self.base_direction == TextDirection::LeftToRight
+            && self.glyphs.iter().all(|glyph| glyph.bidi_level == 0)
+    }
+
+    /// Whether the row's first reading-order cell (the reading walk of
+    /// [`Self::bidi_cluster_cells`] through [`Self::logical_cell_order`])
+    /// carries an odd `bidi_level`, i.e. reads right-to-left. An empty row has
+    /// no cell and reads left-to-right.
+    fn first_read_cell_is_odd(&self) -> bool {
+        let cells = self.bidi_cluster_cells();
+        let order = self.logical_cell_order(&cells);
+        order
+            .first()
+            .and_then(|&cell_index| cells.get(cell_index))
+            .and_then(|cell| self.glyphs.get(cell.start))
+            .is_some_and(|glyph| glyph.bidi_level % 2 == 1)
+    }
+
     #[inline]
     pub fn height(&self) -> f32 {
         self.size.y
@@ -2221,5 +2250,364 @@ impl Galley {
         }
 
         self.cursor_from_layout(layout_cursor)
+    }
+}
+
+/// The outcome of one visual word step ([`Galley::step_one_word_visually`]).
+pub enum WordStep {
+    /// A word-edge landing within the row.
+    Within(CCursor),
+    /// No word edge in the stepping direction within the row: the caller
+    /// continues with the whole-text logical word step — forward (toward the
+    /// reading end) when `reading_forward`, backward otherwise — and clamps
+    /// the result when it lands inside `row_range`.
+    ///
+    /// The natural walk exit (the caret sits at the row's visual edge) carries
+    /// the exiting row's own caret columns, so a logical step landing back
+    /// inside the row (it would move the caret visually *backward*,
+    /// oscillating across the edge) clamps in place, while a landing on the
+    /// next row's first column passes through as the legitimate reading-order
+    /// crossing. An empty range means the caller's result always passes
+    /// through unclamped: the pure left-to-right fast path and the degenerate
+    /// exits must reproduce the historic behavior exactly.
+    Exit {
+        /// Which whole-text logical word step to continue with.
+        reading_forward: bool,
+        /// The clamp window for the logical step's result; empty means never
+        /// clamp.
+        row_range: Range<CharIndex>,
+    },
+}
+
+/// Whether the char counts as a word character for word-edge stops:
+/// alphanumeric or `'_'`, the same class the logical word walk uses.
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
+
+/// Byte offset of the `index`-th char of `text`, saturating at the text's end
+/// (always a char boundary: a char start, or the end).
+fn byte_offset_from_char_index(text: &str, index: CharIndex) -> usize {
+    if index.0 == 0 {
+        return 0;
+    }
+    let mut remaining = index.0;
+    for (byte_i, _) in text.char_indices() {
+        if remaining == 0 {
+            return byte_i;
+        }
+        remaining -= 1;
+    }
+    text.len()
+}
+
+/// Merge adjacent segments whose chars are all word chars into one segment:
+/// the logical word walk never lands between two such segments (each is
+/// skipped in favor of the run's far edge), so a run whose characters the
+/// word-boundary iterator leaves unjoined — it defers scripts written without
+/// spaces to dictionaries — steps as one word, which a line breaker's
+/// dictionary ranges then subdivide. Segments separated by transparent
+/// material (whitespace, punctuation, a dot) stay apart. Ascending and
+/// non-overlapping in, ascending and non-overlapping out; a segment that is
+/// not char-boundary aligned (a hostile breaker range) passes through
+/// unmerged.
+fn merge_adjacent_word_runs(row_text: &str, segments: Vec<Range<usize>>) -> Vec<Range<usize>> {
+    let mut merged: Vec<Range<usize>> = Vec::with_capacity(segments.len());
+    let mut previous_is_word_run = false;
+    for segment in segments {
+        let all_word = row_text
+            .get(segment.clone())
+            .is_some_and(|slice| slice.chars().all(is_word_char));
+        let joins = all_word
+            && previous_is_word_run
+            && merged
+                .last()
+                .is_some_and(|previous| previous.end == segment.start);
+        if joins && let Some(previous) = merged.last_mut() {
+            previous.end = previous.end.max(segment.end);
+        } else {
+            merged.push(segment);
+        }
+        previous_is_word_run = all_word;
+    }
+    merged
+}
+
+/// Cut ascending, non-overlapping segments at the given byte positions: a
+/// position strictly inside a segment splits it in two, and the pieces stay
+/// ascending and non-overlapping.
+fn cut_segments(segments: Vec<Range<usize>>, cuts: &[usize]) -> Vec<Range<usize>> {
+    let mut result = Vec::with_capacity(segments.len());
+    for segment in segments {
+        let mut start = segment.start;
+        for &cut in cuts {
+            if start < cut && cut < segment.end {
+                result.push(start..cut);
+                start = cut;
+            }
+        }
+        result.push(start..segment.end);
+    }
+    result
+}
+
+/// Row-local char ranges of ascending, non-overlapping byte segments, in one
+/// walk over the row text. A segment whose endpoints are not char boundaries
+/// (a hostile breaker range) contributes a degraded range and is dropped by
+/// the caller's slice guard; nothing here panics.
+fn char_ranges_of_segments(row_text: &str, segments: &[Range<usize>]) -> Vec<Range<usize>> {
+    let mut result = Vec::with_capacity(segments.len());
+    let mut byte_cursor = 0usize;
+    let mut char_cursor = 0usize;
+    for segment in segments {
+        while byte_cursor < segment.start {
+            let Some(c) = row_text.get(byte_cursor..).and_then(|s| s.chars().next()) else {
+                break;
+            };
+            byte_cursor += c.len_utf8();
+            char_cursor += 1;
+        }
+        let c0 = char_cursor;
+        while byte_cursor < segment.end {
+            let Some(c) = row_text.get(byte_cursor..).and_then(|s| s.chars().next()) else {
+                break;
+            };
+            byte_cursor += c.len_utf8();
+            char_cursor += 1;
+        }
+        if c0 < char_cursor {
+            result.push(c0..char_cursor);
+        }
+    }
+    result
+}
+
+/// ## Visual word stepping
+impl Galley {
+    /// The word segments of one row's text slice, as byte ranges into
+    /// `row_text` (which spans `row_bytes`, a byte range of the job text):
+    /// ascending and non-overlapping, each segment char-boundary aligned
+    /// unless a custom breaker misbehaves, in which case callers must re-check
+    /// before slicing.
+    ///
+    /// The segmentation composes the same way the layout consults the breaker
+    /// for wrapping: UAX #29 words first, adjacent all-word segments merged
+    /// (the logical word walk never lands between them — a run whose
+    /// characters the iterator leaves unjoined, deferring to dictionaries,
+    /// steps as one word), then a refinement at `'.'` chars
+    /// (`www.example.com` navigates as three words — the dots stay
+    /// segment-less), then — when a breaker is engaged — the breaker's
+    /// dictionary words cut the still-unbroken runs they cover. Engaged
+    /// exactly when the layout can engage it (a custom breaker installed, or
+    /// the bundled dictionary compiled in and the text may contain such
+    /// characters), minus the wrap-width half: navigation needs the boundaries
+    /// whether or not the row wraps, and as a separate call site it never
+    /// changes the layout's break candidates. Without the feature and without
+    /// a custom breaker this consults the no-op breaker: empty ranges, zero
+    /// cost.
+    fn word_segments_of_row(&self, row_text: &str, row_bytes: Range<usize>) -> Vec<Range<usize>> {
+        let base: Vec<Range<usize>> = row_text
+            .split_word_bound_indices()
+            .map(|(word_byte, word)| word_byte..word_byte + word.len())
+            .collect();
+        let merged = merge_adjacent_word_runs(row_text, base);
+
+        // The '.' boundary refinement: `www.example.com` walks as three words
+        // (the mac convention), so each segment splits at its '.' chars and
+        // the dots stay segment-less (transparent, like whitespace).
+        let mut segments: Vec<Range<usize>> = Vec::new();
+        for word in merged {
+            let Some(word_text) = row_text.get(word.clone()) else {
+                continue; // not char-boundary aligned (hostile breaker): skip
+            };
+            let mut segment_start = word.start;
+            for (char_byte, c) in word_text.char_indices() {
+                if c == '.' {
+                    if segment_start < word.start + char_byte {
+                        segments.push(segment_start..word.start + char_byte);
+                    }
+                    segment_start = word.start + char_byte + c.len_utf8();
+                }
+            }
+            if segment_start < word.end {
+                segments.push(segment_start..word.end);
+            }
+        }
+
+        let may_consult_breaker = self.job.wrap.line_breaker.is_some()
+            || crate::text::text_layout::may_have_sea_text(&self.job.text);
+        if may_consult_breaker {
+            let breaker = self
+                .job
+                .wrap
+                .line_breaker
+                .clone()
+                .unwrap_or_else(crate::text::line_breaker::default_breaker);
+            let word_ranges = breaker.word_boundaries(&self.job.text);
+            let mut cuts: Vec<usize> = Vec::new();
+            for range in &word_ranges {
+                // Intersect the job-global byte range with this row's byte
+                // range; inverted or disjoint ranges drop out here.
+                let start = range.start.max(row_bytes.start);
+                let end = range.end.min(row_bytes.end);
+                if start < end {
+                    cuts.push(start - row_bytes.start);
+                    cuts.push(end - row_bytes.start);
+                }
+            }
+            cuts.sort_unstable();
+            segments = cut_segments(segments, &cuts);
+        }
+
+        segments
+    }
+
+    /// Move the cursor one **word** toward the visual `left` edge (or, with
+    /// `left == false`, the visual right edge), stepping between word-edge
+    /// stops in the row's *visual* frame.
+    ///
+    /// Every maximal word segment of the row (whitespace- and
+    /// punctuation-only runs are transparent) contributes two caret stops: at
+    /// its visually-left and visually-right edge, in the row's visual boundary
+    /// coordinate (see [`Row::visual_caret_boundaries`]). The key walks to the
+    /// nearest stop strictly beyond the caret's own boundary in the stepping
+    /// direction — for an odd-level word the two edges swap their logical
+    /// columns, which the edge lookup handles uniformly. Row-local word
+    /// segmentation comes from [`Self::word_segments_of_row`].
+    ///
+    /// When no stop lies beyond, the walk exits through the row's visual edge
+    /// and the caller continues with the whole-text logical word step (see
+    /// [`WordStep::Exit`]). On a pure left-to-right row the logical walk *is*
+    /// the visual walk, so those rows and any degenerate caret exit straight
+    /// back to the caller with no clamp window.
+    ///
+    /// Columns stay logical (0 = the reading start, anchored by the row's base
+    /// direction); the incoming index is clamped to the galley's end, and any
+    /// hostile index degrades to the [`WordStep::Exit`] passthrough.
+    pub fn step_one_word_visually(&self, cursor: &CCursor, left: bool) -> WordStep {
+        // Clamp the incoming index to the galley's end first: an out-of-range
+        // cursor with `prefer_next_row: false` would otherwise trip the
+        // pre-existing `debug_assert` in `layout_from_cursor` in debug builds.
+        // A no-op for every in-range cursor.
+        let cursor = CCursor {
+            index: cursor.index.min(self.end().index),
+            prefer_next_row: cursor.prefer_next_row,
+        };
+        let layout = self.layout_from_cursor(cursor);
+        let Some(placed) = self.rows.get(layout.row) else {
+            // No row to walk on: pass the caller's logical step through
+            // unclamped.
+            return WordStep::Exit {
+                reading_forward: !left,
+                row_range: CharIndex::ZERO..CharIndex::ZERO,
+            };
+        };
+        let row = &placed.row;
+
+        // Global char prefix of this row (the same per-row accumulation
+        // `cursor_from_layout` uses).
+        let mut prefix = 0usize;
+        for before in self.rows.iter().take(layout.row) {
+            prefix = prefix.saturating_add(before.char_count_including_newline().0);
+        }
+        let prefix = CharIndex(prefix);
+
+        // A pure left-to-right row reads identically in both frames: hand the
+        // step straight back to the caller's logical walk with no clamp
+        // window, so its behavior stays exactly as it was.
+        if row.is_ltr_homogeneous() {
+            return WordStep::Exit {
+                reading_forward: !left,
+                row_range: prefix..prefix,
+            };
+        }
+
+        let reading_forward = row.first_read_cell_is_odd() == left;
+        let (boundary_of_column, column_of_boundary) = row.visual_caret_boundaries();
+
+        let Some(current_k) = boundary_of_column.get(layout.column.0).copied().flatten() else {
+            // The caret column has no visual boundary (a degenerate stream, or
+            // an elided tail): pass the caller's logical step through
+            // unclamped.
+            return WordStep::Exit {
+                reading_forward,
+                row_range: prefix..prefix,
+            };
+        };
+
+        // The row's own text: `char_count_excluding_newline` chars starting at
+        // the global char prefix. Rows are logical slices of the job text
+        // (their char counts sum to the text's, unless elided).
+        let text = self.text();
+        let row_char_count = placed.char_count_excluding_newline().0;
+        let row_byte_start = byte_offset_from_char_index(text, prefix);
+        let row_byte_end = byte_offset_from_char_index(text, prefix.saturating_add(row_char_count));
+        let Some(row_text) = text.get(row_byte_start..row_byte_end) else {
+            return WordStep::Exit {
+                reading_forward,
+                row_range: prefix..prefix,
+            };
+        };
+
+        // Word segments, then the visual stops: each segment containing at
+        // least one word char contributes its two visual edges. Whitespace and
+        // punctuation-only segments are transparent — their edges belong to
+        // the adjacent word segments.
+        let segments = self.word_segments_of_row(row_text, row_byte_start..row_byte_end);
+        let word_segments: Vec<Range<usize>> = segments
+            .into_iter()
+            .filter(|segment| {
+                row_text
+                    .get(segment.start..segment.end)
+                    .is_some_and(|slice| slice.chars().any(is_word_char))
+            })
+            .collect();
+        let char_ranges = char_ranges_of_segments(row_text, &word_segments);
+        let mut left_stops: Vec<(usize, CharIndex)> = Vec::new();
+        let mut right_stops: Vec<(usize, CharIndex)> = Vec::new();
+        for char_range in &char_ranges {
+            // One glyph slot per char is pinned for non-elided rows; a
+            // mismatch (elided tail) degrades to a skipped stop.
+            let (Some(k0), Some(k1)) = (
+                boundary_of_column.get(char_range.start).copied().flatten(),
+                boundary_of_column.get(char_range.end).copied().flatten(),
+            ) else {
+                continue;
+            };
+            if let Some(column) = column_of_boundary.get(k0.min(k1)).copied().flatten() {
+                left_stops.push((k0.min(k1), column));
+            }
+            if let Some(column) = column_of_boundary.get(k0.max(k1)).copied().flatten() {
+                right_stops.push((k0.max(k1), column));
+            }
+        }
+
+        // The nearest stop strictly beyond the caret's own visual boundary.
+        let target = if left {
+            left_stops
+                .iter()
+                .filter(|(k, _)| *k < current_k)
+                .max_by_key(|(k, _)| *k)
+        } else {
+            right_stops
+                .iter()
+                .filter(|(k, _)| *k > current_k)
+                .min_by_key(|(k, _)| *k)
+        };
+        let Some((_, column)) = target else {
+            // The walk leaves the row through its visual edge: continue with
+            // the whole-text logical word step, clamped to this row's own
+            // caret columns — the reading-end column included, so a historic
+            // landing there clamps in place instead of moving the caret
+            // visually backward across the edge.
+            return WordStep::Exit {
+                reading_forward,
+                row_range: prefix..prefix.saturating_add(row_char_count.saturating_add(1)),
+            };
+        };
+        WordStep::Within(CCursor {
+            index: prefix + *column,
+            prefer_next_row: left,
+        })
     }
 }
