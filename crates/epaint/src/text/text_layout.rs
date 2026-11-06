@@ -6054,15 +6054,23 @@ mod tests {
         // A pure-RTL paragraph ("أول ثاني"), shaped in visual order: stream
         // glyph 0 is the visually-leftmost (logically-last) char. The
         // advance shifted every glyph right by 40, and the recorded run
-        // covers the whole paragraph — `wraps_logically`'s route.
-        let glyphs: Vec<Glyph> = "يانث لوا"
-            .chars()
-            .enumerate()
-            .map(|(i, chr)| advance_glyph(chr, 40.0 + 10.0 * i as f32, 10.0, 1))
-            .collect();
+        // covers the whole paragraph — `wraps_logically`'s route. The
+        // glyphs and their cluster byte starts are emitted in tandem (as
+        // `track_cluster_bytes` records them), so the paragraph is TRACKED
+        // — the state `layout`'s gate guarantees for every text that
+        // records runs, and what the records-runs-implies-tracked assert
+        // in `line_break_logically` requires.
+        let logical = "أول ثاني";
+        let mut glyphs = Vec::new();
+        let mut cluster_byte_starts = Vec::new();
+        for (i, (byte_start, chr)) in logical.char_indices().rev().enumerate() {
+            cluster_byte_starts.push(byte_start);
+            glyphs.push(advance_glyph(chr, 40.0 + 10.0 * i as f32, 10.0, 1));
+        }
         let mut paragraph = Paragraph::from_section_index(0);
         paragraph.leading_advance = 40.0;
         paragraph.glyphs = glyphs;
+        paragraph.cluster_byte_starts = cluster_byte_starts;
         paragraph.byte_span = 0..15;
         paragraph.bidi_runs = vec![RecordedBidiRun {
             glyphs: 0..8,
