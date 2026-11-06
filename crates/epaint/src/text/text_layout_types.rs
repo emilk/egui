@@ -971,6 +971,12 @@ pub struct Row {
     #[cfg_attr(feature = "serde", serde(default))]
     pub base_direction: TextDirection,
 
+    /// The `LayoutSection::leading_space` advance consumed before this row's
+    /// paragraph began, when this row carries the paragraph's first glyph.
+    /// Kept in the ink at the reading start for right-anchored rows.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) leading_advance: f32,
+
     /// One for each `char`.
     ///
     /// The glyphs are laid out left-to-right (their `pos.x` increases along

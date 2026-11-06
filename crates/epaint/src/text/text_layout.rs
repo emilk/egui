@@ -109,6 +109,12 @@ struct Paragraph {
 
     /// In case of an empty paragraph ("\n"), use this as height.
     pub empty_paragraph_height: f32,
+
+    /// The `LayoutSection::leading_space` advance consumed before this
+    /// paragraph's first glyph, in logical pixels. Remembered so row
+    /// anchoring can keep it in the ink of the row that carries the
+    /// paragraph's first glyph.
+    pub leading_advance: f32,
 }
 
 impl Paragraph {
@@ -121,6 +127,7 @@ impl Paragraph {
             bidi_runs: vec![],
             byte_span: 0..0,
             empty_paragraph_height: 0.0,
+            leading_advance: 0.0,
         }
     }
 
@@ -732,6 +739,9 @@ fn layout_section(
     let mut paragraph = out_paragraphs.last_mut().unwrap();
     if paragraph.glyphs.is_empty() {
         paragraph.empty_paragraph_height = line_height;
+        // The advance precedes this paragraph's first glyph (a section that
+        // starts here): remember it so row anchoring can keep it in the ink.
+        paragraph.leading_advance += leading_space;
     }
     paragraph.cursor_x_px += leading_space * pixels_per_point;
 
@@ -1018,6 +1028,7 @@ fn rows_from_paragraphs(
                 row: Arc::new(Row {
                     section_index_at_start: paragraph.section_index_at_start,
                     base_direction: resolved_direction(job),
+                    leading_advance: 0.0,
                     glyphs: vec![],
                     visuals: Default::default(),
                     size: vec2(0.0, paragraph.empty_paragraph_height),
@@ -1036,6 +1047,7 @@ fn rows_from_paragraphs(
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
                         base_direction: resolved_direction(job),
+                        leading_advance: paragraph.leading_advance,
                         glyphs: paragraph.glyphs,
                         visuals: Default::default(),
                         size: vec2(paragraph_width, 0.0),
@@ -1079,6 +1091,12 @@ fn line_break(
     let mut row_start_x = 0.0;
     let mut row_start_idx = 0;
 
+    // The `leading_space` advance the paragraph's first glyph carries: the row
+    // holding that glyph keeps it (its glyphs carry it in their positions), so
+    // row anchoring can re-inset it at the reading start; every later row has
+    // it re-based out of its glyphs and gets 0.0.
+    let mut leading_advance = paragraph.leading_advance;
+
     for i in 0..paragraph.glyphs.len() {
         if job.wrap.max_rows <= out_rows.len() {
             *elided = true;
@@ -1100,6 +1118,7 @@ fn line_break(
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
                         base_direction: resolved_direction(job),
+                        leading_advance: 0.0,
                         glyphs: vec![],
                         visuals: Default::default(),
                         size: Vec2::ZERO,
@@ -1108,6 +1127,9 @@ fn line_break(
                 });
                 row_start_x += first_row_indentation;
                 first_row_indentation = 0.0;
+                // The advance was consumed with the indent (via `row_start_x`),
+                // so no row keeps it:
+                leading_advance = 0.0;
             } else if let Some(last_kept_index) = row_break_candidates.get(job.wrap.break_anywhere)
             {
                 let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..=last_kept_index]
@@ -1127,6 +1149,7 @@ fn line_break(
                     row: Arc::new(Row {
                         section_index_at_start,
                         base_direction: resolved_direction(job),
+                        leading_advance,
                         glyphs,
                         visuals: Default::default(),
                         size: vec2(paragraph_max_x, 0.0),
@@ -1138,6 +1161,9 @@ fn line_break(
                 row_start_idx = last_kept_index + 1;
                 row_start_x = paragraph.glyphs[row_start_idx].pos.x;
                 row_break_candidates.forget_before_idx(row_start_idx);
+                // The advance rode the row that carried the paragraph's first
+                // glyph; later rows' glyphs are re-based without it:
+                leading_advance = 0.0;
             } else {
                 // Found no place to break, so we have to overrun wrap_width.
             }
@@ -1202,12 +1228,16 @@ fn line_break(
                 row: Arc::new(Row {
                     section_index_at_start,
                     base_direction: resolved_direction(job),
+                    leading_advance,
                     glyphs,
                     visuals: Default::default(),
                     size: vec2(paragraph_max_x - paragraph_min_x, 0.0),
                 }),
                 ends_with_newline: false,
             });
+            // This is the last row: for the single-row overrun the advance has
+            // moved from the glyphs into `paragraph_min_x`/`pos.x`, and the row
+            // records it so row anchoring can re-inset it at the reading start.
         }
     }
 }
@@ -1415,13 +1445,19 @@ impl RowReorder<'_> {
     /// reversed for a right-to-left run, each glyph keeping its intra-block
     /// offset (marks and ligature geometry stay exact; only whole blocks
     /// move).
+    ///
+    /// `leading_advance` is the `LayoutSection::leading_space` advance the
+    /// paragraph's first glyph carries when this row is the paragraph's
+    /// reading-first row (0.0 otherwise): the stacking pen starts at it, so
+    /// the advance stays in the row's glyphs and size exactly like on the
+    /// legacy wrap path.
     fn place_row(
         &self,
         paragraph: &Paragraph,
         job: &LayoutJob,
         blocks: &[LogicalBlock],
         row_range: Range<usize>,
-        pos_x: f32,
+        leading_advance: f32,
         out_rows: &mut Vec<PlacedRow>,
     ) {
         if row_range.is_empty() {
@@ -1459,7 +1495,7 @@ impl RowReorder<'_> {
         // logical order at the visual end rather than dropped.
         let mut glyphs: Vec<Glyph> = Vec::new();
         let mut claimed = vec![false; row_range.len()];
-        let mut pen = 0.0_f32;
+        let mut pen = leading_advance;
         let place_block = |glyphs: &mut Vec<Glyph>, pen: &mut f32, block: &LogicalBlock| {
             for glyph in &paragraph.glyphs[block.glyphs.clone()] {
                 let mut glyph = *glyph;
@@ -1499,10 +1535,11 @@ impl RowReorder<'_> {
         let section_index_at_start = glyphs[0].section_index;
         let paragraph_max_x = glyphs.last().map_or(0.0, |glyph| glyph.max_x());
         out_rows.push(PlacedRow {
-            pos: pos2(pos_x, f32::NAN),
+            pos: pos2(0.0, f32::NAN),
             row: Arc::new(Row {
                 section_index_at_start,
                 base_direction: resolved_direction(job),
+                leading_advance,
                 glyphs,
                 visuals: Default::default(),
                 size: vec2(paragraph_max_x, 0.0),
@@ -1596,6 +1633,7 @@ fn line_break_logically(
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
                         base_direction: resolved_direction(job),
+                        leading_advance: 0.0,
                         glyphs: vec![],
                         visuals: Default::default(),
                         size: Vec2::ZERO,
@@ -1610,7 +1648,11 @@ fn line_break_logically(
                     job,
                     &blocks,
                     row_start..last_kept + 1,
-                    0.0,
+                    if row_start == 0 && first_row_indentation_left {
+                        paragraph.leading_advance
+                    } else {
+                        0.0
+                    },
                     out_rows,
                 );
 
@@ -1666,20 +1708,20 @@ fn line_break_logically(
         if job.wrap.max_rows <= out_rows.len() {
             *elided = true; // can't fit another row
         } else {
-            // As in `line_break`: the leading indent survives as the row's
-            // position only when the whole paragraph is a single row; rows
-            // after a break sit at zero.
-            let paragraph_min_x = if row_start == 0 {
-                first_row_indentation
-            } else {
-                0.0
-            };
+            // As in `line_break`: the leading indent rides the first row's
+            // glyphs (its `leading_advance` and its stream positions) only
+            // when the whole paragraph is a single row; rows after a break
+            // sit at zero.
             reorder.place_row(
                 paragraph,
                 job,
                 &blocks,
                 row_start..blocks.len(),
-                paragraph_min_x,
+                if row_start == 0 && first_row_indentation_left {
+                    paragraph.leading_advance
+                } else {
+                    0.0
+                },
                 out_rows,
             );
         }
@@ -2067,7 +2109,20 @@ fn halign_and_justify_row(
             / (num_spaces_in_range as f32);
     }
 
-    placed_row.pos.x = point_scale.round_to_pixel(target_min_x);
+    // The paragraph's leading advance sits before the first glyph. For a
+    // left-anchored row it survives inside the ink positions; for a
+    // right-anchored right-to-left row the reading start is the row's RIGHT
+    // edge, so the anchored ink is inset by the advance instead of the
+    // advance being absorbed into the row box.
+    let reading_start_inset = if halign == Align::RIGHT
+        && row.base_direction == TextDirection::RightToLeft
+        && row.leading_advance != 0.0
+    {
+        row.leading_advance
+    } else {
+        0.0
+    };
+    placed_row.pos.x = point_scale.round_to_pixel(target_min_x) - reading_start_inset;
     let mut translate_x = -original_min_x - extra_x_per_glyph * glyph_range.0 as f32;
 
     for glyph in &mut row.glyphs {
@@ -5446,12 +5501,18 @@ mod tests {
             }
         }
 
-        fn placed_row(glyphs: Vec<Glyph>, natural_width: f32) -> PlacedRow {
+        fn placed_row(
+            glyphs: Vec<Glyph>,
+            natural_width: f32,
+            base_direction: TextDirection,
+            leading_advance: f32,
+        ) -> PlacedRow {
             PlacedRow {
                 pos: pos2(0.0, 0.0),
                 row: Arc::new(Row {
                     section_index_at_start: 0,
-                    base_direction: TextDirection::LeftToRight,
+                    base_direction,
+                    leading_advance,
                     glyphs,
                     size: vec2(natural_width, 16.0),
                     visuals: RowVisuals::default(),
@@ -5499,6 +5560,7 @@ mod tests {
         let (ink_min, ink_max) = ink_span(&Row {
             section_index_at_start: 0,
             base_direction: TextDirection::LeftToRight,
+            leading_advance: 0.0,
             glyphs: shaped_arabic(),
             size: vec2(natural_width, 16.0),
             visuals: RowVisuals::default(),
@@ -5510,7 +5572,12 @@ mod tests {
 
         // `Align::Max` is what a right-to-left label is laid out with. The
         // row must be anchored as if 27 wide (the true ink span), not 17:
-        let mut placed = placed_row(shaped_arabic(), natural_width);
+        let mut placed = placed_row(
+            shaped_arabic(),
+            natural_width,
+            TextDirection::LeftToRight,
+            0.0,
+        );
         halign_and_justify_row(
             point_scale,
             &mut placed,
@@ -5531,7 +5598,12 @@ mod tests {
         assert_close(placed.row.size.x, natural_width);
 
         // Centered rows must center the true ink on the galley origin:
-        let mut placed = placed_row(shaped_arabic(), natural_width);
+        let mut placed = placed_row(
+            shaped_arabic(),
+            natural_width,
+            TextDirection::LeftToRight,
+            0.0,
+        );
         halign_and_justify_row(
             point_scale,
             &mut placed,
@@ -5547,7 +5619,12 @@ mod tests {
 
         // A monotonic row (endpoints bracket the ink) is laid out exactly as
         // before the fix:
-        let mut placed = placed_row(vec![glyph('a', 0.0, 17.0)], 17.0);
+        let mut placed = placed_row(
+            vec![glyph('a', 0.0, 17.0)],
+            17.0,
+            TextDirection::LeftToRight,
+            0.0,
+        );
         halign_and_justify_row(
             point_scale,
             &mut placed,
@@ -5567,7 +5644,12 @@ mod tests {
         with_trailing_space.push(glyph(' ', 17.0, 3.0));
         let natural_with_space = natural_width + 3.0;
 
-        let mut placed = placed_row(with_trailing_space.clone(), natural_with_space);
+        let mut placed = placed_row(
+            with_trailing_space.clone(),
+            natural_with_space,
+            TextDirection::LeftToRight,
+            0.0,
+        );
         halign_and_justify_row(
             point_scale,
             &mut placed,
@@ -5581,7 +5663,12 @@ mod tests {
 
         // With `keep_trailing_whitespace` the space is part of the aligned
         // span, so the row is anchored on [-10, 20] and sized to it:
-        let mut placed = placed_row(with_trailing_space, natural_with_space);
+        let mut placed = placed_row(
+            with_trailing_space,
+            natural_with_space,
+            TextDirection::LeftToRight,
+            0.0,
+        );
         halign_and_justify_row(
             point_scale,
             &mut placed,
@@ -5592,6 +5679,331 @@ mod tests {
         );
         assert_close(placed.pos.x, -30.0);
         assert_close(placed.row.size.x, 30.0);
+    }
+
+    // -------------------------------------------------------------------------
+    // Leading-advance threading (the row field, the anchoring inset and the
+    // two wrap paths). Red-at-base evidence: see the commit messages — T1's
+    // base overlay form bakes the advance into the glyph positions (the field
+    // does not exist at base) and fails on the same ink-offset assertion.
+    //
+    // No fonts needed: `halign_and_justify_row` anchors from glyph-relative
+    // ink, and `line_break`/`line_break_logically` are called directly on
+    // hand-built paragraphs (they are in-module).
+
+    fn advance_glyph(chr: char, x: f32, advance: f32, bidi_level: u8) -> Glyph {
+        Glyph {
+            chr,
+            pos: pos2(x, 0.0),
+            advance_width: advance,
+            line_height: 16.0,
+            font_ascent: 13.0,
+            font_height: 16.0,
+            font_face_ascent: 13.0,
+            font_face_height: 16.0,
+            uv_rect: Default::default(),
+            is_color: false,
+            bidi_level,
+            section_index: 0,
+            first_vertex: 0,
+        }
+    }
+
+    fn advance_assert_close(got: f32, want: f32) {
+        assert!((got - want).abs() < 1e-3, "got {got:.4}, want {want:.4}");
+    }
+
+    fn advance_ink_span(row: &Row) -> (f32, f32) {
+        (
+            row.glyphs
+                .iter()
+                .map(|glyph| glyph.logical_rect().min.x)
+                .fold(f32::INFINITY, f32::min),
+            row.glyphs
+                .iter()
+                .map(|glyph| glyph.logical_rect().max.x)
+                .fold(f32::NEG_INFINITY, f32::max),
+        )
+    }
+
+    /// The `shaped_arabic()` ink pattern ([-10, 17], non-monotonic) with the
+    /// leading advance carried by the row: `natural_width = la + ink_span`.
+    fn advance_row(base_direction: TextDirection, leading_advance: f32) -> PlacedRow {
+        PlacedRow {
+            pos: pos2(0.0, 0.0),
+            row: Arc::new(Row {
+                section_index_at_start: 0,
+                base_direction,
+                leading_advance,
+                glyphs: vec![
+                    advance_glyph('ف', 0.0, 0.0, 1),
+                    advance_glyph('ف', -10.0, 15.37, 1),
+                    advance_glyph('ل', 5.0, 4.2, 1),
+                    advance_glyph('م', 9.0, 7.35, 1),
+                    advance_glyph('ل', 17.0, 0.0, 1),
+                    advance_glyph('ف', 17.0, 0.0, 1),
+                ],
+                size: vec2(leading_advance + 27.0, 16.0),
+                visuals: RowVisuals::default(),
+            }),
+            ends_with_newline: false,
+        }
+    }
+
+    /// A right-anchored right-to-left row keeps the leading advance in its
+    /// INK at the reading start (its right edge): the anchored ink is inset
+    /// by the advance instead of being absorbed into the row box. This is
+    /// the unit pin of the mechanism the wrapped-RTL label tests ride; the
+    /// falsified behavior (advance swallowed, ink right at 0.0) is what the
+    /// base overlay observed.
+    #[test]
+    fn right_anchored_rtl_row_keeps_the_leading_advance_in_the_ink() {
+        let mut placed = advance_row(TextDirection::RightToLeft, 40.0);
+        halign_and_justify_row(
+            PointScale::new(1.0),
+            &mut placed,
+            Align::RIGHT,
+            f32::INFINITY,
+            false,
+            false,
+        );
+
+        // Galley-frame ink (row-local ink translated by `pos.x`): inset by
+        // the advance at the reading start.
+        let (ink_min, ink_max) = advance_ink_span(&placed.row);
+        advance_assert_close(ink_max + placed.pos.x, -40.0);
+        advance_assert_close(ink_min + placed.pos.x, -40.0 - 27.0);
+        // The box right lands at the trailing wobble (zero here):
+        advance_assert_close(placed.pos.x + placed.row.size.x, 0.0);
+        // The size keeps the natural width:
+        advance_assert_close(placed.row.size.x, 67.0);
+    }
+
+    /// The no-blast-radius condition: a zero leading advance leaves the
+    /// anchoring byte-identical (ink right at the galley origin).
+    #[test]
+    fn zero_leading_advance_leaves_anchoring_unchanged() {
+        let mut placed = advance_row(TextDirection::RightToLeft, 0.0);
+        halign_and_justify_row(
+            PointScale::new(1.0),
+            &mut placed,
+            Align::RIGHT,
+            f32::INFINITY,
+            false,
+            false,
+        );
+
+        let (ink_min, ink_max) = advance_ink_span(&placed.row);
+        advance_assert_close(ink_max + placed.pos.x, 0.0);
+        advance_assert_close(ink_min + placed.pos.x, -27.0);
+    }
+
+    /// Left-to-right rows ignore the reading-start inset (the advance stays
+    /// absorbed, exactly as before) — the epaint side of LTR byte-identity.
+    #[test]
+    fn ltr_row_ignores_the_reading_start_inset() {
+        let mut placed = advance_row(TextDirection::LeftToRight, 40.0);
+        halign_and_justify_row(
+            PointScale::new(1.0),
+            &mut placed,
+            Align::RIGHT,
+            f32::INFINITY,
+            false,
+            false,
+        );
+
+        let (ink_min, ink_max) = advance_ink_span(&placed.row);
+        advance_assert_close(ink_max + placed.pos.x, 0.0);
+        advance_assert_close(ink_min + placed.pos.x, -27.0);
+    }
+
+    /// Center-anchored rows still absorb the advance (the documented
+    /// residual: which edge would a Center inset even use?).
+    #[test]
+    fn center_anchored_rows_still_absorb_the_advance() {
+        let mut placed = advance_row(TextDirection::RightToLeft, 40.0);
+        halign_and_justify_row(
+            PointScale::new(1.0),
+            &mut placed,
+            Align::Center,
+            f32::INFINITY,
+            false,
+            false,
+        );
+
+        // Centered on the galley origin, up to pixel rounding:
+        let (ink_min, ink_max) = advance_ink_span(&placed.row);
+        assert!(((ink_min + ink_max) * 0.5 + placed.pos.x).abs() <= 0.5);
+    }
+
+    /// The legacy wrap path threads the paragraph's leading advance onto the
+    /// row that carries the paragraph's first glyph — the advance stays in
+    /// that row's glyphs (production leaves it in the first glyph's position)
+    /// and in its `leading_advance` — and every later row is re-based without
+    /// it. The empty-first-row escape consumes the advance: no row keeps it.
+    #[test]
+    fn line_break_threads_the_leading_advance_onto_the_first_glyph_row() {
+        // "ab cd ef" with a 40 px indent in the first glyph's position, as
+        // production leaves it (the `leading_space` cursor advance precedes
+        // shaping).
+        let glyphs = vec![
+            advance_glyph('a', 40.0, 10.0, 0),
+            advance_glyph('b', 50.0, 10.0, 0),
+            advance_glyph(' ', 60.0, 5.0, 0),
+            advance_glyph('c', 65.0, 10.0, 0),
+            advance_glyph('d', 75.0, 10.0, 0),
+            advance_glyph(' ', 85.0, 5.0, 0),
+            advance_glyph('e', 90.0, 10.0, 0),
+            advance_glyph('f', 100.0, 10.0, 0),
+        ];
+        let mut paragraph = Paragraph::from_section_index(0);
+        paragraph.leading_advance = 40.0;
+        paragraph.glyphs = glyphs;
+        paragraph.byte_span = 0..8;
+
+        let job = LayoutJob {
+            text: "ab cd ef".to_owned(),
+            wrap: TextWrapping {
+                max_width: 65.0,
+                ..Default::default()
+            },
+            direction: Some(TextDirection::RightToLeft),
+            round_output_to_gui: false,
+            ..Default::default()
+        };
+
+        // At width 65 the first break lands on the first space (after the
+        // words "ab" fit beside the indent): row 0 carries the advance.
+        let mut rows = Vec::new();
+        let mut elided = false;
+        line_break(&paragraph, &job, &[], &mut rows, &mut elided);
+        assert!(!elided);
+        assert_eq!(
+            rows.len(),
+            2,
+            "two rows: {:?}",
+            rows.iter().map(|r| r.size.x).collect::<Vec<_>>()
+        );
+        advance_assert_close(rows[0].leading_advance, 40.0);
+        advance_assert_close(rows[0].glyphs[0].pos.x, 40.0);
+        advance_assert_close(rows[1].leading_advance, 0.0);
+        advance_assert_close(rows[1].glyphs[0].pos.x, 0.0);
+
+        // Below one word plus the indent, the empty-first-row escape fires
+        // and consumes the advance: every row lands at 0.0 (mirrors the LTR
+        // arm's pre-existing loss of the indent in this edge case).
+        let narrow = LayoutJob {
+            wrap: TextWrapping {
+                max_width: 45.0,
+                ..Default::default()
+            },
+            ..job.clone()
+        };
+        let mut rows = Vec::new();
+        let mut elided = false;
+        line_break(&paragraph, &narrow, &[], &mut rows, &mut elided);
+        assert!(!elided);
+        assert!(rows.len() >= 2);
+        assert!(
+            rows.iter().all(|placed| placed.leading_advance == 0.0),
+            "the escape consumes the advance: {:?}",
+            rows.iter().map(|r| r.leading_advance).collect::<Vec<_>>()
+        );
+    }
+
+    /// The same threading rule on the logical wrap path (`place_row`): the
+    /// reading-first row (block range starting at 0) receives the advance as
+    /// its stacking-pen origin — the advance survives in its glyphs AND in
+    /// its `size.x` — and rows after a break or after the empty-first-row
+    /// escape carry 0.0. This is the unit pin behind the wrapped-Arabic
+    /// label scenario (which rides this path via `wraps_logically`).
+    #[test]
+    fn line_break_logically_threads_the_leading_advance_onto_the_reading_first_row() {
+        // A pure-RTL paragraph ("أول ثاني"), shaped in visual order: stream
+        // glyph 0 is the visually-leftmost (logically-last) char. The
+        // advance shifted every glyph right by 40, and the recorded run
+        // covers the whole paragraph — `wraps_logically`'s route.
+        let glyphs: Vec<Glyph> = "يانث لوا"
+            .chars()
+            .enumerate()
+            .map(|(i, chr)| advance_glyph(chr, 40.0 + 10.0 * i as f32, 10.0, 1))
+            .collect();
+        let mut paragraph = Paragraph::from_section_index(0);
+        paragraph.leading_advance = 40.0;
+        paragraph.glyphs = glyphs;
+        paragraph.byte_span = 0..15;
+        paragraph.bidi_runs = vec![RecordedBidiRun {
+            glyphs: 0..8,
+            bytes: 0..15,
+            rtl: true,
+        }];
+
+        let job = LayoutJob {
+            text: "أول ثاني".to_owned(),
+            wrap: TextWrapping {
+                max_width: 115.0,
+                ..Default::default()
+            },
+            direction: Some(TextDirection::RightToLeft),
+            round_output_to_gui: false,
+            ..Default::default()
+        };
+
+        // At width 115 the pen (starting at the indent) overflows on the
+        // last word: the break lands on the space block, row 0 is the
+        // reading-first row ("أول "), the final row is "ثاني".
+        let mut rows = Vec::new();
+        let mut elided = false;
+        line_break_logically(&paragraph, &job, &[], &mut rows, &mut elided);
+        assert!(!elided);
+        assert_eq!(
+            rows.len(),
+            2,
+            "two rows: {:?}",
+            rows.iter().map(|r| r.size.x).collect::<Vec<_>>()
+        );
+        advance_assert_close(rows[0].leading_advance, 40.0);
+        // The advance is preserved in the row's glyphs (the pen started at
+        // it) and counted exactly once in its size:
+        advance_assert_close(
+            rows[0]
+                .glyphs
+                .iter()
+                .map(|glyph| glyph.pos.x)
+                .fold(f32::INFINITY, f32::min),
+            40.0,
+        );
+        advance_assert_close(rows[0].size.x, 80.0);
+        advance_assert_close(rows[1].leading_advance, 0.0);
+        advance_assert_close(
+            rows[1]
+                .glyphs
+                .iter()
+                .map(|glyph| glyph.pos.x)
+                .fold(f32::INFINITY, f32::min),
+            0.0,
+        );
+        advance_assert_close(rows[1].size.x, 40.0);
+
+        // Below one word plus the indent, the empty-first-row escape fires
+        // and consumes the advance: every row lands at 0.0.
+        let narrow = LayoutJob {
+            wrap: TextWrapping {
+                max_width: 45.0,
+                ..Default::default()
+            },
+            ..job.clone()
+        };
+        let mut rows = Vec::new();
+        let mut elided = false;
+        line_break_logically(&paragraph, &narrow, &[], &mut rows, &mut elided);
+        assert!(!elided);
+        assert!(rows.len() >= 2);
+        assert!(
+            rows.iter().all(|placed| placed.leading_advance == 0.0),
+            "the escape consumes the advance: {:?}",
+            rows.iter().map(|r| r.leading_advance).collect::<Vec<_>>()
+        );
     }
 
     // -------------------------------------------------------------------------
