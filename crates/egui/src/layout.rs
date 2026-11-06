@@ -45,19 +45,55 @@ pub(crate) struct Region {
     /// If something has already been added, this will point to `style.spacing.item_spacing` beyond the latest child.
     /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the `min_rect`.
     pub(crate) cursor: Rect,
+
+    /// The per-axis alignment seed of this region, while it is still a placeholder.
+    ///
+    /// [`Layout::region_from_max_rect`] seeds `min_rect` as a zero-size rect at the next
+    /// widget position — for a vertical `Align::Center` body, the center of the offered
+    /// rect. That anchor gives the empty body a finite, layout-anchored form, but it is
+    /// a placeholder, not content: the first measured rect on an axis *replaces* the
+    /// seed's contribution on that axis (instead of unioning with it), so a zero-size
+    /// alignment anchor can never widen the measured span. `None` means the axis has
+    /// measured content or a claim, and expands union as usual.
+    pub(crate) seed_x: Option<f32>,
+    pub(crate) seed_y: Option<f32>,
 }
 
 impl Region {
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
     pub fn expand_to_include_rect(&mut self, rect: Rect) {
-        self.min_rect |= rect;
+        // The seed is a placeholder, not content: on an axis with no measured extent
+        // yet, the first rect replaces the seed's contribution instead of unioning with
+        // it, so a zero-size alignment anchor never widens the measured span.
+        if self.seed_x.take().is_some() {
+            self.min_rect.min.x = rect.min.x;
+            self.min_rect.max.x = rect.max.x;
+        } else {
+            self.min_rect.min.x = self.min_rect.min.x.min(rect.min.x);
+            self.min_rect.max.x = self.min_rect.max.x.max(rect.max.x);
+        }
+        if self.seed_y.take().is_some() {
+            self.min_rect.min.y = rect.min.y;
+            self.min_rect.max.y = rect.max.y;
+        } else {
+            self.min_rect.min.y = self.min_rect.min.y.min(rect.min.y);
+            self.min_rect.max.y = self.min_rect.max.y.max(rect.max.y);
+        }
         self.max_rect |= rect;
     }
 
     /// Ensure we are big enough to contain the given X-coordinate.
     /// This is sometimes useful to expand a ui to stretch to a certain place.
     pub fn expand_to_include_x(&mut self, x: f32) {
-        self.min_rect.extend_with_x(x);
+        if let Some(seed_x) = self.seed_x.take() {
+            // First extent on a seeded axis: span from the seed anchor to the new
+            // value — the same shape extending the seed-point `min_rect` produces —
+            // and the seed is spent, so later folds union as usual.
+            self.min_rect.min.x = seed_x.min(x);
+            self.min_rect.max.x = seed_x.max(x);
+        } else {
+            self.min_rect.extend_with_x(x);
+        }
         self.max_rect.extend_with_x(x);
         self.cursor.extend_with_x(x);
     }
@@ -65,9 +101,25 @@ impl Region {
     /// Ensure we are big enough to contain the given Y-coordinate.
     /// This is sometimes useful to expand a ui to stretch to a certain place.
     pub fn expand_to_include_y(&mut self, y: f32) {
-        self.min_rect.extend_with_y(y);
+        if let Some(seed_y) = self.seed_y.take() {
+            // First extent on a seeded axis: span from the seed anchor to the new
+            // value — the same shape extending the seed-point `min_rect` produces —
+            // and the seed is spent, so later folds union as usual.
+            self.min_rect.min.y = seed_y.min(y);
+            self.min_rect.max.y = seed_y.max(y);
+        } else {
+            self.min_rect.extend_with_y(y);
+        }
         self.max_rect.extend_with_y(y);
         self.cursor.extend_with_y(y);
+    }
+
+    /// Replace `min_rect` with the given rect and spend both seeds: the forced rect is
+    /// the content, and a stale seed would make the next fold replace it.
+    pub(crate) fn replace_min_rect(&mut self, min_rect: Rect) {
+        self.min_rect = min_rect;
+        self.seed_x = None;
+        self.seed_y = None;
     }
 
     pub fn sanity_check(&self) {
@@ -431,9 +483,17 @@ impl Layout {
             min_rect: Rect::NOTHING, // temporary
             max_rect,
             cursor: self.initial_cursor(max_rect),
+            seed_x: None,
+            seed_y: None,
         };
         let seed = self.next_widget_position(&region);
+        // The zero-size anchor at the next widget position — for a vertical
+        // `Align::Center` body the center of the offered rect — is a placeholder for
+        // the empty body, not content: the first measured rect on an axis replaces it
+        // (see `Region::expand_to_include_rect`).
         region.min_rect = Rect::from_center_size(seed, Vec2::ZERO);
+        region.seed_x = Some(seed.x);
+        region.seed_y = Some(seed.y);
         region
     }
 
@@ -550,6 +610,8 @@ impl Layout {
                 mut cursor,
                 mut max_rect,
                 min_rect,
+                seed_x,
+                seed_y,
             } = *region;
 
             match self.main_dir {
@@ -631,6 +693,8 @@ impl Layout {
                 min_rect,
                 max_rect,
                 cursor,
+                seed_x,
+                seed_y,
             };
 
             self.next_frame_ignore_wrap(&region, child_size)

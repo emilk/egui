@@ -65,7 +65,7 @@ impl Placer {
 
     #[inline(always)]
     pub(crate) fn force_set_min_rect(&mut self, min_rect: Rect) {
-        self.region.min_rect = min_rect;
+        self.region.replace_min_rect(min_rect);
     }
 
     #[inline(always)]
@@ -202,7 +202,10 @@ impl Placer {
         // see `Layout::next_frame_ignore_wrap`) is placement-only and must not widen the
         // minimum size; for every other vertical layout the frame already equals the widget
         // rect. Horizontal layouts and grids keep folding the frame: there the frame is
-        // load-bearing (row height / cell size), not a measurement defect.
+        // load-bearing (row height / cell size), not a measurement defect. The
+        // `region_from_max_rect` seed is a placeholder, not content: the first measured
+        // rect replaces it per axis, so a zero-size alignment anchor never widens the
+        // measured span.
         let measured_rect = if self.grid.is_none() && self.layout.is_vertical() {
             widget_rect
         } else {

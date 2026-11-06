@@ -385,3 +385,36 @@ fn max_pinned_bodies_cap_at_the_reading_edge_and_the_rest_is_flag_invariant() {
         );
     }
 }
+
+/// The width setters' empty-body anchor: a bare `set_min_width(200)` in a vertical
+/// `Align::Center` body claims the centered span `[220..420]` of the 8..632 offered
+/// rect, and the measured y stays the seed row. A claim always contains the seed point
+/// on its axis (the first `expand_to_include_x` yields the same span either way), so
+/// the seed semantics must not change it: the claim anchors at the layout-derived
+/// center and never balloons to the offered span.
+#[test]
+fn centered_body_bare_claim_keeps_the_layout_anchored_span() {
+    for rtl in [false, true] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        let offered = Rect::from_min_max(pos2(8.0, 8.0), pos2(632.0, 472.0));
+        let mut min_rect = Rect::NOTHING;
+        run(&ctx, input(SCREEN), |ui| {
+            let mut child = ui.new_child(
+                UiBuilder::new()
+                    .max_rect(offered)
+                    .layout(Layout::top_down(Align::Center)),
+            );
+            child.set_min_width(200.0);
+            min_rect = child.min_rect();
+        });
+        assert_eq!(
+            min_rect,
+            Rect::from_min_max(pos2(220.0, 8.0), pos2(420.0, 8.0)),
+            "rtl = {rtl}: the bare claim must measure the centered 200-wide span with \
+             the seed-row y, got {min_rect:?}"
+        );
+    }
+}

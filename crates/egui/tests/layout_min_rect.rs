@@ -100,7 +100,9 @@ fn vertical_cross_align_measurement_parity() {
 }
 
 /// A nested centered body no longer leaks its full-width stretched frame into the
-/// parent: a `Min` body and a `Max` body each measure the mirrored 175 pt content span.
+/// parent, and the parent's own alignment seed is a placeholder, not content: a `Min`
+/// body and a `Max` body both measure exactly the child's content bounding box
+/// (`[133..183]` for the centered 50-wide widget in the 300-wide desired rect).
 #[test]
 fn vertical_max_and_min_mirror_with_centered_child() {
     let child = |ui: &mut Ui| {
@@ -111,11 +113,12 @@ fn vertical_max_and_min_mirror_with_centered_child() {
     let min = measure(Layout::top_down(Align::Min), child);
     let max = measure(Layout::top_down(Align::Max), child);
 
-    assert_eq!(min.width(), 175.0);
-    assert_eq!(max.width(), 175.0);
-    // Mirrored geometry inside the desired rect (origin 8.0, right edge 308.0):
-    assert_eq!(min.min, pos2(8.0, 8.0));
-    assert_eq!(max.max, pos2(308.0, 18.0));
+    assert_eq!(min.width(), 50.0);
+    assert_eq!(max.width(), 50.0);
+    // The content bounding box, identical for both cross alignments (the widget is
+    // centered in the desired rect 8.0..308.0):
+    assert_eq!(min, Rect::from_min_max(pos2(133.0, 8.0), pos2(183.0, 18.0)));
+    assert_eq!(max, Rect::from_min_max(pos2(133.0, 8.0), pos2(183.0, 18.0)));
 }
 
 /// Golden pin: a plain `Align::Min` body keeps its exact pre-change geometry.
@@ -291,6 +294,48 @@ fn probe_window_with_mirrored_row_hugs_content_in_all_frames() {
             (body_width - 108.0).abs() <= 0.5,
             "frame {frame}: the autosized body must hug the mirrored row \
              (108 pt), got {body_width}"
+        );
+    }
+}
+
+/// An empty child whose zero-size seed point sits at an offset edge must not widen the
+/// parent's measured span: the point is the first measured rect on each axis, so it
+/// *replaces* the parent's seed contribution instead of unioning with it. An empty
+/// `indent` in a fresh panel therefore measures the point at the indented edge
+/// (`(26, 8)` LTR / `(614, 8)` RTL), not the seed-to-point union
+/// (`[8..26]` / `[614..632]`).
+#[test]
+fn empty_child_point_replaces_the_parent_seed() {
+    for (ltr, expected) in [(true, pos2(26.0, 8.0)), (false, pos2(614.0, 8.0))] {
+        let ctx = Context::default();
+        if !ltr {
+            ctx.set_right_to_left(true);
+        }
+        let mut parent = Rect::NOTHING;
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), SCREEN)),
+                ..Default::default()
+            },
+            |ui| {
+                egui::CentralPanel::default().show(ui, |ui| {
+                    parent = ui
+                        .vertical(|ui| {
+                            ui.indent("empty_indent", |_ui| {});
+                        })
+                        .response
+                        .rect;
+                });
+            },
+        );
+        output.drop_without_applying_deltas();
+
+        assert_eq!(
+            parent,
+            Rect::from_min_size(expected, Vec2::ZERO),
+            "{}: the parent must measure the empty child's point at the indented edge, \
+             not the union with its own seed edge",
+            if ltr { "LTR" } else { "RTL" }
         );
     }
 }
