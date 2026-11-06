@@ -1099,6 +1099,20 @@ pub struct Glyph {
     #[cfg_attr(feature = "serde", serde(default))]
     pub bidi_level: u8,
 
+    /// Whether the shaper emitted this glyph as one of a shaping cluster's
+    /// surplus glyphs: the cluster shapes to more glyphs than characters (a
+    /// decomposing font splitting one character into a component glyph plus
+    /// its base), so this glyph must not own a cursor column — galley
+    /// assembly folds it into the cluster's remaining glyph after
+    /// tessellation, keeping one glyph per character. Glyphs of clusters
+    /// that shape to one glyph per character or fewer — shaped combining
+    /// marks among them, whose glyph draws ink but stands for its own
+    /// character — are never stamped. Serialized galleys from before this
+    /// field existed degrade to `false`: their decomposed rows keep one
+    /// phantom cursor column per surplus glyph.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub is_cluster_surplus: bool,
+
     /// Index into [`LayoutJob::sections`]. Decides color etc.
     ///
     /// Only used during layout, then set to an invalid value in order to
@@ -1111,10 +1125,11 @@ pub struct Glyph {
 }
 
 /// Pin the glyph size: galleys are cached per layout, so a silently growing
-/// [`Glyph`] would bloat every galley in every cache. rustc packs the two
-/// one-byte fields (`is_color`, `bidi_level`) into existing padding, keeping
-/// the struct at 72 bytes. If this assert fires, your field made every stored
-/// glyph grow — re-check the layout before shipping.
+/// [`Glyph`] would bloat every galley in every cache. rustc packs the
+/// one-byte fields (`is_color`, `bidi_level`, `is_cluster_surplus`) into
+/// existing padding, keeping the struct at 72 bytes. If this assert fires,
+/// your field made every stored glyph grow — re-check the layout before
+/// shipping.
 const _: () = assert!(
     core::mem::size_of::<Glyph>() == 72,
     "Glyph grew beyond 72 bytes: every cached galley holds one Glyph per char",

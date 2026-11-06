@@ -382,6 +382,7 @@ impl ShapingContext {
             uv_rect,
             is_color,
             bidi_level: self.bidi_level,
+            is_cluster_surplus: false,
             section_index: self.section_index,
             first_vertex: 0,
         }
@@ -440,6 +441,9 @@ fn layout_shaped_run(
     let mut cluster_start_byte: usize = 0;
     let mut previous_cluster_start: Option<usize> = None;
     let mut cluster_glyph_count: usize = 0;
+    // Where the current cluster's glyphs start in `paragraph.glyphs`, so its
+    // surplus glyphs can be stamped once the cluster has been counted.
+    let mut cluster_first_glyph: usize = 0;
 
     for (info, pos) in iter::zip(glyph_buffer.glyph_infos(), glyph_buffer.glyph_positions()) {
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
@@ -488,6 +492,13 @@ fn layout_shaped_run(
                     // larger cluster start:
                     previous_cluster_start.unwrap_or(run_text.len())
                 };
+                stamp_surplus_cluster_glyphs(
+                    paragraph,
+                    run_text,
+                    cluster_start_byte..outgoing_end,
+                    cluster_glyph_count,
+                    cluster_first_glyph,
+                );
                 emit_continuation_glyphs(
                     ctx,
                     paragraph,
@@ -506,6 +517,7 @@ fn layout_shaped_run(
             }
             cluster_start_byte = cluster as usize;
             cluster_glyph_count = 0;
+            cluster_first_glyph = paragraph.glyphs.len();
             ctx.is_first_glyph_in_section = false;
         }
         ctx.prev_cluster = Some(cluster);
@@ -611,6 +623,13 @@ fn layout_shaped_run(
             Some(previous) if cluster_start_byte < previous => previous,
             _ => run_text.len(),
         };
+        stamp_surplus_cluster_glyphs(
+            paragraph,
+            run_text,
+            cluster_start_byte..last_end,
+            cluster_glyph_count,
+            cluster_first_glyph,
+        );
         emit_continuation_glyphs(
             ctx,
             paragraph,
@@ -743,6 +762,36 @@ fn emit_continuation_glyphs(
             ),
             cluster_start,
         );
+    }
+}
+
+/// Stamp a shaped cluster's surplus glyphs
+/// ([`Glyph::is_cluster_surplus`]): when the cluster shapes to more glyphs
+/// than characters, the zero-advance glyphs beyond the character count are
+/// decomposition components that must not own cursor columns — galley
+/// assembly folds them into the cluster's remaining glyph. Runs before
+/// [`emit_continuation_glyphs`], so the stamp only reaches the cluster's
+/// shaped glyphs, never the continuation glyphs of the opposite direction.
+fn stamp_surplus_cluster_glyphs(
+    paragraph: &mut Paragraph,
+    run_text: &str,
+    cluster_bytes: Range<usize>,
+    cluster_glyph_count: usize,
+    cluster_first_glyph: usize,
+) {
+    let Some(cluster_text) = run_text.get(cluster_bytes) else {
+        return;
+    };
+    let surplus = cluster_glyph_count.saturating_sub(cluster_text.chars().count());
+    let mut stamped = 0;
+    for glyph in paragraph.glyphs.iter_mut().skip(cluster_first_glyph) {
+        if stamped == surplus {
+            return;
+        }
+        if glyph.advance_width <= 0.0 && !glyph.is_cluster_surplus {
+            glyph.is_cluster_surplus = true;
+            stamped += 1;
+        }
     }
 }
 
@@ -1955,6 +2004,7 @@ fn replace_last_glyph_with_overflow_character(
                 // The ellipsis continues the row's reading direction, so it
                 // takes the row's base level:
                 bidi_level: u8::from(row.base_direction == TextDirection::RightToLeft),
+                is_cluster_surplus: false,
                 section_index,
                 first_vertex: 0, // filled in later
             });
@@ -2143,6 +2193,7 @@ fn replace_first_glyph_with_overflow_character(
                     // The ellipsis continues the row's reading direction, so it
                     // takes the row's base level:
                     bidi_level: u8::from(row.base_direction == TextDirection::RightToLeft),
+                    is_cluster_surplus: false,
                     section_index,
                     first_vertex: 0, // filled in later
                 },
@@ -2459,46 +2510,46 @@ fn tessellate_row(
 /// Collapse each decomposed cluster's glyphs into one cursor-stream glyph.
 ///
 /// A decomposing font (Noto Sans Arabic and kin) emits some letters as a
-/// zero-advance component glyph plus its base — one shaping cluster, two
-/// glyphs stamped the cluster's first character, the component carrying the
-/// pair's ink split. `emit_continuation_glyphs` keeps
+/// zero-advance component glyph plus its base — one shaping cluster, more
+/// glyphs than characters. The shaper stamps those surplus glyphs
+/// ([`Glyph::is_cluster_surplus`]); `emit_continuation_glyphs` keeps
 /// `glyphs.len() == char_count` for clusters that shape to *fewer* glyphs
-/// than characters (ligatures, flag emojis); the opposite direction has no
-/// emitter, so an uncollapsed decomposed letter contributes a phantom cursor
-/// column: every caret boundary, hit test and text-edit insertion past it
-/// drifts by one column per extra glyph.
+/// than characters (ligatures, flag emojis), and this fold restores the
+/// invariant for clusters that shape to *more*: an uncollapsed surplus glyph
+/// contributes a phantom cursor column, and every caret boundary, hit test
+/// and text-edit insertion past it drifts by one column per extra glyph.
 ///
 /// Runs after tessellation, so the mesh keeps every glyph's quad (the
 /// component's ink is real); the collapsed entry keeps the group's first
 /// mesh vertex, so selection recolor spans still cover the whole cluster.
-/// A component is told from the other zero-advance glyphs — a
+/// Zero-advance glyphs the shaper did not stamp pass through untouched: a
 /// multi-character cluster's continuation (which carries the *next*
-/// character and must survive to keep one glyph per character) and invisible
-/// marks — by carrying ink and repeating an adjacent glyph's character.
+/// character and must survive to keep one glyph per character) and a shaped
+/// combining mark, whose glyph draws ink but stands for its own character.
 fn collapse_decomposed_clusters(row: &mut Row) {
     if row.glyphs.len() < 2 {
         return;
     }
-    // Both fold branches need a zero-advance glyph that draws ink; without
-    // one nothing can merge and the stream already holds one glyph per
-    // character, so the original vector is kept (hot rows pay one scan and
-    // no allocation).
+    // Both fold branches need a stamped surplus glyph; without one nothing
+    // can merge and the stream already holds one glyph per character, so the
+    // original vector is kept (hot rows pay one scan and no allocation).
     if !row
         .glyphs
         .iter()
-        .any(|glyph| glyph.advance_width <= 0.0 && !glyph.uv_rect.is_nothing())
+        .any(|glyph| glyph.advance_width <= 0.0 && glyph.is_cluster_surplus)
     {
         return;
     }
     let mut collapsed: Vec<Glyph> = Vec::with_capacity(row.glyphs.len());
     let mut pending: Option<Glyph> = None;
     for glyph in row.glyphs.drain(..) {
-        let draws = !glyph.uv_rect.is_nothing();
         if glyph.advance_width > 0.0 {
             match pending.take() {
-                // The pending component and this base carry one character
-                // (the cluster's first); anything else keeps both glyphs.
-                Some(component) if draws && component.chr == glyph.chr => {
+                // The pending surplus glyphs belong to this base's cluster
+                // (the shaper emits them adjacent to it, all stamped with
+                // the cluster's first character); anything else keeps both
+                // glyphs.
+                Some(component) if component.chr == glyph.chr => {
                     collapsed.push(merge_cluster_glyphs(component, glyph));
                 }
                 other => {
@@ -2508,21 +2559,20 @@ fn collapse_decomposed_clusters(row: &mut Row) {
                     collapsed.push(glyph);
                 }
             }
-        } else if draws
+        } else if glyph.is_cluster_surplus
             && collapsed.last().is_some_and(|last| {
                 last.chr == glyph.chr && glyph.pos.x >= last.pos.x && glyph.pos.x <= last.max_x()
             })
         {
-            // An inked component of the previous stream glyph, emitted after
+            // A surplus glyph of the previous stream glyph, emitted after
             // it: its span already covers the component.
             if let Some(last) = collapsed.last_mut() {
                 last.pos.x = last.pos.x.min(glyph.pos.x);
                 last.advance_width = last.max_x().max(glyph.max_x()) - last.pos.x;
             }
-        } else if draws {
-            // An inked component emitted before its base (merged when the
-            // base arrives). Components of one character share its chr and
-            // chain together.
+        } else if glyph.is_cluster_surplus {
+            // A surplus glyph emitted before its base (merged when the base
+            // arrives). Surplus glyphs of one character chain together.
             if let Some(pending) = pending.as_mut()
                 && pending.chr == glyph.chr
             {
@@ -2534,12 +2584,11 @@ fn collapse_decomposed_clusters(row: &mut Row) {
                 pending = Some(glyph);
             }
         } else {
-            // An invisible zero-advance glyph (a continuation standing for
-            // its own character, or a zero-width mark): keep it, so the
-            // stream keeps one glyph per character.
-            if let Some(pending) = pending.take() {
-                collapsed.push(pending);
-            }
+            // A zero-advance glyph standing for its own character (a
+            // continuation of a multi-character cluster, or a shaped
+            // combining mark): keep it, so the stream keeps one glyph per
+            // character. The pending surplus glyph stays buffered — it
+            // belongs to a later base of its own cluster.
             collapsed.push(glyph);
         }
     }
@@ -6127,6 +6176,7 @@ mod tests {
                 uv_rect: Default::default(),
                 is_color: false,
                 bidi_level: 0,
+                is_cluster_surplus: false,
                 section_index: 0,
                 first_vertex: 0,
             }
@@ -6333,6 +6383,7 @@ mod tests {
             uv_rect: Default::default(),
             is_color: false,
             bidi_level,
+            is_cluster_surplus: false,
             section_index: 0,
             first_vertex: 0,
         }
@@ -7509,6 +7560,7 @@ mod tests {
             uv_rect: Default::default(),
             is_color: false,
             bidi_level: 1,
+            is_cluster_surplus: false,
             section_index: 0,
             first_vertex: 0,
         }
@@ -7690,10 +7742,10 @@ mod tests {
         );
     }
 
-    /// An inked glyph — a decomposed letter's component is told from the
-    /// other zero-advance glyphs by its atlas allocation, so hand-built
-    /// glyphs must carry a non-empty `uv_rect` (a 3×2-texel ink, like a
-    /// decomposed letter's dots).
+    /// An inked glyph carrying the shaper's cluster-surplus stamp: a
+    /// decomposed letter's component folds by the stamp, so hand-built
+    /// components must carry it (a 3×2-texel ink, like a decomposed letter's
+    /// dots). On a positive-advance base the stamp is never read.
     fn inked_glyph(chr: char, x: f32, advance: f32, first_vertex: u32) -> Glyph {
         Glyph {
             chr,
@@ -7712,6 +7764,7 @@ mod tests {
             },
             is_color: false,
             bidi_level: 1,
+            is_cluster_surplus: true,
             section_index: 0,
             first_vertex,
         }
@@ -7800,6 +7853,7 @@ mod tests {
             inked_glyph('e', 0.0, 8.0, 0),
             Glyph {
                 uv_rect: Default::default(),
+                is_cluster_surplus: false,
                 ..inked_glyph('\u{0301}', 8.0, 0.0, 4)
             },
             inked_glyph('x', 8.0, 8.0, 8),
@@ -7813,9 +7867,53 @@ mod tests {
         assert!(row.glyphs[1].uv_rect.is_nothing());
     }
 
+    /// A shaped combining mark draws ink and shares its cluster's first
+    /// character with the neighboring base glyph, but stands for its own
+    /// character — the shaper does not stamp it as a cluster surplus, and
+    /// the collapse must keep it: folding it would drop a real character's
+    /// cursor column (vocalized Arabic, Hebrew niqqud, Devanagari matras).
+    /// Only the stamped decomposition component folds.
+    #[test]
+    fn decomposed_cluster_collapse_keeps_shaped_marks() {
+        // `مَبْ`-shaped: the ب letter's dot (stamped, zero-advance) leads its
+        // base; the mark over the م letter (unstamped, zero-advance, same
+        // character as its base) leads its own base.
+        let row = &mut collapse_test_row(vec![
+            inked_glyph('ب', 5.0, 0.0, 0),  // the stamped dot
+            inked_glyph('ب', 0.0, 15.0, 4), // its base, span [0, 15]
+            Glyph {
+                is_cluster_surplus: false,
+                ..inked_glyph('م', 17.0, 0.0, 8)
+            }, // the mark, inked, unstamped
+            inked_glyph('م', 15.0, 8.0, 12), // its base, span [15, 23]
+        ]);
+        collapse_decomposed_clusters(row);
+
+        assert_eq!(
+            row.glyphs.len(),
+            3,
+            "one glyph per character: the mark keeps its column"
+        );
+        let stream: Vec<(char, f32, f32)> = row
+            .glyphs
+            .iter()
+            .map(|glyph| (glyph.chr, glyph.pos.x, glyph.advance_width))
+            .collect();
+        assert_eq!(
+            stream,
+            [('ب', 0.0, 15.0), ('م', 17.0, 0.0), ('م', 15.0, 8.0)],
+            "the stamped dot folds into its base; the unstamped mark survives in stream order"
+        );
+        assert!(
+            !row.glyphs[1].uv_rect.is_nothing(),
+            "the mark's ink is real"
+        );
+        assert!(!row.glyphs[1].is_cluster_surplus);
+    }
+
     /// Invisible zero-width marks draw no ink and survive the collapse —
     /// including two marks of the same character, and a mark repeating the
-    /// neighboring glyph's character. A row without any inked zero-advance
+    /// neighboring glyph's character. A row without any stamped surplus
     /// glyph also keeps its original glyph vector: the scan must not rebuild
     /// it.
     #[test]
@@ -7824,14 +7922,17 @@ mod tests {
             inked_glyph('م', 0.0, 8.0, 0),
             Glyph {
                 uv_rect: Default::default(),
+                is_cluster_surplus: false,
                 ..inked_glyph('\u{200F}', 8.0, 0.0, 4)
             },
             Glyph {
                 uv_rect: Default::default(),
+                is_cluster_surplus: false,
                 ..inked_glyph('\u{200F}', 8.0, 0.0, 8)
             },
             Glyph {
                 uv_rect: Default::default(),
+                is_cluster_surplus: false,
                 ..inked_glyph('ر', 8.0, 0.0, 12)
             },
             inked_glyph('ر', 8.0, 8.0, 16),
