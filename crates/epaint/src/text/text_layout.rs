@@ -1878,7 +1878,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "default_fonts")]
     /// Each test rasterizer needs its own [`GlyphRasterizer::key`], or they would replace each other.
     fn unique_test_key() -> String {
         static COUNTER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
@@ -2188,6 +2187,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     // No bundled font has CJK glyphs, so the line breaks depend on
     // the width of the `.notdef` glyph of the primary font.
     fn test_cjk() {
@@ -2206,6 +2206,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     // No bundled font has CJK glyphs, so the line breaks depend on
     // the width of the `.notdef` glyph of the primary font.
     fn test_pre_cjk() {
@@ -2224,6 +2225,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_no_break_spaces() {
         let row_texts = |text: &str| {
             let mut fonts = test_fonts();
@@ -2342,6 +2344,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_end_with_newline() {
         let pixels_per_point = 1.0;
         let mut fonts = test_fonts();
@@ -2577,6 +2580,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_gpos_kerning() {
         // GPOS kerning: pairs like "AV", "VA", "AT" should be tighter than
         // the sum of individual character widths. Without text shaping, egui
@@ -2720,6 +2724,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "default_fonts")]
     fn measure_text(
         fonts: &mut FontsImpl,
         text: &str,
