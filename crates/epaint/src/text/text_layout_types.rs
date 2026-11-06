@@ -1315,14 +1315,20 @@ impl Row {
     /// order the row's text reads, by re-applying the UAX #9 L2 reversal
     /// schedule to the visual cell sequence (for `level` from
     /// `(min_level | 1)..=max_level` descending, reverse each maximal
-    /// contiguous subsequence of cells at `level >= level`).
+    /// contiguous subsequence of cells at `level >= level`;
+    /// `min_level | 1` is exactly unicode-bidi's `new_lowest_ge_rtl`,
+    /// `Level(self.0 | 1)`).
     ///
-    /// This mirrors `accesskit_text.rs::logical_run_order` in egui (the
-    /// accessibility bridge applies the same schedule to its text runs) —
-    /// keep the two in sync. Unlike the bridge's version there is no
-    /// empty-run handling: cells are never empty. All-level-0 rows (legacy
-    /// deserialized galleys) skip the replay entirely (`0 | 1 > 0`), so their
-    /// cells stay in visual order: the content reads as left-to-right.
+    /// This is the single shared copy of the schedule: the items may be any
+    /// non-empty ranges into `Self::glyphs` whose level is the first glyph's
+    /// `bidi_level` stamp — the row's cluster cells here, whole same-level
+    /// text runs in egui's accessibility bridge
+    /// (`accesskit_text.rs::logical_run_order`), which feeds this the row's
+    /// non-empty runs and re-appends its glyph-less newline-only runs last,
+    /// because empty items carry no level of their own. All-level-0 rows
+    /// (legacy deserialized galleys) skip the replay entirely (`0 | 1 > 0`),
+    /// so their cells stay in visual order: the content reads as
+    /// left-to-right.
     pub fn logical_cell_order(&self, cells: &[Range<usize>]) -> Vec<usize> {
         let level_of = |i: usize| -> u8 {
             cells

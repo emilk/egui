@@ -150,7 +150,7 @@ impl RowTextRuns {
             })
             .collect();
 
-        let logical_order = logical_run_order(&runs);
+        let logical_order = logical_run_order(&row.row, &runs);
 
         // The row's trailing newline terminates its text, so it goes on the
         // logically-last run. It adds one char to that run's value; the char
@@ -192,17 +192,12 @@ impl RowTextRuns {
 /// The logical order of a row's runs, as indices into `runs` (which are in
 /// stream / visual order).
 ///
-/// Reconstructs the logical run order by re-applying the UAX #9 L2 reversal
-/// schedule to the visual run sequence: for L from the highest run level down
-/// to the lowest odd bound — `minimum run level | 1`, exactly unicode-bidi's
-/// `new_lowest_ge_rtl` (`Level(self.0 | 1)`) — reverse each maximal contiguous
-/// sequence of runs at level >= L. The `(bound..=max).rev()` loop shape
-/// includes the intermediate even levels and skips the replay entirely when no
-/// level qualifies (e.g. an all-even run list like the level-2 digits of a
-/// right-to-left row: their visual order is already the logical one).
-///
-/// Runs without glyphs (a newline-only run from the 255-char split) are
-/// pinned last: the newline terminates the row's text.
+/// The order comes from [`Row::logical_cell_order`] in epaint — the shared
+/// inverse-UAX #9-L2 replay over ranges into `Row::glyphs` (each run's level
+/// is its first glyph's stamp, exactly what [`TextRunInfo::level`]
+/// records). This function feeds it the row's non-empty runs and pins the
+/// glyph-less runs last: a newline-only run from the
+/// [`MAX_CHARS_PER_TEXT_RUN`] split — the newline terminates the row's text.
 ///
 /// Known fence: wrapping no longer slices an already-reordered
 /// *visual* stream — it walks the logical stream (`line_break_logically`) and
@@ -224,29 +219,16 @@ impl RowTextRuns {
 /// ranges, unclaimed blocks kept in logical order at the visual end).
 /// Everything else reconstructs exactly: single-row text, final rows, and
 /// every wrapped row whose stamps match its placed levels.
-fn logical_run_order(runs: &[TextRunInfo]) -> Vec<usize> {
-    let mut order: Vec<usize> = (0..runs.len())
+fn logical_run_order(row: &Row, runs: &[TextRunInfo]) -> Vec<usize> {
+    let non_empty: Vec<usize> = (0..runs.len())
         .filter(|&i| !runs[i].glyphs.is_empty())
         .collect();
-
-    let min_level = order.iter().map(|&i| runs[i].level).min().unwrap_or(0);
-    let max_level = order.iter().map(|&i| runs[i].level).max().unwrap_or(0);
-    let bound = min_level | 1;
-    for level in (bound..=max_level).rev() {
-        let mut i = 0;
-        while i < order.len() {
-            if runs[order[i]].level >= level {
-                let start = i;
-                while i < order.len() && runs[order[i]].level >= level {
-                    i += 1;
-                }
-                order[start..i].reverse();
-            } else {
-                i += 1;
-            }
-        }
-    }
-
+    let ranges: Vec<Range<usize>> = non_empty.iter().map(|&i| runs[i].glyphs.clone()).collect();
+    let mut order: Vec<usize> = row
+        .logical_cell_order(&ranges)
+        .into_iter()
+        .map(|j| non_empty[j]) // the helper returns a permutation of 0..ranges.len()
+        .collect();
     order.extend((0..runs.len()).filter(|&i| runs[i].glyphs.is_empty()));
     order
 }
@@ -606,7 +588,7 @@ mod tests {
     use accesskit::{NodeId, Role, TextDirection, TreeUpdate};
     use epaint::text::cursor::CCursor;
 
-    use super::{MAX_CHARS_PER_TEXT_RUN, row_text_runs, text_run_position};
+    use super::{MAX_CHARS_PER_TEXT_RUN, RowTextRuns, row_text_runs, text_run_position};
     use crate::text_selection::cursor_range::ccursor_from_accesskit_text_position;
     use crate::{Color32, Context, FontId, Id, RawInput, Ui};
 
@@ -908,6 +890,78 @@ mod tests {
         assert_eq!(&chunk0[..3], &[3u8, 6, 9]);
         assert_eq!(chunk1.len(), 15);
         assert_eq!(&chunk1[..3], &[0u8, 3, 6]);
+    }
+
+    /// A >255-char right-to-left row with a trailing newline: the 255-char
+    /// split yields a glyph-less newline-only second run, which
+    /// [`RowTextRuns`] clamps empty, keeps out of the logical-order replay,
+    /// and pins logically last (the newline terminates the row's text). The
+    /// LTR sibling (`long_ltr_rows_chunk_every_255_chars`) covers only the
+    /// identity permutation; this walks the RTL path through the real
+    /// pipeline.
+    #[test]
+    fn long_rtl_row_pins_the_glyph_less_newline_run_last() {
+        let ctx = Context::default();
+        let text = format!("{}\nx", "عربي ".repeat(51)); // 255 chars, then '\n', then 'x'
+        let mut galley_slot = None;
+        let update = accesskit_update(&ctx, |ui| {
+            let galley = ui.painter().layout(
+                text.clone(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            galley_slot = Some(galley);
+            ui.add(crate::Label::new(text.clone()).wrap_mode(crate::TextWrapMode::Extend));
+        });
+
+        let galley = galley_slot.expect("galley");
+        assert!(galley.is_rtl(), "the text must resolve RTL (first-strong)");
+        assert_eq!(galley.rows.len(), 2, "the newline splits the text");
+        // FIRST, with a clear message: the exact two-run shape below IS the
+        // 255-split proof. Any deviation (shaping ≠ 1 glyph per char, an
+        // unexpected wrap) makes every later assertion meaningless:
+        assert_eq!(
+            galley.rows[0].glyphs.len(),
+            MAX_CHARS_PER_TEXT_RUN,
+            "row 0 must hold exactly 255 glyphs"
+        );
+        assert!(galley.rows[0].ends_with_newline);
+        assert_eq!(
+            row_text_runs(&galley.rows[0]),
+            [0..MAX_CHARS_PER_TEXT_RUN, 255..256],
+            "the 255-split: one full run plus a glyph-less newline-only tail"
+        );
+
+        let row_runs = RowTextRuns::new(&galley.rows[0]);
+        let last = row_runs.logically_last().expect("a logically last run");
+        assert!(
+            row_runs.runs[last].glyphs.is_empty(),
+            "the glyph-less run must be pinned logically last"
+        );
+        assert_eq!(
+            row_runs.logical_range(last),
+            255..256,
+            "the newline terminates the row's logical text"
+        );
+
+        // The row's tree runs, joined in logical order, read back the row's
+        // text with the newline last (label children: row 0's two runs, then
+        // row 1's single run):
+        let ids = label(&update, &text).children();
+        let values: Vec<String> = ids
+            .iter()
+            .map(|&id| node(&update, id).value().expect("value").to_owned())
+            .collect();
+        assert_eq!(values.len(), 3, "two runs on row 0, one on row 1");
+        assert_eq!(values[2], "x", "row 1 holds the char after the newline");
+        assert_eq!(values[1], "\n", "the glyph-less run's value is the newline");
+        let row0_logical_text: String = row_runs
+            .logical_order
+            .iter()
+            .map(|&stream_index| values[stream_index].as_str())
+            .collect();
+        assert_eq!(row0_logical_text, format!("{}\n", "عربي ".repeat(51)));
     }
 
     /// The UI language is stamped on the AccessKit root (inherited by every
