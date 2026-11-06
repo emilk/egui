@@ -592,7 +592,7 @@ impl Window<'_> {
             area
         };
 
-        // Apply the previous frame's title-bar drag _before_ `Area::begin`
+        // Apply the title-bar drag _before_ `Area::begin`
         // loads the state. We can't apply it inside the content closure because
         // `Area::end` writes the locally-captured `AreaState` back, overwriting
         // any in-frame mutation.
@@ -604,23 +604,32 @@ impl Window<'_> {
         // `Area::begin` would then apply is undone right after `begin` for
         // `WindowDrag::TitleBar`.
         let title_drag_mode = effective_drag == WindowDrag::TitleBar;
+        let title_drag_start_id = area.id.with("pivot_at_title_drag_start");
         let pivot_pos_before_begin = if title_drag_mode {
             if let Some(resp) = ctx.read_response(area.id.with("__title_click"))
                 && resp.dragged()
+                && let Some(pivot_pos) =
+                    area::AreaState::load(ctx, area.id).and_then(|s| s.pivot_pos)
             {
-                let delta = ctx.input(|i| i.pointer.delta());
-                if delta != Vec2::ZERO {
+                // Keep the unrounded drag origin: adding per-frame deltas to the rounded
+                // position below loses fractional movement and lets the grab point drift.
+                let drag_start = ctx
+                    .data_mut(|data| *data.get_temp_mut_or::<Pos2>(title_drag_start_id, pivot_pos));
+                // PointerGone removes coordinates, not the held drag. Keep its anchor and
+                // current position until fresh coordinates arrive or the gesture actually ends.
+                if let Some(delta) = resp.total_drag_delta() {
                     ctx.memory_mut(|mem| {
-                        if let Some(state) = mem.areas_mut().get_mut(area.id)
-                            && let Some(pivot_pos) = state.pivot_pos.as_mut()
-                        {
-                            *pivot_pos += delta;
+                        if let Some(state) = mem.areas_mut().get_mut(area.id) {
+                            state.pivot_pos = Some(drag_start + delta);
                         }
                     });
                 }
+            } else {
+                ctx.data_mut(|data| data.remove::<Pos2>(title_drag_start_id));
             }
             area::AreaState::load(ctx, area.id).and_then(|s| s.pivot_pos)
         } else {
+            ctx.data_mut(|data| data.remove::<Pos2>(title_drag_start_id));
             None
         };
 
@@ -1564,6 +1573,202 @@ mod tests {
         run_frame(ctx, vec![Event::PointerMoved(to)]);
         run_frame(ctx, vec![button(to, false)]);
         run_frame(ctx, vec![]);
+    }
+
+    /// Runs a small floating window with the requested drag mode and optional layout retry.
+    fn drag_frame(
+        ctx: &Context,
+        events: Vec<Event>,
+        mode: crate::WindowDrag,
+        multipass: bool,
+    ) -> Rect {
+        run_frame_with(
+            ctx,
+            events,
+            |window| {
+                if multipass && ctx.current_pass_index() == 0 {
+                    ctx.request_discard("Exercise dragging across a layout retry");
+                }
+                window
+                    .default_pos([250.0, 200.0])
+                    .default_size([180.0, 100.0])
+                    .resizable(false)
+                    .drag_area(mode)
+                    .constrain_to(Rect::from_min_max(pos2(50.0, 50.0), pos2(750.0, 550.0)))
+            },
+            1,
+        )
+    }
+
+    fn primary_button(pos: Pos2, pressed: bool) -> Event {
+        Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        }
+    }
+
+    /// Starts a gesture on the actual title widget, away from collapse/resize controls.
+    fn press_title(ctx: &Context, mode: crate::WindowDrag, multipass: bool) -> (Rect, Pos2) {
+        drag_frame(ctx, vec![], mode, multipass);
+        let rect = drag_frame(ctx, vec![], mode, multipass);
+        let press = ctx
+            .read_response(window_id().with("__title_click"))
+            .expect("Missing title widget")
+            .rect
+            .center();
+        drag_frame(ctx, vec![Event::PointerMoved(press)], mode, multipass);
+        drag_frame(ctx, vec![primary_button(press, true)], mode, multipass);
+        (rect, press)
+    }
+
+    /// Fractional movement may round each displayed position, but must never change the grab point.
+    #[test]
+    fn title_bar_drag_does_not_accumulate_rounding_error() {
+        use crate::WindowDrag;
+
+        for pixels_per_point in [1.0, 1.2, 1.25, 2.0, 2.4] {
+            for mode in [
+                WindowDrag::TitleBar,
+                WindowDrag::OnTouch,
+                WindowDrag::Anywhere,
+            ] {
+                for multipass in [false, true] {
+                    let ctx = Context::default();
+                    ctx.set_pixels_per_point(pixels_per_point);
+                    let (initial, press) = press_title(&ctx, mode, multipass);
+                    let pointer = press + vec2(8.0, 8.0);
+                    let moved =
+                        drag_frame(&ctx, vec![Event::PointerMoved(pointer)], mode, multipass);
+                    let tolerance = 0.5 / pixels_per_point + crate::emath::GUI_ROUNDING;
+                    assert!(
+                        (moved.min - initial.min - vec2(8.0, 8.0)).abs().max_elem() <= tolerance
+                    );
+
+                    // Returning the pointer after each half-pixel excursion must return the window.
+                    for _ in 0..120 {
+                        let offset = vec2(0.5, 0.5) / pixels_per_point;
+                        drag_frame(
+                            &ctx,
+                            vec![Event::PointerMoved(pointer + offset)],
+                            mode,
+                            multipass,
+                        );
+                        let returned =
+                            drag_frame(&ctx, vec![Event::PointerMoved(pointer)], mode, multipass);
+                        assert_eq!(
+                            returned.min, moved.min,
+                            "Grab point drifted: {pixels_per_point}, {mode:?}, multipass={multipass}"
+                        );
+                    }
+                    drag_frame(&ctx, vec![primary_button(pointer, false)], mode, multipass);
+                }
+            }
+        }
+    }
+
+    /// Each new press anchors at the current window position after the preceding gesture ends.
+    #[test]
+    fn title_bar_drag_resets_between_gestures() {
+        let ctx = Context::default();
+        let mode = crate::WindowDrag::TitleBar;
+        for displacement in [vec2(12.0, 8.0), vec2(-20.0, 16.0), vec2(6.0, -12.0)] {
+            let (initial, press) = press_title(&ctx, mode, false);
+            let pointer = press + displacement;
+            let moved = drag_frame(&ctx, vec![Event::PointerMoved(pointer)], mode, false);
+            assert_eq!(moved.min, initial.min + displacement);
+            drag_frame(&ctx, vec![primary_button(pointer, false)], mode, false);
+        }
+    }
+
+    /// Clamping at a screen boundary must not replace the unconstrained drag anchor.
+    #[test]
+    fn title_bar_drag_keeps_grab_point_after_hitting_constraints() {
+        let ctx = Context::default();
+        let mode = crate::WindowDrag::TitleBar;
+        let (initial, press) = press_title(&ctx, mode, false);
+        let bounds = Rect::from_min_max(pos2(50.0, 50.0), pos2(750.0, 550.0));
+        for offset in [vec2(900.0, 700.0), vec2(-900.0, -700.0)] {
+            let constrained =
+                drag_frame(&ctx, vec![Event::PointerMoved(press + offset)], mode, false);
+            assert!(bounds.contains_rect(constrained));
+            let returned = drag_frame(&ctx, vec![Event::PointerMoved(press)], mode, false);
+            assert_eq!(returned.min, initial.min);
+        }
+        drag_frame(&ctx, vec![primary_button(press, false)], mode, false);
+    }
+
+    /// Losing pointer coordinates while held must preserve both the position and drag origin.
+    #[test]
+    fn drag_anchor_survives_pointer_gone() {
+        use crate::WindowDrag;
+
+        for mode in [
+            WindowDrag::TitleBar,
+            WindowDrag::OnTouch,
+            WindowDrag::Anywhere,
+        ] {
+            for multipass in [false, true] {
+                let ctx = Context::default();
+                let (initial, press) = press_title(&ctx, mode, multipass);
+                drag_frame(
+                    &ctx,
+                    vec![Event::PointerMoved(press + vec2(8.0, 8.0))],
+                    mode,
+                    multipass,
+                );
+                for offset in [vec2(-900.0, -700.0), vec2(900.0, 700.0)] {
+                    let at_edge = drag_frame(
+                        &ctx,
+                        vec![Event::PointerMoved(press + offset)],
+                        mode,
+                        multipass,
+                    );
+                    for events in [vec![Event::PointerGone], vec![]] {
+                        let held = drag_frame(&ctx, events, mode, multipass);
+                        assert_eq!(held.min, at_edge.min, "Moved without coordinates: {mode:?}");
+                    }
+                    let returned =
+                        drag_frame(&ctx, vec![Event::PointerMoved(press)], mode, multipass);
+                    assert_eq!(returned.min, initial.min, "Lost grab point: {mode:?}");
+                }
+                drag_frame(&ctx, vec![primary_button(press, false)], mode, multipass);
+            }
+        }
+    }
+
+    /// Releasing outside still ends the gesture, so a later press must use a fresh origin.
+    #[test]
+    fn drag_anchor_resets_after_release_outside() {
+        use crate::WindowDrag;
+
+        for mode in [
+            WindowDrag::TitleBar,
+            WindowDrag::OnTouch,
+            WindowDrag::Anywhere,
+        ] {
+            let ctx = Context::default();
+            let (_, press) = press_title(&ctx, mode, false);
+            let outside = press - vec2(900.0, 700.0);
+            drag_frame(&ctx, vec![Event::PointerMoved(outside)], mode, false);
+            drag_frame(&ctx, vec![Event::PointerGone], mode, false);
+            drag_frame(
+                &ctx,
+                vec![primary_button(outside, false), Event::PointerGone],
+                mode,
+                false,
+            );
+            let (initial, press) = press_title(&ctx, mode, false);
+            let pointer = press + vec2(12.0, 8.0);
+            let moved = drag_frame(&ctx, vec![Event::PointerMoved(pointer)], mode, false);
+            assert_eq!(
+                moved.min,
+                initial.min + vec2(12.0, 8.0),
+                "Stale anchor: {mode:?}"
+            );
+            drag_frame(&ctx, vec![primary_button(pointer, false)], mode, false);
+        }
     }
 
     /// The position of a window that was resized below its default size survives a restart (#8522).
