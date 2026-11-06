@@ -49,15 +49,20 @@ pub enum NativeViewPlacement {
 /// list, and the integration should hide it. That is the case when the widget wasn't added this
 /// pass, is in an invisible [`Ui`], or is clipped out, for example by scrolling.
 ///
-/// The [`Response`] senses clicks and drags and can take the keyboard focus, so the view takes
-/// part in egui's focus handling like any other widget. egui does not see the input that the
-/// platform delivers to the view itself.
+/// Added with [`Ui::add`], the widget allocates its rect, and its [`Response`] senses clicks and
+/// drags and can take the keyboard focus, so the view takes part in egui's focus handling like
+/// any other widget. egui does not see the input that the platform delivers to the view itself.
+/// [`Self::show_in`] instead puts the view in a rect that is already allocated, such as the rect
+/// of another widget's [`Response`].
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// let id = egui::Id::unique("page");
 /// ui.add(egui::NativeView::new(id));
 /// ui.add(egui::NativeView::new(id).size(egui::vec2(320.0, 240.0)).above());
+///
+/// let response = ui.button("A page over a button");
+/// egui::NativeView::new(id).show_in(ui, response.rect);
 /// # });
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
@@ -83,7 +88,10 @@ impl NativeView {
         }
     }
 
-    /// Sets the size of the view's rect. Default: all of the available space.
+    /// Sets the size of the rect that [`Ui::add`] allocates for the view. Default: all of the
+    /// available space.
+    ///
+    /// [`Self::show_in`] takes its rect from the caller and ignores this.
     #[inline]
     pub fn size(mut self, size: Vec2) -> Self {
         self.size = Some(size);
@@ -92,7 +100,7 @@ impl NativeView {
 
     /// Places the view below or above egui's surface. Default: [`NativeViewPlacement::Below`].
     #[inline]
-    pub fn side(mut self, side: NativeViewPlacement) -> Self {
+    pub fn placement(mut self, side: NativeViewPlacement) -> Self {
         self.side = side;
         self
     }
@@ -101,14 +109,14 @@ impl NativeView {
     /// [`Self::clear`] asks for it.
     #[inline]
     pub fn above(self) -> Self {
-        self.side(NativeViewPlacement::Above)
+        self.placement(NativeViewPlacement::Above)
     }
 
     /// Places the view below egui's surface, where it shows through the rect that egui clears.
     /// This is the default.
     #[inline]
     pub fn below(self) -> Self {
-        self.side(NativeViewPlacement::Below)
+        self.placement(NativeViewPlacement::Below)
     }
 
     /// Whether egui clears the visible part of the view's rect to transparent with
@@ -124,32 +132,47 @@ impl NativeView {
     }
 }
 
-impl Widget for NativeView {
-    fn ui(self, ui: &mut Ui) -> Response {
+impl NativeView {
+    /// Shows the view in `rect` of `ui`, a rect that is already allocated, such as the rect of
+    /// a [`Response`].
+    ///
+    /// Unlike [`Ui::add`], this allocates no space and senses no input, so the view is reported
+    /// in [`crate::PlatformOutput::native_views`] but has no [`Response`] of its own: the widget
+    /// that owns `rect` keeps egui's clicks, drags and keyboard focus. [`Self::size`] is ignored.
+    ///
+    /// The view is clipped like the contents of `ui`, and is not shown when `ui` is invisible or
+    /// `rect` lies outside its clip rect.
+    pub fn show_in(self, ui: &Ui, rect: Rect) {
         let Self {
             id,
-            size,
+            size: _,
             side,
             clear,
         } = self;
-        let clear = clear.unwrap_or(side == NativeViewPlacement::Below);
-        let (_, rect) = ui.allocate_space(size.unwrap_or_else(|| ui.available_size()));
-        let response = ui.interact(rect, id, Sense::click_and_drag());
-        if ui.is_rect_visible(rect) {
-            if clear {
-                // The painter's clip rect limits the clear to the visible part of `rect`.
-                ui.painter().add(epaint::Shape::Clear(rect));
-            }
-            let shown = NativeViewShown {
-                id,
-                side,
-                layer: ui.layer_id(),
-                rect,
-                visible: visible_rect(ui, rect),
-            };
-            ui.ctx()
-                .pass_state_mut(|state| state.native_views.push(shown));
+        if !ui.is_rect_visible(rect) {
+            return;
         }
+        if clear.unwrap_or(side == NativeViewPlacement::Below) {
+            // The painter's clip rect limits the clear to the visible part of `rect`.
+            ui.painter().add(epaint::Shape::Clear(rect));
+        }
+        let shown = NativeViewShown {
+            id,
+            side,
+            layer: ui.layer_id(),
+            rect,
+            visible: visible_rect(ui, rect),
+        };
+        ui.ctx()
+            .pass_state_mut(|state| state.native_views.push(shown));
+    }
+}
+
+impl Widget for NativeView {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let (_, rect) = ui.allocate_space(self.size.unwrap_or_else(|| ui.available_size()));
+        let response = ui.interact(rect, self.id, Sense::click_and_drag());
+        self.show_in(ui, rect);
         response
     }
 }
