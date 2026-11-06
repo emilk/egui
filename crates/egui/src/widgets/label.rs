@@ -207,11 +207,19 @@ impl Label {
 
         let available_width = ui.available_width();
 
+        // The resolved base reading direction (≡ epaint's `resolved_direction`),
+        // decided BEFORE layouting: the fast path below mutates the job.
+        let base_rtl = layout_job
+            .direction
+            .or_else(|| epaint::text::TextDirection::infer(&layout_job.text))
+            == Some(epaint::text::TextDirection::RightToLeft);
+
         let wrap_mode = self.wrap_mode.unwrap_or_else(|| ui.wrap_mode());
         if wrap_mode == TextWrapMode::Wrap
-            && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
             && available_width.is_finite()
+            && ((ui.layout().main_dir() == Direction::LeftToRight && !base_rtl)
+                || (ui.layout().main_dir() == Direction::RightToLeft && base_rtl))
         {
             // On a wrapping horizontal layout we want text to start after the previous widget,
             // then continue on the line below! This will take some extra work:
@@ -232,7 +240,17 @@ impl Label {
             }
             let galley = ui.fonts_mut(|fonts| fonts.layout_job(layout_job));
 
-            let pos = pos2(ui.max_rect().left(), ui.cursor().top()) - vec2(galley.rect.left(), 0.0);
+            let pos = if base_rtl {
+                // Right-to-left rows anchor their ink at the reading start
+                // (the right edge); epaint keeps the first row's leading
+                // advance inside that row's ink (its box may overshoot by
+                // trailing whitespace only), so anchoring the galley box's
+                // right edge at the container's reading-start edge insets
+                // the first row's ink by the indent.
+                pos2(ui.max_rect().right(), ui.cursor().top()) - vec2(galley.rect.right(), 0.0)
+            } else {
+                pos2(ui.max_rect().left(), ui.cursor().top()) - vec2(galley.rect.left(), 0.0)
+            };
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
             // collect a response from many rows:
             let rect = galley.rows[0]
