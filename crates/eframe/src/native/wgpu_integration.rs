@@ -1371,8 +1371,13 @@ fn handle_viewport_output(
         viewport.process_commands(egui_ctx, commands);
 
         // For Wayland : https://github.com/emilk/egui/issues/4196
-        if cfg!(target_os = "linux")
-            && let Some(window) = viewport.window.as_ref()
+        if cfg!(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        )) && let Some(window) = viewport.window.as_ref()
             && let Some(old_inner_size) = old_inner_size
         {
             let new_inner_size = window.inner_size();
