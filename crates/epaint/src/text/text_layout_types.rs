@@ -885,7 +885,8 @@ pub struct Galley {
     ///
     /// The anchors hold for the aligned ink; whitespace that the alignment
     /// ignores ([`LayoutJob::keep_trailing_whitespace`] is `false`) extends
-    /// the rect reading-forward from the anchored ink.
+    /// the rect reading-forward from the anchored ink. Reading-forward
+    /// follows the row's base direction: leftward on a right-to-left row.
     pub rect: Rect,
 
     /// Tight bounding box around all the meshes in all the rows.

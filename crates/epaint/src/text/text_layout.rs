@@ -6671,6 +6671,68 @@ mod tests {
         advance_assert_close(ink.1 + placed.pos.x, 0.0);
     }
 
+    /// A wrapped right-to-left galley keeps every row box and the galley
+    /// rect anchored at the reading start: each row hangs its ignored
+    /// break-space reading-forward instead of extending its box past the
+    /// anchored edge, so the galley rect's right edge stays at the origin.
+    /// The measured width must not grow relative to the left-to-right twin
+    /// of the same job (beyond the per-row pixel rounding wobble on the
+    /// union's two edges). The asserts are property-style: font advances
+    /// are not stable literals, the discriminator is the side and magnitude
+    /// of the anchored edge.
+    #[test]
+    fn wrapped_rtl_galley_right_edge_stays_at_zero() {
+        // Long enough to wrap into several rows at the wrap width, with a
+        // space at every break candidate. Whether the bundled fonts shape
+        // the Arabic glyphs or substitute replacement glyphs, the wrapped
+        // rows still carry real space advances and non-whitespace ink.
+        let text = "النص العربي الطويل يلتف على عدة أسطر داخل النافذة الضيقة عند كل مسافة";
+        let wrap_width = 120.0;
+        let mut job = LayoutJob::simple(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            wrap_width,
+        );
+        job.halign = Align::Max;
+        let mut fonts = test_fonts();
+        let galley = layout(&mut fonts, 1.0, job.clone().into());
+
+        assert!(
+            galley.rows.len() > 1,
+            "the paragraph must wrap into several rows (got {})",
+            galley.rows.len()
+        );
+        for placed in &galley.rows {
+            let box_right = placed.pos.x + placed.row.size.x;
+            assert!(
+                box_right <= 0.5 + emath::GUI_ROUNDING,
+                "every row box must end at the anchored edge, not extend past \
+                 it (box right {box_right}, row pos {:?}, size {:?})",
+                placed.pos,
+                placed.row.size
+            );
+        }
+        assert!(
+            galley.rect.right() >= -1.0 && galley.rect.right() < 1.0,
+            "the galley rect must stay anchored at the reading start (rect {:?})",
+            galley.rect
+        );
+
+        // The left-to-right twin of the same job measures the same width
+        // (its rows keep their natural widths and anchor their left edges,
+        // so its union is exactly the widest row):
+        job.direction = Some(TextDirection::LeftToRight);
+        let ltr_twin = layout(&mut fonts, 1.0, job.into());
+        assert!(
+            (galley.rect.width() - ltr_twin.rect.width()).abs() <= 1.5,
+            "the rtl galley must not measure wider than its ltr twin beyond \
+             the rounding wobble (rtl {:.3}, ltr {:.3})",
+            galley.rect.width(),
+            ltr_twin.rect.width()
+        );
+    }
+
     /// The legacy wrap path threads the paragraph's leading advance onto the
     /// row that carries the paragraph's first glyph — the advance stays in
     /// that row's glyphs (production leaves it in the first glyph's position)
