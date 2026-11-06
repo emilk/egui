@@ -5,6 +5,16 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+### ⭐ Added
+* Added `LayoutJob::direction` (`TextDirection::{Auto, LeftToRight, RightToLeft}`) setting the base direction of each paragraph, carried to rows as `Row::rtl_paragraph`
+* Right-to-left paragraphs now start on the right with `Align::Min` (new `LayoutJob::halign_min_is_start`, default `true`)
+
+### 🔧 Changed
+* The overflow character of an elided row is now placed at the visual end of the row
+* Applied UAX #9 rule L1 per row: trailing whitespace and tabs take the paragraph level
+* Row reordering (UAX #9 rule L2) is now linear time and stored in `Row::visual_order`; zero-width bidi controls keep their own levels
+
 ## 0.37.0 - 2026-10-15
 ### ⭐ Added
 * Add `epaint::RoundedRect` primitive [#8440](https://github.com/emilk/egui/pull/8440) by [@emilk](https://github.com/emilk)

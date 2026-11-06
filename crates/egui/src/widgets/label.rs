@@ -82,6 +82,11 @@ impl Label {
     }
 
     /// Sets the horizontal alignment of the Label to the given `Align` value.
+    ///
+    /// Without this, the alignment comes from the [`crate::Layout`]. When that is
+    /// `Align::Min`, each right-to-left paragraph is aligned to the right, where it starts
+    /// (see [`epaint::text::LayoutJob::halign_min_is_start`]).
+    /// An explicit `Align::LEFT` here puts right-to-left text on the left too.
     #[inline]
     pub fn halign(mut self, align: Align) -> Self {
         self.halign = Some(align);
@@ -207,6 +212,8 @@ impl Label {
             layout_job.wrap.max_width = available_width;
             layout_job.first_row_min_height = cursor.height();
             layout_job.halign = Align::Min;
+            // The text continues the row of the previous widget, from the left:
+            layout_job.halign_min_is_start = false;
             layout_job.justify = false;
             if let Some(first_section) = layout_job.sections.first_mut() {
                 first_section.leading_space = first_row_indentation;
@@ -251,6 +258,7 @@ impl Label {
                 layout_job.halign = self
                     .halign
                     .unwrap_or_else(|| ui.layout().horizontal_placement());
+                layout_job.halign_min_is_start &= self.halign.is_none();
                 layout_job.justify = ui.layout().horizontal_justify();
             }
 
@@ -323,5 +331,64 @@ impl Widget for Label {
         }
 
         response
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Context, FontDefinitions, Layout};
+
+    use super::*;
+
+    fn run_with_label(
+        ctx: &Context,
+        mut add_contents: impl FnMut(&mut Ui) -> Arc<Galley>,
+    ) -> Arc<Galley> {
+        let mut galley = None;
+        let output = ctx.run_ui(Default::default(), |ui| {
+            galley = Some(add_contents(ui));
+        });
+        output.drop_without_applying_deltas();
+        galley.expect("The closure was not called")
+    }
+
+    /// A right-to-left paragraph in a label with no explicit `halign` starts on the right
+    /// (`halign_min_is_start` stays `true`); an explicit `halign` opts out, and so does a
+    /// label that continues a wrapping row.
+    #[test]
+    fn rtl_label_halign_min_is_start() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+
+        // Default: the paragraph direction is auto-detected, and `Align::Min` means "start":
+        let galley = run_with_label(&ctx, |ui| Label::new("אבג abc").layout_in_ui(ui).1);
+        assert_eq!(galley.job.halign, Align::Min);
+        assert!(galley.job.halign_min_is_start);
+        assert!(galley.rows[0].rtl_paragraph);
+
+        let galley = run_with_label(&ctx, |ui| Label::new("abc אבג").layout_in_ui(ui).1);
+        assert!(!galley.rows[0].rtl_paragraph);
+
+        // An explicit `halign` opts out of start alignment:
+        for halign in [Align::LEFT, Align::Center, Align::RIGHT] {
+            let galley = run_with_label(&ctx, |ui| {
+                Label::new("אבג abc").halign(halign).layout_in_ui(ui).1
+            });
+            assert_eq!(galley.job.halign, halign);
+            assert!(!galley.job.halign_min_is_start);
+            assert!(galley.rows[0].rtl_paragraph);
+        }
+
+        // A wrapping label that continues the row of the previous widget starts from the left:
+        let galley = run_with_label(&ctx, |ui| {
+            ui.with_layout(
+                Layout::left_to_right(Align::Min).with_main_wrap(true),
+                |ui| Label::new("אבג abc").wrap().layout_in_ui(ui).1,
+            )
+            .inner
+        });
+        assert_eq!(galley.job.halign, Align::Min);
+        assert!(!galley.job.halign_min_is_start);
+        assert!(galley.rows[0].rtl_paragraph);
     }
 }
