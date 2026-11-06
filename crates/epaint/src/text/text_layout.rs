@@ -7088,4 +7088,100 @@ mod tests {
             );
         }
     }
+
+    /// T2 — the exact app stack with a real decomposing Arabic font: any
+    /// wrapped RTL paragraph used to panic inside unicode-bidi at a final
+    /// wrapped row (the probe measured 24/24 panicking width/font
+    /// combinations on the backend label alone). Loads the font from
+    /// `KITTEST_RTL_FONT` — the kittest fixture convention
+    /// (`crates/egui_kittest/src/rtl_font.rs`): `~/` expansion, skipped
+    /// silently when unset or unreadable (fonts are never committed).
+    /// Sweeps wrap widths over the 100-byte backend label and a 400+ byte
+    /// two-paragraph label through `FontsView::layout_job` — the exact
+    /// crash stack — asserting no panic and that every input char keeps a
+    /// visible glyph (the decomposition dots are zero-advance and excluded).
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn wrapped_rtl_real_font_labels_do_not_panic() {
+        use std::path::PathBuf;
+
+        let Some(raw) = std::env::var_os("KITTEST_RTL_FONT") else {
+            return; // fixture not installed: nothing to assert
+        };
+        if raw.is_empty() {
+            return;
+        }
+        // `~/` expansion, as `egui_kittest::rtl_font` does it:
+        let path = match raw.to_str().and_then(|s| s.strip_prefix("~/")) {
+            Some(rest) => match std::env::var_os("HOME") {
+                Some(home) if !home.is_empty() => PathBuf::from(home).join(rest),
+                _ => PathBuf::from(&raw),
+            },
+            None => PathBuf::from(&raw),
+        };
+        let Ok(font_data) = std::fs::read(&path) else {
+            return; // unreadable fixture: skipped, as in kittest
+        };
+
+        let mut definitions = FontDefinitions::default();
+        definitions.font_data.insert(
+            "kittest-rtl-font".to_owned(),
+            Arc::new(FontData::from_owned(font_data)),
+        );
+        for family in [FontFamily::Proportional, FontFamily::Monospace] {
+            definitions
+                .families
+                .entry(family)
+                .or_default()
+                .push("kittest-rtl-font".to_owned());
+        }
+        let mut fonts = Fonts::new(TextOptions::default(), definitions);
+
+        // A 400+ byte second paragraph, mirroring the crash's 400-byte ID
+        // Test paragraph:
+        let long_label = format!(
+            "{BACKEND_LABEL}\n{BACKEND_LABEL} {BACKEND_LABEL} {BACKEND_LABEL} {BACKEND_LABEL}"
+        );
+        assert!(
+            long_label
+                .split('\n')
+                .nth(1)
+                .is_some_and(|paragraph| paragraph.len() >= 400),
+            "the second paragraph must be 400+ bytes, like the observed one"
+        );
+
+        let labels = [
+            ("backend label", BACKEND_LABEL),
+            ("two-paragraph label", long_label.as_str()),
+        ];
+        for (name, text) in labels {
+            // The newline splits paragraphs and emits no glyph.
+            let expected_visible = text.chars().filter(|&c| c != '\n').count();
+            for wrap_width in [20.0, 40.0, 60.0, 80.0, 100.0, 150.0] {
+                let job = LayoutJob::simple(
+                    text.to_owned(),
+                    FontId::proportional(14.0),
+                    Color32::WHITE,
+                    wrap_width,
+                );
+                let galley = fonts.with_pixels_per_point(2.0).layout_job(job);
+                let visible: usize = galley
+                    .rows
+                    .iter()
+                    .map(|placed| {
+                        placed
+                            .row
+                            .glyphs
+                            .iter()
+                            .filter(|glyph| glyph.advance_width > 0.0)
+                            .count()
+                    })
+                    .sum();
+                assert_eq!(
+                    visible, expected_visible,
+                    "{name} at width {wrap_width}: every char keeps a visible glyph"
+                );
+            }
+        }
+    }
 }
