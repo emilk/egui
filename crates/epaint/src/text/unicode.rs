@@ -12,8 +12,6 @@ pub(super) fn invisible_char(c: char) -> bool {
 
     // From https://www.fileformat.info/info/unicode/category/Cf/list.htm
 
-    // TODO(emilk): heed bidi characters
-
     matches!(
         c,
         '\u{200B}' // ZERO WIDTH SPACE

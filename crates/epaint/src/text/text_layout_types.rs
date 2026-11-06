@@ -7,7 +7,9 @@ use super::{
     index::{ByteIndex, ByteRange, ByteRangeExt as _, CharIndex},
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
-use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
+use emath::{
+    Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rangef, Rect, Vec2, pos2, vec2,
+};
 pub use font_types::Tag;
 use smallvec::SmallVec;
 
@@ -929,6 +931,13 @@ pub struct Glyph {
     /// Whether this glyph carries its own color, e.g. a color emoji.
     pub is_color: bool,
 
+    /// Resolved bidi embedding level of the character (UAX #9).
+    ///
+    /// `0` for plain left-to-right text; odd levels are right-to-left.
+    /// Glyphs stay in logical order in [`Row::glyphs`]; this decides where
+    /// they are placed on the row and which side of them a cursor sits.
+    pub bidi_level: u8,
+
     /// Index into [`LayoutJob::sections`]. Decides color etc.
     ///
     /// Only used during layout, then set to an invalid value in order to
@@ -956,6 +965,12 @@ impl Glyph {
     pub fn logical_rect(&self) -> Rect {
         Rect::from_min_size(self.pos - vec2(0.0, self.font_ascent), self.size())
     }
+
+    /// Is this glyph part of a right-to-left run?
+    #[inline]
+    pub fn is_rtl(&self) -> bool {
+        self.bidi_level % 2 == 1
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -974,21 +989,95 @@ impl Row {
 
     /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
+    ///
+    /// In a row with right-to-left text, glyphs are in logical order but positioned
+    /// in visual order (see [`Glyph::bidi_level`]), so this finds the glyph nearest to `desired_x`
+    /// and then decides which side of it the cursor belongs on: for a
+    /// left-to-right glyph the cursor _before_ it is on its left, for a
+    /// right-to-left glyph it is on its right.
     pub fn char_at(&self, desired_x: f32) -> CharIndex {
+        if !self.glyphs.iter().any(Glyph::is_rtl) {
+            // Logical order is visual order here. A scan by glyph center also passes
+            // over the zero-width glyphs a nearest-glyph search would stop inside.
+            for (i, glyph) in self.glyphs.iter().enumerate() {
+                if desired_x < glyph.logical_rect().center().x {
+                    return CharIndex(i);
+                }
+            }
+            return self.char_count_excluding_newline();
+        }
+
+        let mut nearest: Option<(f32, usize)> = None;
         for (i, glyph) in self.glyphs.iter().enumerate() {
-            if desired_x < glyph.logical_rect().center().x {
-                return CharIndex(i);
+            let rect = glyph.logical_rect();
+            let distance = (rect.min.x - desired_x)
+                .max(desired_x - rect.max.x)
+                .max(0.0);
+            if nearest.is_none_or(|(best, _)| distance < best) {
+                nearest = Some((distance, i));
             }
         }
-        self.char_count_excluding_newline()
+        let Some((_, i)) = nearest else {
+            return CharIndex(0);
+        };
+        let glyph = &self.glyphs[i];
+        let past_center = glyph.logical_rect().center().x <= desired_x;
+        if past_center == glyph.is_rtl() {
+            CharIndex(i)
+        } else {
+            CharIndex(i + 1)
+        }
     }
 
+    /// The x coordinate of a cursor placed before the char at `column`
+    /// (or after the last char if `column` is the char count), in row-relative coordinates.
+    ///
+    /// For a right-to-left glyph "before" is its right edge.
     pub fn x_offset(&self, column: CharIndex) -> f32 {
-        if let Some(glyph) = self.glyphs.get(column.0) {
-            glyph.pos.x
-        } else {
-            self.size.x
+        match self.glyphs.get(column.0) {
+            Some(glyph) if glyph.is_rtl() => glyph.max_x(),
+            Some(glyph) => glyph.pos.x,
+            None => match self.glyphs.last() {
+                Some(last) if last.is_rtl() => last.pos.x,
+                // A right-to-left row can end in left-to-right text, placed anywhere on it:
+                Some(last) if self.glyphs.iter().any(Glyph::is_rtl) => last.max_x(),
+                _ => self.size.x,
+            },
         }
+    }
+
+    /// The x ranges covered by the chars in `chars`, from left to right, in row-relative coordinates.
+    ///
+    /// One range in a left-to-right row, from cursor to cursor. With right-to-left text,
+    /// chars that are contiguous in logical order can be apart on screen, so there is
+    /// one range per stretch of adjacent glyphs.
+    pub fn x_ranges(&self, chars: Range<CharIndex>) -> SmallVec<[Rangef; 1]> {
+        if !self.glyphs.iter().any(Glyph::is_rtl) {
+            let range = Rangef::new(self.x_offset(chars.start), self.x_offset(chars.end));
+            return smallvec::smallvec![range];
+        }
+
+        let mut order: Vec<usize> = (0..self.glyphs.len()).collect();
+        order.sort_by(|&a, &b| self.glyphs[a].pos.x.total_cmp(&self.glyphs[b].pos.x));
+
+        let mut ranges: SmallVec<[Rangef; 1]> = SmallVec::new();
+        let mut extends_last = false;
+        for i in order {
+            let glyph = &self.glyphs[i];
+            if glyph.advance_width <= 0.0 {
+                continue; // a mark or the rest of a cluster, inside its base
+            }
+            if !(chars.start.0..chars.end.0).contains(&i) {
+                extends_last = false;
+                continue;
+            }
+            match ranges.last_mut() {
+                Some(last) if extends_last => last.max = glyph.max_x(),
+                _ => ranges.push(Rangef::new(glyph.pos.x, glyph.max_x())),
+            }
+            extends_last = true;
+        }
+        ranges
     }
 
     #[inline]
