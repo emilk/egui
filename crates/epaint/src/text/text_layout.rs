@@ -2365,6 +2365,7 @@ fn galley_from_rows(
         for glyph in &mut row.glyphs {
             glyph.section_index = u32::MAX; // No longer in use.
         }
+        collapse_decomposed_clusters(row);
     }
 
     let mut galley = Galley {
@@ -2452,6 +2453,113 @@ fn tessellate_row(
         mesh_bounds,
         glyph_index_start,
         glyph_vertex_range: glyph_vertex_start..glyph_vertex_end,
+    }
+}
+
+/// Collapse each decomposed cluster's glyphs into one cursor-stream glyph.
+///
+/// A decomposing font (Noto Sans Arabic and kin) emits some letters as a
+/// zero-advance component glyph plus its base — one shaping cluster, two
+/// glyphs stamped the cluster's first character, the component carrying the
+/// pair's ink split. `emit_continuation_glyphs` keeps
+/// `glyphs.len() == char_count` for clusters that shape to *fewer* glyphs
+/// than characters (ligatures, flag emojis); the opposite direction has no
+/// emitter, so an uncollapsed decomposed letter contributes a phantom cursor
+/// column: every caret boundary, hit test and text-edit insertion past it
+/// drifts by one column per extra glyph.
+///
+/// Runs after tessellation, so the mesh keeps every glyph's quad (the
+/// component's ink is real); the collapsed entry keeps the group's first
+/// mesh vertex, so selection recolor spans still cover the whole cluster.
+/// A component is told from the other zero-advance glyphs — a
+/// multi-character cluster's continuation (which carries the *next*
+/// character and must survive to keep one glyph per character) and invisible
+/// marks — by carrying ink and repeating an adjacent glyph's character.
+fn collapse_decomposed_clusters(row: &mut Row) {
+    if row.glyphs.len() < 2 {
+        return;
+    }
+    // Both fold branches need a zero-advance glyph that draws ink; without
+    // one nothing can merge and the stream already holds one glyph per
+    // character, so the original vector is kept (hot rows pay one scan and
+    // no allocation).
+    if !row
+        .glyphs
+        .iter()
+        .any(|glyph| glyph.advance_width <= 0.0 && !glyph.uv_rect.is_nothing())
+    {
+        return;
+    }
+    let mut collapsed: Vec<Glyph> = Vec::with_capacity(row.glyphs.len());
+    let mut pending: Option<Glyph> = None;
+    for glyph in row.glyphs.drain(..) {
+        let draws = !glyph.uv_rect.is_nothing();
+        if glyph.advance_width > 0.0 {
+            match pending.take() {
+                // The pending component and this base carry one character
+                // (the cluster's first); anything else keeps both glyphs.
+                Some(component) if draws && component.chr == glyph.chr => {
+                    collapsed.push(merge_cluster_glyphs(component, glyph));
+                }
+                other => {
+                    if let Some(component) = other {
+                        collapsed.push(component);
+                    }
+                    collapsed.push(glyph);
+                }
+            }
+        } else if draws
+            && collapsed.last().is_some_and(|last| {
+                last.chr == glyph.chr && glyph.pos.x >= last.pos.x && glyph.pos.x <= last.max_x()
+            })
+        {
+            // An inked component of the previous stream glyph, emitted after
+            // it: its span already covers the component.
+            if let Some(last) = collapsed.last_mut() {
+                last.pos.x = last.pos.x.min(glyph.pos.x);
+                last.advance_width = last.max_x().max(glyph.max_x()) - last.pos.x;
+            }
+        } else if draws {
+            // An inked component emitted before its base (merged when the
+            // base arrives). Components of one character share its chr and
+            // chain together.
+            if let Some(pending) = pending.as_mut()
+                && pending.chr == glyph.chr
+            {
+                pending.pos.x = pending.pos.x.min(glyph.pos.x);
+            } else {
+                if let Some(pending) = pending.take() {
+                    collapsed.push(pending);
+                }
+                pending = Some(glyph);
+            }
+        } else {
+            // An invisible zero-advance glyph (a continuation standing for
+            // its own character, or a zero-width mark): keep it, so the
+            // stream keeps one glyph per character.
+            if let Some(pending) = pending.take() {
+                collapsed.push(pending);
+            }
+            collapsed.push(glyph);
+        }
+    }
+    if let Some(component) = pending {
+        collapsed.push(component);
+    }
+    row.glyphs = collapsed;
+}
+
+/// One cursor-stream glyph for a decomposed cluster: the base's metrics, the
+/// group's span and the group's first mesh vertex.
+fn merge_cluster_glyphs(component: Glyph, base: Glyph) -> Glyph {
+    let pos_x = component.pos.x.min(base.pos.x);
+    let max_x = component.max_x().max(base.max_x());
+    let first_vertex = component.first_vertex.min(base.first_vertex);
+    Glyph {
+        pos: pos2(pos_x, base.pos.y),
+        advance_width: max_x - pos_x,
+        first_vertex,
+        ..base
     }
 }
 
@@ -7579,6 +7687,165 @@ mod tests {
             ranges,
             vec![0..2, 2..4, 4..6, 4..6],
             "cluster-exact ranges, the span end closing the last"
+        );
+    }
+
+    /// An inked glyph — a decomposed letter's component is told from the
+    /// other zero-advance glyphs by its atlas allocation, so hand-built
+    /// glyphs must carry a non-empty `uv_rect` (a 3×2-texel ink, like a
+    /// decomposed letter's dots).
+    fn inked_glyph(chr: char, x: f32, advance: f32, first_vertex: u32) -> Glyph {
+        Glyph {
+            chr,
+            pos: pos2(x, 0.0),
+            advance_width: advance,
+            line_height: 16.0,
+            font_ascent: 13.0,
+            font_height: 16.0,
+            font_face_ascent: 13.0,
+            font_face_height: 16.0,
+            uv_rect: crate::text::glyph_atlas::UvRect {
+                offset: Vec2::ZERO,
+                size: vec2(3.0, 2.0),
+                min: [0, 0],
+                max: [8, 8],
+            },
+            is_color: false,
+            bidi_level: 1,
+            section_index: 0,
+            first_vertex,
+        }
+    }
+
+    /// A hand-built row whose glyphs are in visual (x-ascending) order, as
+    /// the layout emits them.
+    fn collapse_test_row(glyphs: Vec<Glyph>) -> Row {
+        Row {
+            section_index_at_start: 0,
+            base_direction: TextDirection::RightToLeft,
+            leading_advance: 0.0,
+            glyphs,
+            size: vec2(64.0, 16.0),
+            visuals: RowVisuals::default(),
+        }
+    }
+
+    /// A decomposing font emits a decomposed letter as a zero-advance inked
+    /// component plus its base — two glyphs stamped the same character. The
+    /// collapse folds each cluster back into one cursor-stream glyph that
+    /// spans the group's ink and keeps its first mesh vertex, so the row
+    /// holds exactly one glyph per character again; unpaired glyphs pass
+    /// through untouched. Both emission orders are exercised: the component
+    /// can trail its base or lead it (the order a right-to-left run emits),
+    /// and components of one character chain together.
+    #[test]
+    fn decomposed_cluster_rows_keep_one_glyph_per_character() {
+        // `مرحببا` in visual order (logically last first, x ascending): the
+        // second ب letter's dot trails its base, the first ب letter's two
+        // dots lead theirs.
+        let row = &mut collapse_test_row(vec![
+            inked_glyph('ا', 0.0, 8.0, 0),
+            inked_glyph('ب', 8.0, 8.0, 4),   // the base, span [8, 16]
+            inked_glyph('ب', 12.0, 0.0, 8),  // its dot, inside the base
+            inked_glyph('ب', 18.0, 0.0, 12), // first dot of the leading pair
+            inked_glyph('ب', 19.0, 0.0, 16), // second dot, chained
+            inked_glyph('ب', 17.0, 8.0, 20), // the base, span [17, 25]
+            inked_glyph('ح', 25.0, 8.0, 24),
+            inked_glyph('ر', 33.0, 8.0, 28),
+            inked_glyph('م', 41.0, 8.0, 32),
+        ]);
+        collapse_decomposed_clusters(row);
+
+        assert_eq!(row.glyphs.len(), 6, "one glyph per character");
+        let stream: Vec<(char, f32, f32)> = row
+            .glyphs
+            .iter()
+            .map(|glyph| (glyph.chr, glyph.pos.x, glyph.advance_width))
+            .collect();
+        assert_eq!(
+            stream,
+            [
+                ('ا', 0.0, 8.0),
+                ('ب', 8.0, 8.0),
+                ('ب', 17.0, 8.0),
+                ('ح', 25.0, 8.0),
+                ('ر', 33.0, 8.0),
+                ('م', 41.0, 8.0),
+            ],
+            "each merged glyph keeps its base's position and advance"
+        );
+        // The merged glyphs keep the group's first mesh vertex (the earliest
+        // emitted quad of the cluster), so selection recolor spans still
+        // cover the whole cluster:
+        assert_eq!(
+            row.glyphs[1].first_vertex, 4,
+            "the trailing-dot pair keeps its base's vertex"
+        );
+        assert_eq!(
+            row.glyphs[2].first_vertex, 12,
+            "the leading-dots cluster keeps its first component's vertex"
+        );
+        // The unpaired glyphs pass through untouched:
+        assert_eq!(row.glyphs[0].first_vertex, 0);
+        assert_eq!(row.glyphs[5].first_vertex, 32);
+    }
+
+    /// Continuation glyphs of multi-character clusters carry the *next*
+    /// character and draw no ink; the collapse must keep them, or the row
+    /// would lose its one-glyph-per-char invariant in the other direction
+    /// (é shaped as one glyph plus a zero-advance stand-in for the accent).
+    #[test]
+    fn decomposed_cluster_collapse_keeps_continuation_glyphs() {
+        let row = &mut collapse_test_row(vec![
+            inked_glyph('e', 0.0, 8.0, 0),
+            Glyph {
+                uv_rect: Default::default(),
+                ..inked_glyph('\u{0301}', 8.0, 0.0, 4)
+            },
+            inked_glyph('x', 8.0, 8.0, 8),
+        ]);
+        collapse_decomposed_clusters(row);
+
+        assert_eq!(row.glyphs.len(), 3, "the inkless continuation survives");
+        let stream: Vec<char> = row.glyphs.iter().map(|glyph| glyph.chr).collect();
+        assert_eq!(stream, ['e', '\u{0301}', 'x']);
+        assert_eq!(row.glyphs[1].advance_width, 0.0);
+        assert!(row.glyphs[1].uv_rect.is_nothing());
+    }
+
+    /// Invisible zero-width marks draw no ink and survive the collapse —
+    /// including two marks of the same character, and a mark repeating the
+    /// neighboring glyph's character. A row without any inked zero-advance
+    /// glyph also keeps its original glyph vector: the scan must not rebuild
+    /// it.
+    #[test]
+    fn decomposed_cluster_collapse_keeps_invisible_marks() {
+        let row = &mut collapse_test_row(vec![
+            inked_glyph('م', 0.0, 8.0, 0),
+            Glyph {
+                uv_rect: Default::default(),
+                ..inked_glyph('\u{200F}', 8.0, 0.0, 4)
+            },
+            Glyph {
+                uv_rect: Default::default(),
+                ..inked_glyph('\u{200F}', 8.0, 0.0, 8)
+            },
+            Glyph {
+                uv_rect: Default::default(),
+                ..inked_glyph('ر', 8.0, 0.0, 12)
+            },
+            inked_glyph('ر', 8.0, 8.0, 16),
+        ]);
+        let before = row.glyphs.as_ptr();
+        collapse_decomposed_clusters(row);
+
+        assert_eq!(row.glyphs.len(), 5, "every invisible mark survives");
+        let stream: Vec<char> = row.glyphs.iter().map(|glyph| glyph.chr).collect();
+        assert_eq!(stream, ['م', '\u{200F}', '\u{200F}', 'ر', 'ر']);
+        assert_eq!(
+            row.glyphs.as_ptr(),
+            before,
+            "no collapsible component: the original glyph vector must be kept"
         );
     }
 

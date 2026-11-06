@@ -365,16 +365,16 @@ fn test_text_edit_bidi_boundaries() {
     // A selection spanning the direction boundary (the bidi reading
     // teleport): from Home, ArrowLeft steps into the text by the local
     // levels — the walk crosses from the Arabic run onto the Latin run's
-    // reading-exit caret, so five presses span the whole mixed row:
+    // reading-exit caret, so four presses span the whole mixed row:
     harness.key_press(egui::Key::Home);
     harness.run();
-    for _ in 0..5 {
+    for _ in 0..4 {
         shift_press(&mut harness, egui::Key::ArrowLeft);
     }
     assert_eq!(
         selection_char_range(&harness),
-        (0, 8),
-        "five shift+ArrowLeft presses from Home should span the whole mixed \
+        (0, 7),
+        "four shift+ArrowLeft presses from Home should span the whole mixed \
          row, crossing the bidi reading teleport"
     );
 
