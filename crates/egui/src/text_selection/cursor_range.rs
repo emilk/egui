@@ -137,10 +137,10 @@ impl CCursorRange {
                 // geometry reduces to logical order, keeping the old behavior.
                 // A tie (two logical positions sharing one visual edge, possible
                 // at the boundary of runs that counteract the base direction)
-                // falls back to logical order. Like single-cursor motion, this
-                // is approximate inside counteracting runs and across wrapped
-                // right-to-left rows (see `Row` in epaint); multi-row selections
-                // collapse by the caret's own row.
+                // falls back to logical order: two logical positions may still
+                // share one visual edge, even though the caret geometry itself
+                // is exact on every row now (see `Row` in epaint); multi-row
+                // selections collapse by the caret's own row.
                 const VISUAL_ROW_EPSILON: f32 = 1.0;
                 let [min, max] = self.sorted_cursors();
                 let (min_rect, max_rect) =

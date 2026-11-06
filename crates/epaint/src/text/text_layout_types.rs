@@ -985,19 +985,21 @@ pub struct Row {
     /// do not list their glyphs in logical string order. Consequence for
     /// cursors: a cursor column is a *logical* character offset, and mapping
     /// it onto the visual glyphs needs the row's base direction
-    /// ([`Self::base_direction`]). That mapping is exact for the
-    /// base-direction runs and approximate inside runs that counteract the
-    /// base (e.g. embedded left-to-right words in a right-to-left row): a
-    /// fully exact mapping would need a logical↔visual run map stored on the
-    /// row (not yet implemented — known gap for mixed-direction editing).
+    /// ([`Self::base_direction`]). That mapping is exact for every row via
+    /// the per-level caret-boundary tables ([`Self::visual_caret_boundaries`],
+    /// computed on demand from the stamped `Glyph::bidi_level` — no stored
+    /// run map needed): each column's caret sits at the visual boundary the
+    /// run displaying it assigns, and only degenerate streams (where two
+    /// reading positions share one visual boundary) degrade to the historic
+    /// base-parity mapping via the keep-first collision rule.
     ///
     /// Wrapped right-to-left text used to break UAX #9 L1/L2 per rendered
     /// line (words could end up on the wrong rows, e.g. an RTL-base
     /// `أول ثاني ثالث` wrapping with the logically last word `ثالث` on the
     /// first row): wrapping now walks the logical stream and reorders each
     /// produced row per UAX #9, so wrapped rows follow the reading order.
-    /// What remains approximate is the in-run cursor mapping documented
-    /// above. Single-row text is unaffected.
+    /// The in-run cursor mapping is exact on wrapped rows too (the same
+    /// caret-boundary tables, per row). Single-row text is unaffected.
     pub glyphs: Vec<Glyph>,
 
     /// Logical size based on font heights etc.
@@ -1159,15 +1161,117 @@ impl Row {
     /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
     pub fn char_at(&self, desired_x: f32) -> CharIndex {
-        if self.base_direction == TextDirection::RightToLeft {
-            return self.char_at_rtl(desired_x);
+        if self.is_bidi_homogeneous_with_base() {
+            // The historic base-parity mapping is exact for rows whose
+            // content shares the base direction (pure LTR in an LTR base,
+            // pure RTL in an RTL base, empty, elision-only) — byte-identical
+            // fast path:
+            if self.base_direction == TextDirection::RightToLeft {
+                return self.char_at_rtl(desired_x);
+            }
+            for (i, glyph) in self.glyphs.iter().enumerate() {
+                if desired_x < glyph.logical_rect().center().x {
+                    return CharIndex(i);
+                }
+            }
+            return self.char_count_excluding_newline();
         }
-        for (i, glyph) in self.glyphs.iter().enumerate() {
-            if desired_x < glyph.logical_rect().center().x {
-                return CharIndex(i);
+        self.char_at_mixed(desired_x)
+    }
+
+    /// The closest *logical* column to `desired_x` in a mixed-direction row
+    /// (a row that is not [`Self::is_bidi_homogeneous_with_base`]).
+    ///
+    /// The mirror of [`Self::x_offset`]'s table path, so a click resolves to
+    /// the column whose caret renders nearest it: each cluster cell
+    /// ([`Self::bidi_cluster_cells`]) contributes candidate columns by its
+    /// *own* parity (not the row's base parity) — an odd cell reads
+    /// right-to-left across its box, an even cell left-to-right — with the
+    /// cell's first-read column taken from the caret-boundary tables
+    /// ([`Self::visual_caret_boundaries`]). Among the candidates the click
+    /// selects the one with the nearest caret x (ties keep the last,
+    /// deterministic like the historic keep-last scan); a click no cell
+    /// catches falls back to the reading exit, [`CharIndex`] `num_glyphs` —
+    /// the same fallback the historic arms use.
+    fn char_at_mixed(&self, desired_x: f32) -> CharIndex {
+        let num_glyphs = self.glyphs.len();
+        let (boundary_of_column, column_of_boundary) = self.visual_caret_boundaries();
+        let caret_x_of_column = |column: usize| -> Option<f32> {
+            boundary_of_column
+                .get(column)
+                .copied()
+                .flatten()
+                .map(|boundary| self.boundary_x(boundary))
+        };
+
+        let mut best: Option<CharIndex> = None;
+        let mut best_dist = f32::INFINITY;
+
+        for cell in self.bidi_cluster_cells() {
+            let Some(leading) = self.glyphs.get(cell.start) else {
+                continue;
+            };
+            let odd = leading.bidi_level % 2 == 1;
+            // The cell's first-read column: an odd cell is entered at its
+            // right edge, an even cell at its left edge. `None` (a degenerate
+            // stream where two reading positions share one visual boundary):
+            // this cell has no table column — skip it.
+            let entry_boundary = if odd { cell.end } else { cell.start };
+            let Some(col_lo) = column_of_boundary
+                .get(entry_boundary)
+                .copied()
+                .flatten()
+                .map(|column| column.0)
+            else {
+                continue;
+            };
+
+            // The cell's ink box and its equal sub-slot subdivision (the same
+            // box math and documented approximation [`Self::char_at_rtl`]
+            // makes; cells are never empty, so `len >= 1`):
+            let box_lo = self.glyphs[cell.start..cell.end]
+                .iter()
+                .map(|glyph| glyph.pos.x)
+                .fold(f32::INFINITY, f32::min);
+            let box_hi = self.glyphs[cell.start..cell.end]
+                .iter()
+                .map(|glyph| glyph.max_x())
+                .fold(f32::NEG_INFINITY, f32::max);
+            let len = cell.end.saturating_sub(cell.start);
+
+            // The sub-slot whose center the click is reading-side of, in the
+            // cell's own reading direction (right-to-left for odd, left-to-
+            // right for even cells). NaN/±inf clicks match nothing and fall
+            // through to the fallback below.
+            let candidate = if odd {
+                (0..len).find_map(|t| {
+                    let center = box_hi - (t as f32 + 0.5) * (box_hi - box_lo) / len as f32;
+                    (desired_x > center).then(|| col_lo.saturating_add(t))
+                })
+            } else {
+                (0..len).find_map(|t| {
+                    let center = box_lo + (t as f32 + 0.5) * (box_hi - box_lo) / len as f32;
+                    (desired_x < center).then(|| col_lo.saturating_add(t))
+                })
+            };
+            let Some(candidate) = candidate else {
+                continue;
+            };
+            // Nearest-caret selection across cells: cells to the click's
+            // reading-side all match, so the winner is the candidate whose
+            // caret is painted nearest the click (equivalent to comparing
+            // against `boundary_x(boc[cand])`, from the already-built table).
+            let Some(caret_x) = caret_x_of_column(candidate) else {
+                continue;
+            };
+            let dist = (desired_x - caret_x).abs();
+            if dist <= best_dist {
+                best = Some(CharIndex(candidate));
+                best_dist = dist;
             }
         }
-        self.char_count_excluding_newline()
+
+        best.unwrap_or(CharIndex(num_glyphs))
     }
 
     /// The closest *logical* column to `desired_x` in a right-to-left row.
@@ -1222,6 +1326,18 @@ impl Row {
     }
 
     pub fn x_offset(&self, column: CharIndex) -> f32 {
+        if !self.is_bidi_homogeneous_with_base() {
+            // Mixed row: the caret for a logical column sits at the visual
+            // boundary the per-level caret-boundary tables assign it, so the
+            // painted caret lands where the local-level stepping and the hit
+            // test place it (see [`Self::visual_caret_boundaries`]):
+            let (boundary_of_column, _) = self.visual_caret_boundaries();
+            if let Some(boundary) = boundary_of_column.get(column.0).copied().flatten() {
+                return self.boundary_x(boundary);
+            }
+            // None (collision loser / degenerate stream) -> historic arm
+            // below.
+        }
         if self.base_direction == TextDirection::RightToLeft {
             return self.x_offset_rtl(column);
         }
@@ -1229,6 +1345,19 @@ impl Row {
             glyph.pos.x
         } else {
             self.size.x
+        }
+    }
+
+    /// The painted x of a visual caret boundary `k` (`0..=n`, the row's
+    /// visual slot edges): glyph `k`'s painted anchor for `k < n`, the row
+    /// width (the visual right edge, the same anchor the historic
+    /// left-to-right end-of-row caret uses) for `k = n` — and for any other
+    /// out-of-range boundary, so a hostile index degrades to the row edge
+    /// instead of panicking.
+    fn boundary_x(&self, boundary: usize) -> f32 {
+        match self.glyphs.get(boundary) {
+            Some(glyph) => glyph.pos.x,
+            None => self.size.x,
         }
     }
 
@@ -1395,7 +1524,12 @@ impl Row {
     /// are possible: every index comes from `saturating` arithmetic bounded
     /// by `glyphs.len()`, both vecs are pre-sized `n + 1`, and every read and
     /// write goes through `get`/`get_mut`.
-    fn visual_caret_boundaries(&self) -> (Vec<Option<usize>>, Vec<Option<CharIndex>>) {
+    ///
+    /// `pub(super)`: the caret-geometry tests in the sibling `text_layout`
+    /// module pin the painted walk against these tables directly.
+    pub(super) fn visual_caret_boundaries(
+        &self,
+    ) -> (Vec<Option<usize>>, Vec<Option<CharIndex>>) {
         let n = self.glyphs.len();
         let mut boundary_of_column: Vec<Option<usize>> = Vec::new();
         boundary_of_column.resize(n + 1, None);
