@@ -1294,10 +1294,14 @@ struct LogicalBlock {
     /// stream order.
     glyphs: Range<usize>,
 
-    /// Byte range within `LayoutJob::text` in LOGICAL character order,
-    /// derived from the glyphs' own chars under the
-    /// `glyphs.len() == char_count` invariant (no dependence on cluster
-    /// tracking, which is breaker-gated).
+    /// Byte range within `LayoutJob::text` in LOGICAL character order.
+    /// Cluster-exact while cluster tracking is on (see `logical_blocks`):
+    /// the start is the block's leading glyph's cluster start and the end
+    /// the next strictly greater distinct cluster start, or the paragraph
+    /// span's end. Without tracking (a text the tracking scan missed) it
+    /// falls back to summing the glyphs' `chr.len_utf8()`, which drifts on
+    /// decomposed glyphs; `place_row`'s guard keeps the rows of such a
+    /// paragraph.
     bytes: Range<usize>,
 
     /// x of the block's first (base) glyph in the emitted stream.
@@ -1325,8 +1329,11 @@ struct LogicalBlock {
 /// is a single even-level run: its stream order IS its logical order, so
 /// its blocks iterate in stream order; a recorded right-to-left run's
 /// blocks iterate in reverse stream order. The stretches are then sorted by
-/// byte start, which IS the logical order, and byte ranges are assigned
-/// cumulatively from each stretch's own byte start.
+/// byte start, which IS the logical order. While cluster tracking is on,
+/// byte ranges are cluster-exact (see the assembly below); without it they
+/// are assigned cumulatively from each stretch's own byte start by summing
+/// the glyphs' `chr.len_utf8()` — a fallback that drifts on decomposed
+/// glyphs.
 fn logical_blocks(paragraph: &Paragraph) -> Vec<LogicalBlock> {
     let glyphs = &paragraph.glyphs;
 
@@ -1407,6 +1414,38 @@ fn logical_blocks(paragraph: &Paragraph) -> Vec<LogicalBlock> {
     stretches.sort_by_key(|(_, bytes, _)| bytes.start);
 
     // Assemble the blocks stretch by stretch, in logical order.
+    //
+    // Byte attribution is cluster-exact while cluster tracking is on (the
+    // HarfBuzz cluster model: a cluster is a single, indivisible unit, and
+    // its byte range comes from cluster boundaries — shaping may split one
+    // character into several glyphs, e.g. decomposing a code point through
+    // the ccmp feature, or merge/delete code points, leaving gapped cluster
+    // values — never from per-glyph first-char sums;
+    // https://harfbuzz.github.io/clusters.html ,
+    // https://harfbuzz.github.io/working-with-harfbuzz-clusters.html):
+    // - a block's `bytes.start` is its leading glyph's cluster start
+    //   (absolute), clamped into the paragraph span;
+    // - its `bytes.end` is the first strictly greater distinct cluster
+    //   start found scanning forward over the subsequent blocks' leading
+    //   glyphs, else the span's end. The blocks vector is in logical order
+    //   (within an RTL stretch `order` is reversed, so cluster starts
+    //   ascend — final visual-order buffers are monotonic, LTR ascending /
+    //   RTL descending, and the reversal restores ascending starts), so the
+    //   scan is a plain forward walk.
+    //
+    // Invariants (pinned by the `logical_blocks_byte_ranges_*` tests):
+    // every block's `bytes ⊆ paragraph.byte_span`; starts are non-decreasing
+    // in blocks-vector order; every well-formed block's range is non-empty;
+    // the union of the block ranges covers `paragraph.byte_span`; a row's
+    // byte range spans from its first block's `bytes.start` to its last
+    // block's `bytes.end`. NOT pinned (it fails on a decomposition dot
+    // absorbed into the neighbouring block): each glyph's cluster start
+    // lying inside its own block's range.
+    let cluster_starts: Option<&[usize]> = if paragraph.cluster_byte_starts.len() == glyphs.len() {
+        Some(&paragraph.cluster_byte_starts)
+    } else {
+        None
+    };
     let mut blocks: Vec<LogicalBlock> = Vec::with_capacity(stream_blocks.len());
     for (stretch_glyphs, stretch_bytes, rtl) in stretches {
         if stretch_glyphs.is_empty() {
@@ -1423,21 +1462,48 @@ fn logical_blocks(paragraph: &Paragraph) -> Vec<LogicalBlock> {
             let Some((glyph_range, origin)) = stream_blocks.get(stream_idx) else {
                 continue;
             };
-            let byte_len: usize = glyphs[glyph_range.clone()]
-                .iter()
-                .map(|glyph| glyph.chr.len_utf8())
-                .sum();
             let width = match stream_blocks.get(stream_idx + 1) {
                 Some((_, next_origin)) => (*next_origin - *origin).max(0.0),
                 None => (ink_end - *origin).max(0.0),
             };
+            let bytes = if let Some(cluster_starts) = cluster_starts {
+                // The end is derived in a second pass below, over the
+                // finished blocks vector.
+                let start = cluster_starts[glyph_range.start]
+                    .clamp(paragraph.byte_span.start, paragraph.byte_span.end);
+                start..start
+            } else {
+                // Fallback (unreachable in the logical wrap path — see the
+                // `records-runs-implies-tracked` assert in
+                // `line_break_logically`): the historic cumulative walk,
+                // which counts a decomposed char once per emitted glyph.
+                let byte_len: usize = glyphs[glyph_range.clone()]
+                    .iter()
+                    .map(|glyph| glyph.chr.len_utf8())
+                    .sum();
+                let bytes = byte_cursor..byte_cursor + byte_len;
+                byte_cursor += byte_len;
+                bytes
+            };
             blocks.push(LogicalBlock {
-                bytes: byte_cursor..byte_cursor + byte_len,
+                bytes,
                 glyphs: glyph_range.clone(),
                 origin: *origin,
                 width,
             });
-            byte_cursor += byte_len;
+        }
+    }
+    if cluster_starts.is_some() {
+        for i in 0..blocks.len() {
+            let start = blocks[i].bytes.start;
+            let end = blocks[i + 1..]
+                .iter()
+                .map(|block| block.bytes.start)
+                .find(|&next_start| next_start > start)
+                .unwrap_or(paragraph.byte_span.end)
+                .min(paragraph.byte_span.end)
+                .max(start);
+            blocks[i].bytes.end = end;
         }
     }
     blocks
@@ -1615,6 +1681,20 @@ fn line_break_logically(
 ) {
     let wrap_width = job.effective_wrap_width();
     let blocks = logical_blocks(paragraph);
+
+    // The cluster-exact attribution above is only sound when tracking was
+    // on. The gate in `layout` guarantees it for every text the tracking
+    // predicate recognizes, so the `Σ chr.len_utf8()` fallback in
+    // `logical_blocks` is unreachable for such jobs; it exists for texts the
+    // scan misses (documented graceful degradation — the drift is kept in
+    // check by `place_row`'s guard), never a panic.
+    debug_assert!(
+        paragraph.cluster_byte_starts.len() == paragraph.glyphs.len()
+            || !text_may_record_bidi_runs(&job.text),
+        "records-runs-implies-tracked violated: a paragraph recorded bidi \
+         runs while the tracking predicate recognized its text — the `Σ \
+         chr.len_utf8()` attribution will drift on decomposed glyphs"
+    );
 
     // Per-row UAX #9 context, computed once per overflowing paragraph:
     let span = paragraph.byte_span.clone();
@@ -6682,6 +6762,315 @@ mod tests {
             assert!(
                 !text_may_record_bidi_runs(text),
                 "{text:?} must not be recognized as run-recording"
+            );
+        }
+    }
+
+    /// The backend run-mode label that crashed both observed user sites:
+    /// exactly 100 UTF-8 bytes, 55 chars, no combining marks.
+    const BACKEND_LABEL: &str = "تشغيل شيفرة واجهة المستخدم فقط عند وجود حركات أو إدخال.";
+
+    /// The letters a decomposing Arabic font (Noto Sans Arabic) emits as a
+    /// zero-advance dot glyph plus a dotless base — both stamped the
+    /// cluster's first char. The synthetic only needs the shape; the exact
+    /// per-font decomposition set is irrelevant to the invariants.
+    fn is_decomposed_letter(c: char) -> bool {
+        matches!(
+            c,
+            'ب' | 'ت'
+                | 'ث'
+                | 'ج'
+                | 'خ'
+                | 'ز'
+                | 'ش'
+                | 'ض'
+                | 'ط'
+                | 'ظ'
+                | 'غ'
+                | 'ف'
+                | 'ق'
+                | 'ن'
+                | 'ي'
+        )
+    }
+
+    fn deco_glyph(chr: char, x: f32, advance: f32) -> Glyph {
+        Glyph {
+            chr,
+            pos: pos2(x, 0.0),
+            advance_width: advance,
+            line_height: 16.0,
+            font_ascent: 13.0,
+            font_height: 16.0,
+            font_face_ascent: 13.0,
+            font_face_height: 16.0,
+            uv_rect: Default::default(),
+            is_color: false,
+            bidi_level: 1,
+            section_index: 0,
+            first_vertex: 0,
+        }
+    }
+
+    /// Hand-built `Paragraph` mimicking the measured emission of an RTL
+    /// label under a decomposing font: glyphs in VISUAL order (the
+    /// logically-last char first, x ascending by the char's advance), every
+    /// decomposed letter as a zero-advance dot followed by its base — both
+    /// stamped the cluster's first char and the cluster's byte start — and
+    /// one recorded right-to-left run over the whole span.
+    fn decomposed_rtl_paragraph(text: &str, advance_for: impl Fn(usize, char) -> f32) -> Paragraph {
+        let mut paragraph = Paragraph::from_section_index(0);
+        paragraph.byte_span = 0..text.len();
+        let indexed_chars: Vec<(usize, usize, char)> = text
+            .char_indices()
+            .enumerate()
+            .map(|(char_idx, (byte_idx, c))| (char_idx, byte_idx, c))
+            .collect();
+        let mut x = 0.0_f32;
+        for &(char_idx, byte_idx, c) in indexed_chars.iter().rev() {
+            let advance = advance_for(char_idx, c);
+            if is_decomposed_letter(c) {
+                // The decomposition dot leads the pair in the emitted
+                // (visual) stream: zero-advance, same cluster, same chr.
+                paragraph.cluster_byte_starts.push(byte_idx);
+                paragraph.glyphs.push(deco_glyph(c, x, 0.0));
+            }
+            paragraph.cluster_byte_starts.push(byte_idx);
+            paragraph.glyphs.push(deco_glyph(c, x, advance));
+            x += advance;
+        }
+        paragraph.bidi_runs.push(RecordedBidiRun {
+            glyphs: 0..paragraph.glyphs.len(),
+            bytes: 0..text.len(),
+            rtl: true,
+        });
+        paragraph
+    }
+
+    /// T1a — a wrapped row's byte ranges must come from the glyphs' shaping
+    /// clusters, never from per-glyph first-char sums: a decomposed char
+    /// (dot + base, one cluster) used to count its char once per glyph,
+    /// drifting every later block past the paragraph span until the final
+    /// row clamped to an end-equal range and the unicode-bidi call in
+    /// `place_row` panicked (the +40 overcount the probe measured on this
+    /// exact label).
+    #[test]
+    fn logical_blocks_byte_ranges_stay_inside_the_paragraph_span_for_decomposed_glyphs() {
+        let text = BACKEND_LABEL;
+        assert_eq!(
+            text.len(),
+            100,
+            "the crash-era backend label is exactly 100 bytes"
+        );
+        let paragraph = decomposed_rtl_paragraph(text, |_, _| 8.0);
+        let blocks = logical_blocks(&paragraph);
+        assert!(!blocks.is_empty(), "every glyph lands in a block");
+
+        let mut covered: Vec<Range<usize>> = Vec::new();
+        let mut prev_start = 0usize;
+        for block in &blocks {
+            assert!(
+                block.bytes.start >= paragraph.byte_span.start
+                    && block.bytes.end <= paragraph.byte_span.end,
+                "block bytes {:?} must stay inside the span {:?}",
+                block.bytes,
+                paragraph.byte_span
+            );
+            assert!(
+                block.bytes.start >= prev_start,
+                "block starts must not decrease: {prev_start} then {}",
+                block.bytes.start
+            );
+            prev_start = block.bytes.start;
+            assert!(
+                !block.bytes.is_empty(),
+                "a well-formed block's range is non-empty"
+            );
+            covered.push(block.bytes.clone());
+        }
+
+        // The union of the block ranges covers the whole paragraph span:
+        covered.sort_by_key(|bytes| bytes.start);
+        let mut cursor = paragraph.byte_span.start;
+        for bytes in &covered {
+            assert!(
+                bytes.start <= cursor,
+                "the block ranges must cover the span: gap at byte {cursor}"
+            );
+            cursor = cursor.max(bytes.end);
+        }
+        assert_eq!(
+            cursor, paragraph.byte_span.end,
+            "the union of the block ranges must cover the whole span"
+        );
+
+        // Scoped to this synthetic (every char is its own cluster and its
+        // base leads a block): each char's cluster start is some block's
+        // start.
+        for (byte_idx, _) in text.char_indices() {
+            assert!(
+                blocks.iter().any(|block| block.bytes.start == byte_idx),
+                "cluster start {byte_idx} must be some block's start"
+            );
+        }
+    }
+
+    /// T1a variant (i) — gapped cluster starts (`HarfBuzz`'s documented
+    /// merged/deleted-code-point shape, e.g. `0,0,3,3`): a block's end is
+    /// the next strictly greater distinct cluster start scanning forward,
+    /// else the paragraph span's end — and the union still covers the span.
+    #[test]
+    fn logical_blocks_byte_ranges_bridge_gapped_cluster_starts() {
+        // Three glyphs over a 10-byte span with cluster starts 0, 0, 5:
+        // two glyphs share a cluster, the third starts at 5, and nothing
+        // starts at 1-4 or 6-9.
+        let mut paragraph = Paragraph::from_section_index(0);
+        paragraph.byte_span = 0..10;
+        let mut x = 0.0_f32;
+        for (cluster_start, advance) in [(0usize, 3.0f32), (0, 3.0), (5, 3.0)] {
+            paragraph.cluster_byte_starts.push(cluster_start);
+            paragraph.glyphs.push(deco_glyph('خ', x, advance));
+            x += advance;
+        }
+        paragraph.bidi_runs.push(RecordedBidiRun {
+            glyphs: 0..3,
+            bytes: 0..10,
+            rtl: false,
+        });
+
+        let blocks = logical_blocks(&paragraph);
+        let starts: Vec<usize> = blocks.iter().map(|block| block.bytes.start).collect();
+        assert_eq!(starts, vec![0, 0, 5], "starts are the cluster starts");
+        let ranges: Vec<Range<usize>> = blocks.iter().map(|block| block.bytes.clone()).collect();
+        assert_eq!(
+            ranges,
+            vec![0..5, 0..5, 5..10],
+            "ends are the next strictly greater distinct cluster start, or the span end"
+        );
+    }
+
+    /// T1a variant (ii) — a right-to-left run emits its clusters in
+    /// DESCENDING visual order; the logical-order reversal in
+    /// `logical_blocks` must restore ascending block starts with
+    /// cluster-exact ranges.
+    #[test]
+    fn logical_blocks_byte_ranges_ascend_after_the_rtl_order_reversal() {
+        // Three decomposed chars (dot + base, one cluster each), emitted in
+        // visual order: the logically-last char's glyphs first, so the
+        // cluster starts descend in vector order before the reversal.
+        let mut paragraph = Paragraph::from_section_index(0);
+        paragraph.byte_span = 0..6;
+        let mut x = 0.0_f32;
+        for cluster_start in [4usize, 2, 0] {
+            paragraph.cluster_byte_starts.push(cluster_start);
+            paragraph.glyphs.push(deco_glyph('خ', x, 0.0)); // the dot
+            paragraph.cluster_byte_starts.push(cluster_start);
+            paragraph.glyphs.push(deco_glyph('خ', x, 2.0)); // the base
+            x += 2.0;
+        }
+        paragraph.bidi_runs.push(RecordedBidiRun {
+            glyphs: 0..6,
+            bytes: 0..6,
+            rtl: true,
+        });
+
+        let blocks = logical_blocks(&paragraph);
+        let starts: Vec<usize> = blocks.iter().map(|block| block.bytes.start).collect();
+        assert_eq!(
+            starts,
+            vec![0, 2, 4, 4],
+            "the reversal restores ascending starts (the trailing dot block shares its base's)"
+        );
+        let ranges: Vec<Range<usize>> = blocks.iter().map(|block| block.bytes.clone()).collect();
+        assert_eq!(
+            ranges,
+            vec![0..2, 2..4, 4..6, 4..6],
+            "cluster-exact ranges, the span end closing the last"
+        );
+    }
+
+    /// T1b — the exact crash: wrapping a decomposed RTL paragraph used to
+    /// hand `place_row` a clamped end-equal byte range for a real row and
+    /// panic inside unicode-bidi (`index out of bounds: the len is 100 but
+    /// the index is 100`). With cluster-exact ranges every row is placed,
+    /// nothing is dropped, and the final row keeps the paragraph's final
+    /// word.
+    #[test]
+    fn wrapped_rtl_decomposed_glyphs_do_not_panic_and_keep_every_row() {
+        let text = BACKEND_LABEL;
+        let word = "إدخال.";
+        assert!(text.ends_with(word), "the label ends with the final word");
+        let char_count = text.chars().count();
+        let word_chars = word.chars().count();
+        let word_start = char_count - word_chars;
+
+        // The final word's glyphs get tiny advances so the whole word is
+        // guaranteed to fit on one row together; everything else wraps at
+        // 8 px per char under a 20 px wrap width.
+        let paragraph =
+            decomposed_rtl_paragraph(
+                text,
+                |char_idx, _| {
+                    if char_idx >= word_start { 0.5 } else { 8.0 }
+                },
+            );
+
+        let mut job = LayoutJob::simple(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            20.0,
+        );
+        job.direction = Some(TextDirection::RightToLeft);
+        job.round_output_to_gui = false;
+
+        let mut rows: Vec<PlacedRow> = Vec::new();
+        let mut elided = false;
+        line_break_logically(&paragraph, &job, &[], &mut rows, &mut elided);
+
+        assert!(!elided, "the default max_rows must not elide");
+        assert!(
+            rows.len() >= 2,
+            "a 20 px wrap wraps the label into many rows, got {}",
+            rows.len()
+        );
+        for placed in &rows {
+            assert!(!placed.row.glyphs.is_empty(), "every row keeps its glyphs");
+        }
+
+        // Nothing dropped or duplicated across the rows:
+        let mut all_chrs: Vec<char> = rows
+            .iter()
+            .flat_map(|placed| placed.row.glyphs.iter().map(|glyph| glyph.chr))
+            .collect();
+        all_chrs.sort_unstable();
+        let mut want_chrs: Vec<char> = paragraph.glyphs.iter().map(|glyph| glyph.chr).collect();
+        want_chrs.sort_unstable();
+        assert_eq!(all_chrs, want_chrs, "no glyph may be dropped or duplicated");
+
+        // The final row contains the final word's glyphs (a decomposed
+        // letter contributes its dot twice, both stamped the same chr):
+        let last = rows.last().expect("rows are non-empty");
+        let mut want_last: Vec<char> = Vec::new();
+        for (char_idx, (_, c)) in text.char_indices().enumerate() {
+            if char_idx >= word_start {
+                want_last.push(c);
+                if is_decomposed_letter(c) {
+                    want_last.push(c);
+                }
+            }
+        }
+        for c in &want_last {
+            let want = want_last.iter().filter(|want| want == &c).count();
+            let got = last
+                .row
+                .glyphs
+                .iter()
+                .filter(|glyph| &glyph.chr == c)
+                .count();
+            assert!(
+                got >= want,
+                "the final row must keep the final word: {c:?} x{want} missing ({got} placed)"
             );
         }
     }
