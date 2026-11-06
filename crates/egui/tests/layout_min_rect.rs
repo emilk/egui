@@ -240,19 +240,16 @@ fn grid_cell_min_rect_keeps_the_cell_frame() {
     );
 }
 
-/// Task-302 probe (directive-native-rtl): a vertical autosized body (desired
-/// smaller than offered) containing a flag-mirrored `ui.horizontal` row with
-/// plain widgets, inside a [`Window`] end-to-end: the body — the direct
-/// `min_rect`/response-rect consumer the report is about — must hug its
-/// content in every frame (sizing pass and steady frames).
+/// A vertical autosized body (desired smaller than offered) containing a
+/// flag-mirrored `ui.horizontal` row with plain widgets, inside a [`Window`]
+/// end-to-end: the body — the direct `min_rect`/response-rect consumer — must
+/// hug its content in every frame (the sizing pass and the steady frames
+/// after it).
 ///
-/// Characterization probe for the reported mirrored-row measurement inflation
-/// (reported as steady-frame full-width bodies): expected GREEN at baseline.
 /// The window itself is only the end-to-end container here: egui windows keep
-/// their 340 pt `default_size` width regardless of content, direction-neutrally
-/// (verified against plain LTR/RTL windows), so only the body measurement is
-/// asserted. If it ever goes red, a mirrored horizontal row has started
-/// leaking the offered width into the measured span.
+/// their 340 pt `default_size` width regardless of content, direction-neutrally,
+/// so only the body measurement is asserted. A failure here means a mirrored
+/// horizontal row has started leaking the offered width into the measured span.
 #[test]
 fn probe_window_with_mirrored_row_hugs_content_in_all_frames() {
     let ctx = Context::default();
@@ -268,7 +265,7 @@ fn probe_window_with_mirrored_row_hugs_content_in_all_frames() {
             },
             |ui| {
                 egui::CentralPanel::default().show(ui, |ui| {
-                    Window::new("probe302").show(ui, |ui| {
+                    Window::new("mirrored_row_window").show(ui, |ui| {
                         let body = ui
                             .allocate_ui_with_layout(DESIRED, Layout::top_down(Align::Min), |ui| {
                                 ui.horizontal(|ui| {
