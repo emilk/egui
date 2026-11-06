@@ -13,7 +13,7 @@ use crate::{
         face_store::FontFaceKey,
         fonts::FontsImpl,
         styled_metrics::StyledMetrics,
-        unicode::{is_cjk, is_cjk_break_allowed, is_combining_mark},
+        unicode::{is_breaking_space, is_cjk, is_cjk_break_allowed, is_combining_mark},
     },
 };
 
@@ -1412,8 +1412,7 @@ struct RowBreakCandidates {
 impl RowBreakCandidates {
     fn add(&mut self, index: usize, glyphs: &[Glyph]) {
         let chr = glyphs[0].chr;
-        const NON_BREAKING_SPACE: char = '\u{A0}';
-        if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
+        if is_breaking_space(chr) {
             self.space = Some(index);
         } else if is_cjk(chr) && (glyphs.len() == 1 || is_cjk_break_allowed(glyphs[1].chr)) {
             self.cjk = Some(index);
@@ -1879,7 +1878,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "default_fonts")]
     /// Each test rasterizer needs its own [`GlyphRasterizer::key`], or they would replace each other.
     fn unique_test_key() -> String {
         static COUNTER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
@@ -2189,6 +2187,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     // No bundled font has CJK glyphs, so the line breaks depend on
     // the width of the `.notdef` glyph of the primary font.
     fn test_cjk() {
@@ -2207,6 +2206,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     // No bundled font has CJK glyphs, so the line breaks depend on
     // the width of the `.notdef` glyph of the primary font.
     fn test_pre_cjk() {
@@ -2222,6 +2222,30 @@ mod tests {
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
             vec!["日本語とEnglishの混在した", "文章"]
         );
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn test_no_break_spaces() {
+        let row_texts = |text: &str| {
+            let mut fonts = test_fonts();
+            let mut layout_job = LayoutJob::single_section(text.into(), TextFormat::default());
+            layout_job.wrap.max_width = 90.0;
+            let galley = layout(&mut fonts, 1.0, layout_job.into());
+            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            row_texts("Sum: 123\u{2009}456\u{2009}789"),
+            vec!["Sum: 123\u{2009}456\u{2009}", "789"]
+        );
+        for no_break_space in ['\u{00A0}', '\u{2007}', '\u{202F}'] {
+            let number = format!("123{no_break_space}456{no_break_space}789");
+            assert_eq!(
+                row_texts(&format!("Sum: {number}")),
+                vec!["Sum: ".to_owned(), number]
+            );
+        }
     }
 
     #[test]
@@ -2320,6 +2344,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_end_with_newline() {
         let pixels_per_point = 1.0;
         let mut fonts = test_fonts();
@@ -2555,6 +2580,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_gpos_kerning() {
         // GPOS kerning: pairs like "AV", "VA", "AT" should be tighter than
         // the sum of individual character widths. Without text shaping, egui
@@ -2698,6 +2724,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "default_fonts")]
     fn measure_text(
         fonts: &mut FontsImpl,
         text: &str,
