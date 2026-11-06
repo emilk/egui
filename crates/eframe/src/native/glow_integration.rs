@@ -36,9 +36,10 @@ use log::warn;
 
 use super::{
     epi_integration, event_loop_context,
+    partial_repaint::{PartialRepaint, Plan, damage_in_pixels},
     winit_integration::{EventResult, PassMode, UserEvent, WinitApp, create_egui_context},
 };
-use crate::epaint::textures::TexturesDelta;
+use crate::epaint::{Damage, textures::TexturesDelta};
 use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
     native::{epi_integration::EpiIntegration, winit_integration::sleep_if_invisible_or_minimized},
@@ -111,6 +112,9 @@ struct GlutinWindowContext {
     /// Passed on to each [`egui_winit::State`]. See [`NativeOptions::clipboard_shortcuts`].
     clipboard_shortcuts: bool,
 
+    /// See [`egui_glow::GlowConfiguration::partial_repaint`].
+    partial_repaint: bool,
+
     current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
     not_current_gl_context: Option<glutin::context::NotCurrentContext>,
 
@@ -151,6 +155,8 @@ struct Viewport {
     gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
     window: Option<Arc<Window>>,
     egui_winit: Option<egui_winit::State>,
+
+    partial_repaint: PartialRepaint,
 }
 
 impl Viewport {
@@ -765,7 +771,10 @@ impl GlowWinitRunning<'_> {
             .clear_color(&self.integration.egui_ctx.global_style().visuals);
 
         let has_many_viewports = self.glutin.borrow().viewports.len() > 1;
-        let clear_before_update = !has_many_viewports; // HACK: for some reason, an early clear doesn't "take" on Mac with multiple viewports.
+        // Texture updates are applied by whichever viewport paints first, so the others would miss them.
+        let partial_repaint = self.glutin.borrow().partial_repaint && !has_many_viewports;
+        // the clear has to wait for the update when only the changed part gets cleared
+        let clear_before_update = !has_many_viewports && !partial_repaint; // HACK: for some reason, an early clear doesn't "take" on Mac with multiple viewports.
 
         if is_visible && clear_before_update {
             // clear before we call update, so users can paint between clear-color and egui windows:
@@ -858,6 +867,30 @@ impl GlowWinitRunning<'_> {
         egui_winit.handle_platform_output_with_event_loop(&window, event_loop, platform_output);
 
         if is_visible {
+            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
+            let plan = if partial_repaint {
+                let buffer_age = gl_surface.buffer_age();
+                let plan = viewport.partial_repaint.plan(
+                    &shapes,
+                    pixels_per_point,
+                    pending_deltas,
+                    screen_size_in_pixels,
+                    buffer_age,
+                );
+                log::trace!("partial repaint, buffer age {buffer_age}: {plan:?}");
+                Some(plan)
+            } else {
+                viewport.partial_repaint.reset();
+                None
+            };
+            let mut shapes = shapes;
+            match plan.as_ref().map(|plan| &plan.repaint) {
+                Some(Damage::None) => shapes.clear(),
+                Some(Damage::Partial(region)) => {
+                    shapes.retain(|shape| region.may_touch(shape, pixels_per_point));
+                }
+                Some(Damage::Full) | None => {}
+            }
             let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
             {
@@ -873,18 +906,33 @@ impl GlowWinitRunning<'_> {
                 frame_timer.resume();
             }
 
-            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
-
-            if !clear_before_update {
-                painter.clear(screen_size_in_pixels, clear_color);
+            match plan.as_ref().map(|plan| &plan.repaint) {
+                Some(Damage::Full) | None => {
+                    if !clear_before_update {
+                        painter.clear(screen_size_in_pixels, clear_color);
+                    }
+                    painter.paint_and_update_textures(
+                        screen_size_in_pixels,
+                        pixels_per_point,
+                        &clipped_primitives,
+                        pending_deltas,
+                    );
+                }
+                Some(damage) => {
+                    let region = match damage {
+                        Damage::Partial(region) => region.rects(),
+                        _ => &[],
+                    };
+                    painter.paint_region_and_update_textures(
+                        screen_size_in_pixels,
+                        pixels_per_point,
+                        &clipped_primitives,
+                        pending_deltas,
+                        region,
+                        clear_color,
+                    );
+                }
             }
-
-            painter.paint_and_update_textures(
-                screen_size_in_pixels,
-                pixels_per_point,
-                &clipped_primitives,
-                pending_deltas,
-            );
 
             {
                 let mut screenshot_callbacks = Vec::new();
@@ -946,7 +994,10 @@ impl GlowWinitRunning<'_> {
                 // swap with interval 0 on Wayland (see `GlutinWindowContext::new`).
                 // egui-wgpu does the same. A no-op on other platforms.
                 window.pre_present_notify();
-                gl_surface.swap_buffers(context)?;
+                let presented = plan.as_ref().and_then(|Plan { presented, .. }| {
+                    damage_in_pixels(presented, pixels_per_point, screen_size_in_pixels)
+                });
+                swap_buffers(gl_surface, context, presented.as_deref())?;
                 frame_timer.resume();
             }
 
@@ -1118,6 +1169,29 @@ impl GlowWinitRunning<'_> {
             EventResult::Wait
         }
     }
+}
+
+/// With `damage` (in pixels from the bottom left) the compositor only recomposes that; only EGL takes it.
+fn swap_buffers(
+    gl_surface: &glutin::surface::Surface<glutin::surface::WindowSurface>,
+    context: &glutin::context::PossiblyCurrentContext,
+    damage: Option<&[[i32; 4]]>,
+) -> glutin::error::Result<()> {
+    #[cfg(all(any(windows, unix), not(target_vendor = "apple")))]
+    if let (
+        Some(damage),
+        glutin::surface::Surface::Egl(surface),
+        glutin::context::PossiblyCurrentContext::Egl(context),
+    ) = (damage, gl_surface, context)
+    {
+        let rects: Vec<glutin::surface::Rect> = damage
+            .iter()
+            .map(|&[x, y, width, height]| glutin::surface::Rect::new(x, y, width, height))
+            .collect();
+        return surface.swap_buffers_with_damage(context, &rects);
+    }
+    let _ = damage;
+    gl_surface.swap_buffers(context)
 }
 
 fn change_gl_context(
@@ -1322,6 +1396,7 @@ impl GlutinWindowContext {
                 gl_surface: None,
                 window: window.map(Arc::new),
                 egui_winit: None,
+                partial_repaint: Default::default(),
             },
         );
 
@@ -1341,6 +1416,7 @@ impl GlutinWindowContext {
             viewport_from_window,
             max_texture_side: None,
             clipboard_shortcuts: native_options.clipboard_shortcuts,
+            partial_repaint: native_options.glow_options.partial_repaint,
             window_from_viewport,
             focused_viewport: Some(ViewportId::ROOT),
         };
@@ -1460,6 +1536,7 @@ impl GlutinWindowContext {
             // create window/surface/make context current once and just use them forever.
 
             viewport.gl_surface = Some(gl_surface);
+            viewport.partial_repaint.reset();
 
             self.current_gl_context = Some(current_gl_context);
         }
@@ -1647,6 +1724,7 @@ fn initialize_or_update_viewport<'a>(
                 window: None,
                 egui_winit: None,
                 gl_surface: None,
+                partial_repaint: Default::default(),
             })
         }
 
