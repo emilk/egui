@@ -1,0 +1,1645 @@
+//! `Resize` shrink semantics for plain `Resize` containers and resizable
+//! [`egui::Window`]s: a negative-dx drag must shrink the container while the
+//! reading-start edge stays fixed (the reading-start edge is the left edge in
+//! left-to-right interfaces and the right edge in right-to-left ones), the
+//! first drag frame must not re-pin a stale pre-drag content size, the
+//! configured `min_size` floor must hold the anchored edge, growth and idle
+//! grow-to-content must keep working, and a shrink must stop at the content's
+//! measured minimum width.
+//!
+//! Every case runs an LTR and an RTL twin; the LTR twins double as the
+//! LTR-unchanged regression. No snapshot assertions; geometry only.
+
+use core::cell::Cell;
+use core::num::NonZeroUsize;
+
+use egui::{
+    CentralPanel, Context, Event, FullOutput, Id, Modifiers, PointerButton, Pos2, RawInput, Rect,
+    Ui, Vec2, Window, pos2, vec2,
+};
+
+fn input_at(size: Vec2, time: f64, events: Vec<Event>) -> RawInput {
+    RawInput {
+        screen_rect: Some(Rect::from_min_size(Pos2::ZERO, size)),
+        time: Some(time),
+        events,
+        ..Default::default()
+    }
+}
+
+/// Run one ui pass and discard the texture deltas (these tests never render).
+fn run(ctx: &Context, input: RawInput, run_ui: impl FnMut(&mut Ui)) -> FullOutput {
+    let mut output = ctx.run_ui(input, run_ui);
+    output.textures_delta.clear();
+    output
+}
+
+fn pointer_press(pos: Pos2, pressed: bool) -> Event {
+    Event::PointerButton {
+        pos,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers: Modifiers::NONE,
+    }
+}
+
+fn same_rect(a: Rect, b: Rect) -> bool {
+    (a.left() - b.left()).abs() <= 0.5
+        && (a.right() - b.right()).abs() <= 0.5
+        && (a.top() - b.top()).abs() <= 0.5
+        && (a.bottom() - b.bottom()).abs() <= 0.5
+}
+
+/// `inner` inside `outer`, with a point of tolerance on every edge.
+fn rect_within(inner: Rect, outer: Rect, tol: f32) -> bool {
+    inner.left() >= outer.left() - tol
+        && inner.right() <= outer.right() + tol
+        && inner.top() >= outer.top() - tol
+        && inner.bottom() <= outer.bottom() + tol
+}
+
+/// The painted `Resize` container rect: the stroke outline is the container rect
+/// expanded by 2.0 per side (LTR and RTL alike), so shrink it back.
+fn container_rect_from_shapes(output: &FullOutput) -> Rect {
+    use egui::epaint::RectShape;
+    use egui::epaint::Shape;
+
+    let mut container = Rect::NOTHING;
+    for clipped in &output.shapes {
+        if let Shape::Rect(RectShape {
+            rect, fill, stroke, ..
+        }) = &clipped.shape
+            && *fill == egui::Color32::TRANSPARENT
+            && !stroke.is_empty()
+        {
+            container = rect.shrink(2.0);
+        }
+    }
+    container
+}
+
+/// Body content that fills the offered width in a laid-out frame (like the
+/// title bar's grow atoms or a full-width row): this is the content shape whose
+/// `last_content_size` equals the current size, the shape that used to pin the
+/// grow-only re-pin.
+fn width_filling_content(ui: &mut Ui) {
+    ui.label("Body");
+    ui.separator();
+}
+
+/// A reusable window harness: one context with a fixed screen, and frame /
+/// settle / edge-drag helpers around a single window.
+struct WindowHarness {
+    ctx: Context,
+    screen: Vec2,
+}
+
+impl WindowHarness {
+    fn new(rtl: bool, screen: Vec2) -> Self {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        Self { ctx, screen }
+    }
+
+    fn frame_rect(
+        &self,
+        events: Vec<Event>,
+        time: f64,
+        win: impl Fn() -> Window<'static>,
+        content: impl Fn(&mut Ui),
+    ) -> Rect {
+        let mut rect = Rect::NOTHING;
+        run(&self.ctx, input_at(self.screen, time, events), |_| {
+            if let Some(response) = win().show(&self.ctx, |ui| content(ui)) {
+                rect = response.response.rect;
+            }
+        });
+        rect
+    }
+
+    /// Run idle frames until the window stops changing (settling past any
+    /// discarded sizing pass and content-driven growth).
+    fn settle(
+        &self,
+        mut time: f64,
+        win: impl Fn() -> Window<'static> + Copy,
+        content: impl Fn(&mut Ui) + Copy,
+    ) -> Rect {
+        let mut prev = self.frame_rect(vec![], time, win, content);
+        for _ in 0..8 {
+            time += 0.1;
+            let next = self.frame_rect(vec![], time, win, content);
+            if same_rect(next, prev) {
+                return next;
+            }
+            prev = next;
+        }
+        prev
+    }
+
+    /// Settle as [`Self::settle`], then run one more idle frame and return that
+    /// frame's full output alongside its window rect, for shape-level
+    /// assertions on a settled layout.
+    fn settled_output(
+        &self,
+        time: f64,
+        win: impl Fn() -> Window<'static> + Copy,
+        content: impl Fn(&mut Ui) + Copy,
+    ) -> (FullOutput, Rect) {
+        let settled = self.settle(time, win, content);
+        let rect = Cell::new(Rect::NOTHING);
+        let output = run(
+            &self.ctx,
+            input_at(self.screen, time + 10.0, vec![]),
+            |_| {
+                if let Some(response) = win().show(&self.ctx, |ui| content(ui)) {
+                    rect.set(response.response.rect);
+                }
+            },
+        );
+        assert!(
+            same_rect(rect.get(), settled),
+            "the extra frame must render the settled window (settled {settled:?})"
+        );
+        (output, rect.get())
+    }
+
+    /// Press on a window edge (`press_x` picks the x of the press point from
+    /// the settled rect, mid-height, away from the corners), move the pointer
+    /// by `delta`, release, settle, and return the before/after rects.
+    fn drag_edge(
+        &self,
+        time: f64,
+        win: impl Fn() -> Window<'static> + Copy,
+        content: impl Fn(&mut Ui) + Copy,
+        press_x: impl Fn(Rect) -> f32,
+        delta: Vec2,
+    ) -> (Rect, Rect) {
+        let before = self.settle(time, win, content);
+        assert!(
+            before.is_positive(),
+            "the window should be laid out before the drag (got {before:?})"
+        );
+        let grab = pos2(press_x(before), before.center().y);
+        self.frame_rect(vec![Event::PointerMoved(grab)], time + 1.0, win, content);
+        self.frame_rect(vec![pointer_press(grab, true)], time + 1.1, win, content);
+        let moved = grab + delta;
+        self.frame_rect(vec![Event::PointerMoved(moved)], time + 1.2, win, content);
+        self.frame_rect(vec![pointer_press(moved, false)], time + 1.3, win, content);
+        let after = self.settle(time + 1.4, win, content);
+        (before, after)
+    }
+}
+
+/// The window builder shared by the window tests: placed so the drag's before
+/// and after rects both fit on screen in either direction.
+fn shrink_window(pos: Pos2, size: Vec2) -> Window<'static> {
+    Window::new("shrink win")
+        .resizable(true)
+        .default_size(size)
+        .default_pos(pos)
+}
+
+/// The title-less window builder for the content-hug tests: its size follows
+/// the content measurement (no title bar, not user-resizable), placed so its
+/// reading-start edge sits at `pos` in either direction.
+fn title_less_window(pos: Pos2, size: Vec2) -> Window<'static> {
+    Window::new("slack win")
+        .title_bar(false)
+        .resizable(false)
+        .default_size(size)
+        .default_pos(pos)
+}
+
+/// Body content that records its own row rect into the cell: one narrow
+/// mirrored row, right-anchored in the window body under RTL.
+fn narrow_row_content(row: &Cell<Rect>) -> impl Fn(&mut Ui) + Copy {
+    move |ui: &mut Ui| {
+        let response = ui.horizontal(|ui| {
+            ui.label("narrow");
+        });
+        row.set(response.response.rect);
+    }
+}
+
+/// Body content that records its widget rect into the cell: a plain label,
+/// anchored on the body's effective cross-align edge (left under LTR, the
+/// reading-start edge under RTL, like every bare widget in the body).
+fn plain_label_content(label: &Cell<Rect>) -> impl Fn(&mut Ui) + Copy {
+    move |ui: &mut Ui| {
+        let response = ui.label("hi");
+        label.set(response.rect);
+    }
+}
+
+/// The left edge of the leftmost visible painted shape that is not part of the
+/// window frame itself. The frame paints its background rect (spanning the
+/// full window rect) together with its shadow in one shape group; the group is
+/// skipped whole so the shadow (a window-sized rect offset by the shadow
+/// offset) does not count as content. Invisible rects (transparent fill, no
+/// stroke) are skipped, and text galleys measure from their own
+/// halign-anchored rect.
+fn leftmost_content_left(output: &FullOutput, window: Rect) -> Option<f32> {
+    use egui::epaint::Shape;
+
+    fn scan(shape: &Shape, window: Rect, leftmost: &mut Option<f32>) {
+        match shape {
+            Shape::Vec(shapes) => {
+                // The window frame paints shadow + background as one group.
+                let is_frame_group = shapes
+                    .iter()
+                    .any(|s| matches!(s, Shape::Rect(rect) if same_rect(rect.rect, window)));
+                if !is_frame_group {
+                    for shape in shapes {
+                        scan(shape, window, leftmost);
+                    }
+                }
+            }
+            Shape::Rect(rect) => {
+                let visible = rect.fill != egui::Color32::TRANSPARENT || !rect.stroke.is_empty();
+                if visible && !same_rect(rect.rect, window) {
+                    *leftmost =
+                        Some(leftmost.map_or(rect.rect.left(), |l| l.min(rect.rect.left())));
+                }
+            }
+            Shape::Text(text) => {
+                let bounds = text.galley.rect.translate(text.pos.to_vec2());
+                *leftmost = Some(leftmost.map_or(bounds.left(), |l| l.min(bounds.left())));
+            }
+            _ => {}
+        }
+    }
+
+    let mut leftmost = None;
+    for clipped in &output.shapes {
+        scan(&clipped.shape, window, &mut leftmost);
+    }
+    leftmost
+}
+
+/// The window frame's content insets from `Style::default()`: the window
+/// margin on every side, plus the 1-pt frame stroke inset on every side.
+const WINDOW_MARGIN: f32 = 6.0;
+const WINDOW_STROKE: f32 = 1.0;
+
+// ---------------------------------------------------------------------------
+
+/// A `Window` with width-filling content shrinks under a negative-dx drag
+/// with the reading-start edge fixed: under LTR the left edge stays put and the
+/// right edge moves left; under RTL the right edge stays put and the left edge
+/// moves right. This is the case the grow-only `desired_size` re-pin used to
+/// block.
+#[test]
+fn window_shrink_drag_shrinks_with_reading_start_edge_fixed() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(400.0, 200.0);
+    const DELTA: f32 = 150.0;
+
+    // LTR: press the right (far) edge and drag left; the left (reading-start)
+    // edge stays fixed:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let win = || shrink_window(pos2(100.0, 50.0), START_SIZE);
+    let (before, after) = ltr.drag_edge(
+        0.0,
+        win,
+        width_filling_content,
+        |r| r.right() - 1.0,
+        vec2(-DELTA, 0.0),
+    );
+    assert!(
+        (after.width() - (before.width() - DELTA)).abs() <= 1.0,
+        "LTR: the shrink drag must shrink the window by ~{DELTA} \
+         (before {before:?}, after {after:?})"
+    );
+    assert!(
+        (after.left() - before.left()).abs() <= 1.0,
+        "LTR: the reading-start (left) edge must stay fixed \
+         (before {before:?}, after {after:?})"
+    );
+    assert!(
+        (after.top() - before.top()).abs() <= 1.0,
+        "LTR: the top edge must stay fixed (before {before:?}, after {after:?})"
+    );
+
+    // RTL: press the left (far) edge and drag right; the right (reading-start)
+    // edge stays fixed:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let win = || shrink_window(pos2(450.0, 50.0), START_SIZE);
+    let (before, after) = rtl.drag_edge(
+        0.0,
+        win,
+        width_filling_content,
+        |r| r.left() + 1.0,
+        vec2(DELTA, 0.0),
+    );
+    assert!(
+        (after.width() - (before.width() - DELTA)).abs() <= 1.0,
+        "RTL: the shrink drag must shrink the window by ~{DELTA} \
+         (before {before:?}, after {after:?})"
+    );
+    assert!(
+        (after.right() - before.right()).abs() <= 1.0,
+        "RTL: the reading-start (right) edge must stay fixed \
+         (before {before:?}, after {after:?})"
+    );
+    assert!(
+        (after.top() - before.top()).abs() <= 1.0,
+        "RTL: the top edge must stay fixed (before {before:?}, after {after:?})"
+    );
+}
+
+/// After a shrink drag, idle frames do not grow the window back to the
+/// stale pre-drag content size (regression for the sizing-pass stale re-pin:
+/// `last_content_size` must never feed a grow-only re-pin with a value bigger
+/// than what the user dragged to).
+#[test]
+fn shrink_survives_idle_frames_without_growing_back() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(400.0, 200.0);
+    const DELTA: f32 = 150.0;
+
+    // LTR:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let win = || shrink_window(pos2(100.0, 50.0), START_SIZE);
+    let (_, after) = ltr.drag_edge(
+        0.0,
+        win,
+        width_filling_content,
+        |r| r.right() - 1.0,
+        vec2(-DELTA, 0.0),
+    );
+    for i in 0..3 {
+        let next = ltr.frame_rect(vec![], 10.0 + f64::from(i), win, width_filling_content);
+        assert!(
+            same_rect(next, after),
+            "LTR: idle frames must not grow the shrunk window back \
+             (after {after:?}, frame {i} {next:?})"
+        );
+    }
+
+    // RTL:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let win = || shrink_window(pos2(450.0, 50.0), START_SIZE);
+    let (_, after) = rtl.drag_edge(
+        0.0,
+        win,
+        width_filling_content,
+        |r| r.left() + 1.0,
+        vec2(DELTA, 0.0),
+    );
+    for i in 0..3 {
+        let next = rtl.frame_rect(vec![], 10.0 + f64::from(i), win, width_filling_content);
+        assert!(
+            same_rect(next, after),
+            "RTL: idle frames must not grow the shrunk window back \
+             (after {after:?}, frame {i} {next:?})"
+        );
+    }
+}
+
+/// An over-shrink drag clamps to exactly the configured minimum *width*
+/// (+- 1 rounding) with the anchored (reading-start) edge fixed in both
+/// directions — the floor is the constant min, never the current size.
+/// A `Window` renders at its content's measured height (its inner `Resize` runs
+/// `with_stroke(false)` + `resizable(false)`, so `Resize::end` reports
+/// `last_content_size`), so the configured `min_size.y` never binds — the
+/// window's height is content-bound in BOTH directions. The width floor binds
+/// because the body claims the offered width; it is the floor this test pins. The
+/// both-dimension floor on plain `Resize` containers is covered by
+/// `resize_rtl.rs` `min_size_floor_identical_in_both_directions`.
+#[test]
+fn over_shrink_clamps_to_min_size_anchored_edge_fixed() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(500.0, 300.0);
+    const MIN_SIZE: Vec2 = vec2(200.0, 150.0);
+
+    let win_with_min = |pos: Pos2| {
+        Window::new("min floor win")
+            .resizable(true)
+            .default_size(START_SIZE)
+            .min_size(MIN_SIZE)
+            .default_pos(pos)
+    };
+
+    // LTR: far over-shrink up and to the left:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let win = || win_with_min(pos2(100.0, 50.0));
+    let (before, after) = ltr.drag_edge(
+        0.0,
+        win,
+        width_filling_content,
+        |r| r.right() - 1.0,
+        vec2(-400.0, -300.0),
+    );
+    assert!(
+        (after.width() - MIN_SIZE.x).abs() <= 1.0,
+        "LTR: the over-shrink drag must clamp to the configured min width \
+         (before {before:?}, after {after:?}, min {MIN_SIZE:?})"
+    );
+    assert!(
+        after.height() <= MIN_SIZE.y,
+        "LTR: the window height is content-bound (see the test doc), so it must \
+         settle at or below the min height, never above it \
+         (before {before:?}, after {after:?})"
+    );
+    assert!(
+        (after.left() - before.left()).abs() <= 1.0,
+        "LTR: the min floor must hold the reading-start (left) edge fixed \
+         (before {before:?}, after {after:?})"
+    );
+
+    // RTL: far over-shrink up and to the right:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let win = || win_with_min(pos2(550.0, 50.0));
+    let (before, after) = rtl.drag_edge(
+        0.0,
+        win,
+        width_filling_content,
+        |r| r.left() + 1.0,
+        vec2(400.0, -300.0),
+    );
+    assert!(
+        (after.width() - MIN_SIZE.x).abs() <= 1.0,
+        "RTL: the over-shrink drag must clamp to the configured min width \
+         (before {before:?}, after {after:?}, min {MIN_SIZE:?})"
+    );
+    assert!(
+        after.height() <= MIN_SIZE.y,
+        "RTL: the window height is content-bound (see the test doc), so it must \
+         settle at or below the min height, never above it \
+         (before {before:?}, after {after:?})"
+    );
+    assert!(
+        (after.right() - before.right()).abs() <= 1.0,
+        "RTL: the min floor must hold the reading-start (right) edge fixed \
+         (before {before:?}, after {after:?})"
+    );
+}
+
+/// Growth still works: dragging a window edge outward grows the window by
+/// the drag delta with the reading-start edge fixed, and the grown size is
+/// stable across idle frames (the idle grow-to-content re-pin is unchanged).
+#[test]
+fn growth_drag_still_grows_with_reading_start_edge_fixed() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(300.0, 150.0);
+    const DELTA: f32 = 120.0;
+
+    // LTR: drag the right edge rightward:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let win = || shrink_window(pos2(100.0, 50.0), START_SIZE);
+    let (before, after) = ltr.drag_edge(
+        0.0,
+        win,
+        width_filling_content,
+        |r| r.right() - 1.0,
+        vec2(DELTA, 0.0),
+    );
+    assert!(
+        (after.width() - (before.width() + DELTA)).abs() <= 1.0,
+        "LTR: the growth drag must grow the window by ~{DELTA} \
+         (before {before:?}, after {after:?})"
+    );
+    assert!(
+        (after.left() - before.left()).abs() <= 1.0,
+        "LTR: the reading-start (left) edge must stay fixed \
+         (before {before:?}, after {after:?})"
+    );
+
+    // RTL: drag the left edge leftward:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let win = || shrink_window(pos2(450.0, 50.0), START_SIZE);
+    let (before, after) = rtl.drag_edge(
+        0.0,
+        win,
+        width_filling_content,
+        |r| r.left() + 1.0,
+        vec2(-DELTA, 0.0),
+    );
+    assert!(
+        (after.width() - (before.width() + DELTA)).abs() <= 1.0,
+        "RTL: the growth drag must grow the window by ~{DELTA} \
+         (before {before:?}, after {after:?})"
+    );
+    assert!(
+        (after.right() - before.right()).abs() <= 1.0,
+        "RTL: the reading-start (right) edge must stay fixed \
+         (before {before:?}, after {after:?})"
+    );
+}
+
+/// A shrink stops at the content's measured minimum width: content wider
+/// than the window (a long non-wrapping label) pins the shrink at the content
+/// size, with the anchored edge fixed. This records the residual
+/// content-min pin precisely: the floor is the content minimum measured at the
+/// drag start, not the current size of a *smaller* window.
+#[test]
+fn shrink_stops_at_content_minimum_width_anchored_edge_fixed() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(250.0, 120.0);
+    // ~500 points wide when not wrapped — far wider than the window.
+    const WIDE: &str = "wwwwwwwwww wwwwwwwwww wwwwwwwwww wwwwwwwwww wwwwwwwwww";
+
+    let content = |ui: &mut Ui| {
+        ui.add(egui::Label::new(WIDE).wrap_mode(egui::TextWrapMode::Extend));
+    };
+
+    // LTR: the window settles at the content width; a large inward drag on the
+    // right edge must not shrink below it, and the left edge stays fixed:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let win = || shrink_window(pos2(100.0, 50.0), START_SIZE);
+    let (before, after) = ltr.drag_edge(0.0, win, content, |r| r.right() - 1.0, vec2(-300.0, 0.0));
+    assert!(
+        (after.width() - before.width()).abs() <= 1.0,
+        "LTR: the shrink must stop at the content minimum width \
+         (before {before:?}, after {after:?})"
+    );
+    assert!(
+        (after.left() - before.left()).abs() <= 1.0,
+        "LTR: the reading-start (left) edge must stay fixed \
+         (before {before:?}, after {after:?})"
+    );
+
+    // RTL twin:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let win = || shrink_window(pos2(450.0, 50.0), START_SIZE);
+    let (before, after) = rtl.drag_edge(0.0, win, content, |r| r.left() + 1.0, vec2(300.0, 0.0));
+    assert!(
+        (after.width() - before.width()).abs() <= 1.0,
+        "RTL: the shrink must stop at the content minimum width \
+         (before {before:?}, after {after:?})"
+    );
+    assert!(
+        (after.right() - before.right()).abs() <= 1.0,
+        "RTL: the reading-start (right) edge must stay fixed \
+         (before {before:?}, after {after:?})"
+    );
+}
+
+// ---------------------------------------------------------------------------
+
+/// Behavioral pin for the corner-grip drag path with `max_passes = 1` (as
+/// when the multi-pass budget is consumed by something else in a real frame):
+/// with the pointer dragging the corner grip, the first frame after the move
+/// already reports the requested shrink, with the reading-start edge fixed, and
+/// the shrunk size survives the release.
+///
+/// This is a behavioral pin, not a causal one: the frame observed here is NOT
+/// the sizing pass. The press frame is (the drag begins with `min_content_width`
+/// still unset), and by the move frame the minimum is cached and
+/// `last_content_size` was freshly refreshed in `end`, so this frame would be
+/// green even without the active-resize gate in `Resize::end`. The gate's
+/// genuinely observable effects are pinned by the three siblings:
+/// `window_edge_drag_requested_shrink_survives_a_final_sizing_pass` drives
+/// the window edge-drag path, where the consumed `requested_size` arrives from
+/// the previous frame and the first consuming frame is the sizing pass (there
+/// the stale `last_content_size` re-pins through the window render and the idle
+/// grow-to-content, not through the gated re-pin, which only runs for containers
+/// that show how large they are);
+/// `sizing_pass_final_reports_the_requested_shrink_on_a_plain_resize` drives a
+/// plain `Resize` whose sizing pass is the final pass, pinning that frame's
+/// render at the requested size (which the sizing-pass seed alone already
+/// guarantees there); and
+/// `mid_drag_height_grows_live_to_the_content_measurement` pins the drag
+/// frames themselves: the width stays at the request while the height grows
+/// live to the fresh measurement.
+/// A plain `Resize` with a width-filling separator is the smallest reproducible
+/// shape.
+#[test]
+fn first_drag_frame_reports_the_requested_shrink_even_without_a_second_pass() {
+    const SCREEN: Vec2 = vec2(400.0, 300.0);
+    const START_SIZE: Vec2 = vec2(200.0, 100.0);
+    const DELTA: f32 = 60.0;
+
+    for (rtl, delta) in [(false, vec2(-DELTA, 0.0)), (true, vec2(DELTA, 0.0))] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        // One pass per frame: the discarded sizing pass is the visible output,
+        // so the re-pin (or its absence) is observable on the first drag frame.
+        ctx.options_mut(|o| o.max_passes = NonZeroUsize::MIN);
+
+        let id = Id::unique("first_drag_frame_shrink");
+
+        let container = |events: Vec<Event>, time: f64| {
+            let output = run(&ctx, input_at(SCREEN, time, events), |ui| {
+                CentralPanel::default().show(ui, |ui| {
+                    egui::Resize::default()
+                        .id(id)
+                        .default_size(START_SIZE)
+                        .show(ui, width_filling_content);
+                });
+            });
+            container_rect_from_shapes(&output)
+        };
+
+        // Settle at the start size, then grab the grip:
+        let mut time = 0.0;
+        let mut prev = container(vec![], time);
+        for _ in 0..8 {
+            time += 0.1;
+            let next = container(vec![], time);
+            if same_rect(next, prev) {
+                break;
+            }
+            prev = next;
+        }
+        assert!(
+            prev.is_positive(),
+            "rtl = {rtl}: the container should be laid out (got {prev:?})"
+        );
+
+        // The grip sits at the reading-end bottom corner (bottom-right in LTR,
+        // bottom-left in RTL); read its real rect from the corner response.
+        let grip_center = ctx
+            .read_response(id.with("__resize_corner"))
+            .map(|corner| corner.rect.center())
+            .filter(|center| prev.contains(*center))
+            .unwrap_or_else(|| {
+                if rtl {
+                    pos2(prev.left() + 8.0, prev.bottom() - 8.0)
+                } else {
+                    pos2(prev.right() - 8.0, prev.bottom() - 8.0)
+                }
+            });
+        time += 1.0;
+        container(vec![Event::PointerMoved(grip_center)], time);
+        time += 0.1;
+        container(vec![pointer_press(grip_center, true)], time);
+
+        // The first active (dragging) frame: the requested shrink must be
+        // reported immediately, not re-pinned to the stale pre-drag size.
+        time += 0.1;
+        let moved = grip_center + delta;
+        let dragging = container(vec![Event::PointerMoved(moved)], time);
+        let expected_width = START_SIZE.x - DELTA;
+        assert!(
+            (dragging.width() - expected_width).abs() <= 1.0,
+            "rtl = {rtl}: the first drag frame must report the requested shrink \
+             (expected ~{expected_width}, got {dragging:?})"
+        );
+        if rtl {
+            assert!(
+                (dragging.right() - prev.right()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (right) edge must stay fixed on the \
+                 first drag frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        } else {
+            assert!(
+                (dragging.left() - prev.left()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (left) edge must stay fixed on the \
+                 first drag frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        }
+
+        // Release: the shrunk size must stick.
+        time += 0.1;
+        container(vec![pointer_press(moved, false)], time);
+        time += 0.1;
+        let released = container(vec![], time);
+        assert!(
+            (released.width() - expected_width).abs() <= 1.0,
+            "rtl = {rtl}: the shrunk size must survive the release \
+             (dragging {dragging:?}, released {released:?})"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// The active-resize gate's observable sizing-pass effect, through the
+/// window edge-drag path with the sizing pass as the final pass (`max_passes =
+/// 1`, as when the multi-pass budget is consumed by something else in a real
+/// frame): pressing a window resize corner and moving the pointer inward within
+/// the same frame makes the press frame itself store the shrunk
+/// `requested_size` (`total_drag_delta` includes the intra-frame move), and the
+/// next frame — the release, since no later drag frame rewrites the request —
+/// consumes it as the sizing pass, because the drag's content minimum has not
+/// been measured yet. On that frame the stale pre-drag `last_content_size` must
+/// NOT re-pin the requested shrink back up: after the release, the idle frames
+/// must keep the shrunk size instead of bouncing back to the pre-drag size.
+/// This test pins the sizing-pass seed in `Resize::end` (the stale measurement
+/// must not re-pin through the window render or the idle grow-to-content); the
+/// gated width re-pin is pinned by
+/// `mid_drag_height_grows_live_to_the_content_measurement`.
+#[test]
+fn window_edge_drag_requested_shrink_survives_a_final_sizing_pass() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(400.0, 200.0);
+    // Small enough that the intra-frame move stays within the corner grab
+    // square (corner grab radius 10), so the press frame still starts the
+    // window resize drag; large enough that the stale re-pin's bounce back to
+    // the pre-drag size exceeds the assertion tolerance.
+    const DELTA: f32 = 6.0;
+
+    // LTR: press the far (right) bottom corner and move the pointer inward
+    // (leftward) within the same frame, so the press frame stores the shrunk
+    // request; release the next frame, so the frame consuming the request is
+    // the sizing pass:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let win = || shrink_window(pos2(100.0, 50.0), START_SIZE);
+    let before = ltr.settle(0.0, win, width_filling_content);
+    assert!(
+        before.is_positive(),
+        "LTR: the window should be laid out before the drag (got {before:?})"
+    );
+    // From here every frame runs a single pass, so the sizing pass that
+    // consumes the drag's request is the visible, final pass:
+    ltr.ctx.options_mut(|o| o.max_passes = NonZeroUsize::MIN);
+    let grab = pos2(before.right() - 2.0, before.bottom() - 2.0);
+    let moved = grab + vec2(-DELTA, 0.0);
+    ltr.frame_rect(
+        vec![Event::PointerMoved(grab)],
+        1.0,
+        win,
+        width_filling_content,
+    );
+    ltr.frame_rect(
+        vec![pointer_press(grab, true), Event::PointerMoved(moved)],
+        1.1,
+        win,
+        width_filling_content,
+    );
+    ltr.frame_rect(
+        vec![pointer_press(moved, false)],
+        1.2,
+        win,
+        width_filling_content,
+    );
+    let expected_width = before.width() - DELTA;
+    for i in 0..3 {
+        let idle = ltr.frame_rect(vec![], 2.0 + f64::from(i), win, width_filling_content);
+        assert!(
+            (idle.width() - expected_width).abs() <= 1.0,
+            "LTR: after the release the idle frames must keep the shrunk size, not \
+             bounce back to the stale pre-drag size \
+             (before {before:?}, idle frame {i} {idle:?})"
+        );
+        assert!(
+            (idle.left() - before.left()).abs() <= 1.0,
+            "LTR: the reading-start (left) edge must stay fixed \
+             (before {before:?}, idle frame {i} {idle:?})"
+        );
+        assert!(
+            (idle.top() - before.top()).abs() <= 1.0,
+            "LTR: the top edge must stay fixed (before {before:?}, idle frame {i} {idle:?})"
+        );
+    }
+
+    // RTL: press the far (left) bottom corner and move the pointer inward
+    // (rightward) within the same frame; the right (reading-start) edge stays
+    // fixed. The window is placed with slack on its right so the frame that
+    // still renders at the stale pre-drag size (the sizing pass that consumes
+    // the request, positioned at the moved left edge) fits on screen — the
+    // generic on-screen constrain must not come into play:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let win = || shrink_window(pos2(250.0, 50.0), START_SIZE);
+    let before = rtl.settle(0.0, win, width_filling_content);
+    assert!(
+        before.is_positive(),
+        "RTL: the window should be laid out before the drag (got {before:?})"
+    );
+    rtl.ctx.options_mut(|o| o.max_passes = NonZeroUsize::MIN);
+    let grab = pos2(before.left() + 2.0, before.bottom() - 2.0);
+    let moved = grab + vec2(DELTA, 0.0);
+    rtl.frame_rect(
+        vec![Event::PointerMoved(grab)],
+        1.0,
+        win,
+        width_filling_content,
+    );
+    rtl.frame_rect(
+        vec![pointer_press(grab, true), Event::PointerMoved(moved)],
+        1.1,
+        win,
+        width_filling_content,
+    );
+    rtl.frame_rect(
+        vec![pointer_press(moved, false)],
+        1.2,
+        win,
+        width_filling_content,
+    );
+    let expected_width = before.width() - DELTA;
+    for i in 0..3 {
+        let idle = rtl.frame_rect(vec![], 2.0 + f64::from(i), win, width_filling_content);
+        assert!(
+            (idle.width() - expected_width).abs() <= 1.0,
+            "RTL: after the release the idle frames must keep the shrunk size, not \
+             bounce back to the stale pre-drag size \
+             (before {before:?}, idle frame {i} {idle:?})"
+        );
+        assert!(
+            (idle.right() - before.right()).abs() <= 1.0,
+            "RTL: the reading-start (right) edge must stay fixed \
+             (before {before:?}, idle frame {i} {idle:?})"
+        );
+        assert!(
+            (idle.top() - before.top()).abs() <= 1.0,
+            "RTL: the top edge must stay fixed (before {before:?}, idle frame {i} {idle:?})"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// A plain `Resize` whose sizing pass is the final pass (`max_passes = 1`,
+/// as when the multi-pass budget is consumed by something else in a real
+/// frame). Pressing the corner grip and moving the pointer within the same
+/// frame makes that very frame the sizing pass that consumes the shrunk
+/// request (the corner response is kept lag-less for the widget being
+/// interacted with, so `begin` already computes the requested size from the
+/// moved pointer). That sizing-pass frame must already report the requested
+/// shrink, with the reading-start edge fixed — the stale pre-drag content size
+/// must not feed back into the rendered size on the frame that consumes the
+/// request. The sizing-pass seed (which pins `last_content_size` at the
+/// requested size before the size loop) makes the grow-only re-pin in `end` a
+/// no-op on this frame; while the drag stays in flight the active-resize gate
+/// keeps the width re-pin off on the later drag frames, where the fresh
+/// measurement can exceed the request — that gate is pinned by
+/// `mid_drag_height_grows_live_to_the_content_measurement`. The shrunk size
+/// must survive the release: the release frame re-applies the request (the
+/// corner response it reads is from the drag frame) and re-measures the
+/// content at the requested rect, so the idle grow-to-content in `begin` has
+/// no larger value to feed back.
+/// The corner-grip behavioral twin with a second pass is
+/// `first_drag_frame_reports_the_requested_shrink_even_without_a_second_pass`;
+/// the window edge-drag twin is
+/// `window_edge_drag_requested_shrink_survives_a_final_sizing_pass`.
+#[test]
+fn sizing_pass_final_reports_the_requested_shrink_on_a_plain_resize() {
+    const SCREEN: Vec2 = vec2(400.0, 300.0);
+    const START_SIZE: Vec2 = vec2(200.0, 100.0);
+    // Small enough that the intra-frame move stays within the corner grip's
+    // rect, so the press frame still starts the grip drag; large enough that
+    // the stale re-pin's effect exceeds the assertion tolerance.
+    const DELTA: f32 = 4.0;
+
+    for (rtl, delta) in [(false, vec2(-DELTA, 0.0)), (true, vec2(DELTA, 0.0))] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        // One pass per frame: the discarded sizing pass is the visible output,
+        // so the re-pin (or its absence) is observable on the release frame.
+        ctx.options_mut(|o| o.max_passes = NonZeroUsize::MIN);
+
+        let id = Id::unique("sizing_pass_final_shrink");
+
+        let container = |events: Vec<Event>, time: f64| {
+            let output = run(&ctx, input_at(SCREEN, time, events), |ui| {
+                CentralPanel::default().show(ui, |ui| {
+                    egui::Resize::default()
+                        .id(id)
+                        .default_size(START_SIZE)
+                        .show(ui, width_filling_content);
+                });
+            });
+            container_rect_from_shapes(&output)
+        };
+
+        // Settle at the start size, then grab the grip:
+        let mut time = 0.0;
+        let mut prev = container(vec![], time);
+        for _ in 0..8 {
+            time += 0.1;
+            let next = container(vec![], time);
+            if same_rect(next, prev) {
+                break;
+            }
+            prev = next;
+        }
+        assert!(
+            prev.is_positive(),
+            "rtl = {rtl}: the container should be laid out (got {prev:?})"
+        );
+
+        // The grip sits at the reading-end bottom corner (bottom-right in LTR,
+        // bottom-left in RTL); read its real rect from the corner response.
+        let grip_center = ctx
+            .read_response(id.with("__resize_corner"))
+            .map(|corner| corner.rect.center())
+            .filter(|center| prev.contains(*center))
+            .unwrap_or_else(|| {
+                if rtl {
+                    pos2(prev.left() + 8.0, prev.bottom() - 8.0)
+                } else {
+                    pos2(prev.right() - 8.0, prev.bottom() - 8.0)
+                }
+            });
+        time += 1.0;
+        container(vec![Event::PointerMoved(grip_center)], time);
+        // Press and move within the same frame: the corner response is kept
+        // lag-less for the widget being interacted with, so this frame's
+        // `begin` already computes the shrunk request from the moved pointer
+        // and runs the sizing pass on it — with `max_passes = 1` that sizing
+        // pass is the visible pass, so the re-pin (or its absence) is
+        // observable right here:
+        time += 0.1;
+        let moved = grip_center + delta;
+        let dragging = container(
+            vec![pointer_press(grip_center, true), Event::PointerMoved(moved)],
+            time,
+        );
+        let expected_width = START_SIZE.x - DELTA;
+        assert!(
+            (dragging.width() - expected_width).abs() <= 1.0,
+            "rtl = {rtl}: the sizing-pass frame must report the requested shrink \
+             (expected ~{expected_width}, got {dragging:?})"
+        );
+        if rtl {
+            assert!(
+                (dragging.right() - prev.right()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (right) edge must stay fixed on the \
+                 sizing-pass frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        } else {
+            assert!(
+                (dragging.left() - prev.left()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (left) edge must stay fixed on the \
+                 sizing-pass frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        }
+
+        // Release the pointer: the release frame itself still re-applies the request
+        // (the corner response it reads is from the drag frame), but from the next
+        // frame on the pointer is up and the idle grow-to-content in `begin` runs on
+        // the seeded `last_content_size`, so the shrunk size must stick across idle
+        // frames.
+        time += 0.1;
+        let _release_frame = container(vec![pointer_press(moved, false)], time);
+        for i in 0..3 {
+            time += 0.1;
+            let idle = container(vec![], time);
+            assert!(
+                (idle.width() - expected_width).abs() <= 1.0,
+                "rtl = {rtl}: the shrunk size must survive the release \
+                 (dragging {dragging:?}, idle frame {i} {idle:?})"
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// A paragraph long enough that its wrapped line count — and so its measured
+/// height — grows by several lines between the settled width and the
+/// drag-narrowed width.
+const TALL_WRAPPED_TEXT: &str = "wrapped text grows taller as the container narrows, so \
+the fresh measurement on the drag frames exceeds the requested height";
+
+/// The wrapped-text body used by
+/// `mid_drag_height_grows_live_to_the_content_measurement`: its measured height
+/// exceeds the settled height once the container is drag-narrowed.
+fn outgrowing_wrapped_text(ui: &mut Ui) {
+    ui.label(TALL_WRAPPED_TEXT.repeat(3));
+}
+
+/// The container height grows live to the content's measurement while a
+/// resize drag is in flight. Content that measures taller at the narrowed
+/// width — wrapped text that gets taller as the container narrows — must grow
+/// the rendered height on the drag frames themselves, with the reading-start
+/// edge and the top edge fixed. On non-sizing frames the remembered
+/// `last_content_size` is the fresh measurement at the current frame's
+/// requested rect, so the drag-time grow-only re-pin of the height tracks what
+/// the content needs now; only the width re-pin stays gated off while the drag
+/// is in flight, so the user-driven width keeps exactly the requested size.
+/// With the height re-pin gated off too, the
+/// rendered height stayed at the request for the whole drag and the pending
+/// growth snapped in on release — that snap is the symptom pinned away here:
+/// the release and the idle frames must find the height already grown, and the
+/// width shrink must survive.
+/// The sibling
+/// `mid_drag_height_shrink_of_height_filling_content_survives` pins the other
+/// half of the trade: content that fills the offered height (whose fresh
+/// measurement equals the request) still follows a user-driven height shrink.
+#[test]
+fn mid_drag_height_grows_live_to_the_content_measurement() {
+    // Tall enough that the settled wrapped text (several hundred points high
+    // at the start width) and its drag-frame growth both fit on screen, so
+    // the corner grip is never clipped away from the pointer:
+    const SCREEN: Vec2 = vec2(400.0, 500.0);
+    const START_SIZE: Vec2 = vec2(200.0, 100.0);
+    const DELTA: f32 = 60.0;
+
+    for (rtl, delta) in [(false, vec2(-DELTA, 0.0)), (true, vec2(DELTA, 0.0))] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+
+        let id = Id::unique("mid_drag_height_grows_live");
+
+        let container = |events: Vec<Event>, time: f64| {
+            let output = run(&ctx, input_at(SCREEN, time, events), |ui| {
+                CentralPanel::default().show(ui, |ui| {
+                    egui::Resize::default()
+                        .id(id)
+                        .default_size(START_SIZE)
+                        .show(ui, outgrowing_wrapped_text);
+                });
+            });
+            container_rect_from_shapes(&output)
+        };
+
+        // Settle at the start size (with the wrapped text's height at the
+        // start width), then grab the grip:
+        let mut time = 0.0;
+        let mut prev = container(vec![], time);
+        for _ in 0..8 {
+            time += 0.1;
+            let next = container(vec![], time);
+            if same_rect(next, prev) {
+                break;
+            }
+            prev = next;
+        }
+        assert!(
+            prev.is_positive(),
+            "rtl = {rtl}: the container should be laid out (got {prev:?})"
+        );
+
+        // The grip sits at the reading-end bottom corner (bottom-right in LTR,
+        // bottom-left in RTL); read its real rect from the corner response.
+        let grip_center = ctx
+            .read_response(id.with("__resize_corner"))
+            .map(|corner| corner.rect.center())
+            .filter(|center| prev.contains(*center))
+            .unwrap_or_else(|| {
+                if rtl {
+                    pos2(prev.left() + 8.0, prev.bottom() - 8.0)
+                } else {
+                    pos2(prev.right() - 8.0, prev.bottom() - 8.0)
+                }
+            });
+        time += 1.0;
+        container(vec![Event::PointerMoved(grip_center)], time);
+        time += 0.1;
+        container(vec![pointer_press(grip_center, true)], time);
+
+        // The drag frame: the width must report the requested shrink, while
+        // the height must already have grown live to the wrapped content's
+        // measurement at the narrowed width.
+        time += 0.1;
+        let moved = grip_center + delta;
+        let dragging = container(vec![Event::PointerMoved(moved)], time);
+        let expected_width = prev.width() - DELTA;
+        assert!(
+            (dragging.width() - expected_width).abs() <= 1.0,
+            "rtl = {rtl}: the drag frame must report the requested width shrink \
+             (expected ~{expected_width}, got {dragging:?})"
+        );
+        assert!(
+            dragging.height() >= prev.height() + 1.0,
+            "rtl = {rtl}: while the drag is in flight the wrapped content's \
+             taller measurement must grow the rendered height live from the \
+             settled height {} (got {dragging:?})",
+            prev.height()
+        );
+        if rtl {
+            assert!(
+                (dragging.right() - prev.right()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (right) edge must stay fixed on \
+                 the drag frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        } else {
+            assert!(
+                (dragging.left() - prev.left()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (left) edge must stay fixed on \
+                 the drag frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        }
+        assert!(
+            (dragging.top() - prev.top()).abs() <= 1.0,
+            "rtl = {rtl}: the top edge must stay fixed while the height grows \
+             (settled {prev:?}, dragging {dragging:?})"
+        );
+
+        // A later drag frame with the pointer still down at the same spot: the
+        // grown height must be stable (the wrapped content's measurement at
+        // the narrowed width does not depend on the container height).
+        time += 0.1;
+        let holding = container(vec![], time);
+        assert!(
+            (holding.width() - expected_width).abs() <= 1.0
+                && (holding.height() - dragging.height()).abs() <= 1.0,
+            "rtl = {rtl}: with the drag still in flight the grown height must be \
+             stable at the content measurement (dragging {dragging:?}, holding \
+             {holding:?})"
+        );
+
+        // Release: the width shrink survives, and the height must already be at
+        // the during-drag growth — the correction happened live, with no snap
+        // on release:
+        time += 0.1;
+        container(vec![pointer_press(moved, false)], time);
+        for i in 0..3 {
+            time += 0.1;
+            let idle = container(vec![], time);
+            assert!(
+                (idle.width() - expected_width).abs() <= 1.0,
+                "rtl = {rtl}: the width shrink must survive the release \
+                 (dragging {dragging:?}, idle frame {i} {idle:?})"
+            );
+            assert!(
+                (idle.height() - dragging.height()).abs() <= 1.0,
+                "rtl = {rtl}: the height must stay at the during-drag growth \
+                 after the release — no snap (dragging {dragging:?}, idle frame \
+                 {i} {idle:?})"
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// The guard body for `mid_drag_height_shrink_of_height_filling_content_survives`:
+/// empty space that fills up the offered rect (the "freely
+/// resized" demo shape), whose fresh measurement equals whatever height the
+/// container offers.
+fn height_filling_body(ui: &mut Ui) {
+    ui.allocate_space(ui.available_size());
+}
+
+/// Guard for the user-driven height: content that fills the offered height
+/// measures exactly the requested height on the drag frames, so the drag-time
+/// height re-pin is a no-op there — a diagonal shrink drag must shrink both
+/// the width and the height live, with the reading-start and top edges fixed,
+/// and the shrunk size must survive the release. This is the half of the
+/// active-resize trade the live height growth must not take away: the grow-only
+/// re-pin must never fight the user's shrink of adaptive content (the
+/// active-resize gate's grow-only capability, pinned here with the gate
+/// narrowed to the width only).
+#[test]
+fn mid_drag_height_shrink_of_height_filling_content_survives() {
+    const SCREEN: Vec2 = vec2(400.0, 500.0);
+    const START_SIZE: Vec2 = vec2(200.0, 300.0);
+    const DELTA_X: f32 = 40.0;
+    const DELTA_Y: f32 = 60.0;
+
+    for (rtl, delta) in [
+        (false, vec2(-DELTA_X, -DELTA_Y)),
+        (true, vec2(DELTA_X, -DELTA_Y)),
+    ] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+
+        let id = Id::unique("mid_drag_height_shrink_filling");
+
+        let container = |events: Vec<Event>, time: f64| {
+            let output = run(&ctx, input_at(SCREEN, time, events), |ui| {
+                CentralPanel::default().show(ui, |ui| {
+                    egui::Resize::default()
+                        .id(id)
+                        .default_size(START_SIZE)
+                        .show(ui, height_filling_body);
+                });
+            });
+            container_rect_from_shapes(&output)
+        };
+
+        // Settle at the start size, then grab the grip:
+        let mut time = 0.0;
+        let mut prev = container(vec![], time);
+        for _ in 0..8 {
+            time += 0.1;
+            let next = container(vec![], time);
+            if same_rect(next, prev) {
+                break;
+            }
+            prev = next;
+        }
+        assert!(
+            prev.is_positive(),
+            "rtl = {rtl}: the container should be laid out (got {prev:?})"
+        );
+
+        // The grip sits at the reading-end bottom corner (bottom-right in LTR,
+        // bottom-left in RTL); read its real rect from the corner response.
+        let grip_center = ctx
+            .read_response(id.with("__resize_corner"))
+            .map(|corner| corner.rect.center())
+            .filter(|center| prev.contains(*center))
+            .unwrap_or_else(|| {
+                if rtl {
+                    pos2(prev.left() + 8.0, prev.bottom() - 8.0)
+                } else {
+                    pos2(prev.right() - 8.0, prev.bottom() - 8.0)
+                }
+            });
+        time += 1.0;
+        container(vec![Event::PointerMoved(grip_center)], time);
+        time += 0.1;
+        container(vec![pointer_press(grip_center, true)], time);
+
+        // The drag frame: both dimensions must follow the request live — the
+        // filling content's fresh measurement equals the request, so the
+        // height re-pin must not grow it back:
+        time += 0.1;
+        let moved = grip_center + delta;
+        let dragging = container(vec![Event::PointerMoved(moved)], time);
+        let expected_width = prev.width() - DELTA_X;
+        let expected_height = prev.height() - DELTA_Y;
+        assert!(
+            (dragging.width() - expected_width).abs() <= 1.0,
+            "rtl = {rtl}: the drag frame must report the requested width shrink \
+             (expected ~{expected_width}, got {dragging:?})"
+        );
+        assert!(
+            (dragging.height() - expected_height).abs() <= 1.0,
+            "rtl = {rtl}: the drag frame must report the requested height shrink \
+             of height-filling content (expected ~{expected_height}, got \
+             {dragging:?})"
+        );
+        if rtl {
+            assert!(
+                (dragging.right() - prev.right()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (right) edge must stay fixed on \
+                 the drag frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        } else {
+            assert!(
+                (dragging.left() - prev.left()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (left) edge must stay fixed on \
+                 the drag frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        }
+        assert!(
+            (dragging.top() - prev.top()).abs() <= 1.0,
+            "rtl = {rtl}: the top edge must follow the height shrink \
+             (settled {prev:?}, dragging {dragging:?})"
+        );
+
+        // Release: the shrunk size must survive the release and the idle
+        // frames (the filling content re-measures at the requested rect, so
+        // the idle grow-to-content has nothing larger to feed back):
+        time += 0.1;
+        container(vec![pointer_press(moved, false)], time);
+        for i in 0..3 {
+            time += 0.1;
+            let idle = container(vec![], time);
+            assert!(
+                (idle.width() - expected_width).abs() <= 1.0
+                    && (idle.height() - expected_height).abs() <= 1.0,
+                "rtl = {rtl}: the shrunk size of height-filling content must \
+                 survive the release (dragging {dragging:?}, idle frame {i} \
+                 {idle:?})"
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// A title-less RTL window hugs its right-anchored content: the settled
+/// width exceeds the row width by only the frame's margins and stroke insets,
+/// the reading-start (right) edge stays at its placed position from the first
+/// frame through the idle frames, the settled rect fits on screen, and the LTR
+/// twin hugs identically.
+#[test]
+fn title_less_rtl_window_hugs_right_anchored_content_reading_end_slack_zero() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(340.0, 420.0);
+    const POS: Pos2 = pos2(650.0, 50.0);
+
+    // RTL: the window keeps its placed reading-start (right) edge and loses
+    // the reading-end slack:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let row = Cell::new(Rect::NOTHING);
+    let content = narrow_row_content(&row);
+    let win = || title_less_window(POS, START_SIZE);
+    let first = rtl.frame_rect(vec![], 0.0, win, content);
+    let settled = rtl.settle(0.0, win, content);
+    for i in 0..3 {
+        let next = rtl.frame_rect(vec![], 5.0 + f64::from(i), win, content);
+        assert!(
+            same_rect(next, settled),
+            "RTL: idle frames must not move or resize the hugging window \
+             (settled {settled:?}, frame {i} {next:?})"
+        );
+    }
+    assert!(
+        Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(settled),
+        "RTL: the settled window must fit on screen (settled {settled:?})"
+    );
+    assert!(
+        settled.width() - (row.get().width() + 2.0 * WINDOW_MARGIN) <= 2.0 * WINDOW_STROKE + 1.0,
+        "RTL: the title-less window must hug its right-anchored content, with \
+         no reading-end slack beyond the frame's margins and stroke \
+         (settled {settled:?}, row {:?})",
+        row.get()
+    );
+    assert!(
+        (settled.right() - first.right()).abs() <= 1.0,
+        "RTL: the reading-start (right) edge must stay at its placed position \
+         (first {first:?}, settled {settled:?})"
+    );
+
+    // LTR twin: the same content hugs identically:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let row = Cell::new(Rect::NOTHING);
+    let content = narrow_row_content(&row);
+    let win = || title_less_window(POS, START_SIZE);
+    let settled_ltr = ltr.settle(0.0, win, content);
+    assert!(
+        Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(settled_ltr),
+        "LTR: the settled window must fit on screen (settled {settled_ltr:?})"
+    );
+    assert!(
+        settled_ltr.width() - (row.get().width() + 2.0 * WINDOW_MARGIN)
+            <= 2.0 * WINDOW_STROKE + 1.0,
+        "LTR: the title-less window must hug its content \
+         (settled {settled_ltr:?}, row {:?})",
+        row.get()
+    );
+    assert!(
+        (settled.width() - settled_ltr.width()).abs() <= 1.0,
+        "the RTL and LTR twins must settle at the same width \
+         (RTL {settled:?}, LTR {settled_ltr:?})"
+    );
+}
+
+// ---------------------------------------------------------------------------
+
+/// Pixel-level pin that nothing paints in the reading-end gap of a
+/// title-less RTL window: on a settled frame, the leftmost painted content
+/// (the mirrored row's text, with the window frame's own background and
+/// shadow shapes excluded) starts within the frame's stroke inset of the
+/// reading-end inner border, in both directions.
+#[test]
+fn title_less_rtl_window_has_no_painted_content_at_the_reading_end_edge() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(340.0, 420.0);
+    const POS: Pos2 = pos2(650.0, 50.0);
+
+    // RTL: the row's text must hug the reading-end (left) inner border:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let row = Cell::new(Rect::NOTHING);
+    let content = narrow_row_content(&row);
+    let win = || title_less_window(POS, START_SIZE);
+    let (output, window) = rtl.settled_output(0.0, win, content);
+    assert!(
+        Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(window),
+        "RTL: the settled window must fit on screen (window {window:?})"
+    );
+    let leftmost = leftmost_content_left(&output, window).unwrap_or(f32::INFINITY);
+    assert!(
+        leftmost - (window.left() + WINDOW_MARGIN) <= WINDOW_STROKE + 1.0,
+        "RTL: the leftmost painted content must start at the reading-end inner \
+         border, not leave a reading-end gap (window {window:?}, leftmost \
+         {leftmost})"
+    );
+
+    // LTR twin: the row's text must hug the reading-start (left) inner border:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let row = Cell::new(Rect::NOTHING);
+    let content = narrow_row_content(&row);
+    let win = || title_less_window(POS, START_SIZE);
+    let (output, window) = ltr.settled_output(0.0, win, content);
+    assert!(
+        Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(window),
+        "LTR: the settled window must fit on screen (window {window:?})"
+    );
+    let leftmost = leftmost_content_left(&output, window).unwrap_or(f32::INFINITY);
+    assert!(
+        leftmost - (window.left() + WINDOW_MARGIN) <= WINDOW_STROKE + 1.0,
+        "LTR: the leftmost painted content must start at the reading-start \
+         inner border (window {window:?}, leftmost {leftmost})"
+    );
+}
+
+// ---------------------------------------------------------------------------
+
+/// Composition guard for a plain-label body: a plain `ui.label` mirrors
+/// with the body under RTL and right-hugs the reading-start edge, so the
+/// title-less RTL window hugs its content width, stable across idle frames,
+/// and the LTR twin contains the label likewise.
+#[test]
+fn plain_label_content_stays_inside_the_title_less_rtl_window() {
+    const SCREEN: Vec2 = vec2(700.0, 500.0);
+    const START_SIZE: Vec2 = vec2(340.0, 420.0);
+    const POS: Pos2 = pos2(650.0, 50.0);
+
+    // RTL: the label hugs the reading-start (right) inner edge, and the window
+    // hugs the label's width:
+    let rtl = WindowHarness::new(true, SCREEN);
+    let label = Cell::new(Rect::NOTHING);
+    let content = plain_label_content(&label);
+    let win = || title_less_window(POS, START_SIZE);
+    let settled = rtl.settle(0.0, win, content);
+    for i in 0..3 {
+        let next = rtl.frame_rect(vec![], 5.0 + f64::from(i), win, content);
+        assert!(
+            same_rect(next, settled),
+            "RTL: idle frames must not move or resize the window \
+             (settled {settled:?}, frame {i} {next:?})"
+        );
+    }
+    assert!(
+        Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(settled),
+        "RTL: the settled window must fit on screen (settled {settled:?})"
+    );
+    let margin = rtl.ctx.style_of(rtl.ctx.theme()).spacing.window_margin.left as f32;
+    assert!(
+        (label.get().right() - (settled.right() - margin)).abs() <= 2.0,
+        "RTL: the plain label must hug the reading-start (right) inner edge \
+         (window {settled:?}, label {:?}, margin {margin})",
+        label.get()
+    );
+    assert!(
+        (settled.width() - (label.get().width() + 2.0 * margin)).abs() <= 2.0,
+        "RTL: the window must hug the label width plus the frame margins \
+         (settled {settled:?}, label {:?}, margin {margin})",
+        label.get()
+    );
+    assert!(
+        rect_within(label.get(), settled, 1.0),
+        "RTL: the plain label must paint inside the title-less window \
+         (window {settled:?}, label {:?})",
+        label.get()
+    );
+
+    // LTR twin:
+    let ltr = WindowHarness::new(false, SCREEN);
+    let label = Cell::new(Rect::NOTHING);
+    let content = plain_label_content(&label);
+    let win = || title_less_window(POS, START_SIZE);
+    let settled_ltr = ltr.settle(0.0, win, content);
+    assert!(
+        rect_within(label.get(), settled_ltr, 1.0),
+        "LTR: the plain label must paint inside the title-less window \
+         (window {settled_ltr:?}, label {:?})",
+        label.get()
+    );
+}
+
+// ---------------------------------------------------------------------------
+//
+// Clip-rect growth and debug outlines for content wider than the requested
+// size. A `Resize` that cannot grow past `max_size` renders narrower than its
+// content on every frame, which is the shrink-frame state the clip-rect
+// growth exists for — no drag needed.
+
+/// A plain label that never wraps: its measured width exceeds the container's
+/// clamped `max_size`, so the content overflows past the container's
+/// reading-end edge on every frame.
+fn overflowing_content(ui: &mut Ui, label_rect: &Cell<Rect>) {
+    let response =
+        ui.add(egui::Label::new(egui::RichText::new(UNWRAPPED_TEXT).monospace()).extend());
+    label_rect.set(response.rect);
+}
+
+const UNWRAPPED_TEXT: &str = "a deliberately long unwrapped label";
+
+/// A `Resize` whose width can never grow past `max_size`, so the content
+/// always measures wider than the rendered container.
+fn clamped_resize(id: Id) -> egui::Resize {
+    egui::Resize::default()
+        .id(id)
+        .with_stroke(false)
+        .resizable(false)
+        .default_size(vec2(400.0, 100.0))
+        .max_size(vec2(120.0, f32::INFINITY))
+}
+
+/// The painted text shape of the overflowing label: its absolute ink rect and
+/// the clip rect it was painted with.
+fn label_ink_and_clip(output: &FullOutput) -> (Rect, Rect) {
+    use egui::epaint::Shape;
+
+    for clipped in &output.shapes {
+        if let Shape::Text(text) = &clipped.shape
+            && text.galley.job.text == UNWRAPPED_TEXT
+        {
+            let ink = text.galley.mesh_bounds.translate(text.pos.to_vec2());
+            return (ink, clipped.clip_rect);
+        }
+    }
+    panic!("the overflowing label should paint");
+}
+
+/// Under a right-to-left interface the container grows leftward from its fixed
+/// reading-start (right) edge, and the content overflows past its reading-end
+/// (left) edge; the clip rect must grow leftward with it. Before the fix the
+/// clip stopped at the container's left edge and cut the overflow off.
+#[test]
+fn rtl_clip_rect_grows_past_the_reading_end_overflow() {
+    for (rtl, want_tolerant_clip) in [(true, true), (false, false)] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        let id = Id::unique("resize_clip_growth");
+        let label_rect = Cell::new(Rect::NOTHING);
+        let mut output = FullOutput::default();
+        for i in 0..3 {
+            output = run(
+                &ctx,
+                input_at(vec2(400.0, 300.0), i as f64 * 0.1, vec![]),
+                |ui| {
+                    CentralPanel::default().show(ui, |ui| {
+                        clamped_resize(id).show(ui, |ui| overflowing_content(ui, &label_rect));
+                    });
+                },
+            );
+        }
+        output.textures_delta.clear();
+
+        let (ink, clip) = label_ink_and_clip(&output);
+        assert!(
+            ink.width() > 120.0,
+            "rtl = {rtl}: the label should measure wider than the clamped \
+             container (ink {ink:?})"
+        );
+        if want_tolerant_clip {
+            assert!(
+                clip.left() <= ink.left() + 0.5,
+                "rtl = {rtl}: the clip rect must cover the leftward overflow \
+                 (clip {clip:?}, ink {ink:?})"
+            );
+        } else {
+            // LTR: the container grows rightward from its left edge; the clip
+            // always covered the rightward overflow (unchanged by the fix).
+            assert!(
+                clip.left() <= ink.left() + 0.5,
+                "rtl = {rtl}: the clip rect must cover the rightward overflow \
+                 (clip {clip:?}, ink {ink:?})"
+            );
+        }
+        assert!(
+            clip.right() >= ink.right() - 0.5,
+            "rtl = {rtl}: the clip rect must reach the reading-start side of \
+             the ink (clip {clip:?}, ink {ink:?})"
+        );
+    }
+}
+
+/// The debug outlines are built from the container's reading-start corner: in
+/// a right-to-left interface both outlines' right edges sit on the container's
+/// fixed right edge; in a left-to-right one both left edges sit on the
+/// container's left edge (unchanged by the fix).
+#[test]
+fn debug_outlines_anchor_at_the_reading_start_edge() {
+    use egui::epaint::Shape;
+
+    let debug_rect = |output: &FullOutput, color: egui::Color32| {
+        output
+            .shapes
+            .iter()
+            .filter_map(|clipped| match &clipped.shape {
+                Shape::Rect(rect) => (rect.stroke.color == color).then_some(rect.rect),
+                _ => None,
+            })
+            .next_back()
+            .unwrap_or_else(|| panic!("the {color:?} debug outline should paint"))
+    };
+
+    for rtl in [false, true] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        ctx.all_styles_mut(|style| style.debug.show_resize = true);
+        let id = Id::unique("resize_debug_outline");
+        let label_rect = Cell::new(Rect::NOTHING);
+        let mut output = FullOutput::default();
+        for i in 0..3 {
+            output = run(
+                &ctx,
+                input_at(vec2(400.0, 300.0), i as f64 * 0.1, vec![]),
+                |ui| {
+                    CentralPanel::default().show(ui, |ui| {
+                        clamped_resize(id).show(ui, |ui| overflowing_content(ui, &label_rect));
+                    });
+                },
+            );
+        }
+        output.textures_delta.clear();
+
+        let green = debug_rect(&output, egui::Color32::GREEN);
+        let blue = debug_rect(&output, egui::Color32::LIGHT_BLUE);
+        assert!(
+            (green.width() - blue.width()).abs() > 1.0,
+            "rtl = {rtl}: the two outlines must differ in width for the anchor \
+             to be observable (green {green:?}, blue {blue:?})"
+        );
+        if rtl {
+            assert!(
+                (green.right() - blue.right()).abs() <= 0.5,
+                "rtl = {rtl}: both outlines must hug the container's \
+                 reading-start (right) edge (green {green:?}, blue {blue:?})"
+            );
+        } else {
+            assert!(
+                (green.left() - blue.left()).abs() <= 0.5,
+                "rtl = {rtl}: both outlines must hug the container's \
+                 reading-start (left) edge (green {green:?}, blue {blue:?})"
+            );
+        }
+    }
+}

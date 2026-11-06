@@ -592,6 +592,15 @@ impl Window<'_> {
             area
         };
 
+        // Read before `area.begin` consumes the builder: windows placed with an anchor
+        // re-derive their position from the anchor every frame, so the reading-edge
+        // compensation below must leave them alone.
+        let anchored = area.anchored();
+        // Same for windows placed with an explicit position: `Area::begin` re-pins
+        // the pivot position from it every frame, so the compensation below would
+        // be silently discarded.
+        let has_new_pos = area.has_new_pos();
+
         // Apply the previous frame's title-bar drag _before_ `Area::begin`
         // loads the state. We can't apply it inside the content closure because
         // `Area::end` writes the locally-captured `AreaState` back, overwriting
@@ -604,7 +613,7 @@ impl Window<'_> {
         // `Area::begin` would then apply is undone right after `begin` for
         // `WindowDrag::TitleBar`.
         let title_drag_mode = effective_drag == WindowDrag::TitleBar;
-        let pivot_pos_before_begin = if title_drag_mode {
+        let pre_begin_state = if title_drag_mode {
             if let Some(resp) = ctx.read_response(area.id.with("__title_click"))
                 && resp.dragged()
             {
@@ -619,7 +628,7 @@ impl Window<'_> {
                     });
                 }
             }
-            area::AreaState::load(ctx, area.id).and_then(|s| s.pivot_pos)
+            area::AreaState::load(ctx, area.id)
         } else {
             None
         };
@@ -652,7 +661,7 @@ impl Window<'_> {
             CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), default_open);
 
         let is_collapsed = with_title_bar && !collapsing.is_open();
-        let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
+        let possible = PossibleInteractions::new(&area, &resize, is_collapsed, ctx.is_rtl());
 
         let resize = resize.resizable(false); // We resize it manually
         let mut resize = resize.id(resize_id);
@@ -665,11 +674,18 @@ impl Window<'_> {
         // already accounted for the title drag. We then re-run the same
         // constrain+round step `Area::begin` does so the title-bar drag
         // can't escape `constrain_rect` or reintroduce sub-pixel jitter.
-        if let Some(pre_begin_pivot) = pivot_pos_before_begin {
+        if let Some(pre_begin) = pre_begin_state
+            && let Some(pre_begin_pivot_pos) = pre_begin.pivot_pos
+        {
             let constrain = area.constrain();
             let constrain_rect = area.constrain_rect();
             let state = area.state_mut();
-            state.pivot_pos = Some(pre_begin_pivot);
+            // The pre-begin point is encoded in the pre-begin pivot's space; when
+            // `begin` changed the pivot it already re-expressed that point, so
+            // only restore it when the pivot is unchanged.
+            if state.pivot == pre_begin.pivot {
+                state.pivot_pos = Some(pre_begin_pivot_pos);
+            }
             if constrain {
                 state.set_left_top_pos(
                     Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min,
@@ -712,8 +728,32 @@ impl Window<'_> {
             area_content_ui.multiply_opacity(opacity);
         }
 
+        // An in-flight edge drag manages the window position itself (`resize_response`
+        // stores `requested_size` on every drag frame, and `Resize::begin` consumes it
+        // next frame) — the reading-edge compensation below must not fight it.
+        let edge_drag_in_flight =
+            resize::State::load(ctx, resize_id).is_some_and(|state| state.requested_size.is_some());
+        let rtl = area_content_ui.is_rtl();
+
+        // Seed the measured `min_rect` of the two vertical uis that wrap the body on
+        // its reading-start corner. Under RTL the body claims its rect from the
+        // reading-start (right) edge — the `Resize` container is anchored there and the
+        // title-bar atoms mirror — while a vertical `Align::Min` ui seeds its measured
+        // `min_rect` at the left edge, so the measurement would span from the stale left
+        // edge to the content's right edge: the offered width. The window's persisted
+        // size (`Area::end` stores `content_ui.min_size()`) could then never shrink.
+        // Seeding at the reading-start corner makes the measurement hug the
+        // right-anchored content. Measurement only — the content is already laid out
+        // there — and LTR is untouched.
+        if rtl {
+            seed_min_rect_at_reading_start(&mut area_content_ui);
+        }
+
         let content_inner = {
             let outer_response = window_frame.show(&mut area_content_ui, |ui| {
+                if rtl {
+                    seed_min_rect_at_reading_start(ui);
+                }
                 resize.show(ui, |ui| {
                     if with_title_bar {
                         title_ui(
@@ -731,6 +771,9 @@ impl Window<'_> {
                     }
                     collapsing
                         .show_body_unindented(ui, |ui| {
+                            if rtl {
+                                seed_min_rect_at_reading_start(ui);
+                            }
                             if scroll.is_any_scroll_enabled() {
                                 scroll
                                     .content_margin(window_content_margin)
@@ -739,7 +782,12 @@ impl Window<'_> {
                             } else {
                                 crate::Frame::NONE
                                     .inner_margin(window_content_margin)
-                                    .show(ui, add_contents)
+                                    .show(ui, |ui| {
+                                        if rtl {
+                                            seed_min_rect_at_reading_start(ui);
+                                        }
+                                        add_contents(ui)
+                                    })
                                     .inner
                             }
                         })
@@ -788,6 +836,39 @@ impl Window<'_> {
             outer_response.inner
         };
 
+        if rtl && !edge_drag_in_flight && !anchored && !has_new_pos {
+            // Under RTL the window is anchored on its reading-start (right) edge: when
+            // the content-driven size changes, move the left edge instead so the right
+            // edge stays put — compensated in PIVOT space so it is exact for every
+            // x-pivot.
+            //
+            // Skipped for windows placed with `.fixed_pos()`/`.current_pos()` (like the
+            // `anchored` gate): `Area::begin` re-pins `pivot_pos` from that position
+            // every frame, so a compensation here would be silently discarded. For the
+            // default mirrored pivot the re-pin itself pins the reading-start edge, so
+            // explicit-position windows already grow reading-forward with that edge
+            // fixed; explicit non-default pivots keep their explicit semantics (an
+            // explicit pivot wins in both directions). Without an explicit position the
+            // compensation below holds the reading-start edge for any pivot.
+            // `state.size` still holds the OLD size here (`Area::end` persists the new
+            // one), and the `left_top_pos`/`set_left_top_pos` accessors fold the pivot
+            // factor `f = pivot.x().to_factor()` through that stale size — a left-edge
+            // write `set_left_top_pos(L - dx)` would store `pivot_pos' = L - dx + f*S_old`
+            // and read back next frame as `L' = L - dx - f*dx`, drifting the right edge
+            // by `-f*dx`. Adjust the persisted pivot position directly instead: next
+            // frame's left edge is `pivot_pos - f*S_new`, so `Δpivot_pos.x = -(1 - f)*dx`
+            // moves the left edge by exactly `-dx` and keeps
+            // `right = pivot_pos + (1 - f)*size` fixed for any pivot.
+            let state = area.state_mut();
+            if let Some(old_size) = state.size
+                && let Some(pivot_pos) = state.pivot_pos.as_mut()
+            {
+                let dx = area_content_ui.min_size().x - old_size.x;
+                let f = state.pivot.x().to_factor();
+                pivot_pos.x -= (1.0 - f) * dx;
+            }
+        }
+
         let full_response = area.end(ctx, area_content_ui);
 
         if full_response.should_close()
@@ -804,6 +885,22 @@ impl Window<'_> {
     }
 }
 
+/// Seed the measured `min_rect` of a window-body ui on its reading-start corner.
+///
+/// A vertical `Align::Min` ui starts measuring from a zero-size rect at its
+/// `cross_align` (left) edge, while the window body under RTL claims its rect
+/// from the reading-start (right) edge; left-seeded, the measured size would
+/// span the whole offered width and the window could never shrink. Also shared
+/// with `Resize`'s content ui, whose offered rect is anchored on the same
+/// reading-start edge under RTL. See the call sites for the full picture.
+pub(crate) fn seed_min_rect_at_reading_start(ui: &mut Ui) {
+    let max_rect = ui.max_rect();
+    ui.force_set_min_rect(Rect::from_center_size(
+        pos2(max_rect.right(), max_rect.top()),
+        Vec2::ZERO,
+    ));
+}
+
 fn paint_resize_corner(
     ui: &Ui,
     possible: &PossibleInteractions,
@@ -812,6 +909,39 @@ fn paint_resize_corner(
     i: ResizeInteraction,
 ) {
     let cr = window_frame.corner_radius;
+
+    // The chain below always prefers the bottom-right corner, where the grip
+    // sits in LTR. Under RTL the grip mirrors to the bottom-left corner (like
+    // the `Resize` container's grip), so mirror the horizontal sides of
+    // everything the chain looks at, and flip the chosen corner back
+    // afterwards — the radius and interaction response then come out mirrored
+    // for the real corner too.
+    let (possible, i, cr) = if ui.is_rtl() {
+        (
+            PossibleInteractions {
+                resize_left: possible.resize_right,
+                resize_right: possible.resize_left,
+                resize_top: possible.resize_top,
+                resize_bottom: possible.resize_bottom,
+            },
+            ResizeInteraction {
+                outer_rect: i.outer_rect,
+                window_frame: i.window_frame,
+                left: i.right,
+                right: i.left,
+                top: i.top,
+                bottom: i.bottom,
+            },
+            CornerRadius {
+                nw: cr.ne,
+                ne: cr.nw,
+                sw: cr.se,
+                se: cr.sw,
+            },
+        )
+    } else {
+        (*possible, i, cr)
+    };
 
     let (corner, radius, corner_response) = if possible.resize_right && possible.resize_bottom {
         (Align2::RIGHT_BOTTOM, cr.se, i.right & i.bottom)
@@ -836,6 +966,13 @@ fn paint_resize_corner(
         } else {
             return;
         }
+    };
+
+    // The corner was chosen in mirrored space; map it back to the real layout:
+    let corner = if ui.is_rtl() {
+        corner.flipped_x()
+    } else {
+        corner
     };
 
     // Adjust the corner offset to accommodate for window rounding
@@ -871,12 +1008,12 @@ struct PossibleInteractions {
 }
 
 impl PossibleInteractions {
-    fn new(area: &Area, resize: &Resize, is_collapsed: bool) -> Self {
+    fn new(area: &Area, resize: &Resize, is_collapsed: bool, rtl: bool) -> Self {
         let movable = area.is_enabled() && area.is_movable();
         let resizable = resize
             .is_resizable()
             .and(area.is_enabled() && !is_collapsed);
-        let pivot = area.get_pivot();
+        let pivot = area.get_pivot(rtl);
         Self {
             resize_left: resizable.x && (movable || pivot.x() != Align::LEFT),
             resize_right: resizable.x && (movable || pivot.x() != Align::RIGHT),
@@ -982,7 +1119,13 @@ fn resize_response(
     }
 
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
-    area.state_mut().set_left_top_pos(new_rect.left_top());
+    // The drag moves the window's edges, so the persisted (stale) size must not take
+    // part in the pivot fold: `set_left_top_pos` would land the pivot at
+    // `left + f * old_size`, displacing the un-dragged pivot corner — the
+    // reading-start edge the drag keeps fixed — by the very size the drag changed.
+    // Place the pivot from the dragged rect's own extent instead (identical to
+    // `set_left_top_pos(new_rect.left_top())` whenever the size didn't change).
+    area.state_mut().set_rect_pivot_pos(new_rect);
 
     if resize_interaction.any_dragged()
         && let Some(mut state) = resize::State::load(ctx, resize_id)
@@ -1341,12 +1484,20 @@ fn title_ui(
 
     let expanded = collapsing.openness(ui.ctx()) > 0.0;
 
-    if collapsible {
-        atoms.push_right(Atom::custom(collapse_atom_id, button_allocation_size));
+    // In a right-to-left interface the title bar reads right-to-left: the close button
+    // sits at the far (left) end, then the title, then the collapse button.
+    let rtl = ui.is_rtl();
+
+    // The container below is forced LTR and mirrors only the top-level list, so the
+    // internals of a multi-atom title must be reversed here to read right-to-left.
+    if rtl {
+        title.reverse();
     }
 
-    atoms.push_right(Atom::grow());
-
+    // Only a window with a fixed width has something to truncate its title
+    // against; an auto-sized window instead grows to fit its full title (the
+    // auto-size `min_width` feedback below), symmetrically in both reading
+    // directions.
     if !auto_sized
         && !title.any_shrink()
         && let Some(first_text) = title
@@ -1355,12 +1506,35 @@ fn title_ui(
     {
         first_text.shrink = true;
     }
-    atoms.extend_right(title);
 
-    atoms.push_right(Atom::grow());
+    if rtl {
+        if open.is_some() {
+            atoms.push_end(Atom::custom(close_atom_id, button_allocation_size));
+        }
 
-    if open.is_some() {
-        atoms.push_right(Atom::custom(close_atom_id, button_allocation_size));
+        atoms.push_end(Atom::grow());
+
+        atoms.extend_end(title);
+
+        atoms.push_end(Atom::grow());
+
+        if collapsible {
+            atoms.push_end(Atom::custom(collapse_atom_id, button_allocation_size));
+        }
+    } else {
+        if collapsible {
+            atoms.push_end(Atom::custom(collapse_atom_id, button_allocation_size));
+        }
+
+        atoms.push_end(Atom::grow());
+
+        atoms.extend_end(title);
+
+        atoms.push_end(Atom::grow());
+
+        if open.is_some() {
+            atoms.push_end(Atom::custom(close_atom_id, button_allocation_size));
+        }
     }
 
     let spacing = ui.spacing().item_spacing.x;
@@ -1371,7 +1545,13 @@ fn title_ui(
         .gap(spacing)
         .fallback_font(TextStyle::Heading)
         .wrap_mode(TextWrapMode::Truncate)
-        .frame(Frame::NONE.inner_margin(frame.inner_margin));
+        .frame(Frame::NONE.inner_margin(frame.inner_margin))
+        // The title bar mirrors its atom list itself (the `rtl` branch above) and keys the
+        // hit-test carve on the same `rtl`; keep the container LTR so the mirror is applied
+        // exactly once now that `ContainerAtom::measure` defaults from the surrounding layout
+        // (the child ui inherits the window's vertical `Align::Min` layout, which resolves
+        // right-to-left under `Style::right_to_left`).
+        .direction(Direction::LeftToRight);
 
     let frame = frame.inner_margin(0); // Only applied to the atoms; done above.
 
@@ -1395,7 +1575,13 @@ fn title_ui(
     // Collapse triangle icon
     if collapsible && let Some(rect) = layout_response.rect(collapse_atom_id) {
         let rect = rect.shrink2(button_shrink);
-        title_click_rect = title_click_rect.with_min_x(rect.max.x);
+        // The carve must mirror the atom order: the collapse button sits at the left
+        // end of the title bar in LTR and at the right end in RTL.
+        title_click_rect = if rtl {
+            title_click_rect.with_max_x(rect.min.x)
+        } else {
+            title_click_rect.with_min_x(rect.max.x)
+        };
         let icon_response = child_ui.interact(
             rect,
             child_ui.auto_id_with("collapse_button"),
@@ -1420,7 +1606,13 @@ fn title_ui(
         && let Some(rect) = layout_response.rect(close_atom_id)
     {
         let rect = rect.shrink2(button_shrink);
-        title_click_rect = title_click_rect.with_max_x(rect.min.x);
+        // The carve must mirror the atom order: the close button sits at the right
+        // end of the title bar in LTR and at the left end in RTL.
+        title_click_rect = if rtl {
+            title_click_rect.with_min_x(rect.max.x)
+        } else {
+            title_click_rect.with_max_x(rect.min.x)
+        };
         if close_button(&mut child_ui, rect).clicked() {
             *open = false;
         }

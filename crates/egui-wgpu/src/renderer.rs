@@ -5,6 +5,8 @@ use ahash::HashMap;
 use bytemuck::Zeroable as _;
 use epaint::{PaintCallbackInfo, Primitive, Vertex, emath::NumExt as _};
 
+use crate::{StagingBufferKind, WgpuError};
+
 use wgpu::util::DeviceExt as _;
 
 // Only implements Send + Sync on wasm32 in order to allow storing wgpu resources on the type map.
@@ -634,13 +636,23 @@ impl Renderer {
     }
 
     /// Should be called before [`Self::render`].
+    ///
+    /// # Errors
+    /// Returns [`WgpuError::TextureNotAllocated`] when a partial delta (`image_delta.pos` set)
+    /// references a texture id that has not been allocated yet.
+    /// Returns [`WgpuError::UserTextureUpdate`] when a partial delta targets a texture
+    /// registered via [`Self::register_native_texture`] — those are handles to a bind group
+    /// and have no writable GPU texture.
+    /// Returns [`WgpuError::TextureDeltaOutOfBounds`] when a partial delta extends past the
+    /// edge of the already-allocated GPU texture; the offending delta is not uploaded.
+    /// Callers should log and skip the offending delta.
     pub fn update_texture(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         id: epaint::TextureId,
         image_delta: &epaint::ImageDelta,
-    ) {
+    ) -> Result<(), WgpuError> {
         profiling::function_scope!();
 
         let width = image_delta.image.width() as u32;
@@ -687,10 +699,37 @@ impl Renderer {
                 options,
             } = self
                 .textures
-                .remove(&id)
-                .expect("Tried to update a texture that has not been allocated yet.");
-            let texture = texture.expect("Tried to update user texture.");
-            let options = options.expect("Tried to update user texture.");
+                .get(&id)
+                .ok_or(WgpuError::TextureNotAllocated { id, partial: true })?;
+            let texture = texture
+                .as_ref()
+                .ok_or(WgpuError::UserTextureUpdate(id))?
+                .clone();
+            let bind_group = bind_group.clone();
+            // Destructuring through `&Texture` binds `options: &Option<TextureOptions>` (match
+            // ergonomics; `Texture.options` is `Option<TextureOptions>`), so dereference it.
+            // `Option` is `Copy` here because `TextureOptions` is `Copy`.
+            // Invariant: after the `UserTextureUpdate` check above, `options` is always
+            // `Some(..)` — managed entries insert `options: Some(image_delta.options)` and user
+            // textures insert `options: None` together with `texture: None`, i.e. the map has
+            // exactly these two insert sites. If the invariant were ever broken, the compare
+            // below just yields `false` and the bind group is recreated — no `unwrap`/`expect`
+            // needed.
+            let options = *options;
+
+            // Reject deltas that extend past the allocated texture before uploading anything,
+            // so that a malformed delta cannot trigger a wgpu validation error.
+            let texture_size = [texture.width(), texture.height()];
+            let end = [pos[0] as u64 + width as u64, pos[1] as u64 + height as u64];
+            if end[0] > texture_size[0] as u64 || end[1] > texture_size[1] as u64 {
+                return Err(WgpuError::TextureDeltaOutOfBounds {
+                    id,
+                    pos: [pos[0] as u64, pos[1] as u64],
+                    delta_size: [width as u64, height as u64],
+                    texture_size: [texture_size[0] as u64, texture_size[1] as u64],
+                });
+            }
+
             let origin = wgpu::Origin3d {
                 x: pos[0] as u32,
                 y: pos[1] as u32,
@@ -702,7 +741,7 @@ impl Renderer {
                 origin,
                 // If the TextureOptions are the same as the previous ones, we can reuse the bind group. Otherwise we
                 // have to recreate it.
-                if image_delta.options == options {
+                if Some(image_delta.options) == options {
                     Some(bind_group)
                 } else {
                     None
@@ -777,6 +816,8 @@ impl Renderer {
                 options: Some(image_delta.options),
             },
         );
+
+        Ok(())
     }
 
     pub fn free_texture(&mut self, id: &epaint::TextureId) {
@@ -819,13 +860,17 @@ impl Renderer {
     /// Registers a [`wgpu::Texture`] with an existing [`epaint::TextureId`].
     ///
     /// This enables applications to reuse [`epaint::TextureId`]s.
+    ///
+    /// # Errors
+    /// Returns [`WgpuError::TextureNotAllocated`] if `id` was never allocated — register the
+    /// texture with [`Self::register_native_texture`] first.
     pub fn update_egui_texture_from_wgpu_texture(
         &mut self,
         device: &wgpu::Device,
         texture: &wgpu::TextureView,
         texture_filter: wgpu::FilterMode,
         id: epaint::TextureId,
-    ) {
+    ) -> Result<(), WgpuError> {
         self.update_egui_texture_from_wgpu_texture_with_sampler_options(
             device,
             texture,
@@ -836,7 +881,7 @@ impl Renderer {
                 ..Default::default()
             },
             id,
-        );
+        )
     }
 
     /// Registers a [`wgpu::Texture`] with a [`epaint::TextureId`] while also accepting custom
@@ -901,6 +946,10 @@ impl Renderer {
     /// [`wgpu::SamplerDescriptor`] options.
     ///
     /// This allows applications to reuse [`epaint::TextureId`]s created with custom sampler options.
+    ///
+    /// # Errors
+    /// Returns [`WgpuError::TextureNotAllocated`] if `id` was never allocated — register the
+    /// texture with [`Self::register_native_texture`] first.
     #[expect(clippy::needless_pass_by_value)] // false positive
     pub fn update_egui_texture_from_wgpu_texture_with_sampler_options(
         &mut self,
@@ -908,7 +957,7 @@ impl Renderer {
         texture: &wgpu::TextureView,
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
         id: epaint::TextureId,
-    ) {
+    ) -> Result<(), WgpuError> {
         profiling::function_scope!();
 
         let Texture {
@@ -917,7 +966,7 @@ impl Renderer {
         } = self
             .textures
             .get_mut(&id)
-            .expect("Tried to update a texture that has not been allocated yet.");
+            .ok_or(WgpuError::TextureNotAllocated { id, partial: false })?;
 
         let nearest = sampler_descriptor.mag_filter == wgpu::FilterMode::Nearest;
         let wrap_mode = address_mode_wrap_flag(sampler_descriptor.address_mode_u);
@@ -947,12 +996,19 @@ impl Renderer {
         });
 
         *user_texture_binding = bind_group;
+
+        Ok(())
     }
 
     /// Uploads the uniform, vertex and index data used by the renderer.
     /// Should be called before [`Self::render`].
     ///
     /// Returns all user-defined command buffers gathered from [`CallbackTrait::prepare`] & [`CallbackTrait::finish_prepare`] callbacks.
+    ///
+    /// # Errors
+    /// Returns [`WgpuError::StagingAllocationFailed`] if wgpu could not allocate staging memory
+    /// for the mesh upload; callers should skip the frame. The "must call `update_buffers` first"
+    /// precondition of [`Self::render`] is unchanged — an `Err` frame must not be rendered.
     pub fn update_buffers(
         &mut self,
         device: &wgpu::Device,
@@ -960,7 +1016,7 @@ impl Renderer {
         encoder: &mut wgpu::CommandEncoder,
         paint_jobs: &[epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
-    ) -> Vec<wgpu::CommandBuffer> {
+    ) -> Result<Vec<wgpu::CommandBuffer>, WgpuError> {
         profiling::function_scope!();
 
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
@@ -1022,11 +1078,10 @@ impl Renderer {
             );
 
             let Some(mut index_buffer_staging) = index_buffer_staging else {
-                panic!(
-                    "Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)",
-                    self.index_buffer.buffer.size(),
-                    self.index_buffer.capacity
-                );
+                return Err(WgpuError::StagingAllocationFailed {
+                    kind: StagingBufferKind::Index,
+                    required_bytes: required_index_buffer_size,
+                });
             };
 
             let mut index_offset = 0;
@@ -1068,11 +1123,10 @@ impl Renderer {
             );
 
             let Some(mut vertex_buffer_staging) = vertex_buffer_staging else {
-                panic!(
-                    "Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)",
-                    self.vertex_buffer.buffer.size(),
-                    self.vertex_buffer.capacity
-                );
+                return Err(WgpuError::StagingAllocationFailed {
+                    kind: StagingBufferKind::Vertex,
+                    required_bytes: required_vertex_buffer_size,
+                });
             };
 
             let mut vertex_offset = 0;
@@ -1117,7 +1171,7 @@ impl Renderer {
             }
         }
 
-        user_cmd_bufs
+        Ok(user_cmd_bufs)
     }
 }
 

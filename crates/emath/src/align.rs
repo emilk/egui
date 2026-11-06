@@ -1,6 +1,6 @@
 //! One- and two-dimensional alignment ([`Align::Center`], [`Align2::LEFT_TOP`] etc).
 
-use crate::{Pos2, Rangef, Rect, Vec2, pos2, vec2};
+use crate::{Pos2, Rangef, ReadingDirection, Rect, Vec2, pos2, vec2};
 
 /// left/center/right or top/center/bottom alignment for e.g. anchors and layouts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -69,17 +69,66 @@ impl Align {
         self.flipped()
     }
 
+    /// The alignment at the reading-order *start* side of a horizontal layout,
+    /// for the given [`ReadingDirection`].
+    ///
+    /// This is the logical, direction-aware counterpart of the physical
+    /// [`Self::LEFT`] / [`Self::RIGHT`] constants: `start(Ltr)` is `Min`
+    /// (physically left) and `start(Rtl)` is `Max` (physically right).
+    ///
+    /// This resolves the horizontal axis only: reading direction never
+    /// mirrors the vertical axis, so vertical code keeps [`Self::TOP`]
+    /// (the vertical start is always the top).
+    ///
+    /// These are associated functions, not enum variants, so existing
+    /// exhaustive `match`es over `Align` keep compiling.
+    ///
+    /// See also [`Self::end`].
+    #[inline(always)]
+    #[must_use]
+    pub fn start(dir: ReadingDirection) -> Self {
+        match dir {
+            ReadingDirection::Ltr => Self::Min,
+            ReadingDirection::Rtl => Self::Max,
+        }
+    }
+
+    /// The alignment at the reading-order *end* side of a horizontal layout,
+    /// for the given [`ReadingDirection`].
+    ///
+    /// The inverse of [`Self::start`]: `end(Ltr)` is `Max` (physically right)
+    /// and `end(Rtl)` is `Min` (physically left).
+    ///
+    /// This resolves the horizontal axis only: reading direction never
+    /// mirrors the vertical axis, so vertical code keeps [`Self::BOTTOM`].
+    ///
+    /// See also [`Self::start`].
+    #[inline(always)]
+    #[must_use]
+    pub fn end(dir: ReadingDirection) -> Self {
+        match dir {
+            ReadingDirection::Ltr => Self::Max,
+            ReadingDirection::Rtl => Self::Min,
+        }
+    }
+
     /// Returns a range of given size within a specified range.
     ///
     /// If the requested `size` is bigger than the size of `range`, then the returned
     /// range will not fit into the available `range`. The extra space will be allocated
-    /// from:
+    /// from the physical side listed below (for a vertical range, substitute top/bottom).
     ///
-    /// |Align |Side        |
-    /// |------|------------|
-    /// |Min   |right (end) |
-    /// |Center|both        |
-    /// |Max   |left (start)|
+    /// |Align |Side |
+    /// |------|-----|
+    /// |Min   |right|
+    /// |Center|both |
+    /// |Max   |left |
+    ///
+    /// The physical side is independent of any reading direction; its
+    /// *reading-order* meaning depends on the [`ReadingDirection`]: under
+    /// left-to-right reading the `Min` side is the end and the `Max` side is
+    /// the start; under right-to-left reading it is the other way around
+    /// (see [`Align::start`] / [`Align::end`]).
     ///
     /// # Examples
     /// ```
@@ -369,5 +418,33 @@ pub fn center_size_in_rect(size: Vec2, frame: Rect) -> Rect {
 impl core::fmt::Debug for Align2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Align2({:?}, {:?})", self.x(), self.y())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn align_start_end_follow_reading_direction() {
+        assert_eq!(Align::start(ReadingDirection::Ltr), Align::Min);
+        assert_eq!(Align::start(ReadingDirection::Rtl), Align::Max);
+        assert_eq!(Align::end(ReadingDirection::Ltr), Align::Max);
+        assert_eq!(Align::end(ReadingDirection::Rtl), Align::Min);
+    }
+
+    #[test]
+    fn align_start_end_are_compatible_with_physical_constants_under_ltr() {
+        // Under the crate's left-to-right default, the logical helpers must
+        // agree with the pre-existing physical constants.
+        assert_eq!(Align::start(ReadingDirection::Ltr), Align::LEFT);
+        assert_eq!(Align::end(ReadingDirection::Ltr), Align::RIGHT);
+    }
+
+    #[test]
+    fn align_end_is_flipped_start() {
+        for &dir in &[ReadingDirection::Ltr, ReadingDirection::Rtl] {
+            assert_eq!(Align::end(dir), Align::start(dir).flipped());
+        }
     }
 }

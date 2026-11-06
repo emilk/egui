@@ -2,7 +2,7 @@ use epaint::{Galley, text::CharIndex, text::cursor::CCursor};
 
 use crate::{Event, Id, Key, Modifiers, os::OperatingSystem};
 
-use super::text_cursor_state::{ccursor_next_word, ccursor_previous_word, slice_char_range};
+use super::text_cursor_state::{slice_char_range, visual_word_cursor};
 
 /// A selected text range (could be a range of length zero).
 ///
@@ -125,11 +125,39 @@ impl CCursorRange {
             }
 
             Key::ArrowLeft | Key::ArrowRight if modifiers.is_none() && !self.is_empty() => {
-                if key == Key::ArrowLeft {
-                    *self = Self::one(self.sorted_cursors()[0]);
+                // Collapse the selection onto the visual edge the arrow points at.
+                //
+                // The sorted cursors are in logical order, which matches visual
+                // order only in a left-to-right row: in a right-to-left row the
+                // logical minimum sits at the visual *right* edge, so the choice
+                // is made by caret geometry instead — the visually-earlier
+                // endpoint (upper row, then smaller x) for ArrowLeft, the
+                // visually-later one for ArrowRight, so the two edges agree with
+                // the single-cursor arrow motion. In a left-to-right galley the
+                // geometry reduces to logical order, keeping the old behavior.
+                // A tie (two logical positions sharing one visual edge, possible
+                // at the boundary of runs that counteract the base direction)
+                // falls back to logical order: two logical positions may still
+                // share one visual edge, even though the caret geometry itself
+                // is exact on every row now (see `Row` in epaint); multi-row
+                // selections collapse by the caret's own row.
+                const VISUAL_ROW_EPSILON: f32 = 1.0;
+                let [min, max] = self.sorted_cursors();
+                let (min_rect, max_rect) =
+                    (galley.pos_from_cursor(min), galley.pos_from_cursor(max));
+                let min_is_visually_first = min_rect.top() < max_rect.top() - VISUAL_ROW_EPSILON
+                    || (min_rect.top() <= max_rect.top() + VISUAL_ROW_EPSILON
+                        && min_rect.left() <= max_rect.left());
+                let (visually_first, visually_last) = if min_is_visually_first {
+                    (min, max)
                 } else {
-                    *self = Self::one(self.sorted_cursors()[1]);
-                }
+                    (max, min)
+                };
+                *self = Self::one(if key == Key::ArrowLeft {
+                    visually_first
+                } else {
+                    visually_last
+                });
                 true
             }
 
@@ -222,31 +250,34 @@ impl CCursorRange {
 
 // ----------------------------------------------------------------------------
 
-fn ccursor_from_accesskit_text_position(
+pub(super) fn ccursor_from_accesskit_text_position(
     id: Id,
     galley: &Galley,
     position: &accesskit::TextPosition,
 ) -> Option<CCursor> {
-    use super::accesskit_text::MAX_CHARS_PER_TEXT_RUN;
+    use super::accesskit_text::RowTextRuns;
 
     let mut total_length = 0usize;
     for (i, row) in galley.rows.iter().enumerate() {
         let row_chars = row.glyphs.len() + (row.ends_with_newline as usize);
-        let num_chunks = if row_chars == 0 {
-            1
-        } else {
-            row_chars.div_ceil(MAX_CHARS_PER_TEXT_RUN)
-        };
 
-        for chunk_idx in 0..num_chunks {
-            let run_id = id.with(i).with(chunk_idx);
+        let runs = RowTextRuns::new(row);
+        for (stream_index, _) in runs.runs.iter().enumerate() {
+            let run_id = id.with(i).with(stream_index);
             if run_id.accesskit_id() == position.node {
-                let column = chunk_idx * MAX_CHARS_PER_TEXT_RUN + position.character_index;
+                // The run's char range within the row's *logical* text — the
+                // mirror of what `text_run_position` maps columns against:
+                let logical_range = runs.logical_range(stream_index);
+                let column = logical_range.start + position.character_index;
+                let at_wrap = column == row.glyphs.len()
+                    && !row.ends_with_newline
+                    && (i + 1) < galley.rows.len();
+                // The end of a run that another run follows on this row sticks to the char before it:
+                let at_run_end =
+                    column == logical_range.end && runs.logically_last() != Some(stream_index);
                 return Some(CCursor {
                     index: CharIndex(total_length + column),
-                    prefer_next_row: !(column == row.glyphs.len()
-                        && !row.ends_with_newline
-                        && (i + 1) < galley.rows.len()),
+                    prefer_next_row: !(at_wrap || at_run_end),
                 });
             }
         }
@@ -283,7 +314,7 @@ fn move_single_cursor(
                 Key::ArrowLeft => {
                     if modifiers.alt || modifiers.ctrl {
                         // alt on mac, ctrl on windows
-                        (ccursor_previous_word(galley, *cursor), None)
+                        (visual_word_cursor(galley, cursor, true), None)
                     } else if modifiers.mac_cmd {
                         (galley.cursor_begin_of_row(cursor), None)
                     } else {
@@ -293,7 +324,7 @@ fn move_single_cursor(
                 Key::ArrowRight => {
                     if modifiers.alt || modifiers.ctrl {
                         // alt on mac, ctrl on windows
-                        (ccursor_next_word(galley, *cursor), None)
+                        (visual_word_cursor(galley, cursor, false), None)
                     } else if modifiers.mac_cmd {
                         (galley.cursor_end_of_row(cursor), None)
                     } else {

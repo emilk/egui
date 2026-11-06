@@ -147,10 +147,17 @@ impl TableDemo {
             .max(ui.spacing().interact_size.y);
 
         let available_height = ui.available_height();
+        // Cell contents read in the reading direction, vertically centered
+        // in both directions:
+        let cell_layout = if ui.is_rtl() {
+            egui::Layout::right_to_left(egui::Align::Center)
+        } else {
+            egui::Layout::left_to_right(egui::Align::Center)
+        };
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
             .resizable(self.resizable)
-            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+            .cell_layout(cell_layout)
             .column(Column::auto())
             .column(
                 Column::remainder()

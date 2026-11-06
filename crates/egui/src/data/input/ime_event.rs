@@ -31,6 +31,34 @@ pub enum ImeEvent {
         after_chars: usize,
     },
 
+    /// Notifies when the text surrounding the cursor should be deleted,
+    /// counted in UTF-8 bytes.
+    ///
+    /// This is the unit IMEs and windowing systems actually report: winit's
+    /// `Ime::DeleteSurrounding { before_bytes, after_bytes }` (0.31+,
+    /// <https://github.com/rust-windowing/winit/pull/4294>) and Wayland's
+    /// `zwp_text_input_v3::delete_surrounding_text` are both byte-counted.
+    ///
+    /// Sent right before the [`ImeEvent::Commit`] it accompanies (which may be
+    /// empty), so the delete and the commit stay in one undo step.
+    ///
+    /// Counts saturate at the text bounds and are snapped to UTF-8 character
+    /// boundaries: a count that ends mid-character leaves that character
+    /// intact.
+    DeleteSurroundingBytes {
+        before_bytes: usize,
+        after_bytes: usize,
+    },
+
+    /// The platform IME asked the application for the text surrounding the
+    /// caret (e.g. Wayland `text-input-v3`, Windows IMM32 query).
+    ///
+    /// Sent by the integration; the widget that owns IME events answers by
+    /// reporting [`crate::output::ImeSurroundingText`] through
+    /// [`crate::output::IMEOutput::surrounding_text`] on its next frame.
+    /// Integrations should request a repaint when emitting this.
+    RequestSurroundingText,
+
     /// Notifies when the IME was disabled.
     #[deprecated = "No longer used by egui"]
     Disabled,

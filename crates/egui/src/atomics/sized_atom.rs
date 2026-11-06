@@ -20,6 +20,10 @@ pub struct SizedAtom<'a> {
     /// How will the atom be aligned in its available space?
     pub align: emath::Align2,
 
+    /// Align the content to the reading-end edge of the cell along the row's main
+    /// axis, instead of the physical main-axis component of [`Self::align`]?
+    pub main_axis_end: bool,
+
     pub kind: SizedAtomKind<'a>,
 }
 

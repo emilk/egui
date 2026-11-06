@@ -1,5 +1,7 @@
 //! All the data egui returns to the backend at the end of each frame.
 
+use alloc::sync::Arc;
+
 use core::ops::Range;
 
 use epaint::text::CharIndex;
@@ -92,10 +94,27 @@ pub struct LogicOutput {
     pub viewport_commands: OrderedViewportIdMap<Vec<crate::ViewportCommand>>,
 }
 
+/// The text surrounding the IME caret, and the caret or selection within it.
+///
+/// Offsets are UTF-8 bytes, the units the platform text-input protocols use
+/// (Wayland `text-input-v3.set_surrounding_text`, Windows IMM32).
+/// An empty range is a caret, not an empty selection.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ImeSurroundingText {
+    /// The text the IME is composing into. Not necessarily the whole document:
+    /// integrations may cap this when forwarding, but the offsets are always
+    /// into this string.
+    pub text: String,
+
+    /// The cursor or selection, as byte offsets into [`Self::text`].
+    pub selection: core::ops::Range<usize>,
+}
+
 /// Information about text being edited.
 ///
 /// Useful for IME.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IMEOutput {
     /// IME's purpose.
@@ -111,6 +130,29 @@ pub struct IMEOutput {
 
     /// Whether any ongoing IME composition should be interrupted.
     pub should_interrupt_composition: bool,
+
+    /// The text around the caret, reported by the widget that owns IME events.
+    ///
+    /// `None` for password fields and for widgets that don't support it.
+    ///
+    /// Shared through an [`Arc`]: the widget hands the same report out on
+    /// every focused frame, so integrations can diff it each frame for free.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub surrounding_text: Option<Arc<ImeSurroundingText>>,
+
+    /// The language the text is being composed in, as a BCP 47 tag, when
+    /// known (the laid-out text's [`crate::text::LayoutJob::language`]).
+    ///
+    /// Platform IME APIs that take a language hint (TSF/UIA, macOS) can use
+    /// it; Wayland's `text-input-v3` cannot (best effort).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub language: Option<String>,
+
+    /// The resolved base reading direction of the text being composed into,
+    /// when known. The IME composes *content*, not UI chrome, so this is the
+    /// text's own direction — not the interface's.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub base_direction: Option<crate::text::TextDirection>,
 }
 
 /// Commands that the egui integration should execute at the end of a frame.
@@ -239,7 +281,11 @@ impl PlatformOutput {
         self.cursor_image = cursor_image;
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
-        self.ime = ime.or(self.ime);
+        self.ime = if ime.is_some() {
+            ime
+        } else {
+            core::mem::take(&mut self.ime)
+        };
         self.num_completed_passes += num_completed_passes;
         self.request_discard_reasons
             .append(&mut request_discard_reasons);
@@ -351,6 +397,13 @@ impl core::fmt::Debug for CustomCursorImage {
 /// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.
 ///
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
+///
+/// The directional resize variants ([`Self::ResizeHorizontal`], [`Self::ResizeEast`], …)
+/// are physical screen directions, like all geometry in egui. A call site that sizes
+/// things in reading order must resolve the logical side to the physical one first —
+/// mirroring is the call site's job, as with the logical panels
+/// ([`crate::Panel::start`]/[`crate::Panel::end`]), which resolve their side against the
+/// interface reading direction before emitting the physical resize cursor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorIcon {
@@ -793,7 +846,7 @@ impl WidgetInfo {
         }
 
         if let Some(label) = label {
-            description = format!("{label}: {description}");
+            description = format!("{}: {description}", isolated(label));
         }
 
         if role == &Role::TextInput {
@@ -806,17 +859,63 @@ impl WidgetInfo {
             } else {
                 "blank".into()
             };
-            description = format!("{text}: {description}");
+            description = format!("{}: {description}", isolated(&text));
         }
 
         if let Some(value) = value {
             description += " ";
-            description += &value.to_string();
+            description += &isolated(&value.to_string());
         }
 
         if !enabled {
             description += ": disabled";
         }
         description.trim().to_owned()
+    }
+}
+
+/// Wraps a dynamically formatted value in Unicode directional isolates (UAX #9
+/// FSI `U+2068` … PDI `U+2069`) unless it is plain ASCII.
+///
+/// The description fragments around an interpolated value are English ("blank",
+/// "disabled", the role word); under an Arabic or Hebrew label or value the
+/// neutrals between them would otherwise resolve against the surrounding
+/// strong types and scramble the reading order of the plain-text description
+/// (screen readers honor or strip the isolates). ASCII-only values — the
+/// overwhelmingly common case — keep today's exact string.
+fn isolated(value: &str) -> String {
+    if value.is_ascii() {
+        value.to_owned()
+    } else {
+        format!("\u{2068}{value}\u{2069}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Role, WidgetInfo};
+
+    #[test]
+    fn arabic_label_is_bidi_isolated_in_the_description() {
+        let info = WidgetInfo::labeled(Role::Button, true, "زر");
+        let description = info.description();
+        assert!(
+            description.contains("\u{2068}زر\u{2069}"),
+            "the RTL label must be wrapped in FSI…PDI: {description:?}"
+        );
+        // The English role word survives outside the isolates:
+        assert!(description.ends_with("button"), "{description:?}");
+    }
+
+    #[test]
+    fn ascii_descriptions_stay_byte_identical() {
+        let info = WidgetInfo::labeled(Role::Button, true, "Save");
+        assert_eq!(info.description(), "Save: button");
+
+        let info = WidgetInfo::labeled(Role::Button, false, "Save");
+        assert_eq!(info.description(), "Save: button: disabled");
+
+        let info = WidgetInfo::labeled(Role::TextInput, true, "Name");
+        assert_eq!(info.description(), "blank: Name: text input");
     }
 }

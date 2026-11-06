@@ -14,6 +14,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+* Docs: describe the full font-coverage ladder (bundled `default_fonts`, eframe's default system-font fallback with the Arabic joining gate, `add_font_provider`, app-bundled fonts and web canvas glyphs, `MissingGlyphPolicy`/kittest) in the new "Fonts and scripts" section, and fix the "cryllic" typo; a test now pins the documented default coverage
+
+
 ## 0.37.0 - Colored emojis! 🚀
 
 ### Highlights ✨

@@ -4,7 +4,7 @@ use alloc::sync::Arc;
 use core::num::NonZeroUsize;
 
 use ahash::{HashMap, HashSet};
-use epaint::emath::TSTransform;
+use epaint::emath::{ReadingDirection, TSTransform};
 
 use crate::{
     EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2, ViewportId,
@@ -12,7 +12,7 @@ use crate::{
 };
 
 mod theme;
-pub use theme::{Theme, ThemePreference};
+pub use theme::{DirectionPreference, Theme, ThemePreference};
 
 // ----------------------------------------------------------------------------
 
@@ -148,18 +148,29 @@ impl Default for Memory {
 }
 
 /// A direction in which to move the keyboard focus.
+///
+/// In spatial (arrow-key) navigation the horizontal variants resolve along the
+/// reading direction of the interface ([`crate::Style::right_to_left`]): a caller
+/// asking for [`FocusDirection::Right`] gets the next horizontal neighbor in reading
+/// order, which under a right-to-left interface is the physically left one. This
+/// does NOT extend to [`FocusDirection::Next`]/[`FocusDirection::Previous`]
+/// (Tab / Shift-Tab), which follow registration order in both directions.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum FocusDirection {
     /// Select the widget closest above the current focused widget.
     Up,
 
-    /// Select the widget to the right of the current focused widget.
+    /// Select the next horizontal neighbor of the current focused widget in reading
+    /// order: the widget to the right, or to the physical left under a right-to-left
+    /// interface.
     Right,
 
     /// Select the widget below the current focused widget.
     Down,
 
-    /// Select the widget to the left of the current focused widget.
+    /// Select the previous horizontal neighbor of the current focused widget in
+    /// reading order: the widget to the left, or to the physical right under a
+    /// right-to-left interface.
     Left,
 
     /// Select the previous widget that had focus.
@@ -216,6 +227,33 @@ pub struct Options {
     /// dark and light style in case [`Self::theme_preference`] is [`ThemePreference::System`].
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) system_theme: Option<Theme>,
+
+    /// Preference for the reading direction of the interface, used to pick the
+    /// value of [`Style::right_to_left`] in both theme styles.
+    ///
+    /// Set through [`crate::Context::set_right_to_left`] (the explicit fork API)
+    /// or [`crate::Context::set_direction_preference`]; when the preference is
+    /// [`DirectionPreference::System`], the direction is resolved from
+    /// [`crate::RawInput::system_locale`], falling back to left-to-right.
+    ///
+    /// Unlike the styles themselves, this preference persists
+    /// (with the `persistence` feature).
+    ///
+    /// Default: `DirectionPreference::System`.
+    pub direction_preference: DirectionPreference,
+
+    /// The current system reading direction, resolved from
+    /// [`crate::RawInput::system_locale`] at the start of each pass, used to choose
+    /// the direction in case [`Self::direction_preference`] is [`DirectionPreference::System`].
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) system_direction: Option<ReadingDirection>,
+
+    /// The reading direction most recently applied into the theme styles.
+    ///
+    /// [`Self::begin_pass`] re-applies the resolved direction only when this
+    /// differs, so a steady state costs no per-pass style churn.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) applied_direction: Option<ReadingDirection>,
 
     /// If `true`, egui will keep the native window theme in sync with
     /// [`Self::theme_preference`] by sending a [`crate::ViewportCommand::SetTheme`]
@@ -331,6 +369,9 @@ impl Default for Options {
             theme_preference: Default::default(),
             fallback_theme: Theme::Dark,
             system_theme: None,
+            direction_preference: Default::default(),
+            system_direction: None,
+            applied_direction: None,
             sync_window_theme: true,
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
@@ -358,6 +399,21 @@ impl Options {
     #[doc(hidden)]
     pub fn begin_pass(&mut self, new_raw_input: &RawInput) {
         self.system_theme = new_raw_input.system_theme;
+        self.system_direction = new_raw_input
+            .system_locale
+            .as_deref()
+            .map(crate::locale::locale_direction);
+
+        // Apply the resolved direction into both theme styles, but only on an
+        // actual change: the styles are shared `Arc`s, and re-applying the same
+        // direction every pass would churn them (and fight per-pass style
+        // customization for no reason).
+        let direction = self.direction();
+        if self.applied_direction != Some(direction) {
+            Arc::make_mut(&mut self.dark_style).right_to_left = direction.is_rtl();
+            Arc::make_mut(&mut self.light_style).right_to_left = direction.is_rtl();
+            self.applied_direction = Some(direction);
+        }
     }
 
     /// The currently active theme (may depend on the system theme).
@@ -366,6 +422,16 @@ impl Options {
             ThemePreference::Dark => Theme::Dark,
             ThemePreference::Light => Theme::Light,
             ThemePreference::System => self.system_theme.unwrap_or(self.fallback_theme),
+        }
+    }
+
+    /// The reading direction implied by [`Self::direction_preference`]
+    /// (may depend on the system locale).
+    pub(crate) fn direction(&self) -> ReadingDirection {
+        match self.direction_preference {
+            DirectionPreference::Ltr => ReadingDirection::Ltr,
+            DirectionPreference::Rtl => ReadingDirection::Rtl,
+            DirectionPreference::System => self.system_direction.unwrap_or(ReadingDirection::Ltr),
         }
     }
 
@@ -395,6 +461,9 @@ impl Options {
             theme_preference,
             fallback_theme: _,
             system_theme: _,
+            direction_preference: _, // set through Context::set_direction_preference
+            system_direction: _,
+            applied_direction: _,
             sync_window_theme,
             zoom_factor,
             zoom_with_keyboard,
@@ -632,9 +701,9 @@ impl Focus {
         }
     }
 
-    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>, right_to_left: bool) {
         if self.focus_direction.is_cardinal()
-            && let Some(found_widget) = self.find_widget_in_direction(used_ids)
+            && let Some(found_widget) = self.find_widget_in_direction(used_ids, right_to_left)
         {
             self.focused_widget = Some(FocusWidget::new(found_widget));
         }
@@ -705,7 +774,11 @@ impl Focus {
         self.focus_direction = FocusDirection::None;
     }
 
-    fn find_widget_in_direction(&mut self, new_rects: &IdMap<Rect>) -> Option<Id> {
+    fn find_widget_in_direction(
+        &mut self,
+        new_rects: &IdMap<Rect>,
+        right_to_left: bool,
+    ) -> Option<Id> {
         // NOTE: `new_rects` here include some widgets _not_ interested in focus.
 
         /// * negative if `a` is left of `b`
@@ -723,10 +796,19 @@ impl Focus {
         let current_focused = self.focused_widget?;
 
         // In what direction we are looking for the next widget.
+        //
+        // The horizontal arrows navigate in READING order, matching what the menu code
+        // does for its own entries and the Windows/Qt right-to-left platform
+        // convention: under a right-to-left interface, ArrowRight (reading forward)
+        // searches toward the physical left. Only the `Style::right_to_left` flag is
+        // visible at Memory level — layout-direction-only right-to-left is out of
+        // scope. Vertical navigation is physical in both directions.
         let search_direction = match self.focus_direction {
             FocusDirection::Up => Vec2::UP,
+            FocusDirection::Right if right_to_left => Vec2::LEFT,
             FocusDirection::Right => Vec2::RIGHT,
             FocusDirection::Down => Vec2::DOWN,
+            FocusDirection::Left if right_to_left => Vec2::RIGHT,
             FocusDirection::Left => Vec2::LEFT,
             _ => {
                 return None;
@@ -809,9 +891,10 @@ impl Memory {
     }
 
     pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
+        let right_to_left = self.options.style().right_to_left;
         self.caches.update();
         self.areas_mut().end_pass();
-        self.focus_mut().end_pass(used_ids);
+        self.focus_mut().end_pass(used_ids, right_to_left);
 
         // Clean up abandoned popups.
         if let Some(popup) = self.popups.get_mut(&self.viewport_id) {
@@ -952,6 +1035,12 @@ impl Memory {
     }
 
     /// Move keyboard focus in a specific direction.
+    ///
+    /// In spatial (arrow-key) navigation the horizontal directions resolve along the
+    /// reading direction of the interface ([`crate::Style::right_to_left`]):
+    /// [`FocusDirection::Right`] selects the next horizontal neighbor in reading
+    /// order. See [`FocusDirection`] for the exact terms; Tab / Shift-Tab
+    /// ([`FocusDirection::Next`]/[`FocusDirection::Previous`]) are unaffected.
     pub fn move_focus(&mut self, direction: FocusDirection) {
         self.focus_mut().focus_direction = direction;
     }

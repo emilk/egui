@@ -1,7 +1,7 @@
 use emath::{GuiRounding as _, fast_midpoint};
 
 use crate::{
-    Align, Direction,
+    Align, Direction, Style,
     emath::{Align2, NumExt as _, Pos2, Rect, Vec2, pos2, vec2},
 };
 const INFINITY: f32 = f32::INFINITY;
@@ -45,19 +45,55 @@ pub(crate) struct Region {
     /// If something has already been added, this will point to `style.spacing.item_spacing` beyond the latest child.
     /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the `min_rect`.
     pub(crate) cursor: Rect,
+
+    /// The per-axis alignment seed of this region, while it is still a placeholder.
+    ///
+    /// [`Layout::region_from_max_rect`] seeds `min_rect` as a zero-size rect at the next
+    /// widget position — for a vertical `Align::Center` body, the center of the offered
+    /// rect. That anchor gives the empty body a finite, layout-anchored form, but it is
+    /// a placeholder, not content: the first measured rect on an axis *replaces* the
+    /// seed's contribution on that axis (instead of unioning with it), so a zero-size
+    /// alignment anchor can never widen the measured span. `None` means the axis has
+    /// measured content or a claim, and expands union as usual.
+    pub(crate) seed_x: Option<f32>,
+    pub(crate) seed_y: Option<f32>,
 }
 
 impl Region {
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
     pub fn expand_to_include_rect(&mut self, rect: Rect) {
-        self.min_rect |= rect;
+        // The seed is a placeholder, not content: on an axis with no measured extent
+        // yet, the first rect replaces the seed's contribution instead of unioning with
+        // it, so a zero-size alignment anchor never widens the measured span.
+        if self.seed_x.take().is_some() {
+            self.min_rect.min.x = rect.min.x;
+            self.min_rect.max.x = rect.max.x;
+        } else {
+            self.min_rect.min.x = self.min_rect.min.x.min(rect.min.x);
+            self.min_rect.max.x = self.min_rect.max.x.max(rect.max.x);
+        }
+        if self.seed_y.take().is_some() {
+            self.min_rect.min.y = rect.min.y;
+            self.min_rect.max.y = rect.max.y;
+        } else {
+            self.min_rect.min.y = self.min_rect.min.y.min(rect.min.y);
+            self.min_rect.max.y = self.min_rect.max.y.max(rect.max.y);
+        }
         self.max_rect |= rect;
     }
 
     /// Ensure we are big enough to contain the given X-coordinate.
     /// This is sometimes useful to expand a ui to stretch to a certain place.
     pub fn expand_to_include_x(&mut self, x: f32) {
-        self.min_rect.extend_with_x(x);
+        if let Some(seed_x) = self.seed_x.take() {
+            // First extent on a seeded axis: span from the seed anchor to the new
+            // value — the same shape extending the seed-point `min_rect` produces —
+            // and the seed is spent, so later folds union as usual.
+            self.min_rect.min.x = seed_x.min(x);
+            self.min_rect.max.x = seed_x.max(x);
+        } else {
+            self.min_rect.extend_with_x(x);
+        }
         self.max_rect.extend_with_x(x);
         self.cursor.extend_with_x(x);
     }
@@ -65,9 +101,25 @@ impl Region {
     /// Ensure we are big enough to contain the given Y-coordinate.
     /// This is sometimes useful to expand a ui to stretch to a certain place.
     pub fn expand_to_include_y(&mut self, y: f32) {
-        self.min_rect.extend_with_y(y);
+        if let Some(seed_y) = self.seed_y.take() {
+            // First extent on a seeded axis: span from the seed anchor to the new
+            // value — the same shape extending the seed-point `min_rect` produces —
+            // and the seed is spent, so later folds union as usual.
+            self.min_rect.min.y = seed_y.min(y);
+            self.min_rect.max.y = seed_y.max(y);
+        } else {
+            self.min_rect.extend_with_y(y);
+        }
         self.max_rect.extend_with_y(y);
         self.cursor.extend_with_y(y);
+    }
+
+    /// Replace `min_rect` with the given rect and spend both seeds: the forced rect is
+    /// the content, and a stale seed would make the next fold replace it.
+    pub(crate) fn replace_min_rect(&mut self, min_rect: Rect) {
+        self.min_rect = min_rect;
+        self.seed_x = None;
+        self.seed_y = None;
     }
 
     pub fn sanity_check(&self) {
@@ -127,13 +179,34 @@ pub struct Layout {
 
 impl Default for Layout {
     fn default() -> Self {
-        // TODO(emilk): Get from `Style` instead.
+        // Upstream-compatible LTR default — a pure `Default` impl cannot read a
+        // `Style`. `Ui::new` therefore derives its layout with
+        // [`Layout::from_style`] instead; under `Style::right_to_left` the
+        // `Ui::new`/`Ui::new_child` mirror re-maps vertical `Align::Min` bodies
+        // to `Align::Max` (see `Placer::prefer_right_to_left`).
         Self::top_down(Align::LEFT) // This is a very euro-centric default.
     }
 }
 
 /// ## Constructors
 impl Layout {
+    /// The style-derived default layout: vertical [`Align::Min`] under an LTR
+    /// interface, [`Align::Max`] (reading-start anchored) under a right-to-left
+    /// one.
+    ///
+    /// This is what [`Ui::new`][crate::Ui::new] binds when no explicit layout
+    /// is given, so the root `Ui` follows [`Style::right_to_left`]. Raw
+    /// [`Layout::default()`] intentionally stays the upstream-compatible LTR
+    /// default. Reads only the style — `Style::right_to_left` is the single
+    /// direction authority.
+    pub fn from_style(style: &Style) -> Self {
+        Self::top_down(if style.right_to_left {
+            Align::Max
+        } else {
+            Align::Min
+        })
+    }
+
     /// Place elements horizontally, left to right.
     ///
     /// The `valign` parameter controls how to align elements vertically.
@@ -313,6 +386,12 @@ impl Layout {
         self.main_dir().is_vertical()
     }
 
+    /// Prefer placing nested content from the right?
+    ///
+    /// True when the layout itself runs right-to-left, or when it is vertical with
+    /// `Align::Max` cross alignment. The interface-direction term lives in
+    /// `Placer::prefer_right_to_left`, which also mirrors nested rows of vertical
+    /// `Align::Min` and `Align::Center` bodies when `Style::right_to_left` is set.
     pub fn prefer_right_to_left(&self) -> bool {
         self.main_dir == Direction::RightToLeft
             || self.main_dir.is_vertical() && self.cross_align == Align::Max
@@ -404,9 +483,17 @@ impl Layout {
             min_rect: Rect::NOTHING, // temporary
             max_rect,
             cursor: self.initial_cursor(max_rect),
+            seed_x: None,
+            seed_y: None,
         };
         let seed = self.next_widget_position(&region);
+        // The zero-size anchor at the next widget position — for a vertical
+        // `Align::Center` body the center of the offered rect — is a placeholder for
+        // the empty body, not content: the first measured rect on an axis replaces it
+        // (see `Region::expand_to_include_rect`).
         region.min_rect = Rect::from_center_size(seed, Vec2::ZERO);
+        region.seed_x = Some(seed.x);
+        region.seed_y = Some(seed.y);
         region
     }
 
@@ -496,7 +583,20 @@ impl Layout {
     /// The returned `frame_rect` [`Rect`] will always be justified along the cross axis.
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
-    pub(crate) fn next_frame(&self, region: &Region, child_size: Vec2, spacing: Vec2) -> Rect {
+    ///
+    /// `prefer_right_to_left` is the resolved reading-direction term (the same
+    /// settled predicate `Placer::prefer_right_to_left` computes for placement):
+    /// in a wrapping layout whose main axis is vertical it makes new wrap
+    /// columns grow leftward from the reading-start edge, mirroring the
+    /// rightward growth of the LTR arms. The horizontal arms mirror through
+    /// `Direction::LeftToRight`/`RightToLeft` on their own and ignore the term.
+    pub(crate) fn next_frame(
+        &self,
+        region: &Region,
+        child_size: Vec2,
+        spacing: Vec2,
+        prefer_right_to_left: bool,
+    ) -> Rect {
         region.sanity_check();
         debug_assert!(
             child_size.x >= 0.0 && child_size.y >= 0.0,
@@ -510,6 +610,8 @@ impl Layout {
                 mut cursor,
                 mut max_rect,
                 min_rect,
+                seed_x,
+                seed_y,
             } = *region;
 
             match self.main_dir {
@@ -543,25 +645,45 @@ impl Layout {
                     if available_size.y < child_size.y && max_rect.top() < cursor.top() {
                         // New column
                         let new_col_width = cursor.width().max(child_size.x);
-                        cursor = Rect::from_min_max(
-                            pos2(cursor.right() + spacing.x, max_rect.top()),
-                            pos2(cursor.right() + spacing.x + new_col_width, INFINITY),
-                        );
-                        max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        if prefer_right_to_left {
+                            // Reading starts at the right edge, so the new
+                            // wrap column grows leftward from there and the
+                            // available span expands past the reading end:
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.left() - spacing.x - new_col_width, max_rect.top()),
+                                pos2(cursor.left() - spacing.x, INFINITY),
+                            );
+                            max_rect.min.x = max_rect.min.x.min(cursor.min.x);
+                        } else {
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.right() + spacing.x, max_rect.top()),
+                                pos2(cursor.right() + spacing.x + new_col_width, INFINITY),
+                            );
+                            max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        }
                     }
                 }
                 Direction::BottomUp => {
                     if available_size.y < child_size.y && cursor.bottom() < max_rect.bottom() {
                         // New column
                         let new_col_width = cursor.width().max(child_size.x);
-                        cursor = Rect::from_min_max(
-                            pos2(cursor.right() + spacing.x, -INFINITY),
-                            pos2(
-                                cursor.right() + spacing.x + new_col_width,
-                                max_rect.bottom(),
-                            ),
-                        );
-                        max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        if prefer_right_to_left {
+                            // Mirrored wrap-column growth, as in `TopDown`:
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.left() - spacing.x - new_col_width, -INFINITY),
+                                pos2(cursor.left() - spacing.x, max_rect.bottom()),
+                            );
+                            max_rect.min.x = max_rect.min.x.min(cursor.min.x);
+                        } else {
+                            cursor = Rect::from_min_max(
+                                pos2(cursor.right() + spacing.x, -INFINITY),
+                                pos2(
+                                    cursor.right() + spacing.x + new_col_width,
+                                    max_rect.bottom(),
+                                ),
+                            );
+                            max_rect.max.x = max_rect.max.x.max(cursor.max.x);
+                        }
                     }
                 }
             }
@@ -571,6 +693,8 @@ impl Layout {
                 min_rect,
                 max_rect,
                 cursor,
+                seed_x,
+                seed_y,
             };
 
             self.next_frame_ignore_wrap(&region, child_size)

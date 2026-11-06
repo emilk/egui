@@ -71,6 +71,22 @@ impl LayoutSettings {
             .with_main_wrap(self.main_wrap)
             .with_cross_justify(self.cross_justify)
     }
+
+    /// [`Layout`] resolved for the interface reading direction.
+    ///
+    /// A left-to-right main direction is mirrored to right-to-left under a
+    /// right-to-left interface, so the row follows the reading order — the same
+    /// resolution the [`Ui::horizontal`](egui::Ui::horizontal) helpers apply.
+    /// A main direction that is already right-to-left, and all vertical
+    /// directions (which core mirrors itself), are kept. Everything else
+    /// (main wrap, cross align, cross justify) is kept as configured.
+    fn layout_for_reading_direction(&self, ui_is_rtl: bool) -> Layout {
+        let mut layout = self.layout();
+        if ui_is_rtl && layout.main_dir == Direction::LeftToRight {
+            layout.main_dir = Direction::RightToLeft;
+        }
+        layout
+    }
 }
 
 impl crate::Demo for LayoutTest {
@@ -97,20 +113,21 @@ impl crate::View for LayoutTest {
         Resize::default()
             .default_size([150.0, 200.0])
             .show(ui, |ui| {
+                let layout = self.layout.layout_for_reading_direction(ui.is_rtl());
                 if self.layout.main_wrap {
                     if self.layout.main_dir.is_horizontal() {
                         ui.allocate_ui(
                             vec2(ui.available_size_before_wrap().x, self.wrap_row_height),
-                            |ui| ui.with_layout(self.layout.layout(), demo_ui),
+                            |ui| ui.with_layout(layout, demo_ui),
                         );
                     } else {
                         ui.allocate_ui(
                             vec2(self.wrap_column_width, ui.available_size_before_wrap().y),
-                            |ui| ui.with_layout(self.layout.layout(), demo_ui),
+                            |ui| ui.with_layout(layout, demo_ui),
                         );
                     }
                 } else {
-                    ui.with_layout(self.layout.layout(), demo_ui);
+                    ui.with_layout(layout, demo_ui);
                 }
             });
         ui.label("Resize to see effect");
@@ -138,7 +155,11 @@ impl LayoutTest {
         });
 
         ui.horizontal(|ui| {
-            ui.label("Main Direction:");
+            ui.label("Main Direction:").on_hover_text(
+                "Under a right-to-left interface the horizontal directions are \
+                 applied relative to the reading direction: a LeftToRight row is \
+                 laid out right-to-left so it follows the reading order",
+            );
             for &dir in &[
                 Direction::LeftToRight,
                 Direction::RightToLeft,
@@ -182,4 +203,55 @@ fn demo_ui(ui: &mut Ui) {
     ui.checkbox(&mut dummy, "checkbox");
     ui.radio_value(&mut dummy, false, "radio");
     let _ = ui.button("button");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LayoutSettings;
+
+    fn settings(main_dir: egui::Direction, main_wrap: bool) -> LayoutSettings {
+        LayoutSettings {
+            main_dir,
+            main_wrap,
+            cross_align: egui::Align::Center,
+            cross_justify: true,
+        }
+    }
+
+    #[test]
+    fn rtl_interface_mirrors_left_to_right_rows() {
+        let layout =
+            settings(egui::Direction::LeftToRight, true).layout_for_reading_direction(true);
+        assert_eq!(layout.main_dir, egui::Direction::RightToLeft);
+        // Everything else is kept as configured:
+        assert!(layout.main_wrap);
+        assert_eq!(layout.cross_align, egui::Align::Center);
+        assert!(layout.cross_justify);
+    }
+
+    #[test]
+    fn rtl_interface_keeps_right_to_left_and_vertical_directions() {
+        for dir in [
+            egui::Direction::RightToLeft,
+            egui::Direction::TopDown,
+            egui::Direction::BottomUp,
+        ] {
+            let layout = settings(dir, false).layout_for_reading_direction(true);
+            assert_eq!(layout.main_dir, dir, "{dir:?} must not change under RTL");
+        }
+    }
+
+    #[test]
+    fn ltr_interface_keeps_every_direction() {
+        for dir in [
+            egui::Direction::LeftToRight,
+            egui::Direction::RightToLeft,
+            egui::Direction::TopDown,
+            egui::Direction::BottomUp,
+        ] {
+            let layout = settings(dir, true).layout_for_reading_direction(false);
+            assert_eq!(layout.main_dir, dir, "{dir:?} must not change under LTR");
+            assert!(layout.main_wrap);
+        }
+    }
 }

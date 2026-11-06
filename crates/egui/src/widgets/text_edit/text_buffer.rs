@@ -14,8 +14,8 @@ const TAB_SIZE: usize = 4;
 use crate::{
     text::CCursorRange,
     text_selection::text_cursor_state::{
-        byte_index_from_char_index, ccursor_next_word, ccursor_previous_word,
-        char_index_from_byte_index, find_line_start, slice_char_range,
+        byte_index_from_char_index, char_index_from_byte_index, find_line_start, slice_char_range,
+        visual_word_cursor,
     },
 };
 
@@ -145,14 +145,21 @@ pub trait TextBuffer {
         self.delete_selected_ccursor_range([ccursor, ccursor + 1])
     }
 
-    fn delete_previous_word(&mut self, max_ccursor: CCursor) -> CCursor {
-        let min_ccursor = ccursor_previous_word(self.as_str(), max_ccursor);
-        self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
+    /// Deletes the word visually left of the caret.
+    ///
+    /// The visual word edge can sit at a *higher* logical index than the
+    /// caret (a right-to-left row displays it to the caret's left), so the
+    /// range is deleted sorted.
+    fn delete_previous_word(&mut self, galley: &Galley, max_ccursor: CCursor) -> CCursor {
+        let min_ccursor = visual_word_cursor(galley, &max_ccursor, true);
+        self.delete_selected(&CCursorRange::two(min_ccursor, max_ccursor))
     }
 
-    fn delete_next_word(&mut self, min_ccursor: CCursor) -> CCursor {
-        let max_ccursor = ccursor_next_word(self.as_str(), min_ccursor);
-        self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
+    /// Deletes the word visually right of the caret, sorted for the same
+    /// reason as [`Self::delete_previous_word`].
+    fn delete_next_word(&mut self, galley: &Galley, min_ccursor: CCursor) -> CCursor {
+        let max_ccursor = visual_word_cursor(galley, &min_ccursor, false);
+        self.delete_selected(&CCursorRange::two(min_ccursor, max_ccursor))
     }
 
     /// Deletes characters surrounding the current cursor range.

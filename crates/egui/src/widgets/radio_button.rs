@@ -58,7 +58,10 @@ impl Widget for RadioButton<'_> {
         let mut icon_size = Vec2::splat(icon_width);
         icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = IdSalt::new("radio_button_icon");
-        atoms.push_left(Atom::custom(rect_id, icon_size));
+        // The icon goes at the reading start of the atom list; the atom container mirrors
+        // the list when the surrounding direction is right-to-left, which places the icon
+        // on the reading-start side in both directions.
+        atoms.push_start(Atom::custom(rect_id, icon_size));
 
         let text = atoms.text().map(String::from);
 
@@ -84,7 +87,9 @@ impl Widget for RadioButton<'_> {
             let response = prepared.paint(ui);
 
             if let Some(rect) = response.rect(rect_id) {
-                let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
+                let (small_icon_rect, big_icon_rect) = ui
+                    .spacing()
+                    .icon_rectangles_reading_start(rect, ui.is_rtl());
 
                 let painter = ui.painter();
 

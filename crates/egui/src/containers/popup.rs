@@ -1,6 +1,6 @@
 use core::iter::once;
 
-use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
+use emath::{Align, Pos2, ReadingDirection, Rect, RectAlign, Vec2, vec2};
 
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
@@ -192,6 +192,27 @@ pub struct Popup<'a> {
 impl<'a> Popup<'a> {
     /// Create a new popup
     pub fn new(id: Id, ctx: Context, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
+        // Below the anchor, hanging from its reading-start edge:
+        // leftmost in a left-to-right interface, rightmost when
+        // [`crate::Style::right_to_left`] is set.
+        let rect_align = if ctx.is_rtl() {
+            RectAlign::BOTTOM_END
+        } else {
+            RectAlign::BOTTOM_START
+        };
+        // Like the other defaults here, read the interface direction: the body
+        // rows hug the reading-start edge — `top_down(Align::Min)` in a
+        // left-to-right interface (identical to the previous
+        // `Layout::default()`, since `Align::Min == Align::LEFT`), mirrored to
+        // `Align::Max` in a right-to-left one, where the Ui-construction
+        // canonicalization flips the cross align anyway, so this only makes
+        // the default explicit. Callers needing a per-layout direction (not
+        // this flag) pass `.layout()` themselves.
+        let layout = if ctx.is_rtl() {
+            Layout::top_down(Align::Max)
+        } else {
+            Layout::top_down(Align::Min)
+        };
         Self {
             id,
             ctx,
@@ -201,14 +222,16 @@ impl<'a> Popup<'a> {
             info: None,
             kind: PopupKind::Popup,
             layer_id,
-            rect_align: RectAlign::BOTTOM_START,
+            rect_align,
             alternative_aligns: None,
             gap: 0.0,
             width: None,
             sizing_pass: false,
             sense: Sense::CLICK,
             interactable: true,
-            layout: Layout::default(),
+            // Like the other defaults here, read the interface direction (see the
+            // `layout` binding above).
+            layout,
             frame: None,
             style: StyleModifier::default(),
             anchor_widget: None,
@@ -240,18 +263,34 @@ impl<'a> Popup<'a> {
     }
 
     /// Show a popup when the widget was clicked.
-    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
+    /// Sets the layout to `Layout::top_down_justified(Align::Min)`, or
+    /// `Layout::top_down_justified(Align::Max)` in a right-to-left interface,
+    /// so the rows justify from the reading start.
+    ///
+    /// The popup opens below the button, aligned to its reading-start edge
+    /// ([`RectAlign::BOTTOM_START`], mirrored to [`RectAlign::BOTTOM_END`] in a
+    /// right-to-left interface).
     pub fn menu(button_response: &Response) -> Self {
+        // In a right-to-left interface the rows justify from the reading start (right).
+        let layout = if button_response.ctx.is_rtl() {
+            Layout::top_down_justified(Align::Max)
+        } else {
+            Layout::top_down_justified(Align::Min)
+        };
         Self::from_toggle_button_response(button_response)
             .kind(PopupKind::Menu)
-            .layout(Layout::top_down_justified(Align::Min))
+            .layout(layout)
             .style(menu_style)
             .gap(0.0)
     }
 
     /// Show a context menu when the widget was secondary clicked.
-    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
+    /// Sets the layout like [`Self::menu`], depending on the interface direction.
     /// In contrast to [`Self::menu`], this will open at the pointer position.
+    ///
+    /// The menu hangs from the pointer at its reading-start edge and grows in the
+    /// reading direction, flipping near the screen edge to stay inside the screen
+    /// (see [`crate::Style::right_to_left`]).
     pub fn context_menu(response: &Response) -> Self {
         Self::menu(response)
             .open_memory(if response.secondary_clicked() {
@@ -283,6 +322,10 @@ impl<'a> Popup<'a> {
     /// Set the [`RectAlign`] of the popup relative to the [`PopupAnchor`].
     /// This is the default position, and will be used if it fits.
     /// See [`Self::align_alternatives`] for more on this.
+    ///
+    /// Default: [`RectAlign::BOTTOM_START`],
+    /// or [`RectAlign::BOTTOM_END`] in a right-to-left interface
+    /// (see [`crate::Style::right_to_left`]).
     #[inline]
     pub fn align(mut self, position_align: RectAlign) -> Self {
         self.rect_align = position_align;
@@ -291,7 +334,8 @@ impl<'a> Popup<'a> {
 
     /// Set alternative positions to try if the default one doesn't fit. Set to an empty slice to
     /// always use the position you set with [`Self::align`].
-    /// By default, this will try [`RectAlign::symmetries`] and then [`RectAlign::MENU_ALIGNS`].
+    /// By default, this will try [`RectAlign::symmetries`] and then the
+    /// reading-direction menu table ([`RectAlign::menu_aligns`]).
     #[inline]
     pub fn align_alternatives(mut self, alternatives: &'a [RectAlign]) -> Self {
         self.alternative_aligns = Some(alternatives);
@@ -344,6 +388,9 @@ impl<'a> Popup<'a> {
 
     /// Remember the pointer position at the time of opening the popup, and show the popup
     /// relative to that.
+    ///
+    /// When the popup is opened without a pointer (e.g. from the keyboard), it hangs
+    /// from the anchor widget's rect instead.
     #[inline]
     pub fn at_pointer_fixed(mut self) -> Self {
         self.anchor = PopupAnchor::PointerFixed;
@@ -468,17 +515,54 @@ impl<'a> Popup<'a> {
         self.anchor
     }
 
+    /// The rect to anchor the popup to.
+    ///
+    /// For a [`PopupAnchor::PointerFixed`] popup with no stored pointer position
+    /// (e.g. a keyboard open), this falls back to the anchor widget's rect.
+    fn anchor_rect(&self) -> Option<Rect> {
+        match self.anchor {
+            PopupAnchor::PointerFixed => Popup::position_of_id(&self.ctx, self.id)
+                .map(Rect::from_pos)
+                .or_else(|| self.widget_anchor_rect()),
+            _ => self.anchor.rect(self.id, &self.ctx),
+        }
+    }
+
+    /// The anchor widget's rect in global coordinates.
+    ///
+    /// Returns `None` when the popup has no anchor widget, or the widget has no
+    /// response (destroyed or never laid out).
+    fn widget_anchor_rect(&self) -> Option<Rect> {
+        let widget_id = self.anchor_widget?;
+        let response = self.ctx.read_response(widget_id)?;
+        let mut rect = response.interact_rect;
+        if !rect.is_finite() {
+            return None;
+        }
+        if let Some(to_global) = self.ctx.layer_transform_to_global(response.layer_id) {
+            rect = to_global * rect;
+        }
+        // The transform comes from the layer, not the widget, so it can still
+        // make the rect non-finite.
+        if !rect.is_finite() {
+            return None;
+        }
+        Some(rect)
+    }
+
     /// Return the anchor rect of the popup.
     ///
-    /// Returns `None` if the anchor is [`PopupAnchor::Pointer`] and there is no pointer.
+    /// Returns `None` if the anchor is [`PopupAnchor::Pointer`] and there is no pointer,
+    /// or the pointer-fixed anchor has neither a stored position nor an anchor widget.
     pub fn get_anchor_rect(&self) -> Option<Rect> {
-        self.anchor.rect(self.id, &self.ctx)
+        self.anchor_rect()
     }
 
     /// Get the expected rect the popup will be shown in.
     ///
-    /// Returns `None` if the popup wasn't shown before or anchor is `PopupAnchor::Pointer` and
-    /// there is no pointer.
+    /// Returns `None` if the popup wasn't shown before, anchor is `PopupAnchor::Pointer` and
+    /// there is no pointer, or the pointer-fixed anchor has neither a stored position nor an
+    /// anchor widget.
     pub fn get_popup_rect(&self) -> Option<Rect> {
         let size = self.get_expected_size();
         if let Some(size) = size {
@@ -511,12 +595,27 @@ impl<'a> Popup<'a> {
 
     /// Calculate the best alignment for the popup, based on the last size and screen rect.
     pub fn get_best_align(&self) -> RectAlign {
+        self.best_align_for(self.anchor_rect())
+    }
+
+    /// [`Self::get_best_align`] for an already-computed anchor rect, so callers
+    /// that need the rect anyway don't derive it twice.
+    fn best_align_for(&self, anchor_rect: Option<Rect>) -> RectAlign {
         let expected_popup_size = self
             .get_expected_size()
             .unwrap_or_else(|| vec2(self.width.unwrap_or(0.0), 0.0));
 
-        let Some(anchor_rect) = self.anchor.rect(self.id, &self.ctx) else {
+        let Some(anchor_rect) = anchor_rect else {
             return self.rect_align;
+        };
+
+        // The default fallback table follows the reading direction; the
+        // symmetries of the user's chosen primary stay physical, and explicit
+        // `alternative_aligns` stay authoritative either way.
+        let dir = if self.ctx.is_rtl() {
+            ReadingDirection::Rtl
+        } else {
+            ReadingDirection::Ltr
         };
 
         RectAlign::find_best_align(
@@ -529,7 +628,7 @@ impl<'a> Popup<'a> {
                     .map(|a| core::iter::chain(a.iter().copied(), [].iter().copied()))
                     .unwrap_or(core::iter::chain(
                         self.rect_align.symmetries().iter().copied(),
-                        RectAlign::MENU_ALIGNS.iter().copied(),
+                        RectAlign::menu_aligns(dir).iter().copied(),
                     )),
             ),
             self.ctx.content_rect(),
@@ -542,8 +641,9 @@ impl<'a> Popup<'a> {
 
     /// Show the popup.
     ///
-    /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
-    /// no pointer.
+    /// Returns `None` if the popup is not open, anchor is `PopupAnchor::Pointer` and there
+    /// is no pointer, or the pointer-fixed anchor has neither a stored position nor an
+    /// anchor widget.
     pub fn show<R>(self, content: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
         let id = self.id;
         // When the popup was just opened with a click we don't want to immediately close it based
@@ -580,12 +680,13 @@ impl<'a> Popup<'a> {
             return None;
         }
 
-        let best_align = self.get_best_align();
+        let anchor_rect = self.anchor_rect();
+        let best_align = self.best_align_for(anchor_rect);
 
         let Popup {
             id,
             ctx,
-            anchor,
+            anchor: _,
             open_kind,
             close_behavior,
             kind,
@@ -615,7 +716,9 @@ impl<'a> Popup<'a> {
             });
         }
 
-        let anchor_rect = anchor.rect(id, &ctx)?;
+        // A popup without an anchor rect never renders, but still counts as open
+        // (e.g. tooltip suppression reads `open_popups`).
+        let anchor_rect = anchor_rect?;
 
         let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
 

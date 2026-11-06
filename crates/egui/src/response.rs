@@ -508,6 +508,11 @@ impl Response {
     }
 
     /// If dragged, how many points were we dragged in since last frame?
+    ///
+    /// The delta is in physical screen space: a positive x component always means the
+    /// pointer moved right, in both reading directions. Drag-to-change widgets that
+    /// should follow the reading direction mirror the x component themselves (see
+    /// [`crate::DragValue`]); camera and pan gestures keep this raw.
     #[inline]
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
@@ -522,6 +527,9 @@ impl Response {
     }
 
     /// If dragged, how many points have we been dragged since the start of the drag?
+    ///
+    /// Like [`Self::drag_delta`], the delta is in physical screen space: a positive x
+    /// component always means the pointer moved right, in both reading directions.
     #[inline]
     pub fn total_drag_delta(&self) -> Option<Vec2> {
         if self.dragged() {
@@ -907,6 +915,10 @@ impl Response {
     /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
     /// If `align` is `None`, it'll scroll enough to bring the UI into view.
     ///
+    /// Under [`crate::Style::right_to_left`] the horizontal axis is mirrored by
+    /// [`crate::ScrollArea`]: [`Align::LEFT`]/[`Align::Min`] aligns the reading-start
+    /// (right) edge, [`Align::RIGHT`]/[`Align::Max`] the reading-end (left) edge.
+    ///
     /// See also: [`Ui::scroll_to_cursor`], [`Ui::scroll_to_rect`]. [`Ui::scroll_with_delta`].
     ///
     /// ```
@@ -926,6 +938,9 @@ impl Response {
     }
 
     /// Like [`Self::scroll_to_me`], but allows you to specify the [`crate::style::ScrollAnimation`].
+    ///
+    /// The horizontal alignment mirrors the same way under
+    /// [`crate::Style::right_to_left`]; see [`Self::scroll_to_me`].
     pub fn scroll_to_me_animation(
         &self,
         align: Option<Align>,

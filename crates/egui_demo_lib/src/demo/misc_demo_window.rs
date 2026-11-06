@@ -3,8 +3,8 @@ use std::sync::Arc;
 use super::{Demo, View};
 
 use egui::{
-    Align, Align2, Checkbox, CollapsingHeader, Color32, ComboBox, FontId, Resize, RichText, Sense,
-    Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window, vec2,
+    Align, Align2, Checkbox, CollapsingHeader, Color32, ComboBox, FontId, Layout, Resize, RichText,
+    Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window, vec2,
 };
 
 /// Showcase some ui code
@@ -20,6 +20,9 @@ pub struct MiscDemoWindow {
     box_painting: BoxPainting,
     text_rotation: TextRotation,
     repaint: Repaint,
+
+    /// Show the [`Resize`] demo mirrored, in a right-to-left layout.
+    resize_rtl: bool,
 
     dummy_bool: bool,
     dummy_usize: usize,
@@ -38,6 +41,8 @@ impl Default for MiscDemoWindow {
             box_painting: Default::default(),
             text_rotation: Default::default(),
             repaint: Default::default(),
+
+            resize_rtl: false,
 
             dummy_bool: false,
             dummy_usize: 0,
@@ -178,10 +183,29 @@ impl View for MiscDemoWindow {
         CollapsingHeader::new("Resize")
             .default_open(false)
             .show(ui, |ui| {
-                Resize::default().default_height(100.0).show(ui, |ui| {
-                    ui.label("This ui can be resized!");
-                    ui.label("Just pull the handle on the bottom right");
-                });
+                ui.checkbox(&mut self.resize_rtl, "Right-to-left");
+                let rtl = self.resize_rtl;
+                let resize_demo = |ui: &mut Ui| {
+                    Resize::default().default_height(100.0).show(ui, |ui| {
+                        ui.label("This ui can be resized!");
+                        ui.label(if rtl {
+                            "Just pull the handle on the bottom left"
+                        } else {
+                            "Just pull the handle on the bottom right"
+                        });
+                    });
+                };
+                if rtl {
+                    ui.scope(|ui| {
+                        // `Resize` mirrors on `Style::right_to_left` (what `Ui::is_rtl`
+                        // reads), which `with_layout` alone never touches, so flip the
+                        // per-`Ui` flag as well.
+                        ui.style_mut().right_to_left = true;
+                        ui.with_layout(Layout::right_to_left(Align::Min), resize_demo);
+                    });
+                } else {
+                    resize_demo(ui);
+                }
             });
 
         CollapsingHeader::new("Ui Stack")

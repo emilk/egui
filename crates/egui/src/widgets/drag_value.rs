@@ -61,6 +61,7 @@ pub struct DragValue<'a> {
     classes: Classes,
     min_size: Option<Vec2>,
     clip_text: bool,
+    rail_signed_speed: bool,
 }
 
 impl<'a> DragValue<'a> {
@@ -101,6 +102,7 @@ impl<'a> DragValue<'a> {
             classes: Classes::default().with_class(Self::CLASS),
             min_size: None,
             clip_text: false,
+            rail_signed_speed: false,
         }
     }
 
@@ -119,6 +121,16 @@ impl<'a> DragValue<'a> {
     #[inline]
     pub fn speed(mut self, speed: impl Into<f64>) -> Self {
         self.speed = speed.into();
+        self
+    }
+
+    /// The speed of this drag value already carries the sign of the rail it belongs to
+    /// (the signed gradient from `SliderGeometry::gradient_at`), so its drag must not
+    /// mirror the pointer delta under a right-to-left interface: the signed speed and
+    /// the physical delta cancel, and mirroring would flip the value a second time.
+    #[inline]
+    pub(crate) fn rail_signed_speed(mut self) -> Self {
+        self.rail_signed_speed = true;
         self
     }
 
@@ -398,8 +410,8 @@ impl<'a> DragValue<'a> {
     pub fn atoms(&self) -> Atoms<'a> {
         let ValueFormat { prefix, suffix, .. } = &self.format;
         let mut atoms = prefix.clone();
-        atoms.push_right(Atom::custom(IdSalt::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
-        atoms.extend_right(suffix.clone());
+        atoms.push_end(Atom::custom(IdSalt::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
+        atoms.extend_end(suffix.clone());
         atoms
     }
 }
@@ -416,6 +428,7 @@ impl Widget for DragValue<'_> {
             classes,
             min_size,
             clip_text,
+            rail_signed_speed,
         } = self;
         let ValueFormat {
             prefix,
@@ -615,12 +628,22 @@ impl Widget for DragValue<'_> {
                 .gap(0.0)
                 .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size)); // TODO(emilk): find some more generic solution to `min_size`
 
+            // The end-of-range cursor hints follow the reading direction: at the minimum
+            // the only productive drag is toward the reading end (left under a
+            // right-to-left interface), so the physical Resize variants are picked per
+            // reading direction. Only the interface flag decides, like the drag mirror
+            // below.
+            let (start_cursor, end_cursor) = if ui.is_rtl() {
+                (CursorIcon::ResizeWest, CursorIcon::ResizeEast)
+            } else {
+                (CursorIcon::ResizeEast, CursorIcon::ResizeWest)
+            };
             let cursor_icon = if value <= *range.start() {
-                CursorIcon::ResizeEast
+                start_cursor
             } else if value < *range.end() {
                 CursorIcon::ResizeHorizontal
             } else {
-                CursorIcon::ResizeWest
+                end_cursor
             };
 
             let response = ui.add(button);
@@ -646,7 +669,23 @@ impl Widget for DragValue<'_> {
                 ui.set_cursor_icon(cursor_icon);
 
                 let mdelta = response.drag_delta();
-                let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
+                // Mirror the horizontal drag delta under a right-to-left interface, so a
+                // standalone drag value follows the reading direction (dragging toward
+                // the reading end increases the value). Widgets whose speed already
+                // carries the rail's sign — the numbers beside a slider rail, handed
+                // over by `SliderCore::drag_value_ui` with `rail_signed_speed` — are
+                // excluded: their signed speed (see `SliderGeometry::gradient_at`) and
+                // the physical delta cancel, so mirroring here would flip twice. The
+                // sign of a user-set `speed` is deliberately not inspected: positive
+                // speed means "drag toward the reading end increases" in both
+                // directions. Only the interface flag decides; the keyboard path above
+                // never reaches this branch.
+                let x = if rail_signed_speed || !ui.is_rtl() {
+                    mdelta.x
+                } else {
+                    -mdelta.x
+                };
+                let delta_points = x - mdelta.y; // Increase to the right and up
 
                 let speed = if is_slow_speed { speed / 10.0 } else { speed };
 
@@ -745,13 +784,30 @@ fn parse(custom_parser: Option<&NumParser<'_>>, value_text: &str) -> Option<f64>
 /// The default egui parser of numbers.
 ///
 /// It ignored whitespaces anywhere in the input, and treats the special minus character (U+2212) as a normal minus.
+///
+/// It also folds the Arabic-Indic digits (U+0660-U+0669), their Persian extensions
+/// (U+06F0-U+06F9), the Arabic decimal separator (U+066B) and the Arabic thousands
+/// separator (U+066C) onto their ASCII equivalents, so values typed on a localized
+/// keyboard parse the same way (ICU/Chromium precedent). None of these code points can
+/// occur in a string that previously parsed, so Latin input is unchanged; the ASCII
+/// comma is deliberately still not accepted as a separator.
 fn default_parser(text: &str) -> Option<f64> {
     let text: String = text
         .chars()
         // Ignore whitespace (trailing, leading, and thousands separators):
         .filter(|c| !c.is_whitespace())
+        // Ignore the Arabic thousands separator (U+066C), like whitespace:
+        .filter(|&c| c != '\u{066C}')
         // Replace special minus character with normal minus (hyphen):
         .map(|c| if c == '−' { '-' } else { c })
+        // Fold Arabic-Indic and Persian digits onto the ASCII digits, and the
+        // Arabic decimal separator (U+066B) onto '.':
+        .map(|c| match c {
+            '\u{0660}'..='\u{0669}' => char::from_u32('0' as u32 + c as u32 - 0x0660).unwrap_or(c),
+            '\u{06F0}'..='\u{06F9}' => char::from_u32('0' as u32 + c as u32 - 0x06F0).unwrap_or(c),
+            '\u{066B}' => '.',
+            _ => c,
+        })
         .collect();
 
     text.parse().ok()
@@ -850,5 +906,54 @@ mod tests {
             Some(-1.23),
             "Should handle special minus character (https://www.compart.com/en/unicode/U+2212)"
         );
+    }
+
+    #[test]
+    fn test_default_parser_folds_arabic_indic_digits() {
+        // Arabic-Indic digits (U+0660-U+0669) with the Arabic decimal separator (U+066B):
+        assert_eq!(
+            super::default_parser("١٢٣٫٤٥"),
+            Some(123.45),
+            "Arabic-Indic digits and the Arabic decimal separator should fold onto ASCII"
+        );
+
+        // Persian digits (U+06F0-U+06F9):
+        assert_eq!(
+            super::default_parser("۱۲۳"),
+            Some(123.0),
+            "Persian digits should fold onto ASCII"
+        );
+
+        // The Arabic thousands separator (U+066C) is ignored, like whitespace:
+        assert_eq!(
+            super::default_parser("1٬234"),
+            Some(1_234.0),
+            "The Arabic thousands separator should be ignored"
+        );
+
+        // The special minus character works together with folded digits:
+        assert_eq!(
+            super::default_parser("−٥"),
+            Some(-5.0),
+            "The special minus character (U+2212) should work with Arabic-Indic digits"
+        );
+    }
+
+    #[test]
+    #[expect(clippy::approx_constant)] // a plain decimal the parser must parse exactly, not a π literal
+    fn test_default_parser_ltr_invariants() {
+        assert_eq!(
+            super::default_parser("1 234 567"),
+            Some(1_234_567.0),
+            "We should handle thousands separators using half-space"
+        );
+
+        assert_eq!(super::default_parser("3.14"), Some(3.14));
+
+        assert_eq!(super::default_parser("abc"), None);
+
+        // The ASCII comma is NOT a thousands or decimal separator here (no locale
+        // grouping handling): that accepted-input set is unchanged.
+        assert_eq!(super::default_parser("1,234"), None);
     }
 }
