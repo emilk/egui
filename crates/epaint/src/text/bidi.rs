@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn rtl_base_reverses_run_order() {
-        // The rename-ar oracle shape: Arabic word, Arabic-Indic digits, dot, latin
+        // Mixed-run shape: Arabic word, Arabic-Indic digits, dot, latin
         // extension. Base RTL: Arabic + separating dot at level 1, the digits (AN,
         // after AL per W2) and the latin tail at level 2. Visual order puts the latin
         // extension at the far left.

@@ -1680,7 +1680,7 @@ impl RowReorder<'_> {
 /// [`layout_section`]. The break candidate whitespace block stays in its row
 /// (as in `line_break`); per-line L1 resets it to the base level, so on
 /// right-to-left rows it renders at the visual reading end (the left edge),
-/// pinned by the wrapped oracles.
+/// pinned by the wrapped-row tests.
 ///
 /// Mirrors `line_break`'s arithmetic: the leading indent
 /// (`LayoutSection::leading_space`, carried by the first emitted glyph)
@@ -4578,7 +4578,7 @@ mod tests {
         layout(&mut fonts, 1.0, job.into())
     }
 
-    /// T1 — the rename-ar oracle: a first-strong RTL paragraph renders in visual
+    /// A first-strong RTL paragraph renders in visual
     /// order (`pdf.٢٠٢٦ تقرير`), not logical order. The latin file extension and
     /// the dot sit at the visual left; the Arabic word at the visual right; the
     /// Arabic-Indic digits keep their UAX #9 order (level 2, LTR) between them.
@@ -4592,7 +4592,7 @@ mod tests {
         // and dot at the left, the digits in LTR order, then the Arabic word,
         // whose glyph order runs right-to-left (its first logical letter ت is
         // the visually-rightmost glyph). I.e. the rendered line reads
-        // `pdf.٢٠٢٦ تقرير` — the rename-ar oracle order.
+        // `pdf.٢٠٢٦ تقرير`.
         let expected: Vec<char> = [
             'p', 'd', 'f', '.', '٢', '٠', '٢', '٦', ' ', 'ر', 'ي', 'ر', 'ق', 'ت',
         ]
@@ -4616,7 +4616,7 @@ mod tests {
         );
     }
 
-    /// T2 — LTR base with an embedded RTL run: the embedded run is reversed
+    /// LTR base with an embedded RTL run: the embedded run is reversed
     /// (its glyphs come out in visual order) while the surrounding LTR text
     /// stays in logical order.
     #[test]
@@ -4629,10 +4629,9 @@ mod tests {
         }
     }
 
-    /// T3 — numbers in an RTL context keep their UAX #9 placement: European
+    /// Numbers in an RTL context keep their UAX #9 placement: European
     /// numbers sit at level 2 (LTR), so they render in logical order at the
-    /// visual left of an RTL paragraph (they were reversed before bidi
-    /// reordering landed).
+    /// visual left of an RTL paragraph.
     #[test]
     fn bidi_numbers_keep_uax9_placement_in_rtl_context() {
         let glyphs = visible_glyphs(&layout_with_direction("عربي 123", None));
@@ -4641,9 +4640,9 @@ mod tests {
         assert_x_nondecreasing(&glyphs);
     }
 
-    /// T4 — byte-identity pins: pure-LTR text lays out exactly as it did before
-    /// bidi reordering landed. The values below were captured from the
-    /// pre-bidi tree with the default fonts at ppp 1.0.
+    /// Byte-identity pins: pure-LTR text lays out exactly as it did before
+    /// bidi reordering; the values below are the frozen expected output with
+    /// the default fonts at ppp 1.0.
     #[test]
     fn bidi_pure_ltr_is_byte_identical_to_pre_change_output() {
         let glyphs = visible_glyphs(&layout_with_direction("Hello World 123", None));
@@ -4668,7 +4667,7 @@ mod tests {
         assert_glyphs_close(&glyphs, &expected);
     }
 
-    /// T4 — byte-identity pins: pure-RTL text (one bidi run) is laid out exactly
+    /// Byte-identity pins: pure-RTL text (one bidi run) is laid out exactly
     /// as before — its single run was always shaped in its own direction and
     /// emitted in visual order. The zero-advance glyphs at the end are the
     /// pre-existing continuation-glyph output of the shaper path (unchanged by
@@ -4693,7 +4692,7 @@ mod tests {
         }
     }
 
-    /// T5 — the cursor layer maps *logical* columns over the visual-order glyphs
+    /// The cursor layer maps *logical* columns over the visual-order glyphs
     /// of a bidi-reordered row: under a right-to-left base direction the
     /// text-start caret (logical column 0) sits at the visual RIGHT edge and the
     /// text-end caret at the visual LEFT edge, clicks map visual x back to the
@@ -4916,7 +4915,7 @@ mod tests {
         assert!(paragraph.glyphs.iter().any(|g| g.advance_width == 0.0));
     }
 
-    /// C1 — directional runs are recorded on the paragraph during emission, in
+    /// Directional runs are recorded on the paragraph during emission, in
     /// visual order with job-absolute byte ranges, for every segment that
     /// resolved to more than one run or to a right-to-left run — and only when
     /// the job can wrap (a finite wrap width): the spans are consumed by the
@@ -4926,7 +4925,7 @@ mod tests {
         let finite = 10_000.0; // big enough to never overflow these shapes
         let mut fonts = tofu_fonts();
 
-        // The rename-ar oracle shape (T1): four runs in visual order — the
+        // Four runs in visual order — the
         // latin extension, the dot, the Arabic-Indic digits, the Arabic word
         // plus its trailing space.
         let mut job = LayoutJob::simple(
@@ -5269,7 +5268,7 @@ mod tests {
         assert_eq!(ltr.cursor_right_one_character(&ltr.end()).index.0, 5);
     }
 
-    /// T1 — mixed-direction rows step the caret by each embedded run's *local*
+    /// Mixed-direction rows step the caret by each embedded run's *local*
     /// bidi level, not by the row's base direction.
     ///
     /// Columns stay logical (0 = the reading start, anchored by
@@ -5280,8 +5279,8 @@ mod tests {
     /// boundary. Row-edge and degenerate cases fall back to the historic
     /// base-mirrored step.
     ///
-    /// Oracles, hand-derived from the UAX #9 levels the shaper stamps (the
-    /// boundary→column tables are in the plan):
+    /// Expected values, hand-derived from the UAX #9 levels the shaper stamps
+    /// (the boundary→column tables come from `visual_caret_boundaries`):
     ///
     /// * `"عربي abc"`, RTL base — visual slots `a(2) b(2) c(2) ␣(1) ي(1) ب(1) ر(1) ع(1)`,
     ///   logical columns `ع=0 ر=1 ب=2 ي=3 ␣=4 a=5 b=6 c=7`. Visual left from
@@ -5394,7 +5393,8 @@ mod tests {
 
         // "تقرير" pinned to an explicit LTR base (an all-odd row in an even
         // base — no egui call site produces this today; explicit-direction
-        // jobs do). RED at base on the first two (today: 0 and 5, the clamps):
+        // jobs do). The clamps (0 and 5) are the pre-fix behavior this pins
+        // against:
         let galley = layout_with_direction("تقرير", Some(TextDirection::LeftToRight));
         assert_eq!(galley.end().index.0, 5);
         assert_eq!(
@@ -5411,8 +5411,8 @@ mod tests {
         assert_eq!(galley.cursor_right_one_character(&at(0)).index.0, 1);
         assert_eq!(galley.cursor_left_one_character(&at(5)).index.0, 4);
 
-        // "Hello", RTL base (an all-even row in an odd base — the task-467
-        // shape: every Latin/digit value in an RTL UI):
+        // "Hello", RTL base (an all-even row in an odd base — every
+        // Latin/digit value in an RTL UI):
         let galley = layout_with_direction("Hello", Some(TextDirection::RightToLeft));
         assert!(galley.is_rtl());
         assert_eq!(galley.end().index.0, 5);
@@ -5426,8 +5426,7 @@ mod tests {
         assert_eq!(galley.cursor_right_one_character(&at(3)).index.0, 4);
 
         // "اب١٢", LTR base (nested levels: the Arabic-Indic digits continue
-        // at the higher even level inside the RTL run). RED at base on the
-        // first assert (today: 2):
+        // at the higher even level inside the RTL run):
         let galley = layout_with_direction("اب١٢", Some(TextDirection::LeftToRight));
         assert_eq!(galley.end().index.0, 4);
         assert_eq!(
@@ -5442,7 +5441,7 @@ mod tests {
         );
 
         // Uniform byte-identity guards: the fast path keeps the historic step
-        // for every base-parity-matching row (these all pass at base too):
+        // for every base-parity-matching row:
         let rtl_uniform = layout_with_direction("تقرير", Some(TextDirection::RightToLeft));
         assert_eq!(rtl_uniform.cursor_left_one_character(&at(0)).index.0, 1);
         assert_eq!(rtl_uniform.cursor_right_one_character(&at(0)).index.0, 0);
@@ -5452,7 +5451,7 @@ mod tests {
         assert_eq!(ltr_uniform.cursor_right_one_character(&at(5)).index.0, 5);
     }
 
-    /// T6 — hostile input must not panic: unpaired-surrogate stand-ins, control
+    /// Hostile input must not panic: unpaired-surrogate stand-ins, control
     /// and isolate characters, direction-mark soup, huge direction mixes, and
     /// wrapping/elision of the same, across all three direction settings.
     #[test]
@@ -5815,9 +5814,7 @@ mod tests {
 
     // -------------------------------------------------------------------------
     // Leading-advance threading (the row field, the anchoring inset and the
-    // two wrap paths). Red-at-base evidence: see the commit messages — T1's
-    // base overlay form bakes the advance into the glyph positions (the field
-    // does not exist at base) and fails on the same ink-offset assertion.
+    // two wrap paths).
     //
     // No fonts needed: `halign_and_justify_row` anchors from glyph-relative
     // ink, and `line_break`/`line_break_logically` are called directly on
@@ -5886,8 +5883,8 @@ mod tests {
     /// INK at the reading start (its right edge): the anchored ink is inset
     /// by the advance instead of being absorbed into the row box. This is
     /// the unit pin of the mechanism the wrapped-RTL label tests ride; the
-    /// falsified behavior (advance swallowed, ink right at 0.0) is what the
-    /// base overlay observed.
+    /// regression this guards is the advance being swallowed (ink right at
+    /// 0.0).
     #[test]
     fn right_anchored_rtl_row_keeps_the_leading_advance_in_the_ink() {
         let mut placed = advance_row(TextDirection::RightToLeft, 40.0);
@@ -6147,19 +6144,19 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
-    // NG9 wrapped-row oracles (fail-before evidence: see the commit messages).
+    // Wrapped rows keep UAX #9 L1/L2 per rendered line.
     //
-    // All wrap-width measurements come from an LTR-pinned twin of the oracle
+    // All wrap-width measurements come from an LTR-pinned twin of the wrapped
     // job (same text, `round_output_to_gui = false`, infinite width): the
     // twin's halign pass is skipped entirely (LTR jobs are not flipped), so
     // its glyph x values are exactly the emitted values the wrap compares,
     // and every measured quantity is a span or gap, never an absolute x.
     // The synthetic tofu fonts serve every glyph with an advance that is a
     // whole number of physical pixels, so the twin's spans are bit-identical
-    // to the widths the oracle's wrap compares. Each intended row's width is
-    // its content INCLUDING its trailing break space; `W` is the maximum of
-    // those over all intended rows (the final row contributes its bare
-    // content) plus 0.5 px, with per-boundary asserts.
+    // to the widths the wrapped job's measurements compare. Each intended
+    // row's width is its content INCLUDING its trailing break space; `W` is
+    // the maximum of those over all intended rows (the final row contributes
+    // its bare content) plus 0.5 px, with per-boundary asserts.
 
     /// The visible glyphs of every row of a galley as `(chr, x, advance)`.
     fn visible_glyphs_per_row(galley: &Galley) -> Vec<Vec<(char, f32, f32)>> {
@@ -6255,8 +6252,8 @@ mod tests {
         (spans, gaps)
     }
 
-    /// A — a wrapped pure-RTL paragraph reads top-down: one word per row, in
-    /// logical order. Fail-before: the old path sliced the emitted visual
+    /// A wrapped pure-RTL paragraph reads top-down: one word per row, in
+    /// logical order. The old path sliced the emitted visual
     /// stream from its visually-left (logically-last) end, producing the rows
     /// bottom-up (`ثالث` / `ثاني` / `أول`).
     #[test]
@@ -6340,10 +6337,9 @@ mod tests {
         }
     }
 
-    /// Single-row byte-identity pins for the wrapped-oracle strings, captured
-    /// from the pre-NG9 tree (tofu fonts, ppp 1.0, infinite width): the
-    /// no-wrap early-out path must stay byte-identical across the wrap-path
-    /// refactor.
+    /// Single-row byte-identity pins for the wrapped-reference strings (tofu
+    /// fonts, ppp 1.0, infinite width): the no-wrap early-out path must stay
+    /// byte-identical.
     #[test]
     fn wrapped_oracle_strings_single_row_are_byte_identical() {
         let glyphs = visible_glyphs(&layout_unwrapped("أول ثاني ثالث", None));
@@ -6387,13 +6383,13 @@ mod tests {
         assert_glyphs_close(&glyphs, &expected);
     }
 
-    /// B — a wrapped mixed-direction RTL-base paragraph keeps UAX #9 L1/L2
+    /// A wrapped mixed-direction RTL-base paragraph keeps UAX #9 L1/L2
     /// per rendered line: `عربي aaa bbb` (RTL-pinned) breaks at the logical
     /// space after `aaa`, and row 1 must render `aaa يبرع` (the latin island
     /// at the visual left, the Arabic word at its reading position), not the
     /// old path's geometric slicing of the whole-segment visual stream
     /// (`aaa bbb يبرع`), which stranded the Arabic word alone on the last
-    /// row. Fail-before: rows came out `aaa bbb ` / `يبرع`.
+    /// row.
     #[test]
     fn wrapped_mixed_rtl_base_keeps_uax9_per_row() {
         let text = "عربي aaa bbb";
@@ -6403,7 +6399,7 @@ mod tests {
         // run 0 = يبرع, run 1 = aaa, run 2 = bbb. The intended row 1 is
         // `عربي aaa ␣` (content + trailing break space); the `aaa`→`bbb`
         // gap's space sits at an even level in both bases (level 0 in the
-        // twin, level 2 inside the island in the oracle job), so its shaping
+        // twin, level 2 inside the island in the RTL-pinned job), so its shaping
         // — and hence its advance — is identical in both.
         let twin = layout_unwrapped(text, Some(TextDirection::LeftToRight));
         let (spans, gaps) = visible_runs(&twin);
@@ -6466,7 +6462,7 @@ mod tests {
         );
     }
 
-    /// C — an LTR-base paragraph with embedded RTL wraps correctly: the
+    /// An LTR-base paragraph with embedded RTL wraps correctly: the
     /// Hebrew word renders visually reordered (`םולש`) inside whichever row
     /// it lands, the surrounding latin words keep their logical order, and
     /// every row keeps the x-nondecreasing invariant. The wrap width anchors
@@ -6560,7 +6556,7 @@ mod tests {
     /// recorded runs accumulate across the section boundary, the per-row
     /// reorder resolves UAX #9 over the paragraph's whole byte span, and an
     /// RTL word SPLIT by a color change (two sections, `عر` + `بي`) reorders
-    /// as ONE run on its row. Fail-before: the old path sliced the visual
+    /// as ONE run on its row. The old path sliced the visual
     /// stream geometrically, putting the words on the wrong rows.
     #[test]
     fn wrapped_multi_section_rtl_reorders_jointly() {
@@ -6757,7 +6753,7 @@ mod tests {
         }
     }
 
-    // --- egui-bidi-oob-panic scope tests (splice marker for red-at-base overlays) ---
+    // --- byte-range and panic guards for wrapped RTL rows ---
 
     /// The tracking predicate recognizes exactly the characters that can
     /// make a segment record a directional run: the right-to-left blocks
@@ -6869,13 +6865,12 @@ mod tests {
         paragraph
     }
 
-    /// T1a — a wrapped row's byte ranges must come from the glyphs' shaping
+    /// A wrapped row's byte ranges must come from the glyphs' shaping
     /// clusters, never from per-glyph first-char sums: a decomposed char
     /// (dot + base, one cluster) used to count its char once per glyph,
     /// drifting every later block past the paragraph span until the final
     /// row clamped to an end-equal range and the unicode-bidi call in
-    /// `place_row` panicked (the +40 overcount the probe measured on this
-    /// exact label).
+    /// `place_row` panicked.
     #[test]
     fn logical_blocks_byte_ranges_stay_inside_the_paragraph_span_for_decomposed_glyphs() {
         let text = BACKEND_LABEL;
@@ -6937,7 +6932,7 @@ mod tests {
         }
     }
 
-    /// T1a variant (i) — gapped cluster starts (`HarfBuzz`'s documented
+    /// Gapped cluster starts (`HarfBuzz`'s documented
     /// merged/deleted-code-point shape, e.g. `0,0,3,3`): a block's end is
     /// the next strictly greater distinct cluster start scanning forward,
     /// else the paragraph span's end — and the union still covers the span.
@@ -6971,7 +6966,7 @@ mod tests {
         );
     }
 
-    /// T1a variant (ii) — a right-to-left run emits its clusters in
+    /// A right-to-left run emits its clusters in
     /// DESCENDING visual order; the logical-order reversal in
     /// `logical_blocks` must restore ascending block starts with
     /// cluster-exact ranges.
@@ -7011,7 +7006,7 @@ mod tests {
         );
     }
 
-    /// T1b — the exact crash: wrapping a decomposed RTL paragraph used to
+    /// The exact crash: wrapping a decomposed RTL paragraph used to
     /// hand `place_row` a clamped end-equal byte range for a real row and
     /// panic inside unicode-bidi (`index out of bounds: the len is 100 but
     /// the index is 100`). With cluster-exact ranges every row is placed,
@@ -7097,10 +7092,9 @@ mod tests {
         }
     }
 
-    /// T2 — the exact app stack with a real decomposing Arabic font: any
+    /// The exact app stack with a real decomposing Arabic font: any
     /// wrapped RTL paragraph used to panic inside unicode-bidi at a final
-    /// wrapped row (the probe measured 24/24 panicking width/font
-    /// combinations on the backend label alone). Loads the font from
+    /// wrapped row. Loads the font from
     /// `KITTEST_RTL_FONT` — the kittest fixture convention
     /// (`crates/egui_kittest/src/rtl_font.rs`): `~/` expansion, skipped
     /// silently when unset or unreadable (fonts are never committed).
