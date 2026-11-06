@@ -1164,8 +1164,7 @@ impl Row {
         if self.is_bidi_homogeneous_with_base() {
             // The historic base-parity mapping is exact for rows whose
             // content shares the base direction (pure LTR in an LTR base,
-            // pure RTL in an RTL base, empty, elision-only) — byte-identical
-            // fast path:
+            // pure RTL in an RTL base, empty, elision-only):
             if self.base_direction == TextDirection::RightToLeft {
                 return self.char_at_rtl(desired_x);
             }
@@ -1229,15 +1228,16 @@ impl Row {
             // The cell's ink box and its equal sub-slot subdivision (the same
             // box math and documented approximation [`Self::char_at_rtl`]
             // makes; cells are never empty, so `len >= 1`):
-            let box_lo = self.glyphs[cell.start..cell.end]
+            let Range { start, end } = cell;
+            let box_lo = self.glyphs[start..end]
                 .iter()
                 .map(|glyph| glyph.pos.x)
                 .fold(f32::INFINITY, f32::min);
-            let box_hi = self.glyphs[cell.start..cell.end]
+            let box_hi = self.glyphs[start..end]
                 .iter()
                 .map(|glyph| glyph.max_x())
                 .fold(f32::NEG_INFINITY, f32::max);
-            let len = cell.end.saturating_sub(cell.start);
+            let len = end.saturating_sub(start);
 
             // The sub-slot whose center the click is reading-side of, in the
             // cell's own reading direction (right-to-left for odd, left-to-
@@ -1527,9 +1527,7 @@ impl Row {
     ///
     /// `pub(super)`: the caret-geometry tests in the sibling `text_layout`
     /// module pin the painted walk against these tables directly.
-    pub(super) fn visual_caret_boundaries(
-        &self,
-    ) -> (Vec<Option<usize>>, Vec<Option<CharIndex>>) {
+    pub(super) fn visual_caret_boundaries(&self) -> (Vec<Option<usize>>, Vec<Option<CharIndex>>) {
         let n = self.glyphs.len();
         let mut boundary_of_column: Vec<Option<usize>> = Vec::new();
         boundary_of_column.resize(n + 1, None);

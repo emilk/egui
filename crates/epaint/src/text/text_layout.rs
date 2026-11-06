@@ -5266,10 +5266,9 @@ mod tests {
     /// reading direction, the reading-exit caret sits at the last-read cell's
     /// exit edge, and the painted walk in caret-boundary order is
     /// x-monotonic — the property that makes paint, step and hit-test agree
-    /// (shared with the kittest `test_text_edit_bidi_boundaries`). Relational
-    /// pins only: absolute pixels are font-dependent. The uniform guards at
-    /// the end pass before and after the table routing (the fast path is
-    /// untouched); the mixed-row pins are RED at the pre-fix base.
+    /// (shared with the kittest `test_text_edit_bidi_boundaries`). The
+    /// asserts compare orderings and edges rather than absolute pixels,
+    /// which are font-dependent.
     #[test]
     fn mixed_row_caret_geometry_maps_by_local_level() {
         // RTL base with an embedded LTR run (first-strong inference):
@@ -5290,10 +5289,18 @@ mod tests {
                 .min
                 .x
         };
-        let ink_min =
-            row.glyphs.iter().map(|g| g.pos.x).fold(f32::INFINITY, f32::min) + placed.pos.x;
-        let ink_max =
-            row.glyphs.iter().map(|g| g.max_x()).fold(f32::NEG_INFINITY, f32::max) + placed.pos.x;
+        let ink_min = row
+            .glyphs
+            .iter()
+            .map(|g| g.pos.x)
+            .fold(f32::INFINITY, f32::min)
+            + placed.pos.x;
+        let ink_max = row
+            .glyphs
+            .iter()
+            .map(|g| g.max_x())
+            .fold(f32::NEG_INFINITY, f32::max)
+            + placed.pos.x;
 
         // The embedded Latin run reads left-to-right: its caret columns walk
         // with *increasing* x (the base-parity mapping mirrors them — the
@@ -5350,7 +5357,10 @@ mod tests {
                 panic!("boundary {k} must have a column on this fully-shaped row");
             };
             let Some(b) = column_of_boundary.get(k + 1).copied().flatten() else {
-                panic!("boundary {} must have a column on this fully-shaped row", k + 1);
+                panic!(
+                    "boundary {} must have a column on this fully-shaped row",
+                    k + 1
+                );
             };
             assert!(
                 x_of(a.0) < x_of(b.0),
@@ -5371,9 +5381,9 @@ mod tests {
                 "clicking the caret x of column {column} must return that column"
             );
         }
-        // Direct hit-test pins (row-relative `char_at`, the same strict scan
-        // the mixed path runs): the ink's left edge lands in the Latin run
-        // (its first-read glyph `P`), the ink's right edge on the Arabic
+        // Direct hit-test checks (row-relative `char_at`, the same strict
+        // scan the mixed path runs): the ink's left edge lands in the Latin
+        // run (its first-read glyph `P`), the ink's right edge on the Arabic
         // reading start, and an exact-center click inside the run-boundary
         // space that no cell catches falls back to the reading exit:
         let char_at = |x: f32| row.char_at(x).0;
@@ -5416,8 +5426,12 @@ mod tests {
                 .min
                 .x
         };
-        let ink_max =
-            row.glyphs.iter().map(|g| g.max_x()).fold(f32::NEG_INFINITY, f32::max) + placed.pos.x;
+        let ink_max = row
+            .glyphs
+            .iter()
+            .map(|g| g.max_x())
+            .fold(f32::NEG_INFINITY, f32::max)
+            + placed.pos.x;
         let run_left = row
             .glyphs
             .iter()
@@ -5469,10 +5483,18 @@ mod tests {
                 .min
                 .x
         };
-        let ink_min =
-            row.glyphs.iter().map(|g| g.pos.x).fold(f32::INFINITY, f32::min) + placed.pos.x;
-        let ink_max =
-            row.glyphs.iter().map(|g| g.max_x()).fold(f32::NEG_INFINITY, f32::max) + placed.pos.x;
+        let ink_min = row
+            .glyphs
+            .iter()
+            .map(|g| g.pos.x)
+            .fold(f32::INFINITY, f32::min)
+            + placed.pos.x;
+        let ink_max = row
+            .glyphs
+            .iter()
+            .map(|g| g.max_x())
+            .fold(f32::NEG_INFINITY, f32::max)
+            + placed.pos.x;
         assert!(
             (x_of(0) - ink_min).abs() < 1.0,
             "column 0 must sit at the ink's left edge for all-even content in \
@@ -5486,9 +5508,8 @@ mod tests {
             x_of(n)
         );
 
-        // Uniform byte-identity guards: base-parity-matching rows keep the
-        // historic base-mirrored geometry (the fast path never builds the
-        // tables). All pass at the pre-fix base too.
+        // Uniform rows: base-parity-matching rows keep the historic
+        // base-mirrored geometry (the fast path never builds the tables).
         let rtl_uniform = layout_with_direction("تقرير", Some(TextDirection::RightToLeft));
         let placed = &rtl_uniform.rows[0];
         let row = &placed.row;
@@ -5502,10 +5523,18 @@ mod tests {
                 .min
                 .x
         };
-        let ink_min =
-            row.glyphs.iter().map(|g| g.pos.x).fold(f32::INFINITY, f32::min) + placed.pos.x;
-        let ink_max =
-            row.glyphs.iter().map(|g| g.max_x()).fold(f32::NEG_INFINITY, f32::max) + placed.pos.x;
+        let ink_min = row
+            .glyphs
+            .iter()
+            .map(|g| g.pos.x)
+            .fold(f32::INFINITY, f32::min)
+            + placed.pos.x;
+        let ink_max = row
+            .glyphs
+            .iter()
+            .map(|g| g.max_x())
+            .fold(f32::NEG_INFINITY, f32::max)
+            + placed.pos.x;
         assert!(
             (x_of(0) - ink_max).abs() < 1.0,
             "uniform RTL: column 0 at the ink right edge: {} vs {ink_max}",
@@ -5538,8 +5567,8 @@ mod tests {
             "uniform LTR: column {n} keeps the end-of-row caret"
         );
 
-        // The `ب`-center pin on the digits twin (the existing green pin,
-        // re-asserted here so its sibling re-aims cannot hide a regression):
+        // Clicking the visual center of `ب` on the digits twin must still
+        // land between the right graphemes:
         let galley = layout_with_direction("عربي 123", None);
         let placed = &galley.rows[0];
         let row = &placed.row;
@@ -5877,9 +5906,7 @@ mod tests {
                         let row = &placed.row;
                         let n = row.char_count_excluding_newline().0;
                         let mut probes = vec![0.0, row.size.x, -1000.0, 1000.0];
-                        probes.extend(
-                            row.glyphs.iter().map(|g| g.pos.x + g.advance_width * 0.5),
-                        );
+                        probes.extend(row.glyphs.iter().map(|g| g.pos.x + g.advance_width * 0.5));
                         for probe_x in probes {
                             let column = row.char_at(probe_x).0;
                             assert!(
