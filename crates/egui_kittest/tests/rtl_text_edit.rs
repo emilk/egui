@@ -30,7 +30,7 @@
 
 use core::ops::Range;
 
-use egui::accesskit::Role;
+use egui::{Align, Align2, AtomExt as _, accesskit::Role};
 use egui_kittest::{Harness, rtl_font_path};
 use kittest::Queryable as _;
 
@@ -539,5 +539,257 @@ fn ime_preedit_case(base: String, preedit: &str, active_range: Option<Range<usiz
                 "{what}: the composition caret should be painted for an empty active range"
             );
         }
+    }
+}
+
+/// The x position of the caret for logical column `column`, taken from the
+/// painted galley containing `needle` — where a click should land to move
+/// the cursor to that column.
+fn column_caret_x(harness: &Harness<'_, ()>, needle: &str, column: usize) -> f32 {
+    for clipped in &harness.output().shapes {
+        if let egui::epaint::Shape::Text(text_shape) = &clipped.shape
+            && text_shape.galley.text().contains(needle)
+        {
+            let rect = text_shape
+                .galley
+                .pos_from_cursor(egui::text::CCursor::new(egui::text::CharIndex(column)));
+            return text_shape.pos.x + rect.min.x;
+        }
+    }
+    panic!("no painted galley contains {needle:?}");
+}
+
+/// The (glyph char, screen x, advance width) of the painted glyphs of the
+/// galley containing `needle`, flattened across its rows.
+fn painted_glyph_boxes(harness: &Harness<'_, ()>, needle: &str) -> Vec<(char, f32, f32)> {
+    for clipped in &harness.output().shapes {
+        if let egui::epaint::Shape::Text(text_shape) = &clipped.shape
+            && text_shape.galley.text().contains(needle)
+        {
+            return text_shape
+                .galley
+                .rows
+                .iter()
+                .flat_map(|row| {
+                    row.glyphs.iter().map(|glyph| {
+                        (
+                            glyph.chr,
+                            text_shape.pos.x + row.pos.x + glyph.pos.x,
+                            glyph.advance_width,
+                        )
+                    })
+                })
+                .collect();
+        }
+    }
+    Vec::new()
+}
+
+/// Click (press + release) at `pos`.
+fn click_at(harness: &mut Harness<'_, ()>, pos: egui::Pos2) {
+    harness.event(egui::Event::PointerMoved(pos));
+    harness.event(egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.run();
+    harness.event(egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.run();
+}
+
+/// The demo window's field shape: multiline, a `🔎` prefix atom, a custom
+/// suffix atom and an explicit align (the widget's align fallback is an
+/// all-or-nothing `Align2`, so the demo passes one explicitly). A
+/// `desired_rows` of `None` keeps the field at its single-row default
+/// height.
+fn demo_edit(text: &mut String, halign: Align, desired_rows: Option<usize>) -> Harness<'_, ()> {
+    let clear_id = egui::IdSalt::new("clear_button");
+    let clear_size = egui::Vec2::splat(18.0);
+    let valign = Align::TOP;
+    let mut harness = Harness::builder()
+        .with_right_to_left(true)
+        .with_rtl_font()
+        .with_size(egui::vec2(420.0, 220.0))
+        .build_ui(move |ui| {
+            let edit = egui::TextEdit::multiline(text)
+                .id(edit_id())
+                .hint_text("Type something!")
+                .prefix("🔎".atom_align(Align2::new(Align::LEFT, valign)))
+                .suffix(
+                    egui::Atom::custom(clear_id, clear_size)
+                        .atom_align(Align2::new(Align::RIGHT, valign)),
+                )
+                .align(Align2::new(halign, valign))
+                .desired_width(320.0);
+            if let Some(rows) = desired_rows {
+                ui.add(edit.desired_rows(rows));
+            } else {
+                ui.add(edit);
+            }
+        });
+    harness.get_by_role(Role::MultilineTextInput).focus();
+    harness.run();
+    harness
+}
+
+/// Typing after a mid-row click: the inserted character must land at the
+/// clicked logical position, the cursor must sit right after it, and the
+/// painted caret must hug the typed glyph's box (either edge — which one
+/// depends on the successor's direction). Swept over every inner caret
+/// boundary. The Arabic word needs real glyphs (fixture-gated); the Latin
+/// twin runs without the fixture.
+#[test]
+fn test_text_edit_rtl_typing_caret_after_mid_row_insert() {
+    fn sweep(base: &str) {
+        let chars: Vec<char> = base.chars().collect();
+        for k in 1..chars.len() {
+            let mut owned = base.to_owned();
+            let mut harness = focused_rtl_edit(&mut owned);
+            let y = harness.get_by_role(Role::TextInput).rect().center().y;
+            let x = column_caret_x(&harness, base, k);
+            click_at(&mut harness, egui::pos2(x, y));
+            assert_eq!(
+                cursor_char_index(&harness),
+                k,
+                "clicking caret {k} of {base:?} should move the cursor to column {k}"
+            );
+
+            harness.event(egui::Event::Text("X".to_owned()));
+            harness.run();
+
+            let mut expected = String::new();
+            expected.extend(chars[..k].iter());
+            expected.push('X');
+            expected.extend(chars[k..].iter());
+            assert_eq!(
+                harness.get_by_role(Role::TextInput).value(),
+                Some(expected.clone()),
+                "typing X at clicked caret {k} of {base:?} must insert at that logical position"
+            );
+            assert_eq!(
+                cursor_char_index(&harness),
+                k + 1,
+                "the cursor should sit right after the typed char"
+            );
+            let typed_box: Vec<(f32, f32)> = painted_glyph_boxes(&harness, &expected)
+                .into_iter()
+                .filter(|(chr, _, _)| *chr == 'X')
+                .map(|(_, x, advance)| (x, x + advance))
+                .collect();
+            let caret = caret_x_expect(&harness, "after the insert");
+            assert!(
+                typed_box.iter().any(
+                    |(min_x, max_x)| (caret - min_x).abs() < 1.5 || (caret - max_x).abs() < 1.5
+                ),
+                "clicked caret {k} of {base:?}: the caret ({caret:.1}) should hug the typed \
+                 glyph at one of its edges {typed_box:?}"
+            );
+        }
+    }
+
+    sweep("Hello");
+    if rtl_font_path().is_some() {
+        sweep("مرحبا");
+    } else {
+        skipped_without_rtl_font(
+            "test_text_edit_rtl_typing_caret_after_mid_row_insert (Arabic part)",
+        );
+    }
+}
+
+/// Typing at the reading end of the demo window's field shape (multiline, a
+/// `🔎` prefix atom, a custom suffix atom, an explicit align) keeps the
+/// caret at the typed glyph's exit edge — the visual-left edge of the row's
+/// ink — in the RIGHT-aligned, LEFT-aligned and single-row variants.
+/// Needs Arabic glyphs (fixture-gated).
+#[test]
+fn test_text_edit_rtl_typing_caret_demo_shape() {
+    if rtl_font_path().is_none() {
+        skipped_without_rtl_font("test_text_edit_rtl_typing_caret_demo_shape");
+        return;
+    }
+
+    for (halign, desired_rows) in [
+        (Align::RIGHT, Some(2)),
+        (Align::LEFT, Some(2)),
+        (Align::RIGHT, None),
+    ] {
+        let mut text = "مرحبا".to_owned();
+        let mut harness = demo_edit(&mut text, halign, desired_rows);
+
+        harness.event(egui::Event::Text("د".to_owned()));
+        harness.run();
+
+        let expected = "مرحباد";
+        assert_eq!(
+            harness.get_by_role(Role::MultilineTextInput).value(),
+            Some(expected.to_owned()),
+            "typing appends at the reading end"
+        );
+        assert_eq!(
+            cursor_char_index(&harness),
+            expected.chars().count(),
+            "the cursor should sit right after the typed char"
+        );
+        // The reading end of a uniform right-to-left row is its visual-left
+        // edge, where the typed glyph sits:
+        let exit_x = painted_glyph_boxes(&harness, expected)
+            .iter()
+            .map(|(_, x, _)| *x)
+            .fold(f32::INFINITY, f32::min);
+        let caret = caret_x_expect(&harness, "at the reading end");
+        assert!(
+            (caret - exit_x).abs() < 1.5,
+            "{halign:?} align, {desired_rows:?} rows: the caret ({caret:.1}) should sit at \
+             the typed glyph's exit edge ({exit_x:.1})"
+        );
+    }
+}
+
+/// Backspacing after a mid-row click deletes exactly the character before
+/// the clicked caret and leaves the cursor where that character was.
+/// Needs Arabic glyphs (fixture-gated).
+#[test]
+fn test_text_edit_rtl_typing_caret_after_backspace() {
+    if rtl_font_path().is_none() {
+        skipped_without_rtl_font("test_text_edit_rtl_typing_caret_after_backspace");
+        return;
+    }
+
+    let base = "مرحبا";
+    let chars: Vec<char> = base.chars().collect();
+    for k in 1..chars.len() {
+        let mut owned = base.to_owned();
+        let mut harness = focused_rtl_edit(&mut owned);
+        let y = harness.get_by_role(Role::TextInput).rect().center().y;
+        let x = column_caret_x(&harness, base, k);
+        click_at(&mut harness, egui::pos2(x, y));
+        assert_eq!(
+            cursor_char_index(&harness),
+            k,
+            "clicking caret {k} of {base:?} should move the cursor to column {k}"
+        );
+
+        harness.key_press(egui::Key::Backspace);
+        harness.run();
+
+        let expected: String = chars[..k - 1].iter().chain(chars[k..].iter()).collect();
+        assert_eq!(
+            harness.get_by_role(Role::TextInput).value(),
+            Some(expected),
+            "backspace at clicked caret {k} of {base:?} should delete the character before it"
+        );
+        assert_eq!(
+            cursor_char_index(&harness),
+            k - 1,
+            "the cursor should sit where the deleted character was"
+        );
     }
 }
