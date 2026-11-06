@@ -120,6 +120,7 @@ impl Ui {
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
+        let sizing_pass = sizing_pass.unwrap_or(false);
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
         let classes = classes.with_class(class::ROOT);
@@ -236,7 +237,7 @@ impl Ui {
         if invisible {
             painter.set_invisible();
         }
-        let sizing_pass = self.sizing_pass || sizing_pass;
+        let sizing_pass = sizing_pass.unwrap_or(self.sizing_pass);
         let style = style.unwrap_or_else(|| Arc::clone(&self.style));
         let sense = sense.unwrap_or_else(Sense::hover);
 

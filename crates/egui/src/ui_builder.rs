@@ -24,7 +24,9 @@ pub struct UiBuilder {
     pub layout: Option<Layout>,
     pub disabled: bool,
     pub invisible: bool,
-    pub sizing_pass: bool,
+
+    /// `None` inherits from the parent; a root defaults to `false`.
+    pub sizing_pass: Option<bool>,
     pub style: Option<Arc<Style>>,
     pub sense: Option<Sense>,
     pub accessibility_parent: Option<Id>,
@@ -150,10 +152,27 @@ impl UiBuilder {
     /// where we size up the contents of the Ui, without actually showing it.
     ///
     /// If the `sizing_pass` flag is set on the parent,
-    /// the child will inherit it automatically.
+    /// the child will inherit it automatically unless explicitly overridden
+    /// with [`Self::no_sizing_pass`].
     #[inline]
     pub fn sizing_pass(mut self) -> Self {
-        self.sizing_pass = true;
+        self.sizing_pass = Some(true);
+        self
+    }
+
+    /// Disable sizing mode for the new [`Ui`], even if the parent is sizing.
+    ///
+    /// Use this for contents whose layout should not participate in sizing,
+    /// such as widgets clipped inside a fixed viewport. Descendants inherit
+    /// normal mode unless they explicitly enable [`Self::sizing_pass`].
+    /// The new [`Ui`] retains its parent chain, visibility, enabled state, and
+    /// input behavior. This does not change whether the current pass is discarded.
+    ///
+    /// To use a centered or justified layout, also specify [`Self::layout`]:
+    /// the parent's inherited layout may already have been adjusted for sizing.
+    #[inline]
+    pub fn no_sizing_pass(mut self) -> Self {
+        self.sizing_pass = Some(false);
         self
     }
 

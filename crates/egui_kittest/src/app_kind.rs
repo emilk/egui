@@ -60,7 +60,7 @@ impl<State> AppKind<'_, State> {
     fn run_ui(&mut self, ui: &mut egui::Ui, state: &mut State, sizing_pass: bool) -> UiRunOutput {
         let mut builder = egui::UiBuilder::new();
         if sizing_pass {
-            builder.sizing_pass = true;
+            builder = builder.sizing_pass();
         }
         let egui::InnerResponse {
             inner: ui_id,
