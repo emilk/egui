@@ -135,7 +135,7 @@ pub struct IMEOutput {
     ///
     /// `None` for password fields and for widgets that don't support it.
     ///
-    /// Shared through an [`Arc`](alloc::sync::Arc): the widget hands the same report out on
+    /// Shared through an [`Arc`]: the widget hands the same report out on
     /// every focused frame, so integrations can diff it each frame for free.
     #[cfg_attr(feature = "serde", serde(default))]
     pub surrounding_text: Option<Arc<ImeSurroundingText>>,

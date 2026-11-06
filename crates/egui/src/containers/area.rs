@@ -143,7 +143,7 @@ pub struct Area {
     /// The pivot the user explicitly set with [`Self::pivot`], or `None` for the default.
     ///
     /// The default pivot is mirrored to the reading direction
-    /// ([`Style::right_to_left`]): `RIGHT_TOP` in a right-to-left interface,
+    /// ([`crate::Style::right_to_left`]): `RIGHT_TOP` in a right-to-left interface,
     /// `LEFT_TOP` otherwise, so areas widen towards the reading end.
     pivot: Option<Align2>,
     anchor: Option<(Align2, Vec2)>,
