@@ -1569,7 +1569,7 @@ fn segment_into_runs(
 /// The caller should iterate `glyph_infos()` / `glyph_positions()` (both
 /// `Copy` slices) and convert font units to pixels using `metrics.px_scale_factor`.
 /// After iteration, recycle the buffer via `glyph_buffer.clear()`.
-fn shape_text(
+pub(super) fn shape_text(
     font_face: &FontFace,
     text: &str,
     coords: &VariationCoords,
@@ -1602,7 +1602,12 @@ fn shape_text(
     buffer.push_str(text);
     buffer.guess_segment_properties();
 
-    shaper.shape(buffer, harfrust::ShapeOptions::new())
+    let features: Vec<_> = tweak
+        .features
+        .iter()
+        .map(|(tag, value)| harfrust::Feature::new(crate::text::Tag::new(tag), *value, ..))
+        .collect();
+    shaper.shape(buffer, harfrust::ShapeOptions::new().features(&features))
 }
 
 // ----------------------------------------------------------------------------
@@ -2552,6 +2557,24 @@ mod tests {
             "Expected >= 8 glyphs, got {}",
             galley.rows[0].row.glyphs.len()
         );
+    }
+
+    #[test]
+    fn configured_features_disable_kerning() {
+        let mut definitions = FontDefinitions::default();
+        let primary = definitions.families[&FontFamily::Proportional][0].clone();
+        let font_id = FontId::proportional(14.0);
+        let mut defaults = test_fonts();
+        let (kerned, _, _) = measure_text(&mut defaults, "AV", &font_id, 1.0);
+        Arc::make_mut(definitions.font_data.get_mut(&primary).unwrap())
+            .tweak
+            .features = vec![(*b"kern", 0)];
+        let mut unkerned = FontsImpl::new(TextOptions::default(), definitions);
+        let (pair, _, _) = measure_text(&mut unkerned, "AV", &font_id, 1.0);
+        let a = unkerned.glyph_width(&FontFamily::Proportional, 'A', 14.0);
+        let v = unkerned.glyph_width(&FontFamily::Proportional, 'V', 14.0);
+        assert!(pair - kerned > 0.5, "disabling kern must change the layout");
+        assert!((pair - (a + v)).abs() < 0.0625, "allow GUI rounding only");
     }
 
     #[test]
