@@ -2312,16 +2312,38 @@ fn halign_and_justify_row(
     // right-anchored right-to-left row the reading start is the row's RIGHT
     // edge, so the anchored ink is inset by the advance instead of the
     // advance being absorbed into the row box.
-    let reading_start_inset = if halign == Align::RIGHT
-        && row.base_direction == TextDirection::RightToLeft
-        && row.leading_advance != 0.0
-    {
+    //
+    // The same rows must also hang the whitespace the alignment ignores
+    // (excluded from the ink range above) reading-forward from the anchored
+    // ink — leftward, on a right-to-left row — instead of letting it extend
+    // the box past the anchored edge. The box keeps its natural width, so
+    // the ignored whitespace sits inside the box between its reading-forward
+    // edge and the ink; the translate below re-centers the ink inside the
+    // box so no glyph moves. Justified rows and rows that keep their
+    // trailing whitespace size themselves to the anchored span instead, so
+    // their boxes already hug the ink and the hang does not apply to them.
+    let right_anchored_rtl =
+        halign == Align::RIGHT && row.base_direction == TextDirection::RightToLeft;
+    let reading_start_inset = if right_anchored_rtl {
         row.leading_advance
     } else {
         0.0
     };
-    placed_row.pos.x = point_scale.round_to_pixel(target_min_x) - reading_start_inset;
-    let mut translate_x = -original_min_x - extra_x_per_glyph * glyph_range.0 as f32;
+    // Measured from the glyphs' advances rather than derived from the widths,
+    // so advance-vs-ink discrepancies of the ink glyphs cannot leak into it.
+    let ignored_whitespace = if right_anchored_rtl && !justify && !keep_trailing_whitespace {
+        row.glyphs[..glyph_range.0]
+            .iter()
+            .chain(row.glyphs[glyph_range.1..].iter())
+            .map(|glyph| glyph.advance_width)
+            .sum()
+    } else {
+        0.0
+    };
+    placed_row.pos.x =
+        point_scale.round_to_pixel(target_min_x) - reading_start_inset - ignored_whitespace;
+    let mut translate_x =
+        -original_min_x + ignored_whitespace - extra_x_per_glyph * glyph_range.0 as f32;
 
     for glyph in &mut row.glyphs {
         glyph.pos.x += translate_x;
@@ -4469,11 +4491,13 @@ mod tests {
             "the rtl row must allocate the same width as its ltr twin"
         );
         // The ink still ends at the reading-start anchor, and the row rect
-        // starts at the ink (the `rect.left()` compensation contract); only
-        // the allocated width grows to cover the whitespace:
+        // ends at the reading-start anchor with it: the ignored whitespace
+        // hangs reading-forward from the anchored ink (leftward, for a
+        // right-to-left row), inside the rect, and only the allocated width
+        // grows to cover the whitespace:
         let rtl_ink = ink_rect(&rtl);
         assert!(rtl_ink.right().abs() <= 0.5 / pixels_per_point);
-        assert!((rtl_ink.left() - rtl.rect.left()).abs() <= 0.5 / pixels_per_point);
+        assert!(rtl.rect.right().abs() <= 0.5 / pixels_per_point);
     }
 
     /// The bounding rect of the non-whitespace glyphs ("the ink"), in galley
@@ -6514,6 +6538,137 @@ mod tests {
         // Centered on the galley origin, up to pixel rounding:
         let (ink_min, ink_max) = advance_ink_span(&placed.row);
         assert!(((ink_min + ink_max) * 0.5 + placed.pos.x).abs() <= 0.5);
+    }
+
+    /// The ink span over the row's non-whitespace glyphs: the span the
+    /// alignment anchors, with the whitespace it ignores excluded.
+    fn aligned_ink_span(row: &Row) -> (f32, f32) {
+        row.glyphs
+            .iter()
+            .filter(|glyph| !glyph.chr.is_whitespace())
+            .map(|glyph| glyph.logical_rect())
+            .fold((f32::INFINITY, f32::NEG_INFINITY), |(min, max), rect| {
+                (min.min(rect.min.x), max.max(rect.max.x))
+            })
+    }
+
+    /// A hand-built right-to-left row whose aligned ink is preceded in the
+    /// glyph vector by a wrapped break space: the space at 0 with a 3 px
+    /// advance, then three ink glyphs spanning [3, 30] with advances summing
+    /// to 27, so the natural width is the ink plus the ignored space. Like
+    /// [`advance_row`], an explicit `leading_advance` is a phantom width
+    /// carried by the row, not part of the glyph positions.
+    fn whitespace_carry_row(leading_advance: f32, natural_width: f32) -> PlacedRow {
+        PlacedRow {
+            pos: pos2(0.0, 0.0),
+            row: Arc::new(Row {
+                section_index_at_start: 0,
+                base_direction: TextDirection::RightToLeft,
+                leading_advance,
+                glyphs: vec![
+                    advance_glyph(' ', 0.0, 3.0, 1),
+                    advance_glyph('ا', 3.0, 10.0, 1),
+                    advance_glyph('ل', 13.0, 9.0, 1),
+                    advance_glyph('ف', 22.0, 8.0, 1),
+                ],
+                size: vec2(natural_width, 16.0),
+                visuals: RowVisuals::default(),
+            }),
+            ends_with_newline: false,
+        }
+    }
+
+    /// A right-anchored right-to-left row hangs the whitespace the alignment
+    /// ignores reading-forward from the anchored ink: the box's right edge
+    /// stays at the galley origin, the ink stays flush at it, and the
+    /// ignored space sits inside the box on its reading-forward (left) side.
+    /// The glyphs keep their absolute positions — only the box bookkeeping
+    /// moves.
+    #[test]
+    fn right_anchored_rtl_row_hangs_ignored_whitespace_reading_forward() {
+        let point_scale = PointScale::new(1.0);
+        let mut placed = whitespace_carry_row(0.0, 30.0);
+        halign_and_justify_row(
+            point_scale,
+            &mut placed,
+            Align::Max,
+            f32::INFINITY,
+            false,
+            false,
+        );
+
+        // The box keeps the natural width and its right edge lands exactly
+        // on the galley origin:
+        advance_assert_close(placed.row.size.x, 30.0);
+        advance_assert_close(placed.pos.x, -30.0);
+        advance_assert_close(placed.pos.x + placed.row.size.x, 0.0);
+
+        // The aligned ink (the non-whitespace glyphs) stays flush at the
+        // galley origin:
+        let ink = aligned_ink_span(&placed.row);
+        advance_assert_close(ink.0 + placed.pos.x, -27.0);
+        advance_assert_close(ink.1 + placed.pos.x, 0.0);
+
+        // The ignored space sits inside the box on the reading-forward
+        // (left) side:
+        let space = &placed.row.glyphs[0];
+        advance_assert_close(space.pos.x + placed.pos.x, -30.0);
+        advance_assert_close(space.pos.x + space.advance_width + placed.pos.x, -27.0);
+    }
+
+    /// The same hang composed with a leading advance: the advance is a
+    /// phantom width carried by the row (in `size.x`, not in glyph
+    /// positions), the anchored ink is inset by it at the reading start, and
+    /// the ignored whitespace hangs reading-forward of the ink, inside the
+    /// box.
+    #[test]
+    fn right_anchored_rtl_row_composes_leading_advance_with_ignored_whitespace() {
+        let point_scale = PointScale::new(1.0);
+        let mut placed = whitespace_carry_row(40.0, 70.0);
+        halign_and_justify_row(
+            point_scale,
+            &mut placed,
+            Align::Max,
+            f32::INFINITY,
+            false,
+            false,
+        );
+
+        // The box keeps the natural width (advance + space + ink) and its
+        // right edge lands exactly on the galley origin:
+        advance_assert_close(placed.row.size.x, 70.0);
+        advance_assert_close(placed.pos.x, -70.0);
+        advance_assert_close(placed.pos.x + placed.row.size.x, 0.0);
+
+        // The aligned ink keeps its pinned anchor: its right edge is inset
+        // by the leading advance at the reading start:
+        let ink = aligned_ink_span(&placed.row);
+        advance_assert_close(ink.0 + placed.pos.x, -67.0);
+        advance_assert_close(ink.1 + placed.pos.x, -40.0);
+
+        // The ignored space sits between the box's reading-forward edge and
+        // the ink:
+        let space = &placed.row.glyphs[0];
+        advance_assert_close(space.pos.x + placed.pos.x, -70.0);
+        advance_assert_close(space.pos.x + space.advance_width + placed.pos.x, -67.0);
+    }
+
+    /// Justified right-to-left rows size themselves to the anchored target
+    /// width, so their boxes already hug the anchored ink: the ignored
+    /// whitespace must not hang the box (the hang applies only to rows whose
+    /// size keeps the natural width).
+    #[test]
+    fn justified_rtl_row_keeps_its_anchored_box() {
+        let point_scale = PointScale::new(1.0);
+        let mut placed = whitespace_carry_row(0.0, 30.0);
+        halign_and_justify_row(point_scale, &mut placed, Align::Max, 40.0, true, false);
+
+        // The justified row fills the wrap width and its box right stays at
+        // the galley origin, flush with the justified ink:
+        advance_assert_close(placed.row.size.x, 40.0);
+        advance_assert_close(placed.pos.x + placed.row.size.x, 0.0);
+        let ink = aligned_ink_span(&placed.row);
+        advance_assert_close(ink.1 + placed.pos.x, 0.0);
     }
 
     /// The legacy wrap path threads the paragraph's leading advance onto the
