@@ -940,7 +940,7 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::approx_constant)] // the plan pins the literal "3.14" as an invariant
+    #[expect(clippy::approx_constant)] // a plain decimal the parser must parse exactly, not a π literal
     fn test_default_parser_ltr_invariants() {
         assert_eq!(
             super::default_parser("1 234 567"),

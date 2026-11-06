@@ -400,7 +400,7 @@ mod tests {
     /// their max rect's left edge.
     ///
     /// The physical [`Aligned::new`] keeps today's contract verbatim in both
-    /// directions (asserted against the behavior measured on the parent commit).
+    /// directions.
     #[test]
     fn oversized_reading_start_content_clamps_at_the_reading_start_edge() {
         // Wider than the default 10_000 x 10_000 test viewport.

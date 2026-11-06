@@ -204,7 +204,7 @@ impl RowTextRuns {
 /// Runs without glyphs (a newline-only run from the 255-char split) are
 /// pinned last: the newline terminates the row's text.
 ///
-/// Known fence (post-NG9): wrapping no longer slices an already-reordered
+/// Known fence: wrapping no longer slices an already-reordered
 /// *visual* stream — it walks the logical stream (`line_break_logically`) and
 /// places each produced row per UAX #9 L1/L2 (`RowReorder::place_row`,
 /// re-resolving the levels per row over the paragraph's whole byte span), so
