@@ -1614,10 +1614,25 @@ impl RowReorder<'_> {
         let mut glyphs: Vec<Glyph> = Vec::new();
         let mut claimed = vec![false; row_range.len()];
         let mut pen = leading_advance;
+        // Re-stamp each placed glyph with the level its row resolved to, so
+        // consumers reading the row's stream from the stamps (the
+        // accessibility bridge, the caret table, selection painting) see the
+        // placed levels, not the levels the glyph's section resolved to at
+        // emission. `levels` is indexed over the paragraph's whole byte span;
+        // a glyph without a resolvable byte keeps its emission level.
+        let tracked = paragraph.cluster_byte_starts.len() == paragraph.glyphs.len();
         let place_block = |glyphs: &mut Vec<Glyph>, pen: &mut f32, block: &LogicalBlock| {
-            for glyph in &paragraph.glyphs[block.glyphs.clone()] {
+            for (offset, glyph) in paragraph.glyphs[block.glyphs.clone()].iter().enumerate() {
                 let mut glyph = *glyph;
                 glyph.pos.x = *pen + (glyph.pos.x - block.origin);
+                if tracked
+                    && let Some(byte) = paragraph
+                        .cluster_byte_starts
+                        .get(block.glyphs.start + offset)
+                    && let Some(level) = levels.get(byte.saturating_sub(self.span_start))
+                {
+                    glyph.bidi_level = level.number();
+                }
                 glyphs.push(glyph);
             }
             *pen += block.width;
@@ -6976,6 +6991,190 @@ mod tests {
         for glyphs in visible_glyphs_per_row(&galley) {
             assert_x_nondecreasing(&glyphs);
         }
+    }
+
+    /// Placed wrapped-row glyphs carry the levels their ROW resolved to, not
+    /// the levels their section resolved to at emission: in a two-section job
+    /// the pure-ASCII section's part stamps everything at the base level at
+    /// emission, while the per-row reorder resolves the boundary space into
+    /// the Hebrew run (level 1) and the digits following it to level 2.
+    /// Consumers reading the row's stream (the accessibility bridge, the
+    /// caret table) must see the placed levels.
+    #[test]
+    fn placed_wrapped_row_glyphs_carry_their_row_resolved_levels() {
+        let text = "עברית 123 abcdef";
+        // `עברית` in the red section, the rest in the white one:
+        assert_eq!(&text[..10], "עברית");
+        let formats = [
+            TextFormat::simple(FontId::proportional(14.0), Color32::RED),
+            TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+        ];
+
+        // Wrap width measured from an unwrapped twin: row 0 keeps everything
+        // but the trailing latin word (`עברית 123 ␣`), whose glyphs sit at the
+        // twin stream's right end.
+        let twin = layout(
+            &mut tofu_fonts(),
+            1.0,
+            two_section_job(
+                &[&text[..10], &text[10..]],
+                &formats,
+                f32::INFINITY,
+                Some(TextDirection::LeftToRight),
+            )
+            .into(),
+        );
+        assert_eq!(twin.rows.len(), 1);
+        let word: f32 = twin.rows[0]
+            .row
+            .glyphs
+            .iter()
+            .rev()
+            .filter(|glyph| glyph.advance_width > 0.0)
+            .take_while(|glyph| !glyph.chr.is_whitespace())
+            .map(|glyph| glyph.advance_width)
+            .sum();
+        let row0_width = twin.rows[0].row.size.x - word;
+        let wrap_width = row0_width + 0.5;
+        assert!(
+            row0_width > 0.0 && row0_width + word > wrap_width && word <= wrap_width,
+            "the break must fall after the boundary space: row0 {row0_width} word {word} W {wrap_width}"
+        );
+
+        let galley = layout(
+            &mut tofu_fonts(),
+            1.0,
+            two_section_job(
+                &[&text[..10], &text[10..]],
+                &formats,
+                wrap_width,
+                Some(TextDirection::LeftToRight),
+            )
+            .into(),
+        );
+        assert_eq!(
+            galley.rows.len(),
+            2,
+            "rows: {:?}",
+            visible_chars_per_row(&galley)
+        );
+        // FIRST, with a clear message — any wrap or shaping deviation makes
+        // the level assertions below meaningless:
+        let counts: Vec<usize> = galley
+            .rows
+            .iter()
+            .map(|placed| placed.row.glyphs.len())
+            .collect();
+        assert_eq!(counts, vec![10, 6], "glyph slots per row: {counts:?}");
+
+        // Row 0's stream (visual): the digits at the visual left (level 2,
+        // European numbers after a right-to-left run), then the Hebrew run
+        // with the section-boundary space joined to it (level 1), then the
+        // kept break space at the base level (0):
+        let stamps: Vec<(char, u8)> = galley.rows[0]
+            .row
+            .glyphs
+            .iter()
+            .map(|glyph| (glyph.chr, glyph.bidi_level))
+            .collect();
+        assert_eq!(
+            stamps,
+            [
+                ('1', 2),
+                ('2', 2),
+                ('3', 2),
+                (' ', 1),
+                ('ת', 1),
+                ('י', 1),
+                ('ר', 1),
+                ('ב', 1),
+                ('ע', 1),
+                (' ', 0),
+            ],
+            "row 0's stamps must be its placed levels"
+        );
+        let stamps: Vec<(char, u8)> = galley.rows[1]
+            .row
+            .glyphs
+            .iter()
+            .map(|glyph| (glyph.chr, glyph.bidi_level))
+            .collect();
+        assert_eq!(
+            stamps,
+            [('a', 0), ('b', 0), ('c', 0), ('d', 0), ('e', 0), ('f', 0)],
+            "row 1's plain latin word stays at the base level"
+        );
+    }
+
+    /// The break space of a wrapped right-to-left row stamps at the level its
+    /// ROW resolved to — the base level (1), not the mid-segment island level
+    /// (2) the emission kept: UAX #9 L1 resets end-of-line whitespace per
+    /// row, and the accessibility bridge and caret table read the stamps.
+    #[test]
+    fn wrapped_row_break_space_stamps_at_the_row_base_level() {
+        let text = "عربي aaa bbb";
+
+        // The text and wrap width of `wrapped_mixed_rtl_base_keeps_uax9_per_row`:
+        // row 0 = `عربي aaa ␣` with the kept break space, row 1 = `bbb`.
+        let twin = layout_unwrapped(text, Some(TextDirection::LeftToRight));
+        let (spans, gaps) = visible_runs(&twin);
+        assert_eq!(spans.len(), 3, "spans {spans:?}");
+        assert_eq!(gaps.len(), 2, "spans {spans:?} gaps {gaps:?}");
+        let (w_arabi, w_aaa, _w_bbb) = (spans[0], spans[1], spans[2]);
+        let s = gaps[1];
+        let wrap_width = w_arabi + s + w_aaa + s + 0.5;
+
+        let galley = layout_wrapped(text, Some(TextDirection::RightToLeft), wrap_width);
+        assert_eq!(
+            galley.rows.len(),
+            2,
+            "rows: {:?}",
+            visible_chars_per_row(&galley)
+        );
+        // FIRST, with a clear message:
+        let counts: Vec<usize> = galley
+            .rows
+            .iter()
+            .map(|placed| placed.row.glyphs.len())
+            .collect();
+        assert_eq!(counts, vec![9, 3], "glyph slots per row: {counts:?}");
+
+        // The break space leads the row's vector (the visual reading end of a
+        // right-to-left row) and stamps at the base level 1 — the level its
+        // row resolved to, not the island level 2 the emission gave it (L1
+        // resets only at the segment's end there):
+        let stamps: Vec<(char, u8)> = galley.rows[0]
+            .row
+            .glyphs
+            .iter()
+            .map(|glyph| (glyph.chr, glyph.bidi_level))
+            .collect();
+        assert_eq!(
+            stamps,
+            [
+                (' ', 1),
+                ('a', 2),
+                ('a', 2),
+                ('a', 2),
+                (' ', 1),
+                ('ي', 1),
+                ('ب', 1),
+                ('ر', 1),
+                ('ع', 1),
+            ],
+            "row 0's stamps must be its placed levels"
+        );
+        let stamps: Vec<(char, u8)> = galley.rows[1]
+            .row
+            .glyphs
+            .iter()
+            .map(|glyph| (glyph.chr, glyph.bidi_level))
+            .collect();
+        assert_eq!(
+            stamps,
+            [('b', 2), ('b', 2), ('b', 2)],
+            "the island's second word stays at level 2"
+        );
     }
 
     /// D (unrecorded edge) — a paragraph mixing a pure-LTR section (a single

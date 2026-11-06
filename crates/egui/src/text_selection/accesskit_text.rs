@@ -199,26 +199,19 @@ impl RowTextRuns {
 /// glyph-less runs last: a newline-only run from the
 /// [`MAX_CHARS_PER_TEXT_RUN`] split — the newline terminates the row's text.
 ///
-/// Known fence: wrapping no longer slices an already-reordered
-/// *visual* stream — it walks the logical stream (`line_break_logically`) and
-/// places each produced row per UAX #9 L1/L2 (`RowReorder::place_row`,
-/// re-resolving the levels per row over the paragraph's whole byte span), so
-/// wrapped right-to-left rows follow the reading order and this replay is the
-/// exact inverse of that placement — wherever the levels it reads match the
-/// placement's. Those levels are the glyphs' stamps, resolved per *segment* at
-/// emission (`segment_into_bidi_runs` treats the segment as one line), while
-/// the placement resolves per *row*: a non-final wrapped row's trailing
-/// break-candidate whitespace is L1-reset to the base level for placement but
-/// keeps its stamped mid-segment level, and a row can likewise start with
-/// whitespace. Where the two differ (a break inside an embedded counter-base
-/// island), the replay folds that whitespace into the island's run and it
-/// reconstructs on the wrong side of its neighbours. Also past the stamps: a
-/// paragraph spanning several `LayoutSection`s is re-resolved span-wide (runs
-/// can merge across a section boundary where the per-segment emission split
-/// them), and hostile byte drift degrades the placement itself (clamped
-/// ranges, unclaimed blocks kept in logical order at the visual end).
-/// Everything else reconstructs exactly: single-row text, final rows, and
-/// every wrapped row whose stamps match its placed levels.
+/// Known fence: wrapping walks the logical stream (`line_break_logically`)
+/// and places each produced row per UAX #9 L1/L2 (`RowReorder::place_row`,
+/// re-resolving the levels per row over the paragraph's whole byte span), and
+/// each placed glyph is re-stamped with its row-resolved level — so this
+/// replay is the exact inverse of the placement for every wrapped row. Past
+/// the stamps remain: hostile byte drift, where the placement itself degrades
+/// (clamped ranges, unclaimed blocks kept in logical order at the visual end)
+/// and glyphs without a resolvable byte keep their emission level; and a
+/// paragraph spanning several `LayoutSection`s whose single-row emission
+/// split a run across the section boundary keeps the per-part visual order
+/// (no re-placement runs on single-row text), which this replay then reads
+/// with the whole-run schedule — the merged run reconstructs the parts in
+/// reverse. Everything else reconstructs exactly.
 fn logical_run_order(row: &Row, runs: &[TextRunInfo]) -> Vec<usize> {
     let non_empty: Vec<usize> = (0..runs.len())
         .filter(|&i| !runs[i].glyphs.is_empty())
@@ -816,6 +809,236 @@ mod tests {
         let end = text_run_position(id, &galley, 0, epaint::text::CharIndex(n), false);
         assert_eq!(end.node, id.with(0usize).with(0usize).accesskit_id());
         assert_eq!(end.character_index, 3, "the digits run holds 3 chars");
+    }
+
+    /// A wrapped right-to-left label whose row break lands inside the
+    /// embedded latin island: the row's break space resets to the base level
+    /// on the rendered row, so it is its own right-to-left run instead of
+    /// folding into the island's run as a leading character, the island's run
+    /// value is exactly its own text, and the run values joined in logical
+    /// order read back the row's logical text. Selection columns round-trip
+    /// through the run mapping with the caret staying put.
+    #[test]
+    fn wrapped_rtl_base_island_break_reconstructs_the_row_text() {
+        let ctx = Context::default();
+        let id = Id::unique("rtl_wrapped");
+        let text = "عربي alpha beta gamma";
+        let mut galley_slot = None;
+        let update = accesskit_update(&ctx, |ui| {
+            // Wrap width measured from an unwrapped twin: row 0 keeps
+            // everything but the island's last word, whose glyphs lead the
+            // twin's visual stream (a right-to-left row reads from its right
+            // edge).
+            let mut job = epaint::text::LayoutJob::simple(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            job.direction = Some(epaint::text::TextDirection::RightToLeft);
+            let twin = ui.painter().layout_job(job.clone());
+            assert_eq!(twin.rows.len(), 1);
+            let last_word: f32 = twin.rows[0]
+                .glyphs
+                .iter()
+                .rev()
+                .filter(|glyph| glyph.advance_width > 0.0)
+                .take_while(|glyph| !glyph.chr.is_whitespace())
+                .map(|glyph| glyph.advance_width)
+                .sum();
+            let row0_width = twin.rows[0].row.size.x - last_word;
+            let wrap_width = row0_width + 0.5;
+            assert!(
+                row0_width > 0.0 && row0_width + last_word > wrap_width && last_word <= wrap_width,
+                "the break must fall before the island's last word: \
+                 row0 {row0_width} word {last_word} W {wrap_width}"
+            );
+
+            let mut wrapped = job;
+            wrapped.wrap.max_width = wrap_width;
+            let galley = ui.painter().layout_job(wrapped.clone());
+            // FIRST, with a clear message — any wrap or shaping deviation
+            // makes the run assertions below meaningless:
+            assert_eq!(
+                galley
+                    .rows
+                    .iter()
+                    .map(|row| row.glyphs.len())
+                    .collect::<Vec<_>>(),
+                [16, 5],
+                "rows must split `عربي alpha beta ` / `gamma`, one glyph slot per char"
+            );
+            galley_slot = Some(galley);
+            ui.set_max_width(wrap_width);
+            ui.add(crate::Label::new(wrapped).wrap_mode(crate::TextWrapMode::Wrap));
+        });
+
+        // Row 0's runs in tree (stream) order — the break space first (the
+        // visual reading end of a right-to-left row), then the island, then
+        // the arabic word; row 1 adds the island's last word:
+        let tree_runs = run_ids(&update, text);
+        let values: Vec<&str> = tree_runs
+            .iter()
+            .map(|(_, value, _)| value.as_str())
+            .collect();
+        assert_eq!(
+            values,
+            [" ", "alpha beta", "عربي ", "gamma"],
+            "{tree_runs:?}"
+        );
+        assert_eq!(
+            tree_runs[0].2,
+            TextDirection::RightToLeft,
+            "the break space is its own base-level run"
+        );
+        assert_eq!(tree_runs[1].2, TextDirection::LeftToRight);
+        assert_eq!(tree_runs[2].2, TextDirection::RightToLeft);
+
+        // The values joined in LOGICAL order read back the row's logical
+        // text `عربي alpha beta ` — the break space at its logical end, not
+        // inside the island's run:
+        assert_eq!(
+            format!("{}{}{}", tree_runs[2].1, tree_runs[1].1, tree_runs[0].1),
+            "عربي alpha beta ",
+            "the logical run order reconstructs the row's text"
+        );
+
+        // Every logical column of the text maps to a run node + character
+        // index, and round-trips back to the same column through the reverse
+        // mapping, with the caret staying put:
+        let galley = galley_slot.expect("galley");
+        let n = text.chars().count();
+        for column in 0..=n {
+            for prefer_next_row in [false, true] {
+                let cursor = CCursor {
+                    index: epaint::text::CharIndex(column),
+                    prefer_next_row,
+                };
+                let layout = galley.layout_from_cursor(cursor);
+                let position =
+                    text_run_position(id, &galley, layout.row, layout.column, prefer_next_row);
+                let back = ccursor_from_accesskit_text_position(id, &galley, &position)
+                    .expect("position maps back");
+                assert_eq!(back.index, cursor.index, "{cursor:?} -> {position:?}");
+                assert_eq!(
+                    galley.pos_from_cursor(back),
+                    galley.pos_from_cursor(cursor),
+                    "{cursor:?} {position:?}"
+                );
+            }
+        }
+    }
+
+    /// A paragraph spanning two `LayoutSection`s wraps as ONE paragraph: the
+    /// per-row reorder resolves the section-boundary space into the Hebrew
+    /// run and the digits following it to their own level, so the row's tree
+    /// runs join to the row's logical text — the row is NOT announced
+    /// backwards (replaying the per-section emission stamps would read the
+    /// L2 schedule over the wrong levels).
+    #[test]
+    fn wrapped_two_section_row_is_not_announced_backwards() {
+        let ctx = Context::default();
+        let id = Id::unique("two_section_wrapped");
+        let text = "עברית 123 abcdef";
+        let mut galley_slot = None;
+        let update = accesskit_update(&ctx, |ui| {
+            // Two differently-colored sections; the paragraph spans the
+            // boundary. The pure-ASCII section's part stamps everything at
+            // the base level at emission:
+            let mut job = epaint::text::LayoutJob::default();
+            job.append(
+                "עברית",
+                0.0,
+                epaint::text::TextFormat::simple(FontId::proportional(14.0), Color32::RED),
+            );
+            job.append(
+                " 123 abcdef",
+                0.0,
+                epaint::text::TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+            );
+            job.direction = Some(epaint::text::TextDirection::LeftToRight);
+
+            // Wrap width measured from an unwrapped twin: row 0 keeps
+            // everything but the trailing latin word.
+            let twin = ui.painter().layout_job(job.clone());
+            assert_eq!(twin.rows.len(), 1);
+            let last_word: f32 = twin.rows[0]
+                .glyphs
+                .iter()
+                .rev()
+                .filter(|glyph| glyph.advance_width > 0.0)
+                .take_while(|glyph| !glyph.chr.is_whitespace())
+                .map(|glyph| glyph.advance_width)
+                .sum();
+            let row0_width = twin.rows[0].row.size.x - last_word;
+            let wrap_width = row0_width + 0.5;
+            assert!(
+                row0_width > 0.0 && row0_width + last_word > wrap_width && last_word <= wrap_width,
+                "the break must fall after the boundary space: \
+                 row0 {row0_width} word {last_word} W {wrap_width}"
+            );
+
+            let mut wrapped = job.clone();
+            wrapped.wrap.max_width = wrap_width;
+            let galley = ui.painter().layout_job(wrapped.clone());
+            // FIRST, with a clear message:
+            assert_eq!(
+                galley
+                    .rows
+                    .iter()
+                    .map(|row| row.glyphs.len())
+                    .collect::<Vec<_>>(),
+                [10, 6],
+                "rows must split `עברית 123 ` / `abcdef`, one glyph slot per char"
+            );
+            galley_slot = Some(galley);
+            ui.set_max_width(wrap_width);
+            ui.add(crate::Label::new(job).wrap_mode(crate::TextWrapMode::Wrap));
+        });
+
+        // Row 0's runs in tree (stream) order — the digits at the visual
+        // left, then the Hebrew run with the boundary space joined to it,
+        // then the kept break space; row 1's latin word last:
+        let tree_runs = run_ids(&update, text);
+        let values: Vec<&str> = tree_runs
+            .iter()
+            .map(|(_, value, _)| value.as_str())
+            .collect();
+        assert_eq!(values, ["123", "עברית ", " ", "abcdef"], "{tree_runs:?}");
+        assert_eq!(tree_runs[0].2, TextDirection::LeftToRight);
+        assert_eq!(tree_runs[1].2, TextDirection::RightToLeft);
+        assert_eq!(tree_runs[2].2, TextDirection::LeftToRight);
+
+        // The values joined in LOGICAL order read back the row's logical
+        // text `עברית 123 ` — not the backwards announcement the emission
+        // stamps would produce:
+        assert_eq!(
+            format!("{}{}{}", tree_runs[1].1, tree_runs[0].1, tree_runs[2].1),
+            "עברית 123 ",
+            "the logical run order reconstructs the row's text"
+        );
+
+        // Selection round-trip for every column of row 0:
+        let galley = galley_slot.expect("galley");
+        for column in 0..=10usize {
+            for prefer_next_row in [false, true] {
+                let cursor = CCursor {
+                    index: epaint::text::CharIndex(column),
+                    prefer_next_row,
+                };
+                let layout = galley.layout_from_cursor(cursor);
+                let position =
+                    text_run_position(id, &galley, layout.row, layout.column, prefer_next_row);
+                let back = ccursor_from_accesskit_text_position(id, &galley, &position)
+                    .expect("position maps back");
+                assert_eq!(back.index, cursor.index, "{cursor:?} -> {position:?}");
+                assert_eq!(
+                    galley.pos_from_cursor(back),
+                    galley.pos_from_cursor(cursor),
+                    "{cursor:?} {position:?}"
+                );
+            }
+        }
     }
 
     /// Selection positions round-trip through the run mapping on mixed
