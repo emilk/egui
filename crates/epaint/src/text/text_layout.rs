@@ -6911,6 +6911,62 @@ mod tests {
         );
     }
 
+    /// Every row the logical wrap path produces must fit the wrap width:
+    /// after a row break the pen must stay budgeted for the overflow block
+    /// and any blocks after the last break candidate, which the break
+    /// already pushed onto the new row. A row budgeted without them packs
+    /// past the wrap width by exactly their sum.
+    #[test]
+    fn line_break_logically_rows_stay_within_the_wrap_width() {
+        // Seven three-letter words with single spaces: 27 single-glyph
+        // clusters of width 10 (21 letters + 6 spaces), shaped in visual
+        // order (the logically-last char first, x ascending) with one
+        // recorded right-to-left run over the whole span — the tracked
+        // state `wraps_logically`'s route requires.
+        let text = "aaa bbb ccc ddd eee fff ggg";
+        let mut glyphs = Vec::new();
+        let mut cluster_byte_starts = Vec::new();
+        for (i, (byte_start, chr)) in text.char_indices().rev().enumerate() {
+            cluster_byte_starts.push(byte_start);
+            glyphs.push(advance_glyph(chr, 10.0 * i as f32, 10.0, 1));
+        }
+        let mut paragraph = Paragraph::from_section_index(0);
+        paragraph.glyphs = glyphs;
+        paragraph.cluster_byte_starts = cluster_byte_starts;
+        paragraph.byte_span = 0..text.len();
+        paragraph.bidi_runs = vec![RecordedBidiRun {
+            glyphs: 0..text.chars().count(),
+            bytes: 0..text.len(),
+            rtl: true,
+        }];
+
+        let job = LayoutJob {
+            text: text.to_owned(),
+            wrap: TextWrapping {
+                max_width: 65.0,
+                ..Default::default()
+            },
+            direction: Some(TextDirection::RightToLeft),
+            round_output_to_gui: false,
+            ..Default::default()
+        };
+
+        let mut rows = Vec::new();
+        let mut elided = false;
+        line_break_logically(&paragraph, &job, &[], &mut rows, &mut elided);
+        assert!(!elided);
+        assert!(
+            rows.len() > 1,
+            "the paragraph must wrap into several rows (got {})",
+            rows.len()
+        );
+        assert!(
+            rows.iter().all(|placed| placed.size.x <= 65.0),
+            "every row must fit the wrap width: {:?}",
+            rows.iter().map(|placed| placed.size.x).collect::<Vec<_>>()
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Wrapped rows keep UAX #9 L1/L2 per rendered line.
     //
