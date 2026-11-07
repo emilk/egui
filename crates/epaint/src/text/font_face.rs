@@ -158,6 +158,7 @@ impl FontCell {
         ctx.fill_path(&path);
         let mut dest = vello_cpu::Pixmap::new(width, height);
         let mut resources = vello_cpu::Resources::new();
+        ctx.flush();
         ctx.render(&mut dest, &mut resources);
 
         let pixels = dest
@@ -239,6 +240,7 @@ impl FontCell {
             }))
             .ok()?;
         let mut pixmap = vello_cpu::Pixmap::new(canvas_size, canvas_size);
+        ctx.flush();
         ctx.render(&mut pixmap, &mut resources);
 
         let canvas_size = canvas_size as usize;
