@@ -1854,7 +1854,15 @@ fn line_break_logically(
 
                 // Start a new row:
                 row_start = last_kept + 1;
-                pen = 0.0;
+                // The overflow block and any blocks after the last break candidate are
+                // already part of the new row: budget the next row for their widths too,
+                // or the new row packs past its wrap width by exactly their sum.
+                pen = blocks
+                    .iter()
+                    .take(b + 1)
+                    .skip(row_start)
+                    .map(|block| block.width)
+                    .sum();
                 row_break_candidates.forget_before_idx(row_start);
             } else {
                 // Found no place to break, so we have to overrun wrap_width.
