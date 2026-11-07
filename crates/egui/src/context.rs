@@ -501,6 +501,13 @@ impl ContextImpl {
 
         self.memory.begin_pass(&new_raw_input, &all_viewport_ids);
 
+        if self.os == OperatingSystem::Mac {
+            viewport
+                .input
+                .pointer
+                .ctrl_click_to_secondary(&mut new_raw_input.events);
+        }
+
         viewport.input = core::mem::take(&mut viewport.input).begin_pass(
             new_raw_input,
             viewport.repaint.requested_immediate_repaint_prev_pass(),
