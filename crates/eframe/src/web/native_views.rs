@@ -74,6 +74,18 @@ impl WebNativeViews {
         self.layer.as_ref().map(|layer| &layer.input_element)
     }
 
+    /// Whether the keyboard focus is in one of the views below the canvas, such as a text field.
+    pub fn has_focus(&self) -> bool {
+        let Some(layer) = &self.layer else {
+            return false;
+        };
+        layer
+            .element
+            .owner_document()
+            .and_then(|document| document.active_element())
+            .is_some_and(|active| layer.element.contains(Some(&active)))
+    }
+
     /// Updates the input element and the canvas for the views below the canvas in `outputs`.
     ///
     /// While such a view is shown, the canvas has `pointer-events: none`, and the input element
