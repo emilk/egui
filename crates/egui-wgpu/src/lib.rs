@@ -62,6 +62,17 @@ pub enum WgpuError {
     #[cfg(feature = "winit")]
     #[error(transparent)]
     HandleError(#[from] ::winit::raw_window_handle::HandleError),
+
+    /// The device raised an error while a new window's surface was
+    /// configured (see [`winit::catch_errors`]).
+    #[cfg(feature = "winit")]
+    #[error("The window's surface couldn't be configured: {0}")]
+    ConfigureSurface(wgpu::Error),
+
+    /// The device rejected renderer resources before the app was created.
+    #[cfg(feature = "winit")]
+    #[error("The egui renderer couldn't be created: {0}")]
+    CreateRenderer(wgpu::Error),
 }
 
 /// Runtime-mutable subset of [`WgpuConfiguration`].
@@ -270,6 +281,13 @@ impl RenderState {
         };
         let target_format = crate::preferred_framebuffer_format(&surface_formats)?;
 
+        // Return startup pipeline errors so eframe's caller can retry with another renderer.
+        #[cfg(feature = "winit")]
+        let renderer =
+            winit::catch_errors(&device, || Renderer::new(&device, target_format, options))
+                .await
+                .map_err(WgpuError::CreateRenderer)?;
+        #[cfg(not(feature = "winit"))]
         let renderer = Renderer::new(&device, target_format, options);
 
         // On wasm, depending on feature flags, wgpu objects may or may not implement sync.

@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+* Fit a window's surface within the GPU's `max_texture_dimension_2d` (drawn at a matching scale) instead of panicking in `Surface::configure`, and return first-surface configure and renderer-creation errors as `WgpuError::ConfigureSurface` / `WgpuError::CreateRenderer` so eframe can fall back to another renderer [#8361](https://github.com/emilk/egui/issues/8361)
+
+
 ## 0.37.0 - 2026-10-15
 * Fix `Frame::set_wgpu_surface_config` being ignored [#8442](https://github.com/emilk/egui/pull/8442) by [@chicoferreira](https://github.com/chicoferreira)
 
