@@ -802,9 +802,8 @@ impl Language {
     fn new(language: &str) -> Option<Self> {
         match language.to_lowercase().as_str() {
             "c" | "h" | "hpp" | "cpp" | "c++" => Some(Self::cpp()),
-            "js" | "javascript" | "jsx" | "mjs" | "ts" | "typescript" | "tsx" => {
-                Some(Self::javascript())
-            }
+            "js" | "javascript" | "jsx" | "mjs" => Some(Self::javascript()),
+            "ts" | "typescript" | "tsx" => Some(Self::typescript()),
             "json" | "jsonc" | "json5" => Some(Self::json()),
             "py" | "python" => Some(Self::python()),
             "rs" | "rust" => Some(Self::rust()),
@@ -938,7 +937,7 @@ impl Language {
         }
     }
 
-    /// JavaScript and TypeScript.
+    /// JavaScript.
     fn javascript() -> Self {
         Self {
             double_slash_comments: true,
@@ -948,7 +947,6 @@ impl Language {
             string_delimiters: &["\"", "'", "`"],
             case_insensitive_keywords: false,
             keywords: [
-                "abstract",
                 "as",
                 "async",
                 "await",
@@ -959,7 +957,6 @@ impl Language {
                 "const",
                 "continue",
                 "debugger",
-                "declare",
                 "default",
                 "delete",
                 "do",
@@ -978,16 +975,13 @@ impl Language {
                 "in",
                 "instanceof",
                 "interface",
-                "keyof",
                 "let",
-                "namespace",
                 "new",
                 "null",
                 "of",
                 "private",
                 "protected",
                 "public",
-                "readonly",
                 "return",
                 "static",
                 "super",
@@ -996,7 +990,6 @@ impl Language {
                 "throw",
                 "true",
                 "try",
-                "type",
                 "typeof",
                 "undefined",
                 "var",
@@ -1008,6 +1001,20 @@ impl Language {
             .into_iter()
             .collect(),
         }
+    }
+
+    /// TypeScript: JavaScript and the keywords TypeScript adds.
+    fn typescript() -> Self {
+        let mut language = Self::javascript();
+        language.keywords.extend([
+            "abstract",
+            "declare",
+            "keyof",
+            "namespace",
+            "readonly",
+            "type",
+        ]);
+        language
     }
 
     fn json() -> Self {
@@ -1321,6 +1328,34 @@ mod tests {
             Some(TokenType::StringLiteral)
         );
         assert_eq!(token_type_of(text, "ts", "log"), Some(TokenType::Function));
+    }
+
+    #[test]
+    fn typescript_keywords_are_names_in_javascript() {
+        for word in [
+            "abstract",
+            "declare",
+            "keyof",
+            "namespace",
+            "readonly",
+            "type",
+        ] {
+            let text = format!("{word} = event.{word}");
+            assert_eq!(
+                token_type_of(&text, "js", word),
+                Some(TokenType::Literal),
+                "{word}"
+            );
+            assert_eq!(
+                token_type_of(&text, "ts", word),
+                Some(TokenType::Keyword),
+                "{word}"
+            );
+        }
+        assert_eq!(
+            token_type_of("let x", "js", "let"),
+            Some(TokenType::Keyword)
+        );
     }
 
     #[test]
