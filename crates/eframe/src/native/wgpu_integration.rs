@@ -90,6 +90,8 @@ pub struct SharedState {
     viewport_from_window: HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
     resized_viewport: Option<ViewportId>,
+    /// Immediate viewports inherit an offscreen parent pass.
+    offscreen: bool,
 
     /// Passed on to each [`egui_winit::State`]. See [`NativeOptions::clipboard_shortcuts`].
     clipboard_shortcuts: bool,
@@ -366,6 +368,7 @@ impl<'app> WgpuWinitApp<'app> {
         );
 
         let shared = Rc::new(RefCell::new(SharedState {
+            offscreen: false,
             egui_ctx,
             viewport_from_window,
             viewports,
@@ -439,6 +442,24 @@ impl WinitApp for WgpuWinitApp<'_> {
         if let Some(mut running) = self.running.take() {
             running.save_and_destroy();
         }
+    }
+
+    fn overdue_pass_mode(&self, window_id: WindowId) -> PassMode {
+        if let Some(running) = &self.running {
+            let shared = running.shared.borrow();
+            if let Some(viewport) = shared
+                .viewport_from_window
+                .get(&window_id)
+                .and_then(|id| shared.viewports.get(id))
+                && viewport
+                    .actions_requested
+                    .iter()
+                    .any(ActionRequested::wants_paint)
+            {
+                return PassMode::Offscreen;
+            }
+        }
+        PassMode::LogicOnly
     }
 
     fn run_ui_and_paint(
@@ -699,7 +720,12 @@ impl WgpuWinitRunning<'_> {
             };
             let mut raw_input = egui_winit.take_egui_input(window);
 
-            let show_ui = mode == PassMode::Full
+            let show_ui = (mode == PassMode::Full
+                || (mode == PassMode::Offscreen
+                    && viewport
+                        .actions_requested
+                        .iter()
+                        .any(ActionRequested::wants_paint)))
                 && (is_visible || is_viewport_or_descendant_visible(viewports, viewport_id));
 
             integration.pre_update();
@@ -770,7 +796,16 @@ impl WgpuWinitRunning<'_> {
 
         // Runs the update, which could call immediate viewports,
         // so make sure we hold no locks here!
+        let offscreen = mode == PassMode::Offscreen
+            || raw_input
+                .viewports
+                .get(&viewport_id)
+                .is_some_and(|info| info.visible() == Some(false));
+        // A hidden parent can run solely for a visible child. Preserve that
+        // child's presentation unless this pass actually paints the parent offscreen.
+        shared.borrow_mut().offscreen = offscreen && is_visible;
         let full_output = integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
+        shared.borrow_mut().offscreen = false;
 
         // ------------------------------------------------------------
 
@@ -830,15 +865,30 @@ impl WgpuWinitRunning<'_> {
                     true
                 }
             });
-            let vsync_secs = painter.paint_and_update_textures(
-                viewport_id,
-                pixels_per_point,
-                app.clear_color(&egui_ctx.global_style().visuals),
-                &clipped_primitives,
-                pending_deltas,
-                screenshot_commands,
-                window,
-            );
+            // Even a Full pass can be called directly for a minimized window. Never
+            // acquire its surface: some compositors block rather than return an error.
+            let clear_color = app.clear_color(&egui_ctx.global_style().visuals);
+            let vsync_secs = if offscreen {
+                painter.paint_offscreen_and_update_textures(
+                    viewport_id,
+                    pixels_per_point,
+                    clear_color,
+                    &clipped_primitives,
+                    pending_deltas,
+                    screenshot_commands,
+                );
+                0.0
+            } else {
+                painter.paint_and_update_textures(
+                    viewport_id,
+                    pixels_per_point,
+                    clear_color,
+                    &clipped_primitives,
+                    pending_deltas,
+                    screenshot_commands,
+                    window,
+                )
+            };
 
             for action in viewport.actions_requested.drain(..) {
                 match action {
@@ -871,7 +921,9 @@ impl WgpuWinitRunning<'_> {
                 }
             }
 
-            integration.post_rendering(window);
+            if !offscreen {
+                integration.post_rendering(window);
+            }
 
             vsync_secs
         } else {
@@ -1276,6 +1328,7 @@ fn render_immediate_viewport(
     // ------------------------------------------
 
     let mut shared_mut = shared.borrow_mut();
+    let offscreen = shared_mut.offscreen;
     let SharedState {
         viewports,
         painter,
@@ -1306,15 +1359,26 @@ fn render_immediate_viewport(
     }
 
     let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
-    painter.paint_and_update_textures(
-        ids.this,
-        pixels_per_point,
-        [0.0, 0.0, 0.0, 0.0],
-        &clipped_primitives,
-        &mut viewport.pending_delta,
-        vec![],
-        window,
-    );
+    if offscreen || viewport.info.visible() == Some(false) {
+        painter.paint_offscreen_and_update_textures(
+            ids.this,
+            pixels_per_point,
+            [0.0, 0.0, 0.0, 0.0],
+            &clipped_primitives,
+            &mut viewport.pending_delta,
+            vec![],
+        );
+    } else {
+        painter.paint_and_update_textures(
+            ids.this,
+            pixels_per_point,
+            [0.0, 0.0, 0.0, 0.0],
+            &clipped_primitives,
+            &mut viewport.pending_delta,
+            vec![],
+            window,
+        );
+    }
 
     egui_winit.handle_platform_output(window, platform_output);
 

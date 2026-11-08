@@ -35,6 +35,11 @@ pub enum PassMode {
     /// Run [`crate::App::logic`], plus the ui and painting if the viewport is visible.
     Full,
 
+    /// Run a full pass offscreen if a pending action needs pixels, otherwise logic only.
+    /// Used when the compositor has withheld a requested redraw. Wgpu only.
+    #[cfg(feature = "wgpu")]
+    Offscreen,
+
     /// Run only [`crate::App::logic`]: no egui pass and no painting.
     ///
     /// Used when the window was asked to redraw, but the windowing system hasn't let it
@@ -100,6 +105,11 @@ impl From<accesskit_winit::Event> for UserEvent {
 }
 
 pub trait WinitApp {
+    /// Glow retains logic-only stalled redraws; wgpu can paint requested pixels offscreen.
+    fn overdue_pass_mode(&self, _window_id: WindowId) -> PassMode {
+        PassMode::LogicOnly
+    }
+
     fn egui_ctx(&self) -> Option<&egui::Context>;
 
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>>;
