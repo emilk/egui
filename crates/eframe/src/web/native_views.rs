@@ -103,7 +103,7 @@ impl WebNativeViews {
                         .map(to_css),
                 )
             };
-            input_element_style(&self.canvas, &view_areas)
+            input_element_style(&self.canvas, &layer.element, &view_areas)
         });
         if input_style == self.input_style {
             return;
@@ -173,15 +173,24 @@ fn to_css_pixels(
 
 /// Returns the `style` attribute of the input element: it covers `canvas`, with `view_areas` (in
 /// CSS pixels relative to the canvas, and not overlapping) cut out.
-fn input_element_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> String {
+fn input_element_style(
+    canvas: &HtmlCanvasElement,
+    layer: &HtmlElement,
+    view_areas: &[Rect],
+) -> String {
     let rect = canvas.get_bounding_client_rect();
+    // The input element is placed in the layer's frame, which is not always the viewport's:
+    // with the keyboard up, iOS Safari scrolls the page and reports fixed elements, the layer
+    // included, off by the scroll. Placing the element by the canvas's viewport position alone
+    // would then move it by the scroll twice.
+    let origin = layer.get_bounding_client_rect();
     // The maximum `z-index` puts the input element in front of the views, whose `z-index` is at
     // least 1.
     let mut css = format!(
         "position: fixed; left: {}px; top: {}px; width: {}px; height: {}px; \
          z-index: 2147483647; pointer-events: auto;",
-        rect.left(),
-        rect.top(),
+        rect.left() - origin.left(),
+        rect.top() - origin.top(),
         rect.width(),
         rect.height(),
     );
