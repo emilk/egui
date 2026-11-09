@@ -10,7 +10,7 @@ use epaint::{Color32, Direction, Margin, Shape};
 use crate::{
     AsIdSalt, Context, CursorIcon, Id, IdSalt, MouseWheelSource, NumExt as _, Pos2, Rangef, Rect,
     Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath,
-    epaint, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
+    epaint, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle, vec2,
 };
 
 use super::scroll_physics::{AxisPhysics, WheelScroll, scroll_bounds};
@@ -754,6 +754,9 @@ struct Prepared {
     scroll_bar_visibility: ScrollBarVisibility,
     scroll_bar_rect: Option<Rect>,
 
+    /// The vertical scroll bar sits on the left ([`crate::Style::right_to_left`]).
+    vertical_bar_on_left: bool,
+
     /// Where on the screen the content is (excludes scroll bars; includes `content_margin`).
     inner_rect: Rect,
 
@@ -859,7 +862,13 @@ impl ScrollArea {
             inner_size
         };
 
-        let inner_rect = Rect::from_min_size(available_outer.min, inner_size);
+        let vertical_bar_on_left = ui.style().right_to_left;
+        let bar_space_on_left = if vertical_bar_on_left {
+            vec2(current_bar_use.x, 0.0)
+        } else {
+            Vec2::ZERO
+        };
+        let inner_rect = Rect::from_min_size(available_outer.min + bar_space_on_left, inner_size);
 
         let mut content_max_size = inner_size;
 
@@ -899,8 +908,9 @@ impl ScrollArea {
                 if direction_enabled[d] {
                     content_clip_rect.min[d] = inner_rect.min[d];
                     content_clip_rect.max[d] = inner_rect.max[d];
-                } else {
-                    // Nice handling of forced resizing beyond the possible:
+                } else if !(d == 0 && vertical_bar_on_left) {
+                    // Nice handling of forced resizing beyond the possible.
+                    // (A vertical bar on the left is never in the way of content that overflows to the right.)
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
                 }
             }
@@ -1042,6 +1052,7 @@ impl ScrollArea {
             current_bar_use,
             scroll_bar_visibility,
             scroll_bar_rect,
+            vertical_bar_on_left,
             inner_rect,
             content_ui,
             viewport,
@@ -1173,6 +1184,7 @@ impl Prepared {
             current_bar_use,
             scroll_bar_visibility,
             scroll_bar_rect,
+            vertical_bar_on_left,
             content_ui,
             viewport: _,
             scroll_source,
@@ -1299,7 +1311,12 @@ impl Prepared {
             Rect::from_min_size(inner_rect.min, inner_size)
         };
 
-        let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
+        let outer_min = if vertical_bar_on_left {
+            inner_rect.min - vec2(current_bar_use.x, 0.0)
+        } else {
+            inner_rect.min
+        };
+        let outer_rect = Rect::from_min_size(outer_min, inner_rect.size() + current_bar_use);
 
         let limit_rect = if ui.spacing().scroll.floating {
             outer_rect
@@ -1423,22 +1440,32 @@ impl Prepared {
             let inner_margin = show_factor * scroll_style.bar_inner_margin;
             let outer_margin = show_factor * scroll_style.bar_outer_margin;
 
-            // bottom of a horizontal scroll (d==0).
-            // right of a vertical scroll (d==1).
-            let mut max_cross = outer_rect.max[1 - d] - outer_margin;
-
-            if ui.clip_rect().max[1 - d] - outer_margin < max_cross {
-                // Move the scrollbar so it is visible. This is needed in some cases.
-                // For instance:
-                // * When we have a vertical-only scroll area in a top level panel,
-                //   and that panel is not wide enough for the contents.
-                // * When one ScrollArea is nested inside another, and the outer
-                //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
-                //   is outside the clip rectangle.
-                max_cross = ui.clip_rect().max[1 - d] - outer_margin;
-            }
-
             let full_width = scroll_style.bar_width;
+
+            // The bar's cross-axis edge that faces away from the content:
+            // bottom of a horizontal scroll (d==0),
+            // right (or left, with `vertical_bar_on_left`) of a vertical scroll (d==1).
+            let bar_on_min_side = d == 1 && vertical_bar_on_left;
+            // Moving the edge so the bar stays inside the clip rectangle is needed in some cases.
+            // For instance:
+            // * When we have a vertical-only scroll area in a top level panel,
+            //   and that panel is not wide enough for the contents.
+            // * When one ScrollArea is nested inside another, and the outer
+            //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
+            //   is outside the clip rectangle.
+            let outer_edge = if bar_on_min_side {
+                outer_rect.min[1 - d].max(ui.clip_rect().min[1 - d]) + outer_margin
+            } else {
+                outer_rect.max[1 - d].min(ui.clip_rect().max[1 - d]) - outer_margin
+            };
+            // The cross range of a bar `width` wide at the outer edge.
+            let at_outer_edge = |width: f32| {
+                if bar_on_min_side {
+                    Rangef::new(outer_edge, outer_edge + width)
+                } else {
+                    Rangef::new(outer_edge - width, outer_edge)
+                }
+            };
 
             // The bounding rect of a fully visible bar.
             // When we hover this area, we should show the full bar.
@@ -1447,15 +1474,9 @@ impl Prepared {
             // where no scrollbar is drawn is sensed as a scrollbar press, creating a dead zone
             // and snapping the offset to the minimum (see issue #8495).
             let max_bar_rect = if d == 0 {
-                Rect::from_x_y_ranges(
-                    scroll_bar_rect.x_range(),
-                    Rangef::new(max_cross - full_width, max_cross),
-                )
+                Rect::from_x_y_ranges(scroll_bar_rect.x_range(), at_outer_edge(full_width))
             } else {
-                Rect::from_x_y_ranges(
-                    Rangef::new(max_cross - full_width, max_cross),
-                    scroll_bar_rect.y_range(),
-                )
+                Rect::from_x_y_ranges(at_outer_edge(full_width), scroll_bar_rect.y_range())
             };
 
             let sense = if scroll_source.scroll_bar && ui.is_enabled() {
@@ -1487,11 +1508,11 @@ impl Prepared {
                         is_hovering_bar_area_t,
                     );
 
-                let min_cross = max_cross - width;
-                Rangef::new(min_cross, max_cross)
+                at_outer_edge(width)
+            } else if bar_on_min_side {
+                Rangef::new(outer_edge, inner_rect.min[1 - d] - inner_margin)
             } else {
-                let min_cross = inner_rect.max[1 - d] + inner_margin;
-                Rangef::new(min_cross, max_cross)
+                Rangef::new(inner_rect.max[1 - d] + inner_margin, outer_edge)
             };
 
             let outer_scroll_bar_rect = if d == 0 {
@@ -1785,6 +1806,7 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{RawInput, style::ScrollStyle};
 
     #[test]
     fn clamped_offset() {
@@ -1795,5 +1817,65 @@ mod tests {
         };
         assert_eq!(state.clamped_offset(), Vec2::new(0.0, 100.0));
         assert_eq!(state.overscroll(), Vec2::new(-10.0, 50.0));
+    }
+
+    /// Shows a vertical scroll area with too much content,
+    /// and returns the rects of its viewport and its vertical scroll bar.
+    fn vertical_scroll_bar(right_to_left: bool, scroll_style: ScrollStyle) -> (Rect, Rect) {
+        let ctx = Context::default();
+        ctx.all_styles_mut(|style| {
+            style.right_to_left = right_to_left;
+            style.spacing.scroll = scroll_style;
+        });
+        let mut output = None;
+        let input = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(400.0, 400.0))),
+            ..Default::default()
+        };
+        for _ in 0..3 {
+            ctx.run_ui(input.clone(), |ui| {
+                output = Some(
+                    ScrollArea::vertical()
+                        .auto_shrink(false)
+                        .max_height(200.0)
+                        .scroll_bar_visibility(ScrollBarVisibility::AlwaysVisible)
+                        .show(ui, |ui| {
+                            for _ in 0..50 {
+                                ui.label("Line");
+                            }
+                        }),
+                );
+            })
+            .drop_without_applying_deltas();
+        }
+        let output = output.expect("The scroll area was not shown");
+        let bar = ctx
+            .read_response(output.id.with(1_usize))
+            .expect("No vertical scroll bar")
+            .rect;
+        (output.inner_rect, bar)
+    }
+
+    #[test]
+    fn vertical_scroll_bar_on_the_right() {
+        for scroll_style in [ScrollStyle::solid(), ScrollStyle::floating()] {
+            let (inner, bar) = vertical_scroll_bar(false, scroll_style);
+            assert!(bar.left() > inner.center().x, "{inner:?} {bar:?}");
+            if !scroll_style.floating {
+                assert!(bar.left() >= inner.right(), "{inner:?} {bar:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn vertical_scroll_bar_on_the_left_right_to_left() {
+        for scroll_style in [ScrollStyle::solid(), ScrollStyle::floating()] {
+            let (inner, bar) = vertical_scroll_bar(true, scroll_style);
+            assert!(bar.right() < inner.center().x, "{inner:?} {bar:?}");
+            if !scroll_style.floating {
+                assert!(bar.right() <= inner.left(), "{inner:?} {bar:?}");
+                assert!(bar.left() >= 0.0, "{inner:?} {bar:?}");
+            }
+        }
     }
 }

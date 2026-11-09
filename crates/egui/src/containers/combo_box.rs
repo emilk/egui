@@ -397,9 +397,14 @@ fn combo_box_dyn<'c, R>(
         }
     })
     // Grow (instead of a separate `Atom::grow()`, which would add an extra gap),
-    // and stick to the right edge:
+    // and stick to the end edge:
     .atom_grow(true)
-    .atom_align(Align2::RIGHT_CENTER);
+    .atom_align(if ui.style().right_to_left {
+        Align2::LEFT_CENTER
+    } else {
+        Align2::RIGHT_CENTER
+    });
+    let direction = ui.style().chrome_direction();
 
     let accessible_text = selected_text.text().map(String::from).unwrap_or_default();
     let button = atom_layout_style
@@ -408,7 +413,8 @@ fn combo_box_dyn<'c, R>(
                 .id(button_id)
                 .sense(Sense::click())
                 .fallback_font(TextStyle::Button)
-                .wrap_mode(wrap_mode),
+                .wrap_mode(wrap_mode)
+                .direction(direction),
         )
         .min_size(min_size);
 
@@ -418,6 +424,7 @@ fn combo_box_dyn<'c, R>(
             let label_text = label.text().map(String::from).unwrap_or_default();
             let outer_response = WidgetAtom::new((Atom::widget(button), label))
                 .gap(ui.spacing().item_spacing.x)
+                .direction(direction)
                 .show(ui)
                 .response;
             outer_response

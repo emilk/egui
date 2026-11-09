@@ -14,6 +14,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+
+### Added
+
+- Add `Style::right_to_left` to mirror egui's own widget chrome for right-to-left UIs: submenus open to the left, vertical scroll bars sit on the left, collapsed collapsing-header triangles point left, window title bars put the close button on the left, popup default alignment flips to the anchor's right edge, combo-box/checkbox/radio-button atoms and resize grips mirror, and `Ui::indent` indents from the right. Does not change how `Ui` lays out widgets.
+
 ## 0.37.0 - Colored emojis! 🚀
 
 ### Highlights ✨

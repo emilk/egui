@@ -64,6 +64,7 @@ impl Widget for RadioButton<'_> {
 
         let mut prepared = WidgetAtom::new(atoms)
             .sense(Sense::click())
+            .direction(ui.style().chrome_direction())
             .min_size(min_size)
             .allocate(ui);
 
