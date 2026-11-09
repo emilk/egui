@@ -108,6 +108,5 @@ ehttp = { workspace = true, optional = true }
 
 [dev-dependencies]
 egui = { workspace = true, features = ["default_fonts"] }
-# Can't use a workspace dependency here since that adds a cyclic dep during publish
-egui_kittest = { path = "../egui_kittest", features = ["snapshot", "wgpu"] }
+egui_kittest = { workspace = true, features = ["snapshot", "wgpu"] }
 tempfile.workspace = true

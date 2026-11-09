@@ -1,7 +1,7 @@
 use egui::containers::menu::{MenuBar, MenuConfig, SubMenuButton};
 use egui::{PopupCloseBehavior, Ui, include_image};
 use egui_kittest::Harness;
-use kittest::Queryable as _;
+use egui_kittest::kittest::Queryable as _;
 
 struct TestMenu {
     config: MenuConfig,
@@ -30,7 +30,7 @@ impl TestMenu {
                                 }
                             });
                             ui.menu_image_text_button(
-                                include_image!("../../eframe/data/icon.png"),
+                                include_image!("../../../crates/eframe/data/icon.png"),
                                 "Submenu B with icon",
                                 |ui| {
                                     _ = ui.button("Button in Submenu B");
@@ -55,7 +55,7 @@ impl TestMenu {
                                 });
                         });
                         ui.menu_image_text_button(
-                            include_image!("../../eframe/data/icon.png"),
+                            include_image!("../../../crates/eframe/data/icon.png"),
                             "Menu B with icon",
                             |ui| {
                                 _ = ui.button("Button in Menu B");
@@ -242,7 +242,6 @@ fn hovering_menu_bar_button_ignores_unrelated_popups() {
     assert!(harness.query_by_label("Button in Standalone").is_none());
 }
 
-#[cfg(feature = "snapshot")]
 #[test]
 fn menu_snapshots() {
     let mut harness = TestMenu::new(MenuConfig::new()).into_harness();
