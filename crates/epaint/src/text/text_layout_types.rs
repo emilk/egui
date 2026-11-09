@@ -1362,24 +1362,7 @@ impl Galley {
         cursor: &CCursor,
         h_pos: Option<f32>,
     ) -> (CCursor, Option<f32>) {
-        let layout_cursor = self.layout_from_cursor(*cursor);
-        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
-        if layout_cursor.row == 0 {
-            (CCursor::default(), None)
-        } else {
-            let new_row = layout_cursor.row - 1;
-
-            let new_layout_cursor = {
-                // keep same X coord
-                // char_at is Row-relative, so subtract the row's position
-                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
-                LayoutCursor {
-                    row: new_row,
-                    column,
-                }
-            };
-            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
-        }
+        self.cursor_up_to_row(cursor, h_pos, |row| row - 1)
     }
 
     pub fn cursor_down_one_row(
@@ -1387,25 +1370,103 @@ impl Galley {
         cursor: &CCursor,
         h_pos: Option<f32>,
     ) -> (CCursor, Option<f32>) {
+        self.cursor_down_to_row(cursor, h_pos, |row| row + 1)
+    }
+
+    /// Move the cursor up by one page, i.e. by as many rows as fit in `page_height` points
+    /// (at least one), keeping the horizontal position.
+    ///
+    /// From the first row the cursor goes to the beginning of the text, like [`Self::cursor_up_one_row`].
+    pub fn cursor_page_up(
+        &self,
+        cursor: &CCursor,
+        h_pos: Option<f32>,
+        page_height: f32,
+    ) -> (CCursor, Option<f32>) {
+        self.cursor_up_to_row(cursor, h_pos, |row| {
+            self.row_a_page_away(row, page_height, (0..row).rev())
+        })
+    }
+
+    /// Move the cursor down by one page, i.e. by as many rows as fit in `page_height` points
+    /// (at least one), keeping the horizontal position.
+    ///
+    /// From the last row the cursor goes to the end of the text, like [`Self::cursor_down_one_row`].
+    pub fn cursor_page_down(
+        &self,
+        cursor: &CCursor,
+        h_pos: Option<f32>,
+        page_height: f32,
+    ) -> (CCursor, Option<f32>) {
+        self.cursor_down_to_row(cursor, h_pos, |row| {
+            self.row_a_page_away(row, page_height, row + 1..self.rows.len())
+        })
+    }
+
+    /// The last of `candidates` (rows in order of increasing distance from `row`)
+    /// that still fits in `page_height` together with the rows before it,
+    /// or the first candidate if not even that fits.
+    fn row_a_page_away(
+        &self,
+        row: usize,
+        page_height: f32,
+        candidates: impl Iterator<Item = usize>,
+    ) -> usize {
+        let mut target = row;
+        let mut height = 0.0;
+        for candidate in candidates {
+            height += self.rows[candidate].height();
+            if height > page_height && target != row {
+                break;
+            }
+            target = candidate;
+        }
+        target
+    }
+
+    /// Move the cursor to the row `new_row` gives for the current row, keeping the horizontal position.
+    ///
+    /// From the first row the cursor goes to the beginning of the text instead.
+    fn cursor_up_to_row(
+        &self,
+        cursor: &CCursor,
+        h_pos: Option<f32>,
+        new_row: impl FnOnce(usize) -> usize,
+    ) -> (CCursor, Option<f32>) {
+        let layout_cursor = self.layout_from_cursor(*cursor);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
+        if layout_cursor.row == 0 {
+            (CCursor::default(), None)
+        } else {
+            let new_row = new_row(layout_cursor.row);
+            (self.cursor_at_h_pos_in_row(new_row, h_pos), Some(h_pos))
+        }
+    }
+
+    /// Move the cursor to the row `new_row` gives for the current row, keeping the horizontal position.
+    ///
+    /// From the last row the cursor goes to the end of the text instead.
+    fn cursor_down_to_row(
+        &self,
+        cursor: &CCursor,
+        h_pos: Option<f32>,
+        new_row: impl FnOnce(usize) -> usize,
+    ) -> (CCursor, Option<f32>) {
         let layout_cursor = self.layout_from_cursor(*cursor);
         let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
         if layout_cursor.row + 1 < self.rows.len() {
-            let new_row = layout_cursor.row + 1;
-
-            let new_layout_cursor = {
-                // keep same X coord
-                // char_at is Row-relative, so subtract the row's position
-                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
-                LayoutCursor {
-                    row: new_row,
-                    column,
-                }
-            };
-
-            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
+            let new_row = new_row(layout_cursor.row).min(self.rows.len() - 1);
+            (self.cursor_at_h_pos_in_row(new_row, h_pos), Some(h_pos))
         } else {
             (self.end(), None)
         }
+    }
+
+    /// The cursor in `row` closest to the galley-relative `h_pos`.
+    fn cursor_at_h_pos_in_row(&self, row: usize, h_pos: f32) -> CCursor {
+        // char_at is Row-relative, so subtract the row's position
+        let column = self.rows[row].char_at(h_pos - self.rows[row].pos.x);
+        self.cursor_from_layout(LayoutCursor { row, column })
     }
 
     pub fn cursor_begin_of_row(&self, cursor: &CCursor) -> CCursor {
