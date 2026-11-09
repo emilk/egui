@@ -242,8 +242,20 @@ impl AppRunner {
 
     /// Does the eframe app have focus?
     ///
-    /// Technically: does either the canvas or the [`TextAgent`] have focus?
+    /// Technically: does the canvas, the [`TextAgent`] or one of the native views below the
+    /// canvas have focus? A native view with the focus, such as a text field, is part of the app:
+    /// the widget that shows it keeps egui's keyboard focus, and [`egui::Response::has_focus`] of
+    /// that widget is only `true` while the app counts as focused.
     pub fn has_focus(&self) -> bool {
+        self.egui_has_focus() || self.web_native_views.has_focus()
+    }
+
+    /// Does egui itself have focus, that is the canvas or the [`TextAgent`]?
+    ///
+    /// Unlike [`Self::has_focus`], this is `false` while a native view has the focus. Then the
+    /// keyboard and the clipboard belong to the view, and eframe must neither take the focus
+    /// from it nor handle the events it gets.
+    pub fn egui_has_focus(&self) -> bool {
         let window = web_sys::window().unwrap();
         let document = window.document().unwrap();
         if document.hidden() {
@@ -441,8 +453,10 @@ impl AppRunner {
             super::set_cursor_icon(input_element, cursor_icon);
         }
 
-        if self.has_focus() {
-            // The eframe app has focus.
+        // Not while a native view has the focus: the view keeps it until egui moves its focus
+        // on, see `Self::has_focus`.
+        if self.egui_has_focus() {
+            // egui has focus.
             if let Some(ime) = ime {
                 if ime.should_interrupt_composition {
                     self.text_agent.interrupt_ime_composition();

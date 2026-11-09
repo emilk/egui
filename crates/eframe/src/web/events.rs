@@ -346,10 +346,13 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     }
 }
 
+/// The clipboard events of the document go to egui only while the canvas or the text agent has
+/// the focus, not `raw.focused`: that counts a native view with the focus too, and the view's own
+/// clipboard events bubble up to the document.
 fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "paste", |event: web_sys::ClipboardEvent, runner| {
-        if !runner.input.raw.focused {
-            return; // The eframe app is not interested
+        if !runner.egui_has_focus() {
+            return; // egui is not interested
         }
 
         if let Some(data) = event.clipboard_data()
@@ -379,8 +382,8 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
     })?;
 
     runner_ref.add_event_listener(target, "cut", |event: web_sys::ClipboardEvent, runner| {
-        if !runner.input.raw.focused {
-            return; // The eframe app is not interested
+        if !runner.egui_has_focus() {
+            return; // egui is not interested
         }
 
         runner.input.raw.events.push(egui::Event::Cut);
@@ -403,8 +406,8 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
     })?;
 
     runner_ref.add_event_listener(target, "copy", |event: web_sys::ClipboardEvent, runner| {
-        if !runner.input.raw.focused {
-            return; // The eframe app is not interested
+        if !runner.egui_has_focus() {
+            return; // egui is not interested
         }
 
         runner.input.raw.events.push(egui::Event::Copy);
@@ -550,7 +553,9 @@ fn install_input_element(
 ) -> Result<(), JsValue> {
     prevent_default_and_stop_propagation(runner_ref, input_element, &["contextmenu"])?;
     // Cancel the default action of `mousedown`, which would move the keyboard focus off the
-    // canvas. The `pointerup` listener on the document focuses the canvas instead.
+    // canvas. The `pointerup` listener on the document focuses the canvas instead, unless a
+    // native view has the focus: then the view's backend gives it back to the canvas once egui
+    // moves its focus on.
     runner_ref.add_event_listener(
         input_element,
         "mousedown",
