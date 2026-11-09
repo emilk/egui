@@ -125,7 +125,7 @@ impl crate::Demo for TessellationTest {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .resizable(false)
             .open(open)
             .constrain_to(ui.available_rect_before_wrap())
@@ -139,7 +139,7 @@ impl crate::Demo for TessellationTest {
 impl crate::View for TessellationTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add(crate::egui_github_link_file!());
-        egui::reset_button(ui, self, "Reset");
+        egui::reset_button(ui, self, crate::i18n::t("Reset"));
 
         ui.horizontal(|ui| {
             ui.group(|ui| {
@@ -150,7 +150,7 @@ impl crate::View for TessellationTest {
 
             ui.group(|ui| {
                 ui.vertical(|ui| {
-                    ui.heading("Real size");
+                    ui.heading(crate::i18n::t("Real size"));
                     egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
                         let (resp, painter) =
                             ui.allocate_painter(Vec2::splat(128.0), Sense::hover());
@@ -169,7 +169,7 @@ impl crate::View for TessellationTest {
         });
 
         ui.group(|ui| {
-            ui.heading("Zoomed in");
+            ui.heading(crate::i18n::t("Zoomed in"));
             let magnification_pixel_size = &mut self.magnification_pixel_size;
             let tessellation_options = &mut self.tessellation_options;
 
@@ -178,7 +178,7 @@ impl crate::View for TessellationTest {
                 .spacing([12.0, 8.0])
                 .striped(true)
                 .show(ui, |ui| {
-                    let label = ui.label("Magnification");
+                    let label = ui.label(crate::i18n::t("Magnification"));
                     ui.add(
                         egui::DragValue::new(magnification_pixel_size)
                             .speed(0.5)
@@ -187,7 +187,7 @@ impl crate::View for TessellationTest {
                     .labelled_by(label.id);
                     ui.end_row();
 
-                    let label = ui.label("Feathering width");
+                    let label = ui.label(crate::i18n::t("Feathering width"));
                     ui.horizontal(|ui| {
                         ui.checkbox(&mut tessellation_options.feathering, "")
                             .labelled_by(label.id);
@@ -204,7 +204,7 @@ impl crate::View for TessellationTest {
                     });
                     ui.end_row();
 
-                    let label = ui.label("Paint edges");
+                    let label = ui.label(crate::i18n::t("Paint edges"));
                     ui.checkbox(&mut self.paint_edges, "").labelled_by(label.id);
                     ui.end_row();
                 });
@@ -282,14 +282,16 @@ impl crate::View for TessellationTest {
 
 fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
     egui::ComboBox::from_id_salt("prefabs")
-        .selected_text("Prefabs")
+        .selected_text(crate::i18n::t("Prefabs"))
         .show_ui(ui, |ui| {
+            // The shape names double as kittest snapshot names
+            // (`tessellation_test/{name}`), so they stay English.
             for (name, prefab) in TessellationTest::interesting_shapes() {
                 ui.selectable_value(shape, prefab, name);
             }
         })
         .response
-        .on_hover_text("Pick a prefab shape");
+        .on_hover_text(crate::i18n::t("Pick a prefab shape"));
 
     ui.add_space(4.0);
 
@@ -312,7 +314,7 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
         .spacing([12.0, 8.0])
         .striped(true)
         .show(ui, |ui| {
-            ui.label("Size");
+            ui.label(crate::i18n::t("Size"));
             ui.horizontal(|ui| {
                 let mut size = rect.size();
                 ui.add(
@@ -320,38 +322,38 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
                         .speed(0.2)
                         .range(0.0..=64.0),
                 )
-                .on_hover_text("Width");
+                .on_hover_text(crate::i18n::t("Width"));
                 ui.add(
                     egui::DragValue::new(&mut size.y)
                         .speed(0.2)
                         .range(0.0..=64.0),
                 )
-                .on_hover_text("Height");
+                .on_hover_text(crate::i18n::t("Height"));
                 *rect = Rect::from_center_size(Pos2::ZERO, size);
             });
             ui.end_row();
 
-            ui.label("Corner radius");
+            ui.label(crate::i18n::t("Corner radius"));
             ui.add(corner_radius);
             ui.end_row();
 
-            ui.label("Fill");
+            ui.label(crate::i18n::t("Fill"));
             ui.color_edit_button_srgba(fill);
             ui.end_row();
 
-            ui.label("Stroke");
+            ui.label(crate::i18n::t("Stroke"));
             ui.add(stroke);
             ui.end_row();
 
-            ui.label("Stroke kind");
+            ui.label(crate::i18n::t("Stroke kind"));
             ui.horizontal(|ui| {
-                ui.selectable_value(stroke_kind, StrokeKind::Inside, "Inside");
-                ui.selectable_value(stroke_kind, StrokeKind::Middle, "Middle");
-                ui.selectable_value(stroke_kind, StrokeKind::Outside, "Outside");
+                ui.selectable_value(stroke_kind, StrokeKind::Inside, crate::i18n::t("Inside"));
+                ui.selectable_value(stroke_kind, StrokeKind::Middle, crate::i18n::t("Middle"));
+                ui.selectable_value(stroke_kind, StrokeKind::Outside, crate::i18n::t("Outside"));
             });
             ui.end_row();
 
-            let label = ui.label("Blur width");
+            let label = ui.label(crate::i18n::t("Blur width"));
             ui.add(
                 egui::DragValue::new(blur_width)
                     .speed(0.5)
@@ -360,7 +362,7 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
             .labelled_by(label.id);
             ui.end_row();
 
-            let label = ui.label("Round to pixels");
+            let label = ui.label(crate::i18n::t("Round to pixels"));
             ui.checkbox(round_to_pixels, "").labelled_by(label.id);
             ui.end_row();
         });

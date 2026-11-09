@@ -204,22 +204,30 @@ impl WebPainter for WebPainterWgpu {
             #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
             for (id, image_deltas) in textures_delta.set.drain() {
                 for image_delta in image_deltas {
-                    renderer.update_texture(
+                    if let Err(err) = renderer.update_texture(
                         &render_state.device,
                         &render_state.queue,
                         id,
                         &image_delta,
-                    );
+                    ) {
+                        log::warn!("Skipping texture delta for {id:?}: {err}");
+                    }
                 }
             }
 
-            renderer.update_buffers(
+            match renderer.update_buffers(
                 &render_state.device,
                 &render_state.queue,
                 &mut encoder,
                 clipped_primitives,
                 &screen_descriptor,
-            )
+            ) {
+                Ok(user_cmd_bufs) => user_cmd_bufs,
+                Err(err) => {
+                    log::error!("Skipping frame: {err}");
+                    return Ok(());
+                }
+            }
         };
 
         // Resize surface if needed

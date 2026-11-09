@@ -99,7 +99,7 @@ impl<'a> StripBuilder<'a> {
         self
     }
 
-    /// Build horizontal strip: Cells are positions from left to right.
+    /// Build horizontal strip: Cells are laid out in reading order (left to right in LTR interfaces, right to left under a right-to-left interface).
     /// Takes the available horizontal width, so there can't be anything right of the strip or the container will grow slowly!
     ///
     /// Returns a [`egui::Response`] for hover events.

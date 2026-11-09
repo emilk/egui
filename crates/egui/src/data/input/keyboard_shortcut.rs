@@ -22,17 +22,44 @@ impl KeyboardShortcut {
         }
     }
 
+    /// Format the shortcut, e.g. `"Ctrl+Shift+F"`.
+    ///
+    /// The result is wrapped in U+2066 LEFT-TO-RIGHT ISOLATE … U+2069 POP
+    /// DIRECTIONAL ISOLATE, so it stays one left-to-right run when embedded in
+    /// right-to-left text (the isolates render as invisible zero-advance
+    /// glyphs, so left-to-right output is unchanged).
     pub fn format(&self, names: &ModifierNames<'_>, is_mac: bool) -> String {
+        self.format_for(names, is_mac, crate::emath::ReadingDirection::Ltr)
+    }
+
+    /// Format the shortcut like [`Self::format`], mirroring the display names
+    /// of the horizontal arrow keys to the reading direction.
+    ///
+    /// In a right-to-left interface the arrows follow the reading direction
+    /// (the same convention as the menu and panel mirroring), so a shortcut
+    /// for "toward the reading start" is labeled `Right`. See
+    /// [`Key::name_for`] and [`Key::symbol_or_name_for`].
+    pub fn format_for(
+        &self,
+        names: &ModifierNames<'_>,
+        is_mac: bool,
+        dir: crate::emath::ReadingDirection,
+    ) -> String {
         let mut s = names.format(&self.modifiers, is_mac);
         if !s.is_empty() {
             s += names.concat;
         }
         if names.is_short {
-            s += self.logical_key.symbol_or_name();
+            s += self.logical_key.symbol_or_name_for(dir);
         } else {
-            s += self.logical_key.name();
+            s += self.logical_key.name_for(dir);
         }
-        s
+        // Keep the shortcut one left-to-right run when embedded in
+        // right-to-left text: without the isolation, a trailing neutral glyph
+        // (a separator, or a symbol-form key like `⌃⇧−`) resolves to the
+        // surrounding paragraph direction (UAX #9 N1/N2) and lands reversed
+        // on the wrong side of the run.
+        format!("\u{2066}{s}\u{2069}")
     }
 
     /// Would consuming this shortcut interfere with editing text
@@ -40,7 +67,12 @@ impl KeyboardShortcut {
     ///
     /// This is true for any shortcut without modifiers (e.g. `Space`, `A`, `Delete`),
     /// as well as for shortcuts using keys that are commonly combined with modifiers
-    /// when editing text (e.g. `Alt+ArrowLeft` to move one word, or `Shift+Home` to select to the start of a line).
+    /// when editing text (e.g. `Alt+ArrowLeft`/`Alt+ArrowRight` to move one word, or
+    /// `Shift+Home`/`Shift+End` to select to the start/end of the line).
+    ///
+    /// The arrow keys move the text cursor toward the visual left/right — the
+    /// reading start/end depending on the field's direction; in a right-to-left
+    /// field their visual direction is mirrored.
     ///
     /// Such shortcuts should only be consumed when no text field has keyboard focus.
     /// See also [`crate::Memory::focused`] and [`crate::Context::egui_wants_keyboard_input`].
@@ -71,12 +103,18 @@ fn format_kb_shortcut() {
     let cmd_shift_f = KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, Key::F);
     assert_eq!(
         cmd_shift_f.format(&ModifierNames::NAMES, false),
-        "Ctrl+Shift+F"
+        "\u{2066}Ctrl+Shift+F\u{2069}"
     );
     assert_eq!(
         cmd_shift_f.format(&ModifierNames::NAMES, true),
-        "Shift+Cmd+F"
+        "\u{2066}Shift+Cmd+F\u{2069}"
     );
-    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, false), "⌃⇧F");
-    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, true), "⇧⌘F");
+    assert_eq!(
+        cmd_shift_f.format(&ModifierNames::SYMBOLS, false),
+        "\u{2066}⌃⇧F\u{2069}"
+    );
+    assert_eq!(
+        cmd_shift_f.format(&ModifierNames::SYMBOLS, true),
+        "\u{2066}⇧⌘F\u{2069}"
+    );
 }

@@ -1,3 +1,5 @@
+use crate::i18n;
+
 #[derive(Default)]
 pub struct ExtraViewport {}
 
@@ -20,12 +22,14 @@ impl crate::Demo for ExtraViewport {
         ui.show_viewport_immediate(
             egui::ViewportId(id),
             egui::ViewportBuilder::default()
-                .with_title(self.name())
+                .with_title(i18n::t(self.name()))
                 .with_inner_size([400.0, 512.0]),
             |ui, class| {
                 if class == egui::ViewportClass::EmbeddedWindow {
                     // Not a real viewport
-                    ui.label("This egui integration does not support multiple viewports");
+                    ui.label(i18n::t(
+                        "This egui integration does not support multiple viewports",
+                    ));
                 } else {
                     egui::CentralPanel::default().show(ui, |ui| {
                         viewport_content(ui, open);
@@ -37,7 +41,9 @@ impl crate::Demo for ExtraViewport {
 }
 
 fn viewport_content(ui: &mut egui::Ui, open: &mut bool) {
-    ui.label("egui and eframe supports having multiple native windows like this, which egui calls 'viewports'.");
+    ui.label(i18n::t(
+        "egui and eframe supports having multiple native windows like this, which egui calls 'viewports'.",
+    ));
 
     ui.label(format!(
         "This viewport has id: {:?}, child of viewport {:?}",
@@ -45,7 +51,7 @@ fn viewport_content(ui: &mut egui::Ui, open: &mut bool) {
         ui.parent_viewport_id()
     ));
 
-    ui.label("Here you can see all the open viewports:");
+    ui.label(i18n::t("Here you can see all the open viewports:"));
 
     egui::ScrollArea::vertical().show(ui, |ui| {
         let viewports = ui.input(|i| i.raw.viewports.clone());

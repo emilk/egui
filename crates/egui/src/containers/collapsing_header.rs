@@ -162,8 +162,12 @@ impl CollapsingState {
         let id = self.id;
         self.show_body_unindented(ui, |ui| {
             ui.indent(id, |ui| {
-                // make as wide as the header:
-                ui.expand_to_include_x(header_response.rect.right());
+                // make as wide as the header (its reading-end edge):
+                if ui.is_rtl() {
+                    ui.expand_to_include_x(header_response.rect.left());
+                } else {
+                    ui.expand_to_include_x(header_response.rect.right());
+                }
                 add_body(ui)
             })
             .inner
@@ -342,7 +346,10 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
     let rect = rect.expand(visuals.expansion);
     use core::f32::consts::TAU;
-    let rotation = remap(openness, 0.0..=1.0, -TAU * 0.25..=0.0);
+    // In a right-to-left interface the closed triangle points left, the reading-start
+    // direction; the open triangle points down in both directions.
+    let closed_rotation = if ui.is_rtl() { TAU * 0.25 } else { -TAU * 0.25 };
+    let rotation = remap(openness, 0.0..=1.0, closed_rotation..=0.0);
 
     ui.painter().add(epaint::Shape::rotated_triangle(
         rect,
@@ -549,17 +556,37 @@ impl CollapsingHeader {
         let button_padding = ui.spacing().button_padding;
 
         let available = ui.available_rect_before_wrap();
-        let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
-        let wrap_width = available.right() - text_pos.x;
+        // The icon column and the text anchor follow the reading direction: the
+        // icon column sits at the reading edge and the text extends
+        // reading-forward from it.
+        let rtl = ui.is_rtl();
+        let text_anchor_x = if rtl {
+            available.max.x - ui.spacing().indent
+        } else {
+            available.min.x + ui.spacing().indent
+        };
+        let wrap_width = if rtl {
+            text_anchor_x - available.min.x
+        } else {
+            available.max.x - text_anchor_x
+        };
         let galley = text.into_galley(
             ui,
             Some(TextWrapMode::Extend),
             wrap_width,
             TextStyle::Button,
         );
-        let text_max_x = text_pos.x + galley.size().x;
+        let text_end_x = if rtl {
+            text_anchor_x - galley.size().x
+        } else {
+            text_anchor_x + galley.size().x
+        };
 
-        let mut desired_width = text_max_x + button_padding.x - available.left();
+        let mut desired_width = if rtl {
+            available.max.x - text_end_x + button_padding.x
+        } else {
+            text_end_x + button_padding.x - available.min.x
+        };
         if ui.visuals().collapsing_header_frame {
             desired_width = desired_width.max(available.width()); // fill full width
         }
@@ -569,10 +596,17 @@ impl CollapsingHeader {
         let (_, rect) = ui.allocate_space(desired_size);
 
         let mut header_response = ui.interact(rect, id, Sense::click());
+        // The galley paints relative to its own rect; anchor its reading-start
+        // edge on the text anchor, so one with a non-`Align::LEFT` halign (e.g.
+        // a user-supplied `LayoutJob`) keeps filling its allocated rect.
         let text_pos = pos2(
-            text_pos.x,
+            text_anchor_x,
             header_response.rect.center().y - galley.size().y / 2.0,
-        );
+        ) - if rtl {
+            vec2(galley.rect.right(), 0.0)
+        } else {
+            vec2(galley.rect.left(), 0.0)
+        };
 
         let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
         if let Some(open) = open {
@@ -624,7 +658,11 @@ impl CollapsingHeader {
             {
                 let (mut icon_rect, _) = ui.spacing().icon_rectangles(header_response.rect);
                 icon_rect.set_center(pos2(
-                    header_response.rect.left() + ui.spacing().indent / 2.0,
+                    if rtl {
+                        header_response.rect.right() - ui.spacing().indent / 2.0
+                    } else {
+                        header_response.rect.left() + ui.spacing().indent / 2.0
+                    },
                     header_response.rect.center().y,
                 ));
                 let icon_response = header_response.clone().with_new_rect(icon_rect);

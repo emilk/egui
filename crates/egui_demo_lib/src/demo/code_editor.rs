@@ -28,7 +28,7 @@ impl crate::Demo for CodeEditor {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .default_height(500.0)
             .constrain_to(ui.available_rect_before_wrap())
@@ -42,27 +42,31 @@ impl crate::View for CodeEditor {
 
         ui.horizontal(|ui| {
             ui.set_height(0.0);
-            ui.label("An example of syntax highlighting in a TextEdit.");
+            ui.label(crate::i18n::t(
+                "An example of syntax highlighting in a TextEdit.",
+            ));
             ui.add(crate::egui_github_link_file!());
         });
 
         if cfg!(feature = "syntect") {
             ui.horizontal(|ui| {
-                let label = ui.label("Language:");
+                let label = ui.label(crate::i18n::t("Language:"));
                 ui.text_edit_singleline(language).labelled_by(label.id);
             });
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("Syntax highlighting powered by ");
+                ui.label(crate::i18n::t("Syntax highlighting powered by "));
                 ui.hyperlink_to("syntect", "https://github.com/trishume/syntect");
                 ui.label(".");
             });
         } else {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("Compile the demo with the ");
+                ui.label(crate::i18n::t("Compile the demo with the "));
                 ui.code("syntect");
-                ui.label(" feature to enable more accurate syntax highlighting using ");
+                ui.label(crate::i18n::t(
+                    " feature to enable more accurate syntax highlighting using ",
+                ));
                 ui.hyperlink_to("syntect", "https://github.com/trishume/syntect");
                 ui.label(".");
             });
@@ -70,7 +74,7 @@ impl crate::View for CodeEditor {
 
         let mut theme =
             egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx(), ui.style());
-        ui.collapsing("Theme", |ui| {
+        ui.collapsing(crate::i18n::t("Theme"), |ui| {
             ui.group(|ui| {
                 theme.ui(ui);
                 theme.clone().store_in_memory(ui.ctx());
@@ -91,7 +95,7 @@ impl crate::View for CodeEditor {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             let editor = egui::TextEdit::multiline(code)
-                .hint_text("Code")
+                .hint_text(crate::i18n::t("Code"))
                 .font(egui::TextStyle::Monospace) // for cursor height
                 .code_editor()
                 .desired_rows(10)

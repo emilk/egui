@@ -57,37 +57,65 @@ impl FractalClock {
             .stroke(Stroke::NONE)
             .show(ui, |ui| {
                 ui.set_max_width(270.0);
-                CollapsingHeader::new("Settings")
+                CollapsingHeader::new(egui_demo_lib::i18n::t("Settings"))
                     .show(ui, |ui| self.options_ui(ui, seconds_since_midnight));
             });
     }
 
     fn options_ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
         if seconds_since_midnight.is_some() {
-            ui.label(format!(
-                "Local time: {:02}:{:02}:{:02}.{:03}",
+            // The values are pre-formatted in Rust (format specs never enter a catalogue);
+            // the `{time}` placeholder is filled by `i18n::fmt`.
+            let time = format!(
+                "{:02}:{:02}:{:02}.{:03}",
                 (self.time % (24.0 * 60.0 * 60.0) / 3600.0).floor(),
                 (self.time % (60.0 * 60.0) / 60.0).floor(),
                 (self.time % 60.0).floor(),
                 (self.time % 1.0 * 100.0).floor()
+            );
+            #[expect(clippy::literal_string_with_formatting_args)]
+            ui.label(egui_demo_lib::i18n::fmt(
+                egui_demo_lib::i18n::t("Local time: {time}"),
+                &[("time", time.as_str())],
             ));
         } else {
-            ui.label("The fractal_clock clock is not showing the correct time");
+            ui.label(egui_demo_lib::i18n::t(
+                "The fractal_clock clock is not showing the correct time",
+            ));
         }
-        ui.label(format!("Painted line count: {}", self.line_count));
+        // The `{}` is filled positionally: `i18n::fmt` handles named `{name}` placeholders
+        // only, and the catalogue keeps this readout positional.
+        ui.label(egui_demo_lib::i18n::t("Painted line count: {}").replacen(
+            "{}",
+            &self.line_count.to_string(),
+            1,
+        ));
 
-        ui.checkbox(&mut self.paused, "Paused");
-        ui.add(Slider::new(&mut self.zoom, 0.0..=1.0).text("zoom"));
-        ui.add(Slider::new(&mut self.start_line_width, 0.0..=5.0).text("Start line width"));
-        ui.add(Slider::new(&mut self.depth, 0..=14).text("depth"));
-        ui.add(Slider::new(&mut self.length_factor, 0.0..=1.0).text("length factor"));
-        ui.add(Slider::new(&mut self.luminance_factor, 0.0..=1.0).text("luminance factor"));
-        ui.add(Slider::new(&mut self.width_factor, 0.0..=1.0).text("width factor"));
+        ui.checkbox(&mut self.paused, egui_demo_lib::i18n::t("Paused"));
+        ui.add(Slider::new(&mut self.zoom, 0.0..=1.0).text(egui_demo_lib::i18n::t("zoom")));
+        ui.add(
+            Slider::new(&mut self.start_line_width, 0.0..=5.0)
+                .text(egui_demo_lib::i18n::t("Start line width")),
+        );
+        ui.add(Slider::new(&mut self.depth, 0..=14).text(egui_demo_lib::i18n::t("depth")));
+        ui.add(
+            Slider::new(&mut self.length_factor, 0.0..=1.0)
+                .text(egui_demo_lib::i18n::t("length factor")),
+        );
+        ui.add(
+            Slider::new(&mut self.luminance_factor, 0.0..=1.0)
+                .text(egui_demo_lib::i18n::t("luminance factor")),
+        );
+        ui.add(
+            Slider::new(&mut self.width_factor, 0.0..=1.0)
+                .text(egui_demo_lib::i18n::t("width factor")),
+        );
 
-        egui::reset_button(ui, self, "Reset");
+        // "Reset" here resets the clock's settings to their defaults.
+        egui::reset_button(ui, self, egui_demo_lib::i18n::t("Reset"));
 
         ui.hyperlink_to(
-            "Inspired by a screensaver by Rob Mayoff",
+            egui_demo_lib::i18n::t("Inspired by a screensaver by Rob Mayoff"),
             "http://www.dqd.com/~mayoff/programs/FractalClock/",
         );
         ui.add(egui_demo_lib::egui_github_link_file!());

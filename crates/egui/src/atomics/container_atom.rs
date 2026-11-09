@@ -1,11 +1,11 @@
 use crate::{
-    AtomKind, AtomPaintArgs, Atoms, Direction, FontSelection, Frame, IdSalt, Image, IntoAtoms,
-    Response, SizedAtom, SizedAtomKind, Stroke, Ui, WidgetAtom,
+    Align, AtomKind, AtomPaintArgs, Atoms, Direction, FontSelection, Frame, IdSalt, Image,
+    IntoAtoms, Response, SizedAtom, SizedAtomKind, Stroke, Ui, WidgetAtom,
     text_selection::LabelSelectionState,
 };
 use alloc::sync::Arc;
 use core::ops::{Deref, DerefMut};
-use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
+use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2, vec2};
 use epaint::text::TextWrapMode;
 use epaint::{Color32, Galley};
 use smallvec::SmallVec;
@@ -35,6 +35,36 @@ fn main_cross_rect(direction: Direction, aligned_rect: Rect, min_main: f32, max_
         Rect::from_x_y_ranges(min_main..=max_main, aligned_rect.y_range())
     } else {
         Rect::from_x_y_ranges(aligned_rect.x_range(), min_main..=max_main)
+    }
+}
+
+/// The direction atom rows read in for this [`Ui`].
+///
+/// Right-to-left when the layout itself runs right-to-left (or is vertical with
+/// `Align::Max` cross alignment, which [`crate::Layout::prefer_right_to_left`]
+/// already reports as right-to-left), or when
+/// [`crate::Style::right_to_left`] is set inside a vertical `Align::Min` or
+/// `Align::Center` body — the exact terms of `Placer::prefer_right_to_left`.
+pub(crate) fn atoms_direction(ui: &Ui) -> Direction {
+    let layout = ui.layout();
+    if layout.prefer_right_to_left()
+        || ui.is_rtl() && layout.is_vertical() && layout.cross_align != Align::Max
+    {
+        Direction::RightToLeft
+    } else {
+        Direction::LeftToRight
+    }
+}
+
+/// The logical main-axis-END counterpart of `align` under `direction`: the
+/// reading-end edge of the atom's cell (the far end of the row, whichever side
+/// that is). The cross-axis component of `align` is kept.
+fn main_axis_end_align(align: Align2, direction: Direction) -> Align2 {
+    match direction {
+        Direction::LeftToRight => align.with_x(Align::Max),
+        Direction::RightToLeft => align.with_x(Align::Min),
+        Direction::TopDown => align.with_y(Align::Max),
+        Direction::BottomUp => align.with_y(Align::Min),
     }
 }
 
@@ -71,7 +101,7 @@ pub struct ContainerAtom<'a> {
     max_size: Vec2,
     wrap_mode: Option<TextWrapMode>,
     align2: Option<Align2>,
-    direction: Direction,
+    direction: Option<Direction>,
 }
 
 impl Default for ContainerAtom<'_> {
@@ -92,7 +122,7 @@ impl<'a> ContainerAtom<'a> {
             max_size: Vec2::INFINITY,
             wrap_mode: None,
             align2: None,
-            direction: Direction::LeftToRight,
+            direction: None,
         }
     }
 
@@ -120,6 +150,11 @@ impl<'a> ContainerAtom<'a> {
             fallback_font,
             direction,
         } = self;
+
+        // Follow the reading direction of the surrounding layout — the same terms
+        // `Placer::prefer_right_to_left` uses to mirror nested rows (placer.rs:51-53).
+        // An explicit `.direction(...)` wins.
+        let direction = direction.unwrap_or_else(|| atoms_direction(ui));
 
         let fallback_font = fallback_font.unwrap_or_default();
 
@@ -326,8 +361,12 @@ shared_container_builders! {
     }
 
     /// Set the direction the atoms are laid out along.
+    ///
+    /// Defaults to the reading direction of the surrounding layout
+    /// ([`crate::Layout::prefer_right_to_left`]; also mirrors with
+    /// [`crate::Style::right_to_left`] the way nested rows do).
     fn direction(self, direction: Direction) {
-        self.direction = direction;
+        self.direction = Some(direction);
     }
 
     /// Set the [`Frame`].
@@ -350,7 +389,8 @@ shared_container_builders! {
     /// Set the minimum size of the Widget.
     ///
     /// This will find and expand atoms with `grow: true`.
-    /// If there are no growable atoms then everything will be left-aligned.
+    /// If there are no growable atoms then everything is aligned to the
+    /// reading-start edge.
     fn min_size(self, size: Vec2) {
         self.min_size = size;
     }
@@ -379,8 +419,8 @@ shared_container_builders! {
     /// Set the [`TextWrapMode`] for the [`crate::Atom`] marked as `shrink`.
     ///
     /// Only a single [`crate::Atom`] may shrink. If this (or `ui.wrap_mode()`) is not
-    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (left-most)
-    /// [`AtomKind::Text`] will be set to shrink.
+    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first
+    /// [`AtomKind::Text`] in reading order will be set to shrink.
     fn wrap_mode(self, wrap_mode: TextWrapMode) {
         self.wrap_mode = Some(wrap_mode);
     }
@@ -586,7 +626,12 @@ impl<'atom> SizedContainerAtom<'atom> {
             // The cell spans the cross axis fully and `atom_main` along the main axis.
             let cell = main_cross_rect(direction, aligned_rect, cursor, cursor + atom_main);
             cursor += atom_main + gap;
-            let item_rect = sized.align.align_size_within_rect(size, cell);
+            let item_rect = if sized.main_axis_end {
+                let align = main_axis_end_align(sized.align, direction);
+                align.align_size_within_rect(size, cell)
+            } else {
+                sized.align.align_size_within_rect(size, cell)
+            };
 
             if let Some(id) = sized.id {
                 debug_assert!(
@@ -598,6 +643,11 @@ impl<'atom> SizedContainerAtom<'atom> {
 
             match sized.kind {
                 SizedAtomKind::Text(galley) => {
+                    // The galley paints relative to its own rect, so one with a
+                    // non-`Align::LEFT` halign (e.g. a user-supplied `LayoutJob`) paints
+                    // filling its allocated rect, extending left of the cell origin —
+                    // by design, also under pure LTR.
+                    let paint_pos = item_rect.min - vec2(galley.rect.left(), 0.0);
                     if let Some(response) = selection_response {
                         // Route through the label selection machinery, which also
                         // paints the galley. `Stroke::NONE` keeps the rendering
@@ -605,14 +655,13 @@ impl<'atom> SizedContainerAtom<'atom> {
                         LabelSelectionState::label_text_selection(
                             ui,
                             response,
-                            item_rect.min,
+                            paint_pos,
                             galley,
                             fallback_text_color,
                             Stroke::NONE,
                         );
                     } else {
-                        ui.painter()
-                            .galley(item_rect.min, galley, fallback_text_color);
+                        ui.painter().galley(paint_pos, galley, fallback_text_color);
                     }
                 }
                 SizedAtomKind::Image { image, size: _ } => {
@@ -668,5 +717,118 @@ impl<'a> Deref for SizedContainerAtom<'a> {
 impl DerefMut for SizedContainerAtom<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.sized_atoms
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{atoms_direction, main_axis_end_align};
+    use crate::{
+        Align, Align2, Context, Direction, Layout, RawInput, Rect, placer::Placer, pos2, vec2,
+    };
+
+    /// The end hint maps to the physical edge the row's direction puts at the
+    /// reading-end, keeping the cross-axis component.
+    #[test]
+    fn main_axis_end_align_picks_the_reading_end_edge() {
+        assert_eq!(
+            main_axis_end_align(Align2::RIGHT_CENTER, Direction::LeftToRight),
+            Align2::RIGHT_CENTER
+        );
+        assert_eq!(
+            main_axis_end_align(Align2::RIGHT_CENTER, Direction::RightToLeft),
+            Align2::LEFT_CENTER
+        );
+        assert_eq!(
+            main_axis_end_align(Align2::CENTER_CENTER, Direction::TopDown),
+            Align2::CENTER_BOTTOM
+        );
+        assert_eq!(
+            main_axis_end_align(Align2::CENTER_CENTER, Direction::BottomUp),
+            Align2::CENTER_TOP
+        );
+        assert_eq!(
+            main_axis_end_align(Align2::LEFT_TOP, Direction::RightToLeft),
+            Align2::LEFT_TOP
+        );
+    }
+
+    /// `atoms_direction` must answer the exact question `Placer::prefer_right_to_left`
+    /// answers when mirroring nested rows: the same 10-layout truth table, with and
+    /// without the interface flag.
+    #[test]
+    fn atoms_direction_matches_placer_truth_table() {
+        let layouts = [
+            Layout::left_to_right(Align::Center),
+            Layout::right_to_left(Align::Center),
+            Layout::top_down(Align::Min),
+            Layout::top_down(Align::Center),
+            Layout::top_down(Align::Max),
+            Layout::top_down_justified(Align::Min),
+            Layout::top_down_justified(Align::Max),
+            Layout::bottom_up(Align::Min),
+            Layout::bottom_up(Align::Center),
+            Layout::bottom_up(Align::Max),
+        ];
+
+        for layout in layouts {
+            for rtl in [false, true] {
+                let ctx = Context::default();
+                ctx.set_right_to_left(rtl);
+                // `textures_delta` must be handled before the output is dropped (epaint
+                // debug-asserts on unapplied deltas); these tests never render.
+                let mut output = ctx.run_ui(RawInput::default(), |ui| {
+                    ui.with_layout(layout, |ui| {
+                        // The comparison side is a locally constructed `Placer` fed the
+                        // surrounding layout and the interface flag, deliberately not
+                        // the `Ui`'s own placer: reading that instead would let the
+                        // table pass vacuously should `atoms_direction` ever delegate
+                        // to it, while the independent construction pins the policy
+                        // itself.
+                        let placer = Placer::new(
+                            Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0)),
+                            *ui.layout(),
+                        );
+                        assert_eq!(
+                            atoms_direction(ui) == Direction::RightToLeft,
+                            placer.prefer_right_to_left(ui.is_rtl()),
+                            "{layout:?} with right_to_left = {rtl}"
+                        );
+                    });
+                });
+                output.textures_delta.clear();
+            }
+        }
+    }
+
+    /// Value pins: under the interface flag, vertical-Center bodies (every
+    /// `ui.vertical_centered`, e.g. dialog button rows) read right-to-left too,
+    /// in both vertical main directions; with the flag off they stay
+    /// left-to-right.
+    #[test]
+    fn atoms_direction_mirrors_vertical_center_bodies_in_rtl() {
+        for layout in [
+            Layout::top_down(Align::Center),
+            Layout::bottom_up(Align::Center),
+        ] {
+            for rtl in [false, true] {
+                let ctx = Context::default();
+                ctx.set_right_to_left(rtl);
+                let mut output = ctx.run_ui(RawInput::default(), |ui| {
+                    ui.with_layout(layout, |ui| {
+                        assert_eq!(
+                            atoms_direction(ui),
+                            if rtl {
+                                Direction::RightToLeft
+                            } else {
+                                Direction::LeftToRight
+                            },
+                            "{layout:?} with right_to_left = {rtl}"
+                        );
+                    });
+                });
+                output.textures_delta.clear();
+            }
+        }
     }
 }

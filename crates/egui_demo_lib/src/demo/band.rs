@@ -33,7 +33,7 @@ impl crate::Demo for BandDemo {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .resizable(false)
             .open(open)
             .show(ui.ctx(), |ui| self.ui(ui));
@@ -43,14 +43,16 @@ impl crate::Demo for BandDemo {
 impl crate::View for BandDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add(crate::egui_github_link_file!());
-        ui.label("An animated waveform rendered as a rotated band.");
+        ui.label(crate::i18n::t(
+            "An animated waveform rendered as a rotated band.",
+        ));
 
         egui::Grid::new("band_controls")
             .num_columns(2)
             .spacing([12.0, 8.0])
             .striped(true)
             .show(ui, |ui| {
-                ui.label("Angle");
+                ui.label(crate::i18n::t("Angle"));
                 ui.add(
                     egui::DragValue::new(&mut self.angle)
                         .speed(0.01)
@@ -58,7 +60,7 @@ impl crate::View for BandDemo {
                 );
                 ui.end_row();
 
-                ui.label("Animation speed");
+                ui.label(crate::i18n::t("Animation speed"));
                 ui.add(
                     egui::DragValue::new(&mut self.speed)
                         .speed(0.05)
@@ -67,7 +69,7 @@ impl crate::View for BandDemo {
                 );
                 ui.end_row();
 
-                ui.label("Fill opacity");
+                ui.label(crate::i18n::t("Fill opacity"));
                 ui.add(
                     egui::DragValue::new(&mut self.fill_opacity)
                         .speed(0.01)
@@ -75,7 +77,7 @@ impl crate::View for BandDemo {
                 );
                 ui.end_row();
 
-                ui.label("Stroke opacity");
+                ui.label(crate::i18n::t("Stroke opacity"));
                 ui.add(
                     egui::DragValue::new(&mut self.stroke_opacity)
                         .speed(0.01)
@@ -83,7 +85,7 @@ impl crate::View for BandDemo {
                 );
                 ui.end_row();
 
-                ui.label("Stroke width");
+                ui.label(crate::i18n::t("Stroke width"));
                 ui.add(
                     egui::DragValue::new(&mut self.stroke_width)
                         .speed(0.1)
@@ -91,11 +93,23 @@ impl crate::View for BandDemo {
                 );
                 ui.end_row();
 
-                ui.label("Stroke kind");
+                ui.label(crate::i18n::t("Stroke kind"));
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.stroke_kind, StrokeKind::Inside, "Inside");
-                    ui.selectable_value(&mut self.stroke_kind, StrokeKind::Middle, "Middle");
-                    ui.selectable_value(&mut self.stroke_kind, StrokeKind::Outside, "Outside");
+                    ui.selectable_value(
+                        &mut self.stroke_kind,
+                        StrokeKind::Inside,
+                        crate::i18n::t("Inside"),
+                    );
+                    ui.selectable_value(
+                        &mut self.stroke_kind,
+                        StrokeKind::Middle,
+                        crate::i18n::t("Middle"),
+                    );
+                    ui.selectable_value(
+                        &mut self.stroke_kind,
+                        StrokeKind::Outside,
+                        crate::i18n::t("Outside"),
+                    );
                 });
                 ui.end_row();
             });

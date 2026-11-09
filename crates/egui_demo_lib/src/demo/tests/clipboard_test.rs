@@ -5,7 +5,7 @@ pub struct ClipboardTest {
 impl Default for ClipboardTest {
     fn default() -> Self {
         Self {
-            text: "Example text you can copy-and-paste".to_owned(),
+            text: crate::i18n::t("Example text you can copy-and-paste").to_owned(),
         }
     }
 }
@@ -16,7 +16,7 @@ impl crate::Demo for ClipboardTest {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .constrain_to(ui.available_rect_before_wrap())
             .show(ui, |ui| {
@@ -28,13 +28,17 @@ impl crate::Demo for ClipboardTest {
 
 impl crate::View for ClipboardTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.label("egui integrates with the system clipboard.");
-        ui.label("Try copy-cut-pasting text in the text edit below.");
+        ui.label(crate::i18n::t("egui integrates with the system clipboard."));
+        ui.label(crate::i18n::t(
+            "Try copy-cut-pasting text in the text edit below.",
+        ));
 
         let text_edit_response = ui
             .horizontal(|ui| {
-                let text_edit_response =
-                    ui.add(egui::TextEdit::singleline(&mut self.text).hint_text("Text to copy"));
+                let text_edit_response = ui.add(
+                    egui::TextEdit::singleline(&mut self.text)
+                        .hint_text(crate::i18n::t("Text to copy")),
+                );
                 if ui.button("📋").clicked() {
                     ui.copy_text(self.text.clone());
                 }
@@ -50,7 +54,7 @@ impl crate::View for ClipboardTest {
                     ("Cut", egui::ViewportCommand::RequestCut),
                     ("Paste", egui::ViewportCommand::RequestPaste),
                 ] {
-                    if ui.button(name).clicked() {
+                    if ui.button(crate::i18n::t(name)).clicked() {
                         // Next frame we should get a copy/cut/paste-event…
                         ui.send_viewport_cmd(cmd);
 
@@ -63,7 +67,7 @@ impl crate::View for ClipboardTest {
 
         ui.separator();
 
-        ui.label("You can also copy images:");
+        ui.label(crate::i18n::t("You can also copy images:"));
         ui.horizontal(|ui| {
             let image_source = egui::include_image!("../../../data/icon.png");
             let uri = image_source.uri().unwrap().to_owned();

@@ -9,9 +9,10 @@ use epaint::{
     TessellationOptions, TextureId, Vec2,
     emath::{self, TSTransform},
     mutex::RwLock,
+    pos2,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, FontPriority, Fonts, FontsView, ViewportKey},
+    text::{FontId, FontInsert, FontPriority, Fonts, FontsView, ViewportKey},
     vec2,
 };
 
@@ -32,7 +33,7 @@ use crate::{
     interaction::InteractionSnapshot,
     layers::GraphicLayers,
     load::{self, Bytes, Loaders, SizedTexture},
-    memory::{Options, Theme},
+    memory::{DirectionPreference, Options, Theme},
     os::OperatingSystem,
     output::{FullOutput, LogicOutput},
     pass_state::PassState,
@@ -547,12 +548,26 @@ impl ContextImpl {
         }
 
         // Ensure we register the background area so panels and background ui can catch clicks:
+        // The pivot follows the direction-mirrored convention used everywhere
+        // else (see `Align2::LEFT_TOP.flipped_x()` in `default_style`); for the
+        // full-rect background the two flips cancel, so this is a geometric
+        // no-op — but consumers reading the area state get the right sides.
+        let rtl = self.memory.options.style().right_to_left;
         self.memory.areas_mut().set_state(
             LayerId::background(),
             AreaState {
-                pivot_pos: Some(content_rect.left_top()),
-                pivot: Align2::LEFT_TOP,
+                pivot_pos: Some(if rtl {
+                    content_rect.right_top()
+                } else {
+                    content_rect.left_top()
+                }),
+                pivot: if rtl {
+                    Align2::LEFT_TOP.flipped_x()
+                } else {
+                    Align2::LEFT_TOP
+                },
                 size: Some(content_rect.size()),
+                resize_pin_placement: None,
                 interactable: true,
                 last_became_visible_at: None,
             },
@@ -565,6 +580,14 @@ impl ContextImpl {
             let mut root_node = accesskit::Node::new(accesskit::Role::Window);
             let pixels_per_point = viewport.input.pixels_per_point();
             root_node.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
+            // AccessKit Language is inherited from ancestors, so stamping the
+            // UI language on the root covers every widget and container node
+            // of this viewport. Text content in another language re-stamps the
+            // property on its AccessKit text-run nodes (see
+            // `text_selection::accesskit_text`).
+            if let Some(language) = self.memory.data.get_temp::<String>(language_id()) {
+                root_node.set_language(language);
+            }
             let mut nodes = IdMap::default();
             nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
@@ -1456,21 +1479,54 @@ impl Context {
 
             let below = widget_rect.bottom() + 32.0 < content_rect.bottom();
 
-            let text_rect = if below {
-                painter.debug_text(
-                    widget_rect.left_bottom() + vec2(0.0, 2.0),
-                    Align2::LEFT_TOP,
-                    color,
-                    text,
+            // Probe the painted text size (`Painter::debug_text` lays out with the same
+            // `layout_no_wrap` + monospace-12 below, so the probe cannot mis-measure)
+            // and hang the text inward from the widget's right edge when painting it
+            // rightward from the widget's left edge would run past the content rect
+            // (right-hugging widgets, mirrored panels under right-to-left). When the
+            // text fits, the anchors are unchanged.
+            //
+            // The flipped anchor is clamped to the content rect's left edge plus the
+            // text width, so a label wider than that room never paints off-window on
+            // the left: its reading start stays at or inside the window (a label
+            // wider than the whole window cannot fit and runs off the right edge
+            // instead). This is direction-symmetric: the same geometry bound applies
+            // to left-hugging widgets in left-to-right interfaces.
+            let text_width = painter
+                .layout_no_wrap(text.clone(), FontId::monospace(12.0), color)
+                .size()
+                .x;
+            let overflow = widget_rect.left_bottom().x + text_width > content_rect.max.x;
+
+            let (pos, anchor) = if below {
+                if overflow {
+                    (
+                        pos2(
+                            widget_rect
+                                .right()
+                                .at_least(content_rect.min.x + text_width),
+                            widget_rect.bottom() + 2.0,
+                        ),
+                        Align2::RIGHT_TOP,
+                    )
+                } else {
+                    (widget_rect.left_bottom() + vec2(0.0, 2.0), Align2::LEFT_TOP)
+                }
+            } else if overflow {
+                (
+                    pos2(
+                        widget_rect
+                            .right()
+                            .at_least(content_rect.min.x + text_width),
+                        widget_rect.top() - 2.0,
+                    ),
+                    Align2::RIGHT_BOTTOM,
                 )
             } else {
-                painter.debug_text(
-                    widget_rect.left_top() - vec2(0.0, 2.0),
-                    Align2::LEFT_BOTTOM,
-                    color,
-                    text,
-                )
+                (widget_rect.left_top() - vec2(0.0, 2.0), Align2::LEFT_BOTTOM)
             };
+
+            let text_rect = painter.debug_text(pos, anchor, color, text);
 
             if let Some(pointer_pos) = self.pointer_hover_pos()
                 && text_rect.contains(pointer_pos)
@@ -1583,6 +1639,19 @@ impl Context {
                     // https://github.com/AccessKit/accesskit/blob/e639c0e0d8ccbfd9dff302d972fa06f9766d608e/common/src/lib.rs#L2621
                     const DISTANCE: f32 = 100.0;
 
+                    // ScrollLeft/ScrollRight name *viewport-relative* motion
+                    // (reveal what lies to the left/right), but
+                    // `PassState::scroll_delta` is *content-relative* (positive
+                    // X moves the content right — see its doc). Revealing the
+                    // content to the left therefore moves the content right,
+                    // and vice versa. The same sign serves both reading
+                    // directions, since the delta stays in screen space and
+                    // the RTL axis handling lives in the consumer (the scroll
+                    // area applies the horizontal delta un-negated under RTL,
+                    // where offset and content move together). Driven this
+                    // way, ScrollLeft behaves like a natural-scrolling swipe
+                    // right.
+
                     match &request.action {
                         Action::ScrollIntoView => {
                             viewport.this_pass.scroll_target = [
@@ -1605,10 +1674,10 @@ impl Context {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::DOWN;
                         }
                         Action::ScrollLeft => {
-                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::LEFT;
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::RIGHT;
                         }
                         Action::ScrollRight => {
-                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::RIGHT;
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::LEFT;
                         }
                         _ => return false,
                     }
@@ -2023,19 +2092,37 @@ impl Context {
     }
 
     /// Format the given modifiers in a human-readable way (e.g. `Ctrl+Shift+X`).
+    ///
+    /// The result is wrapped in directional isolates, so it stays one
+    /// left-to-right run when embedded in right-to-left text (see
+    /// [`KeyboardShortcut::format`]).
     pub fn format_modifiers(&self, modifiers: Modifiers) -> String {
         let os = self.os();
 
         let is_mac = os.is_mac();
 
         if is_mac && self.can_show_modifier_symbols() {
-            ModifierNames::SYMBOLS.format(&modifiers, is_mac)
+            format!(
+                "\u{2066}{}\u{2069}",
+                ModifierNames::SYMBOLS.format(&modifiers, is_mac)
+            )
         } else {
-            ModifierNames::NAMES.format(&modifiers, is_mac)
+            format!(
+                "\u{2066}{}\u{2069}",
+                ModifierNames::NAMES.format(&modifiers, is_mac)
+            )
         }
     }
 
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
+    ///
+    /// The result is wrapped in U+2066 LEFT-TO-RIGHT ISOLATE … U+2069 POP
+    /// DIRECTIONAL ISOLATE, so it stays one left-to-right run when embedded in
+    /// right-to-left text. The isolates render as invisible zero-advance
+    /// glyphs, so left-to-right output is unchanged.
+    ///
+    /// In a right-to-left interface the horizontal arrow keys of the shortcut
+    /// are mirrored to the reading direction (see [`KeyboardShortcut::format_for`]).
     ///
     /// Can be used to get the text for [`crate::Button::shortcut_text`].
     pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
@@ -2043,10 +2130,16 @@ impl Context {
 
         let is_mac = os.is_mac();
 
-        if is_mac && self.can_show_modifier_symbols() {
-            shortcut.format(&ModifierNames::SYMBOLS, is_mac)
+        let dir = if self.is_rtl() {
+            emath::ReadingDirection::Rtl
         } else {
-            shortcut.format(&ModifierNames::NAMES, is_mac)
+            emath::ReadingDirection::Ltr
+        };
+
+        if is_mac && self.can_show_modifier_symbols() {
+            shortcut.format_for(&ModifierNames::SYMBOLS, is_mac, dir)
+        } else {
+            shortcut.format_for(&ModifierNames::NAMES, is_mac, dir)
         }
     }
 
@@ -2592,7 +2685,208 @@ impl Context {
     /// ctx.set_theme(egui::Theme::Light); // Switch to light mode
     /// ```
     pub fn set_theme(&self, theme_preference: impl Into<crate::ThemePreference>) {
-        self.options_mut(|opt| opt.theme_preference = theme_preference.into());
+        let theme_preference = theme_preference.into();
+        let cause = RepaintCause::new();
+        self.write(|ctx| {
+            if ctx.memory.options.theme_preference != theme_preference {
+                ctx.memory.options.theme_preference = theme_preference;
+                #[expect(clippy::iter_over_hash_type)]
+                for viewport_id in ctx.all_viewport_ids() {
+                    ctx.request_repaint(viewport_id, cause.clone());
+                }
+            }
+        });
+    }
+
+    /// Draw the interface right-to-left in **all** theme styles,
+    /// so that an appearance (light/dark) switch cannot revert the direction.
+    ///
+    /// This mirrors egui-owned widget chrome and default placements for
+    /// right-to-left interface languages (Arabic, Hebrew, Persian, Urdu);
+    /// see [`Style::right_to_left`] for what is mirrored.
+    ///
+    /// This is also the explicit-preference setter: the direction is recorded
+    /// in [`Options::direction_preference`] and therefore **persists between
+    /// runs** (with the `persistence` feature), and an explicit preference
+    /// overrides locale detection
+    /// ([`RawInput::system_locale`]). Takes effect from the next frame.
+    ///
+    /// Apps that call this every frame (e.g. deriving it from the UI language)
+    /// are safe — same-value writes are no-ops and repaints are guarded on an
+    /// actual direction change — but note that such a caller always overwrites
+    /// the preference, so system-locale detection is inert for it: an
+    /// explicit per-frame direction policy *is* an explicit preference, and
+    /// [`Self::set_direction_preference`] is only meaningful for apps that do
+    /// not hard-set the direction every frame.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.set_right_to_left(true); // e.g. when the UI language is Arabic
+    /// assert!(ctx.is_rtl());
+    /// ```
+    pub fn set_right_to_left(&self, right_to_left: bool) {
+        let preference = if right_to_left {
+            DirectionPreference::Rtl
+        } else {
+            DirectionPreference::Ltr
+        };
+        let cause = RepaintCause::new();
+        self.write(|ctx| {
+            // Record the explicit preference (persists, and is what
+            // `begin_pass` resolves from), then apply the direction to both
+            // theme styles so an appearance switch cannot revert it.
+            ctx.memory.options.direction_preference = preference;
+            if ctx.memory.options.style().right_to_left != right_to_left {
+                let options = &mut ctx.memory.options;
+                Arc::make_mut(&mut options.dark_style).right_to_left = right_to_left;
+                Arc::make_mut(&mut options.light_style).right_to_left = right_to_left;
+                options.applied_direction = Some(options.direction());
+                #[expect(clippy::iter_over_hash_type)]
+                for viewport_id in ctx.all_viewport_ids() {
+                    ctx.request_repaint(viewport_id, cause.clone());
+                }
+            }
+        });
+    }
+
+    /// The reading direction preference of the interface.
+    ///
+    /// See [`Self::set_direction_preference`].
+    pub fn direction_preference(&self) -> DirectionPreference {
+        self.options(|opt| opt.direction_preference)
+    }
+
+    /// Set how the interface picks its reading direction.
+    ///
+    /// * [`DirectionPreference::Ltr`] / [`DirectionPreference::Rtl`]: an
+    ///   explicit direction (what [`Self::set_right_to_left`] records).
+    /// * [`DirectionPreference::System`]: follow the locale reported by the
+    ///   integration through [`RawInput::system_locale`], falling back to
+    ///   left-to-right when none is reported.
+    ///
+    /// Unlike the styles themselves, this preference persists between runs
+    /// (with the `persistence` feature). Repaints are requested only when the
+    /// *resolved* direction will actually change — switching to
+    /// [`DirectionPreference::System`] while the system locale already matches
+    /// the current direction repaints nothing.
+    ///
+    /// The change takes effect from the next frame (the next
+    /// [`Context::begin_pass`] applies the resolved direction). Note that an
+    /// app which calls [`Self::set_right_to_left`] every frame overwrites this
+    /// preference every frame — see that method.
+    pub fn set_direction_preference(&self, preference: DirectionPreference) {
+        let cause = RepaintCause::new();
+        self.write(|ctx| {
+            // Compare the *resolved* direction, not the raw preference, so a
+            // switch whose resolution keeps the visible direction (e.g.
+            // Rtl → System with an RTL system locale) does not repaint. The
+            // styles themselves are applied by the next `begin_pass`.
+            let resolved = match preference {
+                DirectionPreference::Ltr => crate::emath::ReadingDirection::Ltr,
+                DirectionPreference::Rtl => crate::emath::ReadingDirection::Rtl,
+                DirectionPreference::System => ctx
+                    .memory
+                    .options
+                    .system_direction
+                    .unwrap_or(crate::emath::ReadingDirection::Ltr),
+            };
+            // Record the preference even when the visible direction is
+            // unchanged: it may differ without changing the resolution (e.g.
+            // Rtl → System with an RTL system locale), and it must persist.
+            ctx.memory.options.direction_preference = preference;
+            if ctx.memory.options.style().right_to_left != resolved.is_rtl() {
+                #[expect(clippy::iter_over_hash_type)]
+                for viewport_id in ctx.all_viewport_ids() {
+                    ctx.request_repaint(viewport_id, cause.clone());
+                }
+            }
+        });
+    }
+
+    /// Is the interface drawn right-to-left?
+    ///
+    /// This reads the currently active global style.
+    /// Use [`crate::Ui::is_rtl`] to query the direction of a specific [`crate::Ui`].
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// assert!(!ctx.is_rtl());
+    /// ctx.set_right_to_left(true);
+    /// assert!(ctx.is_rtl());
+    /// ```
+    pub fn is_rtl(&self) -> bool {
+        self.global_style().right_to_left
+    }
+
+    /// The language text in this UI should be laid out in, as a BCP 47 tag, e.g. `"ar-EG"`.
+    ///
+    /// Widgets stamp this onto their text [`crate::text::LayoutJob`]s so that
+    /// line-breaking and shaping can be locale-aware.
+    ///
+    /// Setting the same language again does nothing (no store, no repaint),
+    /// so per-frame callers are safe.
+    ///
+    /// The language is temp state: it is **not persisted between runs**, so
+    /// set it at startup. For persistence of the derived direction see
+    /// [`Options::direction_preference`]; for one call that sets the language
+    /// *and* derives the direction, see [`Self::set_locale`].
+    ///
+    /// Takes effect from the next frame (galleys re-layout because the cache key changed).
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// assert!(ctx.language().is_none());
+    /// ctx.set_language("ar-EG");
+    /// assert_eq!(ctx.language(), Some("ar-EG".to_owned()));
+    /// ```
+    pub fn set_language(&self, language: impl Into<String>) {
+        let language = language.into();
+        if self.language().as_deref() == Some(language.as_str()) {
+            return;
+        }
+        self.data_mut(|data| data.insert_temp(language_id(), language));
+        self.request_repaint();
+    }
+
+    /// The combined locale entry point: sets the UI language *and* derives the
+    /// reading direction from it in one call.
+    ///
+    /// For `"ar-EG"` this switches the text language to Arabic (Egypt) *and*
+    /// mirrors the interface right-to-left (see [`Self::set_right_to_left`]);
+    /// for `"en-US"` both resolve left-to-right. The direction is derived from
+    /// the locale's primary language subtag; apps with their own direction
+    /// policy should keep using the two finer-grained setters,
+    /// [`Self::set_language`] and [`Self::set_right_to_left`].
+    ///
+    /// Like [`Self::set_right_to_left`], this records an explicit direction
+    /// preference (which persists between runs with the `persistence`
+    /// feature). Both underlying writes are guarded on the value, so per-frame
+    /// callers are safe.
+    ///
+    /// The language itself is still temp state (see [`Self::set_language`]).
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.set_locale("he-IL");
+    /// assert_eq!(ctx.language(), Some("he-IL".to_owned()));
+    /// assert!(ctx.is_rtl());
+    /// ```
+    pub fn set_locale(&self, locale: impl Into<String>) {
+        let locale = locale.into();
+        let rtl = crate::locale::locale_direction(&locale).is_rtl();
+        self.set_language(locale);
+        self.set_right_to_left(rtl);
+    }
+
+    /// The language text should be laid out in, as a BCP 47 tag, or `None` if not set.
+    ///
+    /// See [`Self::set_language`].
+    pub fn language(&self) -> Option<String> {
+        self.data(|data| data.get_temp::<String>(language_id()))
     }
 
     /// The currently active [`Style`] used by all subsequent popups, menus, etc.
@@ -3142,8 +3436,17 @@ impl Context {
                 }
             });
 
+            // Anchor at the reading-start edge of the interface, so the warning
+            // starts where the user reads (the physical top-left under LTR, the
+            // content rect's top-right under RTL — same convention as the mirrored
+            // theme pivots).
+            let (pos, anchor) = if self.is_rtl() {
+                (self.content_rect().right_top(), Align2::RIGHT_TOP)
+            } else {
+                (Pos2::ZERO, Align2::LEFT_TOP)
+            };
             self.debug_painter()
-                .debug_text(Pos2::ZERO, Align2::LEFT_TOP, Color32::RED, warning);
+                .debug_text(pos, anchor, Color32::RED, warning);
         }
     }
 }
@@ -4821,6 +5124,11 @@ const _: () = {
     assert_send_sync::<Context>();
 };
 
+/// The stable [`Id`] under which [`Context::set_language`] stores the UI language.
+fn language_id() -> Id {
+    Id::unique("egui_ui_language")
+}
+
 /// Check if any [`Rect`] appears with different [`Id`]s between two passes.
 ///
 /// This helps detect cases where the same screen area is claimed by different widget ids
@@ -5407,5 +5715,48 @@ mod test {
             );
             output.drop_without_applying_deltas();
         }
+    }
+
+    /// The background area follows the codebase's mirrored-pivot convention
+    /// (the same rule that drives the default `TextEdit` align): the pivot
+    /// corner flips with `Style::right_to_left`, while the full-rect
+    /// background's geometry is a no-op — pivot position and pivot flip
+    /// cancel, so the rect is identical in both directions.
+    #[test]
+    fn background_area_pivot_follows_the_interface_direction() {
+        use crate::{Align2, LayerId, RawInput, Rect, Vec2, containers::area::AreaState, pos2};
+
+        let screen_rect = Rect::from_min_size(pos2(10.0, 20.0), Vec2::new(800.0, 600.0));
+        let input = || RawInput {
+            screen_rect: Some(screen_rect),
+            ..Default::default()
+        };
+
+        let state = |ctx: &Context| -> (Align2, Rect) {
+            let state: AreaState = ctx
+                .memory(|memory| memory.areas().get(LayerId::background().id).copied())
+                .expect("the background area should be registered every pass");
+            let rect = Rect::from_min_size(state.left_top_pos(), state.size.unwrap_or_default());
+            (state.pivot, rect)
+        };
+
+        // LTR: the historical values.
+        let ctx = Context::default();
+        ctx.begin_pass(input());
+        let (pivot, rect) = state(&ctx);
+        assert_eq!(pivot, Align2::LEFT_TOP);
+        assert_eq!(rect, screen_rect);
+
+        // RTL: the mirrored pivot corner, the same rect (the flips cancel).
+        let ctx = Context::default();
+        ctx.set_right_to_left(true);
+        ctx.begin_pass(input());
+        let (pivot, rect) = state(&ctx);
+        assert_eq!(pivot, Align2::LEFT_TOP.flipped_x());
+        assert_eq!(pivot, Align2::RIGHT_TOP);
+        assert_eq!(
+            rect, screen_rect,
+            "the pivot mirroring must be a geometric no-op"
+        );
     }
 }

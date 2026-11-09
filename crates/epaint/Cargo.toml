@@ -11,7 +11,13 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/epaint"
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
-include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+include = [
+  "../../LICENSE-APACHE",
+  "../../LICENSE-MIT",
+  "**/*.rs",
+  "src/text/dictionaries/*.txt",
+  "Cargo.toml",
+]
 
 [lints]
 workspace = true
@@ -63,6 +69,15 @@ monochrome_emoji_fonts = ["default_fonts", "epaint_default_fonts/monochrome_emoj
 ## This can help performance for graphics-intense applications.
 rayon = ["dep:rayon"]
 
+## Bundle word dictionaries for line-breaking the scripts that are written without
+## spaces (Thai, Lao, Khmer, Myanmar; UAX #14 class SA). Adds ~4.2 MB to the binary
+## (measure the real number on landing and update this comment).
+##
+## Without this feature [`text::TextWrapping::line_breaker`] still works, but the default
+## breaker reports no word boundaries; enable the feature (the way `eframe` enables
+## `default_fonts`) or install your own [`text::LineBreaker`] implementation.
+sea_dictionary = []
+
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = [
   "dep:serde",
@@ -94,6 +109,7 @@ profiling.workspace = true
 self_cell.workspace = true
 skrifa.workspace = true
 smallvec.workspace = true
+unicode-bidi.workspace = true
 unicode-general-category.workspace = true
 unicode-properties.workspace = true
 unicode-segmentation.workspace = true
@@ -116,6 +132,14 @@ epaint_default_fonts = { workspace = true, optional = true }
 criterion.workspace = true
 mimalloc.workspace = true
 similar-asserts.workspace = true
+
+# The text tests (shaping, kerning, wrapping, the byte-identity pins) exercise
+# the bundled fonts. `default_fonts` is not part of the crate's default feature
+# set (an application decides whether to bundle fonts), so this dev-dependency
+# makes the bundled font data available to epaint's own tests, benches and
+# examples without changing what a normal build of epaint or its dependents
+# compiles in. `test_fonts` in `text_layout.rs` installs them for the tests.
+epaint_default_fonts.workspace = true
 
 
 [[bench]]

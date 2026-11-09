@@ -1,4 +1,4 @@
-use egui_demo_lib::{DemoWindows, is_mobile};
+use egui_demo_lib::{DemoWindows, i18n, is_mobile};
 
 #[cfg(feature = "glow")]
 use eframe::glow;
@@ -70,9 +70,9 @@ impl DemoApp for ColorTestApp {
     fn demo_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ui, |ui| {
             if frame.is_web() {
-                ui.label(
-                        "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
-                    );
+                ui.label(i18n::t(
+                    "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
+                ));
                 ui.separator();
             }
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
@@ -174,6 +174,9 @@ pub struct State {
 
     selected_anchor: Anchor,
     backend_panel: super::backend_panel::BackendPanel,
+
+    /// The UI language (a code from [`egui_demo_lib::i18n::LANGUAGES`]); empty means English.
+    pub language: String,
 }
 
 /// Wraps many demo/test apps into one.
@@ -293,6 +296,14 @@ impl eframe::App for WrapApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        let lang = i18n::Lang::from_code(&self.state.language).unwrap_or(i18n::Lang::EN);
+        i18n::set_current(lang);
+        // The interface direction follows the language (Arabic reads right-to-left).
+        ui.ctx().set_right_to_left(lang.is_rtl());
+        // Text shaping and the date-picker locale follow `Context::language`
+        // (through `Ui::language`); drive it from the same source of truth.
+        ui.ctx().set_language(lang.code());
+
         #[cfg(target_arch = "wasm32")]
         if let Some(anchor) = frame
             .info()
@@ -309,6 +320,17 @@ impl eframe::App for WrapApp {
         if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
             let fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
             ui.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!fullscreen));
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // The native window title follows the language too: `main.rs` seeds it in English
+            // before the persisted language is known, so refresh it once it differs.
+            let title = i18n::t("egui demo app");
+            let current_title = ui.input(|i| i.viewport().title.clone());
+            if current_title.as_deref() != Some(title) {
+                ui.send_viewport_cmd(egui::ViewportCommand::Title(title.to_owned()));
+            }
         }
 
         let mut cmd = Command::Nothing;
@@ -360,13 +382,13 @@ impl WrapApp {
 
         let mut cmd = Command::Nothing;
 
-        egui::Panel::left("backend_panel")
+        egui::Panel::start("backend_panel")
             .resizable(true)
             .size_range(280..=400)
             .show_collapsible(ui, &mut is_open, |ui| {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
-                    ui.heading("💻 Backend");
+                    ui.heading(i18n::t("💻 Backend"));
                 });
 
                 ui.separator();
@@ -383,7 +405,9 @@ impl WrapApp {
         match cmd {
             Command::Nothing => {}
             Command::ResetEverything => {
+                let language = core::mem::take(&mut self.state.language);
                 self.state = Default::default();
+                self.state.language = language;
                 ctx.memory_mut(|mem| *mem = Default::default());
             }
         }
@@ -401,15 +425,15 @@ impl WrapApp {
 
         ui.horizontal(|ui| {
             if ui
-                .button("Reset egui")
-                .on_hover_text("Forget scroll, positions, sizes etc")
+                .button(i18n::t("Reset egui"))
+                .on_hover_text(i18n::t("Forget scroll, positions, sizes etc"))
                 .clicked()
             {
                 ui.memory_mut(|mem| *mem = Default::default());
                 ui.close();
             }
 
-            if ui.button("Reset everything").clicked() {
+            if ui.button(i18n::t("Reset everything")).clicked() {
                 *cmd = Command::ResetEverything;
                 ui.close();
             }
@@ -430,15 +454,43 @@ impl WrapApp {
 
         egui::widgets::global_theme_preference_buttons(ui);
 
+        // Demo toggle for the reading direction and UI language (issue #14):
+        // flip to Arabic/RTL to exercise right-to-left widgets such as the
+        // date picker popup. Fork-side only; not upstreamable.
+        //
+        // Route through the app state: the per-frame reset at the top of `ui`
+        // derives direction and translations from `self.state.language`, so a
+        // direct `Context::set_right_to_left`/`set_language` here is
+        // overwritten next frame. The binding still reads the direction the
+        // reset derived, so the toggle shows active iff Arabic is active.
+        let mut rtl = ui.ctx().is_rtl();
+        if ui.toggle_value(&mut rtl, "↔ RTL · العربية").changed() {
+            // Registry codes from `i18n::LANGUAGES` ("ar"/"en"), like the
+            // Language dropdown's `selected.code()`; "ar-EG" is not one.
+            self.state.language = if rtl { "ar" } else { "en" }.to_owned();
+        }
+
+        ui.separator();
+
+        ui.menu_button(i18n::t("🌐 Language"), |ui| {
+            let mut selected =
+                i18n::Lang::from_code(&self.state.language).unwrap_or(i18n::Lang::EN);
+            for lang in i18n::Lang::all() {
+                // Language names are always shown in their own language.
+                ui.radio_value(&mut selected, lang, lang.name());
+            }
+            self.state.language = selected.code().to_owned();
+        });
+
         ui.separator();
 
         if is_mobile(ui.ctx()) {
-            ui.menu_button("💻 Backend", |ui| {
+            ui.menu_button(i18n::t("💻 Backend"), |ui| {
                 ui.set_style(ui.global_style()); // ignore the "menu" style set by `menu_button`.
                 self.backend_panel_contents(ui, frame, cmd);
             });
         } else {
-            ui.toggle_value(&mut self.state.backend_panel.open, "💻 Backend");
+            ui.toggle_value(&mut self.state.backend_panel.open, i18n::t("💻 Backend"));
         }
 
         ui.separator();
@@ -446,7 +498,7 @@ impl WrapApp {
         let mut selected_anchor = self.state.selected_anchor;
         for (name, anchor, _app) in self.apps_iter_mut() {
             if ui
-                .selectable_label(selected_anchor == anchor, name)
+                .selectable_label(selected_anchor == anchor, i18n::t(name))
                 .clicked()
             {
                 selected_anchor = anchor;
@@ -479,7 +531,7 @@ impl WrapApp {
         // Preview hovering files:
         if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
             let text = ctx.input(|i| {
-                let mut text = "Dropping files:\n".to_owned();
+                let mut text = i18n::t("Dropping files:\n").to_owned();
                 for file in &i.raw.hovered_files {
                     if let Some(path) = &file.path {
                         write!(text, "\n{}", path.display()).ok();
@@ -518,7 +570,7 @@ impl WrapApp {
         // Show dropped files (if any):
         if !self.dropped_files.is_empty() {
             let mut open = true;
-            egui::Window::new("Dropped files")
+            egui::Window::new(i18n::t("Dropped files"))
                 .open(&mut open)
                 .show(ctx, |ui| {
                     for file in &self.dropped_files {

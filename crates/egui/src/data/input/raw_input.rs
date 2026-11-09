@@ -1,4 +1,7 @@
-use crate::{OrderedViewportIdMap, Theme, ViewportId, ViewportIdMap, emath::Rect};
+use crate::{
+    Key, OrderedViewportIdMap, Theme, ViewportId, ViewportIdMap,
+    emath::{ReadingDirection, Rect},
+};
 
 use super::{DroppedFileHandle, Event, HoveredFile, SafeAreaInsets, ViewportInfo};
 
@@ -89,6 +92,69 @@ pub struct RawInput {
     ///
     /// `None` means "don't know".
     pub system_theme: Option<Theme>,
+
+    /// The system or user locale, as a BCP 47 language tag or a common locale
+    /// id (e.g. `"ar-EG"`).
+    ///
+    /// `None` means the integration doesn't know (the default, and today's
+    /// behaviour). egui uses the locale to resolve the default reading
+    /// direction when the direction preference is
+    /// [`crate::DirectionPreference::System`]; an unknown locale falls back to
+    /// a left-to-right interface. Integrations that know the locale report it
+    /// here (on the web, `navigator.language`; any integration — including
+    /// native ones — can fill this public field itself).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub system_locale: Option<String>,
+
+    /// Is the currently active keyboard layout a Latin (QWERTY-family) layout?
+    ///
+    /// `None` means the integration doesn't know (the default, and today's behaviour).
+    ///
+    /// When a non-Latin layout is active, the keys the layout *types* are not useful
+    /// for letter shortcuts: with a Russian layout active, the keys the user thinks
+    /// of as C / V / X are the physical positions their Latin layout maps them to,
+    /// not the Cyrillic letters the active layout types. Backends that know the
+    /// active layout should report it here. In egui-winit, report it through
+    /// `State::egui_input_mut` (which the key handling reads): reporting it only on
+    /// the `RawInput` passed to `Context::run` exposes it solely through the
+    /// `InputState` accessors, without activating the letter-shortcut rule.
+    /// See [`Self::latin_layout_chars`].
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub keyboard_layout_is_latin: Option<bool>,
+
+    /// The reading direction of the user's primary keyboard layout, if the
+    /// integration knows it.
+    ///
+    /// `None` means the integration doesn't know (the default, and today's
+    /// behaviour). Report [`Some`]`(`[`ReadingDirection::Rtl`]`)` when the
+    /// active primary layout writes a right-to-left script (Arabic, Hebrew,
+    /// Persian, …), independent of whether it is also Latin. Widgets can use
+    /// this to follow the layout's direction before the user types anything —
+    /// e.g. an empty [`crate::TextEdit`] starts writing in the layout's
+    /// direction. The interface direction
+    /// ([`crate::Style::right_to_left`]) takes precedence; this is the
+    /// fallback for a default interface. In egui-winit, report it through
+    /// `State::egui_input_mut`, like [`Self::keyboard_layout_is_latin`].
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub keyboard_layout_direction: Option<ReadingDirection>,
+
+    /// For each key position, the character the user's first Latin keyboard layout
+    /// produces there.
+    ///
+    /// The [`crate::Key`] is the key *position*, the same domain as the physical key
+    /// in [`crate::Event::Key`]; the `char` is what the user's Latin layout maps that
+    /// position to (report the unshifted character). This lets egui resolve letter
+    /// shortcuts against the layout the user actually thinks in, even while a
+    /// non-Latin layout is active (e.g. Dvorak + Russian).
+    ///
+    /// In egui-winit, report the data through `State::egui_input_mut` (which the key
+    /// handling reads): reporting it only on the `RawInput` passed to `Context::run`
+    /// exposes it solely through the `InputState` accessors, without activating the
+    /// letter-shortcut rule.
+    ///
+    /// Empty when the integration provides no Latin-layout data.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub latin_layout_chars: Vec<(Key, char)>,
 }
 
 impl Default for RawInput {
@@ -105,7 +171,11 @@ impl Default for RawInput {
             dropped_files: Default::default(),
             focused: true, // integrations opt into global focus tracking
             system_theme: None,
+            system_locale: None,
             safe_area_insets: Default::default(),
+            keyboard_layout_is_latin: None,
+            keyboard_layout_direction: None,
+            latin_layout_chars: Vec::new(),
         }
     }
 }
@@ -139,6 +209,10 @@ impl RawInput {
             dropped_files: core::mem::take(&mut self.dropped_files),
             focused: self.focused,
             system_theme: self.system_theme,
+            system_locale: self.system_locale.clone(),
+            keyboard_layout_is_latin: self.keyboard_layout_is_latin,
+            keyboard_layout_direction: self.keyboard_layout_direction,
+            latin_layout_chars: self.latin_layout_chars.clone(),
         }
     }
 
@@ -156,7 +230,11 @@ impl RawInput {
             mut dropped_files,
             focused,
             system_theme,
+            system_locale,
             safe_area_insets: safe_area,
+            keyboard_layout_is_latin,
+            keyboard_layout_direction,
+            latin_layout_chars,
         } = newer;
 
         self.viewport_id = viewport_ids;
@@ -170,7 +248,14 @@ impl RawInput {
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
         self.system_theme = system_theme;
+        self.system_locale = system_locale.or_else(|| self.system_locale.take());
         self.safe_area_insets = safe_area.or(self.safe_area_insets);
+        self.keyboard_layout_is_latin = keyboard_layout_is_latin.or(self.keyboard_layout_is_latin);
+        self.keyboard_layout_direction =
+            keyboard_layout_direction.or(self.keyboard_layout_direction);
+        if !latin_layout_chars.is_empty() {
+            self.latin_layout_chars = latin_layout_chars;
+        }
     }
 }
 
@@ -188,7 +273,11 @@ impl RawInput {
             dropped_files,
             focused,
             system_theme,
+            system_locale,
             safe_area_insets: safe_area,
+            keyboard_layout_is_latin,
+            keyboard_layout_direction,
+            latin_layout_chars,
         } = self;
 
         ui.label(format!("Active viewport: {viewport_id:?}"));
@@ -217,6 +306,17 @@ impl RawInput {
         ui.label(format!("dropped_files: {}", dropped_files.len()));
         ui.label(format!("focused: {focused}"));
         ui.label(format!("system_theme: {system_theme:?}"));
+        ui.label(format!("system_locale: {system_locale:?}"));
+        ui.label(format!(
+            "keyboard_layout_is_latin: {keyboard_layout_is_latin:?}"
+        ));
+        ui.label(format!(
+            "keyboard_layout_direction: {keyboard_layout_direction:?}"
+        ));
+        ui.label(format!(
+            "latin_layout_chars: {} entries",
+            latin_layout_chars.len()
+        ));
         ui.label(format!("safe_area: {safe_area:?}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
@@ -254,5 +354,48 @@ mod tests {
             ..Default::default()
         });
         assert_eq!(input.safe_area_insets, Some(SafeAreaInsets::default()));
+    }
+
+    #[test]
+    fn append_and_take_preserve_latest_layout_info() {
+        let dvorak = vec![(Key::Q, '\''), (Key::J, 'c')];
+        let qwerty = vec![(Key::Q, 'q'), (Key::J, 'j')];
+
+        assert_eq!(RawInput::default().keyboard_layout_is_latin, None);
+        assert_eq!(RawInput::default().keyboard_layout_direction, None);
+        assert!(RawInput::default().latin_layout_chars.is_empty());
+
+        let mut input = RawInput {
+            keyboard_layout_is_latin: Some(false),
+            keyboard_layout_direction: Some(ReadingDirection::Rtl),
+            latin_layout_chars: dvorak.clone(),
+            ..Default::default()
+        };
+
+        // An integration that doesn't report layout info must not erase it.
+        input.append(RawInput::default());
+        assert_eq!(input.keyboard_layout_is_latin, Some(false));
+        assert_eq!(input.keyboard_layout_direction, Some(ReadingDirection::Rtl));
+        assert_eq!(input.latin_layout_chars, dvorak);
+
+        // New layout data replaces the old.
+        input.append(RawInput {
+            keyboard_layout_is_latin: Some(true),
+            keyboard_layout_direction: Some(ReadingDirection::Ltr),
+            latin_layout_chars: qwerty.clone(),
+            ..Default::default()
+        });
+        assert_eq!(input.keyboard_layout_is_latin, Some(true));
+        assert_eq!(input.keyboard_layout_direction, Some(ReadingDirection::Ltr));
+        assert_eq!(input.latin_layout_chars, qwerty);
+
+        // Layout info is per-frame state, so `take` preserves it.
+        let taken = input.take();
+        assert_eq!(taken.keyboard_layout_is_latin, Some(true));
+        assert_eq!(taken.keyboard_layout_direction, Some(ReadingDirection::Ltr));
+        assert_eq!(taken.latin_layout_chars, qwerty);
+        assert_eq!(input.keyboard_layout_is_latin, Some(true));
+        assert_eq!(input.keyboard_layout_direction, Some(ReadingDirection::Ltr));
+        assert_eq!(input.latin_layout_chars, qwerty);
     }
 }

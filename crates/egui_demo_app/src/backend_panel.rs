@@ -1,3 +1,5 @@
+use egui_demo_lib::i18n;
+
 /// How often we repaint the demo app by default
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RunMode {
@@ -90,20 +92,26 @@ impl BackendPanel {
 
         ui.separator();
 
-        ui.label("egui windows:");
+        ui.label(i18n::t("egui windows:"));
         self.egui_windows.checkboxes(ui);
 
         #[cfg(debug_assertions)]
         if ui.global_style().debug.debug_on_hover_with_all_modifiers {
             ui.separator();
-            ui.label("Press down all modifiers and hover a widget to see a callstack for it");
+            ui.label(i18n::t(
+                "Press down all modifiers and hover a widget to see a callstack for it",
+            ));
         }
 
         #[cfg(target_arch = "wasm32")]
         {
             ui.separator();
             let mut screen_reader = ui.options(|o| o.screen_reader);
-            ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
+            ui.checkbox(&mut screen_reader, i18n::t("🔈 Screen reader")).on_hover_text(
+                i18n::t(
+                    "Experimental feature: checking this will turn on the screen reader on supported platforms",
+                ),
+            );
             ui.options_mut(|o| o.screen_reader = screen_reader);
         }
 
@@ -118,7 +126,7 @@ impl BackendPanel {
 
         if !cfg!(target_arch = "wasm32") {
             ui.separator();
-            if ui.button("Quit").clicked() {
+            if ui.button(i18n::t("Quit")).clicked() {
                 ui.send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
@@ -127,35 +135,42 @@ impl BackendPanel {
     fn run_mode_ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let run_mode = &mut self.run_mode;
-            ui.label("Mode:");
-            ui.radio_value(run_mode, RunMode::Reactive, "Reactive")
-                .on_hover_text("Repaint when there are animations or input (e.g. mouse movement)");
-            ui.radio_value(run_mode, RunMode::Continuous, "Continuous")
-                .on_hover_text("Repaint everything each frame");
+            ui.label(i18n::t("Mode:"));
+            ui.radio_value(run_mode, RunMode::Reactive, i18n::t("Reactive"))
+                .on_hover_text(i18n::t(
+                    "Repaint when there are animations or input (e.g. mouse movement)",
+                ));
+            ui.radio_value(run_mode, RunMode::Continuous, i18n::t("Continuous"))
+                .on_hover_text(i18n::t("Repaint everything each frame"));
         });
 
         if self.run_mode == RunMode::Continuous {
-            ui.label(format!(
-                "Repainting the UI each frame. FPS: {:.1}",
-                self.frame_history.fps()
+            let fps = format!("{:.1}", self.frame_history.fps());
+            // The `{fps}` placeholder is filled by `i18n::fmt`, not by `format!`.
+            #[expect(clippy::literal_string_with_formatting_args)]
+            ui.label(i18n::fmt(
+                i18n::t("Repainting the UI each frame. FPS: {fps}"),
+                &[("fps", fps.as_str())],
             ));
         } else {
-            ui.label("Only running UI code when there are animations or input.");
+            ui.label(i18n::t(
+                "Only running UI code when there are animations or input.",
+            ));
 
             // Add a test for `request_repaint_after`, but only in debug
             // builds to keep the noise down in the official demo.
             if cfg!(debug_assertions) {
-                ui.collapsing("More…", |ui| {
+                ui.collapsing(i18n::t("More…"), |ui| {
                     ui.horizontal(|ui| {
-                        ui.label("Total ui frames:");
+                        ui.label(i18n::t("Total ui frames:"));
                         ui.monospace(ui.ctx().cumulative_frame_nr().to_string());
                     });
                     ui.horizontal(|ui| {
-                        ui.label("Total ui passes:");
+                        ui.label(i18n::t("Total ui passes:"));
                         ui.monospace(ui.ctx().cumulative_pass_nr().to_string());
                     });
                     if ui
-                        .button("Wait 2s, then request repaint after another 3s")
+                        .button(i18n::t("Wait 2s, then request repaint after another 3s"))
                         .clicked()
                     {
                         log::info!("Waiting 2s before requesting repaint…");
@@ -167,11 +182,11 @@ impl BackendPanel {
                     }
 
                     ui.horizontal(|ui| {
-                        if ui.button("Request discard").clicked() {
+                        if ui.button(i18n::t("Request discard")).clicked() {
                             ui.request_discard("Manual button click");
 
                             if !ui.ctx().will_discard() {
-                                ui.label("Discard denied!");
+                                ui.label(i18n::t("Discard denied!"));
                             }
                         }
                     });
@@ -184,16 +199,27 @@ impl BackendPanel {
 fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("egui running inside ");
+        let inside = i18n::t("egui running inside {eframe}.");
+        let (head, tail) = i18n::split_template(inside, "eframe");
+        ui.label(head);
         ui.hyperlink_to(
             "eframe",
             "https://github.com/emilk/egui/tree/main/crates/eframe",
         );
-        ui.label(".");
+        ui.label(tail);
     });
 
+    // Self-identification: the git commit this binary was built from (baked by
+    // `build.rs`; "unknown" in archive/sandbox builds). The hash itself is
+    // language-independent data, so it stays unwrapped.
+    ui.label(format!(
+        "{} {}",
+        i18n::t("Build:"),
+        env!("EGUI_DEMO_APP_GIT_SHA")
+    ));
+
     #[cfg(target_arch = "wasm32")]
-    ui.collapsing("Web info (location)", |ui| {
+    ui.collapsing(i18n::t("Web info (location)"), |ui| {
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
         ui.monospace(format!("{:#?}", _frame.info().web_info.location));
     });
@@ -201,7 +227,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
     #[cfg(feature = "glow")]
     if _frame.gl().is_some() {
         ui.horizontal(|ui| {
-            ui.label("Renderer:");
+            ui.label(i18n::t("Renderer:"));
             ui.hyperlink_to("glow", "https://github.com/grovesNL/glow");
         });
     }
@@ -232,55 +258,55 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             // > name: "ANGLE (Apple, Apple M1 Pro, OpenGL 4.1)", device_type: IntegratedGpu, backend: Gl, driver: "", driver_info: ""
 
             egui::Grid::new("adapter_info").show(ui, |ui| {
-                ui.label("Backend:");
+                ui.label(i18n::t("Backend:"));
                 ui.label(format!("{backend:?}"));
                 ui.end_row();
 
-                ui.label("Device Type:");
+                ui.label(i18n::t("Device Type:"));
                 ui.label(format!("{device_type:?}"));
                 ui.end_row();
 
                 if !name.is_empty() {
-                    ui.label("Name:");
+                    ui.label(i18n::t("Name:"));
                     ui.label(format!("{name:?}"));
                     ui.end_row();
                 }
                 if !driver.is_empty() {
-                    ui.label("Driver:");
+                    ui.label(i18n::t("Driver:"));
                     ui.label(format!("{driver:?}"));
                     ui.end_row();
                 }
                 if !driver_info.is_empty() {
-                    ui.label("Driver info:");
+                    ui.label(i18n::t("Driver info:"));
                     ui.label(format!("{driver_info:?}"));
                     ui.end_row();
                 }
                 if *vendor != 0 {
                     // TODO(emilk): decode using https://github.com/gfx-rs/wgpu/blob/767ac03245ee937d3dc552edc13fe7ab0a860eec/wgpu-hal/src/auxil/mod.rs#L7
-                    ui.label("Vendor:");
+                    ui.label(i18n::t("Vendor:"));
                     ui.label(format!("0x{vendor:04X}"));
                     ui.end_row();
                 }
                 if *device != 0 {
-                    ui.label("Device:");
+                    ui.label(i18n::t("Device:"));
                     ui.label(format!("0x{device:02X}"));
                     ui.end_row();
                 }
                 if !device_pci_bus_id.is_empty() {
-                    ui.label("PCI Bus ID:");
+                    ui.label(i18n::t("PCI Bus ID:"));
                     ui.label(device_pci_bus_id.as_str());
                     ui.end_row();
                 }
                 if *subgroup_min_size != 0 || *subgroup_max_size != 0 {
-                    ui.label("Subgroup size:");
+                    ui.label(i18n::t("Subgroup size:"));
                     ui.label(format!("{subgroup_min_size}..={subgroup_max_size}"));
                     ui.end_row();
                 }
-                ui.label("Transient saves memory:");
+                ui.label(i18n::t("Transient saves memory:"));
                 ui.label(format!("{transient_saves_memory:?}"));
                 ui.end_row();
 
-                ui.label("Limit bucket:");
+                ui.label(i18n::t("Limit bucket:"));
                 ui.label(format!("{limit_bucket:?}"));
                 ui.end_row();
             });
@@ -294,17 +320,17 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         };
 
         egui::Grid::new("wgpu_info").num_columns(2).show(ui, |ui| {
-            ui.label("Renderer:");
+            ui.label(i18n::t("Renderer:"));
             ui.hyperlink_to("wgpu", "https://wgpu.rs/");
             ui.end_row();
 
-            ui.label("Backend:");
+            ui.label(i18n::t("Backend:"));
             wgpu_adapter_ui(ui, &render_state.adapter);
             ui.end_row();
 
             #[cfg(not(target_arch = "wasm32"))]
             if 1 < render_state.available_adapters.len() {
-                ui.label("Others:");
+                ui.label(i18n::t("Others:"));
                 ui.vertical(|ui| {
                     for adapter in &*render_state.available_adapters {
                         if adapter.get_info() != render_state.adapter.get_info() {
@@ -328,8 +354,8 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             {
                 let mut fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
                 if ui
-                    .checkbox(&mut fullscreen, "🔳 Fullscreen (F11)")
-                    .on_hover_text("Fullscreen the window")
+                    .checkbox(&mut fullscreen, i18n::t("🔳 Fullscreen (F11)"))
+                    .on_hover_text(i18n::t("Fullscreen the window"))
                     .changed()
                 {
                     ui.send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
@@ -338,23 +364,27 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
 
             let mut size = None;
             egui::ComboBox::from_id_salt("viewport-size-combo")
-                .selected_text("Resize to…")
+                .selected_text(i18n::t("Resize to…"))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(375.0, 667.0)),
-                        "📱 iPhone SE 2nd Gen",
+                        i18n::t("📱 iPhone SE 2nd Gen"),
                     );
-                    ui.selectable_value(&mut size, Some(egui::vec2(393.0, 852.0)), "📱 iPhone 15");
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(393.0, 852.0)),
+                        i18n::t("📱 iPhone 15"),
+                    );
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1280.0, 720.0)),
-                        "🖥️ Desktop 720p",
+                        i18n::t("🖥️ Desktop 720p"),
                     );
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1920.0, 1080.0)),
-                        "🖥️ Desktop 1080p",
+                        i18n::t("🖥️ Desktop 1080p"),
                     );
                 });
 
@@ -374,7 +404,7 @@ fn wgpu_surface_config_ui(ui: &mut egui::Ui, cfg: &mut eframe::SurfaceConfig) {
     egui::Grid::new("wgpu_surface_config")
         .num_columns(2)
         .show(ui, |ui| {
-            ui.label("Present mode:");
+            ui.label(i18n::t("Present mode:"));
             egui::ComboBox::from_id_salt("wgpu_present_mode")
                 .selected_text(format!("{:?}", cfg.present_mode))
                 .show_ui(ui, |ui| {
@@ -391,15 +421,19 @@ fn wgpu_surface_config_ui(ui: &mut egui::Ui, cfg: &mut eframe::SurfaceConfig) {
                 });
             ui.end_row();
 
-            ui.label("Desired max frame latency:");
+            ui.label(i18n::t("Desired max frame latency:"));
             egui::ComboBox::from_id_salt("wgpu_desired_max_frame_latency")
                 .selected_text(match cfg.desired_maximum_frame_latency {
-                    None => "Default".to_owned(),
+                    None => i18n::t("Default").to_owned(),
                     Some(n) => n.to_string(),
                 })
                 .show_ui(ui, |ui| {
-                    ui.weak("Lower value = lower latency");
-                    ui.selectable_value(&mut cfg.desired_maximum_frame_latency, None, "Default");
+                    ui.weak(i18n::t("Lower value = lower latency"));
+                    ui.selectable_value(
+                        &mut cfg.desired_maximum_frame_latency,
+                        None,
+                        i18n::t("Default"),
+                    );
                     for n in [0_u32, 1, 2, 3] {
                         ui.selectable_value(
                             &mut cfg.desired_maximum_frame_latency,
@@ -407,7 +441,7 @@ fn wgpu_surface_config_ui(ui: &mut egui::Ui, cfg: &mut eframe::SurfaceConfig) {
                             n.to_string(),
                         );
                     }
-                    ui.weak("Higher value = higher throughput/FPS");
+                    ui.weak(i18n::t("Higher value = higher throughput/FPS"));
                 });
             ui.end_row();
         });
@@ -453,10 +487,10 @@ impl EguiWindows {
             output_event_history: _,
         } = self;
 
-        ui.checkbox(settings, "🔧 Settings");
-        ui.checkbox(inspection, "🔍 Inspection");
-        ui.checkbox(memory, "📝 Memory");
-        ui.checkbox(output_events, "📤 Output Events");
+        ui.checkbox(settings, i18n::t("🔧 Settings"));
+        ui.checkbox(inspection, i18n::t("🔍 Inspection"));
+        ui.checkbox(memory, i18n::t("📝 Memory"));
+        ui.checkbox(output_events, i18n::t("📤 Output Events"));
     }
 
     fn windows(&mut self, ctx: &egui::Context) {
@@ -477,37 +511,37 @@ impl EguiWindows {
             output_event_history.pop_front();
         }
 
-        egui::Window::new("🔧 Settings")
+        egui::Window::new(i18n::t("🔧 Settings"))
             .open(settings)
             .vscroll(true)
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });
 
-        egui::Window::new("🔍 Inspection")
+        egui::Window::new(i18n::t("🔍 Inspection"))
             .open(inspection)
             .vscroll(true)
             .show(ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
 
-        egui::Window::new("📝 Memory")
+        egui::Window::new(i18n::t("📝 Memory"))
             .open(memory)
             .resizable(false)
             .show(ctx, |ui| {
                 ctx.memory_ui(ui);
             });
 
-        egui::Window::new("📤 Output Events")
+        egui::Window::new(i18n::t("📤 Output Events"))
             .open(output_events)
             .resizable(true)
             .default_width(520.0)
             .show(ctx, |ui| {
-                ui.label(
+                ui.label(i18n::t(
                     "Recent output events from egui. \
             These are emitted when you interact with widgets, or move focus between them with TAB. \
             They can be hooked up to a screen reader on supported platforms.",
-                );
+                ));
 
                 ui.separator();
 

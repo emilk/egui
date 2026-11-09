@@ -39,11 +39,13 @@ impl Suggestion {
         self
     }
 
-    /// Add weak text to the far right of the suggestion.
+    /// Add weak text to the suggestion's reading end: a growing spacer pushes
+    /// it to the far edge of the row, which is the visual left in a
+    /// right-to-left popup.
     #[inline]
     pub fn description(mut self, description: impl Into<WidgetText>) -> Self {
-        self.content.push_right(Atom::grow());
-        self.content.push_right(description.into().weak());
+        self.content.push_end(Atom::grow());
+        self.content.push_end(description.into().weak());
         self
     }
 }

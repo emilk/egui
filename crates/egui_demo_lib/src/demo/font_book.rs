@@ -29,7 +29,7 @@ impl crate::Demo for FontBook {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .constrain_to(ui.available_rect_before_wrap())
             .show(ui, |ui| {
@@ -47,9 +47,13 @@ impl crate::View for FontBook {
 
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            ui.label("On web, the browser draws missing glyphs instead. ");
-            ui.label("On native, eframe falls back to looking for a matching system font. ");
-            ui.label("Bundle fonts with ");
+            ui.label(crate::i18n::t(
+                "On web, the browser draws missing glyphs instead. ",
+            ));
+            ui.label(crate::i18n::t(
+                "On native, eframe falls back to looking for a matching system font. ",
+            ));
+            ui.label(crate::i18n::t("Bundle fonts with "));
             ui.add(egui::Hyperlink::from_label_and_url(
                 egui::RichText::new("Context::add_font").text_style(egui::TextStyle::Monospace),
                 "https://docs.rs/egui/latest/egui/struct.Context.html#method.add_font",
@@ -69,20 +73,23 @@ impl crate::View for FontBook {
 
         let fonts_in_family = fonts_in_family(ui, &font_id.family);
 
-        egui::CollapsingHeader::new(format!(
-            "The selected family has {} characters, from {} fonts",
-            available_glyphs.len(),
-            fonts_in_family.len()
+        let characters = available_glyphs.len().to_string();
+        let fonts = fonts_in_family.len().to_string();
+        // The `{characters}` / `{fonts}` placeholders are filled by `i18n::fmt`, not by `format!`.
+        #[expect(clippy::literal_string_with_formatting_args)]
+        egui::CollapsingHeader::new(crate::i18n::fmt(
+            crate::i18n::t("The selected family has {characters} characters, from {fonts} fonts"),
+            &[("characters", &characters), ("fonts", &fonts)],
         ))
         .show(ui, |ui| {
-            ui.label("In fallback order:");
+            ui.label(crate::i18n::t("In fallback order:"));
             for name in fonts_in_family {
                 ui.label(egui::RichText::new(name).text_style(egui::TextStyle::Monospace));
             }
         });
 
         ui.horizontal(|ui| {
-            let label = ui.label("Filter:");
+            let label = ui.label(crate::i18n::t("Filter:"));
             ui.add(egui::TextEdit::singleline(&mut self.filter).desired_width(120.0))
                 .labelled_by(label.id);
             self.filter = self.filter.to_lowercase();
@@ -176,19 +183,19 @@ fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: e
         .num_columns(2)
         .striped(true)
         .show(ui, |ui| {
-            ui.label("Name");
+            ui.label(crate::i18n::t("Name"));
             ui.label(glyph_info.name.clone());
             ui.end_row();
 
-            ui.label("Hex");
+            ui.label(crate::i18n::t("Hex"));
             ui.label(format!("{:X}", chr as u32));
             ui.end_row();
 
-            ui.label("Width");
+            ui.label(crate::i18n::t("Width"));
             ui.label(format!("{:.1} pts", resp.rect.width()));
             ui.end_row();
 
-            ui.label("Fonts");
+            ui.label(crate::i18n::t("Fonts"));
             ui.label(
                 format!("{:?}", glyph_info.fonts)
                     .trim_start_matches('[')
@@ -220,7 +227,8 @@ fn char_name(chr: char) -> String {
     special_char_name(chr)
         .map(|s| s.to_owned())
         .or_else(|| unicode_names2::name(chr).map(|name| name.to_string().to_lowercase()))
-        .unwrap_or_else(|| "unknown".to_owned())
+        // The fallback is shown in the character table, so it translates.
+        .unwrap_or_else(|| crate::i18n::t("unknown").to_owned())
 }
 
 fn special_char_name(chr: char) -> Option<&'static str> {

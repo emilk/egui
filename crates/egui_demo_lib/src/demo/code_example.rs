@@ -20,7 +20,7 @@ impl CodeExample {
         let Self { name, age } = self; // for brevity later on
 
         show_code(ui, r#"ui.heading("Example");"#);
-        ui.heading("Example");
+        ui.heading(crate::i18n::t("Example"));
         ui.end_row();
 
         show_code(
@@ -31,7 +31,7 @@ impl CodeExample {
                     .hint_text("Name"),
             );"#,
         );
-        ui.add(egui::TextEdit::singleline(name).hint_text("Name"));
+        ui.add(egui::TextEdit::singleline(name).hint_text(crate::i18n::t("Name")));
         ui.end_row();
 
         show_code(
@@ -43,7 +43,11 @@ impl CodeExample {
                     .suffix(" years"),
             );"#,
         );
-        ui.add(egui::DragValue::new(age).range(0..=120).suffix(" years"));
+        ui.add(
+            egui::DragValue::new(age)
+                .range(0..=120)
+                .suffix(crate::i18n::t(" years")),
+        );
         ui.end_row();
 
         show_code(
@@ -53,14 +57,19 @@ impl CodeExample {
                 *age += 1;
             }"#,
         );
-        if ui.button("Increment").clicked() {
+        if ui.button(crate::i18n::t("Increment")).clicked() {
             *age += 1;
         }
         ui.end_row();
 
         #[expect(clippy::literal_string_with_formatting_args)]
         show_code(ui, r#"ui.label(format!("{name} is {age}"));"#);
-        ui.label(format!("{name} is {age}"));
+        // The `{name}` / `{age}` placeholders are filled by `i18n::fmt`, not by `format!`.
+        #[expect(clippy::literal_string_with_formatting_args)]
+        ui.label(crate::i18n::fmt(
+            crate::i18n::t("{name} is {age}"),
+            &[("name", name.as_str()), ("age", &age.to_string())],
+        ));
         ui.end_row();
     }
 
@@ -103,7 +112,7 @@ impl crate::Demo for CodeExample {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .min_width(375.0)
             .default_size([390.0, 500.0])
@@ -129,7 +138,7 @@ impl crate::View for CodeExample {
 
         let mut theme =
             egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx(), ui.style());
-        ui.collapsing("Theme", |ui| {
+        ui.collapsing(crate::i18n::t("Theme"), |ui| {
             theme.ui(ui);
             theme.store_in_memory(ui.ctx());
         });

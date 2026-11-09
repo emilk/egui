@@ -4,7 +4,7 @@ use emath::GuiRounding as _;
 
 use crate::{
     Align2, AsIdSalt, Color32, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Rect,
-    Region, Style, Ui, UiBuilder, Vec2, vec2,
+    Region, Style, Ui, UiBuilder, Vec2, pos2, vec2,
 };
 
 #[cfg(debug_assertions)]
@@ -90,6 +90,9 @@ pub(crate) struct GridLayout {
     // Cursor:
     col: usize,
     row: usize,
+
+    /// Columns advance from the reading-start edge (right under RTL) toward the reading end.
+    is_rtl: bool,
 }
 
 impl GridLayout {
@@ -101,13 +104,11 @@ impl GridLayout {
 
         let prev_state = prev_state.unwrap_or_default();
 
-        // TODO(emilk): respect current layout
-
         let initial_available = ui.placer().max_rect().intersect(ui.cursor());
-        debug_assert!(
-            initial_available.min.x.is_finite(),
-            "Grid not yet available for right-to-left layouts"
-        );
+
+        // The grid follows the direction of the layout it lives in, so cells are placed
+        // and advanced from the reading-start edge (right under RTL):
+        let is_rtl = ui.placer().prefer_right_to_left(ui.is_rtl());
 
         ui.ctx().check_for_id_clash(id, initial_available, "Grid");
 
@@ -129,6 +130,7 @@ impl GridLayout {
 
             col: 0,
             row: 0,
+            is_rtl,
         }
     }
 }
@@ -160,6 +162,9 @@ impl GridLayout {
                 self.curr_state
                     .col_width(self.col)
                     .unwrap_or(self.min_cell_size.x)
+            } else if self.is_rtl {
+                // Remaining space between the reading-end edge and the current position:
+                (region.cursor.max.x - self.initial_available.min.x).at_most(self.max_cell_size.x)
             } else {
                 (self.initial_available.right() - region.cursor.left())
                     .at_most(self.max_cell_size.x)
@@ -186,7 +191,15 @@ impl GridLayout {
             .at_least(self.min_cell_size.y)
             .at_most(self.max_cell_size.y);
 
-        Rect::from_min_size(available.min, vec2(width, height))
+        if self.is_rtl {
+            // The available span grows from the cell's right edge toward the reading end.
+            Rect::from_min_size(
+                pos2(available.max.x - width, available.min.y),
+                vec2(width, height),
+            )
+        } else {
+            Rect::from_min_size(available.min, vec2(width, height))
+        }
     }
 
     pub(crate) fn next_cell(&self, cursor: Rect, child_size: Vec2) -> Rect {
@@ -197,15 +210,22 @@ impl GridLayout {
         };
         let height = self.prev_row_height(self.row);
         let size = child_size.max(vec2(width, height));
-        Rect::from_min_size(cursor.min, size).round_ui()
+        if self.is_rtl {
+            // The cell's right edge sits at the cursor and it grows toward the reading end.
+            Rect::from_min_size(pos2(cursor.max.x - size.x, cursor.min.y), size).round_ui()
+        } else {
+            Rect::from_min_size(cursor.min, size).round_ui()
+        }
     }
 
-    #[expect(clippy::unused_self)]
     pub(crate) fn align_size_within_rect(&self, size: Vec2, frame: Rect) -> Rect {
         // TODO(emilk): allow this alignment to be customized
-        Align2::LEFT_CENTER
-            .align_size_within_rect(size, frame)
-            .round_ui()
+        let align = if self.is_rtl {
+            Align2::RIGHT_CENTER
+        } else {
+            Align2::LEFT_CENTER
+        };
+        align.align_size_within_rect(size, frame).round_ui()
     }
 
     pub(crate) fn justify_and_align(&self, frame: Rect, size: Vec2) -> Rect {
@@ -248,7 +268,11 @@ impl GridLayout {
         self.curr_state
             .set_min_row_height(self.row, widget_rect.height().max(self.min_cell_size.y));
 
-        cursor.min.x += self.prev_col_width(self.col) + self.spacing.x;
+        if self.is_rtl {
+            cursor.max.x -= self.prev_col_width(self.col) + self.spacing.x;
+        } else {
+            cursor.min.x += self.prev_col_width(self.col) + self.spacing.x;
+        }
         self.col += 1;
     }
 
@@ -265,7 +289,12 @@ impl GridLayout {
         };
         // Paint background for coming row:
         let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
-        let rect = Rect::from_min_size(cursor.min, size);
+        let rect_min = if self.is_rtl {
+            pos2(cursor.max.x - size.x, cursor.min.y)
+        } else {
+            cursor.min
+        };
+        let rect = Rect::from_min_size(rect_min, size);
         let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
         let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
 
@@ -273,7 +302,14 @@ impl GridLayout {
     }
 
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
-        cursor.min.x = self.initial_available.min.x;
+        if self.is_rtl {
+            // RTL resets the reading-start (max) edge, mirroring the engine's wrap `end_row`
+            // (which resets `max.x` to `max_rect.right()`); `cursor.min.x` stays `-INFINITY`
+            // exactly as `initial_cursor` set it.
+            cursor.max.x = self.initial_available.max.x;
+        } else {
+            cursor.min.x = self.initial_available.min.x;
+        }
         cursor.min.y += self.spacing.y;
         cursor.min.y += self
             .curr_state
@@ -300,8 +336,9 @@ impl GridLayout {
 
 /// A simple grid layout.
 ///
-/// The cells are always laid out left to right, top-down.
-/// The contents of each cell will be aligned to the left and center.
+/// The cells are laid out in reading order: left to right in an LTR layout, right to left in an
+/// RTL layout. The contents of each cell are aligned to the reading-start edge and centered
+/// vertically.
 ///
 /// If you want to add multiple widgets to a cell you need to group them with
 /// [`Ui::horizontal`], [`Ui::vertical`] etc.
@@ -453,7 +490,8 @@ impl Grid {
         let id = ui.make_persistent_id(id_salt);
         let prev_state = State::load(ui.ctx(), id);
 
-        // Each grid cell is aligned LEFT_CENTER.
+        // Each grid cell is aligned to the reading-start edge (LEFT_CENTER under LTR,
+        // RIGHT_CENTER under RTL).
         // If somebody wants to wrap more things inside a cell,
         // then we should pick a default layout that matches that alignment,
         // which we do here:
@@ -507,4 +545,352 @@ fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
         return Some(style.visuals.faint_bg_color);
     }
     None
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use core::cell::RefCell;
+
+    use crate::{
+        Align, Color32, Context, DragValue, FullOutput, Layout, Pos2, RawInput, Rect, Ui, Vec2,
+        epaint::{RectShape, Shape},
+        vec2,
+    };
+
+    use super::Grid;
+
+    const SCREEN: Vec2 = vec2(400.0, 300.0);
+
+    fn input() -> RawInput {
+        RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SCREEN)),
+            ..Default::default()
+        }
+    }
+
+    /// How right-to-left is triggered in a scenario.
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    enum Trigger {
+        /// An explicit [`Layout::right_to_left`] on the enclosing ui.
+        ExplicitLayout,
+
+        /// [`crate::Style::right_to_left`], set through [`Context::set_right_to_left`].
+        StyleFlag,
+    }
+
+    /// Run the scenario twice (a grid's first frame is an invisible sizing pass, see
+    /// `show_dyn`) and return the second pass's output. The first pass doubles as the
+    /// no-panic guard.
+    fn run_two_passes(rtl: bool, trigger: Trigger, body: &mut dyn FnMut(&mut Ui)) -> FullOutput {
+        let ctx = Context::default();
+        if rtl && trigger == Trigger::StyleFlag {
+            ctx.set_right_to_left(true);
+        }
+        let mut body_wrapper = |ui: &mut Ui| match trigger {
+            Trigger::ExplicitLayout => {
+                let layout = if rtl {
+                    Layout::right_to_left(Align::Min)
+                } else {
+                    Layout::left_to_right(Align::Min)
+                };
+                ui.with_layout(layout, |ui| body(ui));
+            }
+            Trigger::StyleFlag => body(ui),
+        };
+        let mut first = ctx.run_ui(input(), &mut body_wrapper);
+        // The first pass's output is discarded; its texture deltas must be cleared
+        // before the drop guard in `TexturesDelta` sees them:
+        first.textures_delta.clear();
+        drop(first);
+        let mut output = ctx.run_ui(input(), &mut body_wrapper);
+        output.textures_delta.clear();
+        output
+    }
+
+    #[test]
+    fn grid_follows_layout_direction() {
+        for rtl in [false, true] {
+            for trigger in [Trigger::ExplicitLayout, Trigger::StyleFlag] {
+                let label_rect = RefCell::new(Rect::NOTHING);
+                let editor_rect = RefCell::new(Rect::NOTHING);
+                let offered = RefCell::new(Rect::NOTHING);
+                let mut text = String::from("value");
+                run_two_passes(rtl, trigger, &mut |ui| {
+                    *offered.borrow_mut() = ui.max_rect();
+                    Grid::new("follows-layout-direction").show(ui, |ui| {
+                        let label = ui.label("Name");
+                        *label_rect.borrow_mut() = label.rect;
+                        let editor = ui.text_edit_singleline(&mut text);
+                        *editor_rect.borrow_mut() = editor.rect;
+                        ui.end_row();
+                    });
+                });
+
+                let label_rect = *label_rect.borrow();
+                let editor_rect = *editor_rect.borrow();
+                assert!(
+                    label_rect.is_finite() && label_rect.is_positive(),
+                    "label rect must be finite and positive (rtl = {rtl}, trigger = {trigger:?}): \
+                     {label_rect:?}"
+                );
+                assert!(
+                    editor_rect.is_finite() && editor_rect.is_positive(),
+                    "editor rect must be finite and positive (rtl = {rtl}, trigger = {trigger:?}): \
+                     {editor_rect:?}"
+                );
+
+                let offered = *offered.borrow();
+                assert!(
+                    offered.contains_rect(label_rect),
+                    "label must be inside the offered rect {offered:?} (rtl = {rtl}, \
+                     trigger = {trigger:?}): {label_rect:?}"
+                );
+                assert!(
+                    offered.contains_rect(editor_rect),
+                    "editor must be inside the offered rect {offered:?} (rtl = {rtl}, \
+                     trigger = {trigger:?}): {editor_rect:?}"
+                );
+
+                if rtl {
+                    assert!(
+                        label_rect.right() > editor_rect.right(),
+                        "in RTL the label (first cell) must be right of the editor \
+                         (trigger = {trigger:?}): label = {label_rect:?}, editor = {editor_rect:?}"
+                    );
+                } else {
+                    assert!(
+                        label_rect.left() < editor_rect.left(),
+                        "in LTR the label (first cell) must be left of the editor \
+                         (trigger = {trigger:?}): label = {label_rect:?}, editor = {editor_rect:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn grid_cell_order_mirrors_in_rtl() {
+        for rtl in [false, true] {
+            let cells = RefCell::new(Vec::<Rect>::new());
+            let mut count = 0_i32;
+            run_two_passes(rtl, Trigger::ExplicitLayout, &mut |ui| {
+                Grid::new("cell-order").show(ui, |ui| {
+                    cells.borrow_mut().clear();
+                    let label = ui.label("Label");
+                    cells.borrow_mut().push(label.rect);
+                    let button = ui.button("Click");
+                    cells.borrow_mut().push(button.rect);
+                    let drag = ui.add(DragValue::new(&mut count));
+                    cells.borrow_mut().push(drag.rect);
+                    ui.end_row();
+                });
+            });
+
+            let cells = cells.borrow().clone();
+            assert_eq!(cells.len(), 3);
+            if rtl {
+                assert!(
+                    cells[0].right() > cells[1].right() && cells[1].right() > cells[2].right(),
+                    "in RTL cell right edges must decrease in call order (rtl = {rtl}): \
+                     {cells:?}"
+                );
+            } else {
+                assert!(
+                    cells[0].left() < cells[1].left() && cells[1].left() < cells[2].left(),
+                    "in LTR cell left edges must increase in call order (rtl = {rtl}): {cells:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn grid_rtl_rows_share_reading_start_anchor() {
+        for rtl in [false, true] {
+            let cells = RefCell::new(Vec::<Rect>::new()); // row-major: two rows of two cells
+            run_two_passes(rtl, Trigger::ExplicitLayout, &mut |ui| {
+                Grid::new("row-anchor").show(ui, |ui| {
+                    cells.borrow_mut().clear();
+                    for row in 0..2 {
+                        let first = ui.label(format!("Row {row} A"));
+                        let second = ui.label(format!("Row {row} B"));
+                        ui.end_row();
+                        let mut cells = cells.borrow_mut();
+                        cells.push(first.rect);
+                        cells.push(second.rect);
+                    }
+                });
+            });
+
+            let cells = cells.borrow().clone();
+            assert_eq!(cells.len(), 4);
+            let row1_first = cells[0];
+            let row2_first = cells[2];
+
+            // Rows stack downward as ever:
+            assert!(
+                row2_first.top() > row1_first.top(),
+                "row 2 must be below row 1 (rtl = {rtl}): row 1 = {row1_first:?}, \
+                 row 2 = {row2_first:?}"
+            );
+
+            // Every row anchors at the same reading-start edge:
+            if rtl {
+                assert!(
+                    (row2_first.right() - row1_first.right()).abs() <= 1.0,
+                    "both rows must share the right (reading-start) anchor (rtl = {rtl}): \
+                     row 1 = {row1_first:?}, row 2 = {row2_first:?}"
+                );
+            } else {
+                assert!(
+                    (row2_first.left() - row1_first.left()).abs() <= 1.0,
+                    "both rows must share the left (reading-start) anchor (rtl = {rtl}): \
+                     row 1 = {row1_first:?}, row 2 = {row2_first:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn grid_rtl_striping_covers_the_row() {
+        // Stripes exist only for odd rows (`striped_row_color`), so build two rows; and they
+        // need the persisted row heights of the previous frame, so assert on the second pass
+        // (which `run_two_passes` returns).
+        let scenario = |rtl: bool| {
+            let cells = RefCell::new(Vec::<Rect>::new()); // row-major: two rows of two cells
+            let faint = RefCell::new(Color32::TRANSPARENT);
+            let output = run_two_passes(rtl, Trigger::ExplicitLayout, &mut |ui| {
+                *faint.borrow_mut() = ui.style().visuals.faint_bg_color;
+                Grid::new("striped").striped(true).show(ui, |ui| {
+                    cells.borrow_mut().clear();
+                    for row in 0..2 {
+                        let first = ui.label(format!("Row {row} A"));
+                        let second = ui.label(format!("Row {row} B"));
+                        ui.end_row();
+                        let mut cells = cells.borrow_mut();
+                        cells.push(first.rect);
+                        cells.push(second.rect);
+                    }
+                });
+            });
+
+            let mut stripes = Vec::new();
+            for clipped in &output.shapes {
+                if let Shape::Rect(RectShape { rect, fill, .. }) = &clipped.shape
+                    && *fill == *faint.borrow()
+                {
+                    stripes.push(*rect);
+                }
+            }
+            (stripes, cells.borrow().clone())
+        };
+
+        let (ltr_stripes, ltr_cells) = scenario(false);
+        let (rtl_stripes, rtl_cells) = scenario(true);
+
+        // Both scenarios must paint the same non-zero number of stripes:
+        assert!(
+            !ltr_stripes.is_empty(),
+            "the LTR scenario must paint stripes"
+        );
+        assert_eq!(
+            rtl_stripes.len(),
+            ltr_stripes.len(),
+            "stripe count must not depend on direction"
+        );
+
+        // Stripe width is direction-independent:
+        for (ltr_stripe, rtl_stripe) in core::iter::zip(&ltr_stripes, &rtl_stripes) {
+            assert!(
+                ltr_stripe.is_finite() && rtl_stripe.is_finite(),
+                "stripes must be finite: ltr = {ltr_stripe:?}, rtl = {rtl_stripe:?}"
+            );
+            assert_eq!(
+                rtl_stripe.width(),
+                ltr_stripe.width(),
+                "stripe width must be direction-independent: ltr = {ltr_stripe:?}, \
+                 rtl = {rtl_stripe:?}"
+            );
+        }
+
+        // Each stripe spans its row, anchored at the reading-start edge:
+        let first_cell = rtl_cells[2]; // first cell of the striped (second) row
+        let last_cell = rtl_cells[3]; // last cell of the striped (second) row
+        for stripe in &rtl_stripes {
+            assert!(
+                stripe.right() >= first_cell.right(),
+                "the RTL stripe must reach the reading-start edge of the row: \
+                 stripe = {stripe:?}, first cell = {first_cell:?}"
+            );
+            assert!(
+                stripe.left() <= last_cell.left(),
+                "the RTL stripe must cover the row through its last cell: \
+                 stripe = {stripe:?}, last cell = {last_cell:?}"
+            );
+        }
+        let first_cell = ltr_cells[2];
+        let last_cell = ltr_cells[3];
+        for stripe in &ltr_stripes {
+            assert!(
+                stripe.left() <= first_cell.left(),
+                "the LTR stripe must reach the reading-start edge of the row: \
+                 stripe = {stripe:?}, first cell = {first_cell:?}"
+            );
+            assert!(
+                stripe.right() >= last_cell.right(),
+                "the LTR stripe must cover the row through its last cell: \
+                 stripe = {stripe:?}, last cell = {last_cell:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn grid_ltr_output_is_unchanged() {
+        // The plain LTR baseline: a default context (no flag, no explicit layout).
+        let label_rect = RefCell::new(Rect::NOTHING);
+        let editor_rect = RefCell::new(Rect::NOTHING);
+        let origin = RefCell::new(f32::NAN);
+        let mut text = String::from("value");
+        run_two_passes(false, Trigger::StyleFlag, &mut |ui| {
+            *origin.borrow_mut() = ui.cursor().min.x;
+            Grid::new("ltr-golden").show(ui, |ui| {
+                let label = ui.label("Name");
+                *label_rect.borrow_mut() = label.rect;
+                let editor = ui.text_edit_singleline(&mut text);
+                *editor_rect.borrow_mut() = editor.rect;
+                ui.end_row();
+            });
+        });
+
+        let label_rect = *label_rect.borrow();
+        let editor_rect = *editor_rect.borrow();
+
+        // Columns advance left to right in call order, respecting the column spacing:
+        assert!(
+            label_rect.left() < editor_rect.left(),
+            "in LTR the label (first cell) must be left of the editor: \
+             label = {label_rect:?}, editor = {editor_rect:?}"
+        );
+        assert!(
+            label_rect.right() <= editor_rect.left(),
+            "the editor must start after the label's column spacing: \
+             label = {label_rect:?}, editor = {editor_rect:?}"
+        );
+
+        // Same row: the shorter label is vertically centered within the taller editor's band.
+        assert!(
+            editor_rect.top() <= label_rect.top() && label_rect.bottom() <= editor_rect.bottom(),
+            "both widgets must share the same row band: label = {label_rect:?}, \
+             editor = {editor_rect:?}"
+        );
+
+        // The grid anchors at the parent cursor origin:
+        assert!(
+            (label_rect.left() - *origin.borrow()).abs() <= 1.0,
+            "the first cell must start at the parent cursor origin: label = {label_rect:?}, \
+             origin = {:?}",
+            origin.borrow()
+        );
+    }
 }

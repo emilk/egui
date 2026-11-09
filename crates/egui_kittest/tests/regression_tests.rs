@@ -183,6 +183,56 @@ fn test_combobox() {
     assert!(harness.query_by_label("Item 2").is_none());
 }
 
+/// RTL twin of [`test_combobox`]: same widget and interaction, mirrored chrome.
+#[test]
+fn test_combobox_rtl() {
+    let items = ["Item 1", "Item 2", "Item 3"];
+    let mut harness = Harness::builder()
+        .with_right_to_left(true)
+        .with_size(Vec2::new(300.0, 200.0))
+        .build_ui_state(
+            |ui, selected| {
+                ComboBox::new("combobox", "Select Something").show_index(
+                    ui,
+                    selected,
+                    items.len(),
+                    |idx| *items.get(idx).expect("Invalid index"),
+                );
+            },
+            0,
+        );
+
+    harness.run();
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    let mut results = SnapshotResults::new();
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    results.add(harness.try_snapshot("combobox_closed_rtl"));
+
+    let combobox = harness.get_by_role_and_label(Role::ComboBox, "Select Something");
+    combobox.click();
+
+    harness.run();
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    results.add(harness.try_snapshot("combobox_opened_rtl"));
+
+    let item_2 = harness.get_by_role_and_label(Role::Button, "Item 2");
+    item_2.click();
+
+    harness.run();
+
+    assert_eq!(
+        harness.state(),
+        &1,
+        "selecting 'Item 2' should store index 1"
+    );
+
+    // Popup should be closed now
+    assert!(harness.query_by_label("Item 2").is_none());
+}
+
 /// `https://github.com/emilk/egui/issues/7065`
 #[test]
 pub fn slider_should_move_with_fixed_decimals() {

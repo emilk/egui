@@ -1,3 +1,4 @@
+use crate::i18n;
 use egui::{Button, util::undoer::Undoer};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -12,6 +13,8 @@ impl Default for State {
     fn default() -> Self {
         Self {
             toggle_value: Default::default(),
+            // Sample content, not chrome: it is created before the language is known, so it
+            // stays English (the hint below is translated at render time).
             text: "Text with undo/redo".to_owned(),
         }
     }
@@ -32,7 +35,7 @@ impl crate::Demo for UndoRedoDemo {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(i18n::t(self.name()))
             .open(open)
             .resizable(false)
             .constrain_to(ui.available_rect_before_wrap())
@@ -49,8 +52,14 @@ impl crate::View for UndoRedoDemo {
             ui.add(crate::egui_github_link_file!());
         });
 
-        ui.checkbox(&mut self.state.toggle_value, "Checkbox with undo/redo");
-        ui.add(egui::TextEdit::singleline(&mut self.state.text).hint_text("Text with undo/redo"));
+        ui.checkbox(
+            &mut self.state.toggle_value,
+            i18n::t("Checkbox with undo/redo"),
+        );
+        ui.add(
+            egui::TextEdit::singleline(&mut self.state.text)
+                .hint_text(i18n::t("Text with undo/redo")),
+        );
 
         ui.separator();
 
@@ -58,8 +67,12 @@ impl crate::View for UndoRedoDemo {
         let can_redo = self.undoer.has_redo(&self.state);
 
         ui.horizontal(|ui| {
-            let undo = ui.add_enabled(can_undo, Button::new("⟲ Undo")).clicked();
-            let redo = ui.add_enabled(can_redo, Button::new("⟳ Redo")).clicked();
+            let undo = ui
+                .add_enabled(can_undo, Button::new(i18n::t("⟲ Undo")))
+                .clicked();
+            let redo = ui
+                .add_enabled(can_redo, Button::new(i18n::t("⟳ Redo")))
+                .clicked();
 
             if undo && let Some(undo_text) = self.undoer.undo(&self.state) {
                 self.state = undo_text.clone();

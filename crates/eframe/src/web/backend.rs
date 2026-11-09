@@ -201,28 +201,43 @@ fn parse_query_map(query: &str) -> BTreeMap<String, Vec<String>> {
 #[test]
 fn test_parse_query() {
     assert_eq!(parse_query_map(""), BTreeMap::default());
-    assert_eq!(parse_query_map("foo"), BTreeMap::from_iter([("foo", "")]));
+    assert_eq!(
+        parse_query_map("foo"),
+        BTreeMap::from_iter([("foo".to_owned(), vec![String::new()])])
+    );
     assert_eq!(
         parse_query_map("foo=bar"),
-        BTreeMap::from_iter([("foo", "bar")])
+        BTreeMap::from_iter([("foo".to_owned(), vec!["bar".to_owned()])])
     );
     assert_eq!(
         parse_query_map("foo=bar&baz=42"),
-        BTreeMap::from_iter([("foo", "bar"), ("baz", "42")])
+        BTreeMap::from_iter([
+            ("foo".to_owned(), vec!["bar".to_owned()]),
+            ("baz".to_owned(), vec!["42".to_owned()]),
+        ])
     );
     assert_eq!(
         parse_query_map("foo&baz=42"),
-        BTreeMap::from_iter([("foo", ""), ("baz", "42")])
+        BTreeMap::from_iter([
+            ("foo".to_owned(), vec![String::new()]),
+            ("baz".to_owned(), vec!["42".to_owned()]),
+        ])
     );
     assert_eq!(
         parse_query_map("foo&baz&&"),
-        BTreeMap::from_iter([("foo", ""), ("baz", "")])
+        BTreeMap::from_iter([
+            ("foo".to_owned(), vec![String::new()]),
+            ("baz".to_owned(), vec![String::new()]),
+        ])
     );
     assert_eq!(
         parse_query_map("badger=data.rrd%3Fparam1%3Dfoo%26param2%3Dbar&mushroom=snake"),
         BTreeMap::from_iter([
-            ("badger", "data.rrd?param1=foo&param2=bar"),
-            ("mushroom", "snake")
+            (
+                "badger".to_owned(),
+                vec!["data.rrd?param1=foo&param2=bar".to_owned()]
+            ),
+            ("mushroom".to_owned(), vec!["snake".to_owned()]),
         ])
     );
 }

@@ -20,10 +20,10 @@ impl Default for Painting {
 impl Painting {
     pub fn ui_control(&mut self, ui: &mut egui::Ui) -> egui::Response {
         ui.horizontal(|ui| {
-            ui.label("Stroke:");
+            ui.label(crate::i18n::t("Stroke:"));
             ui.add(&mut self.stroke);
             ui.separator();
-            if ui.button("Clear Painting").clicked() {
+            if ui.button(crate::i18n::t("Clear Painting")).clicked() {
                 self.lines.clear();
             }
         })
@@ -79,7 +79,7 @@ impl crate::Demo for Painting {
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        Window::new(self.name())
+        Window::new(crate::i18n::t(self.name()))
             .open(open)
             .default_size(vec2(512.0, 512.0))
             .vscroll(false)
@@ -94,7 +94,7 @@ impl crate::View for Painting {
             ui.add(crate::egui_github_link_file!());
         });
         self.ui_control(ui);
-        ui.label("Paint with your mouse/touch!");
+        ui.label(crate::i18n::t("Paint with your mouse/touch!"));
         Frame::canvas(ui.style()).show(ui, |ui| {
             self.ui_content(ui);
         });

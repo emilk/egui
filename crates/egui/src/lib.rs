@@ -94,6 +94,28 @@
 //!
 //! Angles are in radians, and are measured clockwise from the X-axis, which has angle=0.
 //!
+//! ## Right-to-left interfaces
+//! egui can mirror its interface for right-to-left reading orders
+//! (Arabic, Hebrew, Persian, Urdu, …):
+//!
+//! * [`Style::right_to_left`] mirrors egui-owned widget chrome and default
+//!   placements; set it for the whole context with
+//!   [`Context::set_right_to_left`], or pick a policy with
+//!   [`Context::set_direction_preference`] (explicit left-to-right /
+//!   right-to-left, or follow the locale reported through
+//!   [`RawInput::system_locale`]).
+//! * [`Context::set_locale`] sets the text language and derives the reading
+//!   direction from one locale tag; [`Context::set_language`] sets only the
+//!   language, so line-breaking and shaping can be locale-aware.
+//! * The coordinate system stays physical under the flag: Y still points
+//!   down and X still increases to the right; only which side of a widget is
+//!   its reading-*start* changes.
+//! * The default font stack still lacks Arabic and Hebrew glyphs — install a
+//!   suitable font with [`Context::set_fonts`] (or a font provider) to render
+//!   them.
+//! * For the native window chrome itself, integrations can read the
+//!   [`ViewportBuilder::with_layout_direction`] hint.
+//!
 //! # Integrating with egui
 //!
 //! Most likely you are using an existing `egui` backend/integration such as [`eframe`](https://docs.rs/eframe), [`bevy_egui`](https://docs.rs/bevy_egui),
@@ -366,9 +388,35 @@
 //! # });
 //! ```
 //!
-//! ## Installing additional fonts
-//! The default egui fonts only support latin and cryllic characters, and some emojis.
-//! To use egui with e.g. asian characters you need to install your own font (`.ttf` or `.otf`) using [`Context::set_fonts`].
+//! ## Fonts and scripts
+//! Which scripts egui can render depends on the installed fonts, consulted in this order:
+//!
+//! 1. **The bundled fonts** (the `default_fonts` feature): Latin, Greek and Cyrillic
+//!    characters, plus a few icons and emojis — see [`FontDefinitions::default`].
+//!    On the `egui` crate itself this feature is **off by default**: `eframe` enables it,
+//!    but any other integration must either enable it or install a [`FontProvider`] of its
+//!    own — with neither, every character, Latin included, renders as a tofu box.
+//! 2. **The fonts of the operating system**: on native, `eframe` installs
+//!    `egui_system_font_provider` by default (turn it off with
+//!    `NativeOptions::system_font_fallback`), which looks up each grapheme cluster in the
+//!    system font store (CoreText, DirectWrite, fontconfig, Android), so e.g. Arabic,
+//!    Hebrew and CJK render with a system font. A font that maps Arabic codepoints but
+//!    cannot join them into connected words (no `init`/`medi`/`fina` GSUB features, or an
+//!    AAT `morx` table) is skipped, so Arabic never renders as disconnected letters.
+//! 3. **A [`FontProvider`] you install** — what any integration that is neither `eframe`
+//!    nor a `default_fonts` user should do, e.g.
+//!    `ctx.add_font_provider(Arc::new(egui_system_font_provider::SystemFontProvider::new()));`
+//!    via [`Context::add_font_provider`].
+//! 4. **Fonts you bundle or fetch**: on the web there is no system font store to ask, so
+//!    install font files (TTF or OTF) with [`Context::add_font`] or [`Context::set_fonts`]
+//!    (see [`FontDefinitions`]). When `eframe` runs on the web, the browser's own font
+//!    fallback draws clusters the installed fonts lack, through the canvas glyph
+//!    rasterizer.
+//! 5. **Nothing can draw it**: by default the cluster renders as a tofu box
+//!    ([`MissingGlyphPolicy::Tofu`]). `egui_kittest` instead panics on missing glyphs by
+//!    default; opt out with `Harness::builder().allow_missing_glyphs()`, or install an
+//!    external test font with `Harness::builder().with_rtl_font()` (set the
+//!    `KITTEST_RTL_FONT` environment variable) when an assertion needs real glyphs.
 //!
 //! ## Instrumentation
 //! This crate supports using the [profiling](https://crates.io/crates/profiling) crate for instrumentation.
@@ -411,6 +459,7 @@ pub mod introspection;
 pub mod layers;
 mod layout;
 pub mod load;
+mod locale;
 mod memory;
 pub mod os;
 mod painter;
@@ -451,8 +500,8 @@ pub use epaint::emath;
 pub use ecolor::hex_color;
 pub use ecolor::{Color32, Rgba};
 pub use emath::{
-    Align, Align2, NumExt, Pos2, Rangef, Rect, RectAlign, Vec2, Vec2b, lerp, pos2, remap,
-    remap_clamp, vec2,
+    Align, Align2, NumExt, Pos2, Rangef, ReadingDirection, Rect, RectAlign, Vec2, Vec2b, lerp,
+    pos2, remap, remap_clamp, vec2,
 };
 pub use epaint::{
     ClippedPrimitive, ColorImage, CornerRadius, Direction, ImageData, Margin, Mesh, PaintCallback,
@@ -470,7 +519,8 @@ pub mod text {
     pub use crate::text_selection::CCursorRange;
     pub use epaint::text::{
         ByteIndex, ByteRange, CharIndex, CharRange, FontData, FontDefinitions, FontFamily, Fonts,
-        Galley, LayoutJob, LayoutSection, TextFormat, TextWrapping, cursor::CCursor,
+        Galley, LayoutJob, LayoutSection, LineBreaker, NoopLineBreaker, TextDirection, TextFormat,
+        TextWrapping, cursor::CCursor,
     };
 }
 
@@ -498,8 +548,9 @@ pub use self::{
             TouchPhase, ViewportEvent, ViewportInfo,
         },
         output::{
-            self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
-            PlatformOutput, UserAttentionType, WidgetInfo, role_description,
+            self, CursorIcon, CustomCursorImage, FullOutput, ImeSurroundingText, LogicOutput,
+            OpenUrl, OutputCommand, PlatformOutput, UserAttentionType, WidgetInfo,
+            role_description,
         },
     },
     drag_and_drop::DragAndDrop,
@@ -507,11 +558,14 @@ pub use self::{
     grid::Grid,
     id::{Id, IdMap, IdSet},
     id_salt::{AsIdSalt, IdSalt, IdSaltMap, IdSaltSet},
-    input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
+    input_state::{
+        InputOptions, InputState, MAX_TEXT_EVENT_CHARS, MultiTouchInfo, PointerState,
+        SurrenderFocusOn,
+    },
     layers::{LayerId, Order},
     layout::Layout,
     load::SizeHint,
-    memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
+    memory::{DirectionPreference, FocusDirection, Memory, Options, Theme, ThemePreference},
     painter::Painter,
     plugin::Plugin,
     response::{InnerResponse, Response},

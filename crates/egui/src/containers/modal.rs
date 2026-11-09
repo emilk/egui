@@ -37,6 +37,13 @@ impl Modal {
     /// - sense: hover
     /// - anchor: center
     /// - order: foreground
+    ///
+    /// Until the user resizes the dialog by its resize grip, it stays centered: its
+    /// placement is re-derived from its size every frame, so it re-centers as its
+    /// content grows. Once the user has resized it, the reading-start edge of the
+    /// dialog pins and it grows reading-forward instead — like a user-resized
+    /// window — instead of re-centering around the dragged size (which would grow
+    /// the dialog at double pointer rate).
     pub fn default_area(id: Id) -> Area {
         Area::new(id)
             .kind(UiKind::Modal)

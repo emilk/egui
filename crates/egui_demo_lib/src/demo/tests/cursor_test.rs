@@ -7,7 +7,7 @@ impl crate::Demo for CursorTest {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .constrain_to(ui.available_rect_before_wrap())
             .show(ui, |ui| {
@@ -20,8 +20,9 @@ impl crate::Demo for CursorTest {
 impl crate::View for CursorTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered_justified(|ui| {
-            ui.heading("Hover to switch cursor icon:");
+            ui.heading(crate::i18n::t("Hover to switch cursor icon:"));
             for &cursor_icon in &egui::CursorIcon::ALL {
+                // The `{name:?}` debug spelling of each cursor icon is the label on purpose.
                 let _ = ui
                     .button(format!("{cursor_icon:?}"))
                     .on_hover_cursor(cursor_icon);

@@ -29,7 +29,7 @@ impl crate::Demo for FrameDemo {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        egui::Window::new(self.name())
+        egui::Window::new(crate::i18n::t(self.name()))
             .open(open)
             .resizable(false)
             .constrain_to(ui.available_rect_before_wrap())
@@ -48,7 +48,9 @@ impl crate::View for FrameDemo {
 
                 ui.add_space(8.0);
                 ui.set_max_width(ui.min_size().x);
-                ui.vertical_centered(|ui| egui::reset_button(ui, self, "Reset"));
+                ui.vertical_centered(|ui| {
+                    egui::reset_button(ui, self, crate::i18n::t("Reset"));
+                });
             });
 
             ui.separator();
@@ -61,7 +63,10 @@ impl crate::View for FrameDemo {
                     .show(ui, |ui| {
                         self.frame.show(ui, |ui| {
                             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-                            ui.label(egui::RichText::new("Content").color(egui::Color32::WHITE));
+                            ui.label(
+                                egui::RichText::new(crate::i18n::t("Content"))
+                                    .color(egui::Color32::WHITE),
+                            );
                         });
                     });
             });

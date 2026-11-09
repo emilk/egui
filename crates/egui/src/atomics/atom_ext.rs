@@ -76,6 +76,17 @@ pub trait AtomExt<'a> {
     ///
     /// Defaults to center-center.
     fn atom_align(self, align: emath::Align2) -> Atom<'a>;
+
+    /// Align the atom's content to the end of its cell along the main axis of the
+    /// surrounding atom row, in reading direction: the far edge of the row, whichever
+    /// side that is.
+    ///
+    /// This replaces the main-axis component of [`Self::atom_align`]; its cross-axis
+    /// component still applies. Use this instead of a physical
+    /// `Align2::RIGHT_*`/`LEFT_*` when the atom should stick to the row's far edge
+    /// (e.g. a combo box arrow), since a physical alignment only matches the row's
+    /// end in left-to-right rows.
+    fn atom_main_axis_end(self, main_axis_end: bool) -> Atom<'a>;
 }
 
 impl<'a, T> AtomExt<'a> for T
@@ -127,6 +138,12 @@ where
     fn atom_align(self, align: emath::Align2) -> Atom<'a> {
         let mut atom = self.into();
         atom.align = align;
+        atom
+    }
+
+    fn atom_main_axis_end(self, main_axis_end: bool) -> Atom<'a> {
+        let mut atom = self.into();
+        atom.main_axis_end = main_axis_end;
         atom
     }
 }

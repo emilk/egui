@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use super::{Demo, View};
+use crate::i18n;
 
 use egui::{
-    Align, Align2, Checkbox, CollapsingHeader, Color32, ComboBox, FontId, Resize, RichText, Sense,
-    Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window, vec2,
+    Align, Align2, Checkbox, CollapsingHeader, Color32, ComboBox, FontId, Layout, Resize, RichText,
+    Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window, vec2,
 };
 
 /// Showcase some ui code
@@ -20,6 +21,9 @@ pub struct MiscDemoWindow {
     box_painting: BoxPainting,
     text_rotation: TextRotation,
     repaint: Repaint,
+
+    /// Show the [`Resize`] demo mirrored, in a right-to-left layout.
+    resize_rtl: bool,
 
     dummy_bool: bool,
     dummy_usize: usize,
@@ -39,6 +43,8 @@ impl Default for MiscDemoWindow {
             text_rotation: Default::default(),
             repaint: Default::default(),
 
+            resize_rtl: false,
+
             dummy_bool: false,
             dummy_usize: 0,
             checklist: core::array::from_fn(|i| i == 0),
@@ -52,7 +58,7 @@ impl Demo for MiscDemoWindow {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
-        Window::new(self.name())
+        Window::new(i18n::t(self.name()))
             .open(open)
             .vscroll(true)
             .hscroll(true)
@@ -69,19 +75,19 @@ impl View for MiscDemoWindow {
     fn ui(&mut self, ui: &mut Ui) {
         ui.set_min_width(250.0);
 
-        CollapsingHeader::new("Label")
+        CollapsingHeader::new(i18n::t("Label"))
             .default_open(true)
             .show(ui, |ui| {
                 label_ui(ui);
             });
 
-        CollapsingHeader::new("Misc widgets")
+        CollapsingHeader::new(i18n::t("Misc widgets"))
             .default_open(false)
             .show(ui, |ui| {
                 self.widgets.ui(ui);
             });
 
-        CollapsingHeader::new("Text layout")
+        CollapsingHeader::new(i18n::t("Text layout"))
             .default_open(false)
             .show(ui, |ui| {
                 text_layout_demo(ui);
@@ -90,7 +96,7 @@ impl View for MiscDemoWindow {
                 });
             });
 
-        CollapsingHeader::new("System font fallback")
+        CollapsingHeader::new(i18n::t("System font fallback"))
             .default_open(false)
             .show(ui, |ui| {
                 system_font_fallback_demo(ui);
@@ -99,41 +105,43 @@ impl View for MiscDemoWindow {
                 });
             });
 
-        CollapsingHeader::new("Text rotation")
+        CollapsingHeader::new(i18n::t("Text rotation"))
             .default_open(false)
             .show(ui, |ui| self.text_rotation.ui(ui));
 
-        CollapsingHeader::new("Colors")
+        CollapsingHeader::new(i18n::t("Colors"))
             .default_open(false)
             .show(ui, |ui| {
                 self.colors.ui(ui);
             });
 
-        CollapsingHeader::new("Custom Collapsing Header")
+        CollapsingHeader::new(i18n::t("Custom Collapsing Header"))
             .default_open(false)
             .show(ui, |ui| self.custom_collapsing_header.ui(ui));
 
-        CollapsingHeader::new("Tree")
+        CollapsingHeader::new(i18n::t("Tree"))
             .default_open(false)
             .show(ui, |ui| self.tree.ui(ui));
 
-        CollapsingHeader::new("Repaint")
+        CollapsingHeader::new(i18n::t("Repaint"))
             .default_open(false)
             .show(ui, |ui| self.repaint.ui(ui));
 
-        CollapsingHeader::new("Checkboxes")
+        CollapsingHeader::new(i18n::t("Checkboxes"))
             .default_open(false)
             .show(ui, |ui| {
-                ui.label("Checkboxes with empty labels take up very little space:");
+                ui.label(i18n::t(
+                    "Checkboxes with empty labels take up very little space:",
+                ));
                 ui.spacing_mut().item_spacing = Vec2::ZERO;
                 ui.horizontal_wrapped(|ui| {
                     for _ in 0..64 {
                         ui.checkbox(&mut self.dummy_bool, "");
                     }
                 });
-                ui.checkbox(&mut self.dummy_bool, "checkbox");
+                ui.checkbox(&mut self.dummy_bool, i18n::t("checkbox"));
 
-                ui.label("Radiobuttons are similar:");
+                ui.label(i18n::t("Radiobuttons are similar:"));
                 ui.spacing_mut().item_spacing = Vec2::ZERO;
                 ui.horizontal_wrapped(|ui| {
                     for i in 0..64 {
@@ -141,13 +149,13 @@ impl View for MiscDemoWindow {
                     }
                 });
                 ui.radio_value(&mut self.dummy_usize, 64, "radio_value");
-                ui.label("Checkboxes can be in an indeterminate state:");
+                ui.label(i18n::t("Checkboxes can be in an indeterminate state:"));
                 let mut all_checked = self.checklist.iter().all(|item| *item);
                 let any_checked = self.checklist.iter().any(|item| *item);
                 let indeterminate = any_checked && !all_checked;
                 if ui
                     .add(
-                        Checkbox::new(&mut all_checked, "Check/uncheck all")
+                        Checkbox::new(&mut all_checked, i18n::t("Check/uncheck all"))
                             .indeterminate(indeterminate),
                     )
                     .changed()
@@ -155,44 +163,75 @@ impl View for MiscDemoWindow {
                     self.checklist.fill(all_checked);
                 }
                 for (i, checked) in self.checklist.iter_mut().enumerate() {
-                    ui.checkbox(checked, format!("Item {}", i + 1));
+                    // The `{index}` placeholder is filled by `i18n::fmt`, not by `format!`.
+                    let label = i18n::fmt(
+                        i18n::t("Item {index}"),
+                        &[("index", (i + 1).to_string().as_str())],
+                    );
+                    ui.checkbox(checked, label);
                 }
             });
 
-        ui.collapsing("Columns", |ui| {
-            ui.add(Slider::new(&mut self.num_columns, 1..=10).text("Columns"));
+        ui.collapsing(i18n::t("Columns"), |ui| {
+            ui.add(Slider::new(&mut self.num_columns, 1..=10).text(i18n::t("Columns")));
             ui.columns(self.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
-                    col.label(format!("Column {} out of {}", i + 1, self.num_columns));
-                    if i + 1 == self.num_columns && col.button("Delete this").clicked() {
+                    // The `{index}`/`{total}` placeholders are filled by `i18n::fmt`, not by `format!`.
+                    col.label(i18n::fmt(
+                        i18n::t("Column {index} out of {total}"),
+                        &[
+                            ("index", (i + 1).to_string().as_str()),
+                            ("total", self.num_columns.to_string().as_str()),
+                        ],
+                    ));
+                    if i + 1 == self.num_columns && col.button(i18n::t("Delete this")).clicked() {
                         self.num_columns -= 1;
                     }
                 }
             });
         });
 
-        CollapsingHeader::new("Test box rendering")
+        CollapsingHeader::new(i18n::t("Test box rendering"))
             .default_open(false)
             .show(ui, |ui| self.box_painting.ui(ui));
 
-        CollapsingHeader::new("Resize")
+        CollapsingHeader::new(i18n::t("Resize"))
             .default_open(false)
             .show(ui, |ui| {
-                Resize::default().default_height(100.0).show(ui, |ui| {
-                    ui.label("This ui can be resized!");
-                    ui.label("Just pull the handle on the bottom right");
-                });
+                ui.checkbox(&mut self.resize_rtl, i18n::t("Right-to-left"));
+                let rtl = self.resize_rtl;
+                let resize_demo = |ui: &mut Ui| {
+                    Resize::default().default_height(100.0).show(ui, |ui| {
+                        ui.label(i18n::t("This ui can be resized!"));
+                        ui.label(if rtl {
+                            i18n::t("Just pull the handle on the bottom left")
+                        } else {
+                            i18n::t("Just pull the handle on the bottom right")
+                        });
+                    });
+                };
+                if rtl {
+                    ui.scope(|ui| {
+                        // `Resize` mirrors on `Style::right_to_left` (what `Ui::is_rtl`
+                        // reads), which `with_layout` alone never touches, so flip the
+                        // per-`Ui` flag as well.
+                        ui.style_mut().right_to_left = true;
+                        ui.with_layout(Layout::right_to_left(Align::Min), resize_demo);
+                    });
+                } else {
+                    resize_demo(ui);
+                }
             });
 
-        CollapsingHeader::new("Ui Stack")
+        CollapsingHeader::new(i18n::t("Ui Stack"))
             .default_open(false)
             .show(ui, ui_stack_demo);
 
-        CollapsingHeader::new("Misc")
+        CollapsingHeader::new(i18n::t("Misc"))
             .default_open(false)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label("You can pretty easily paint your own small icons:");
+                    ui.label(i18n::t("You can pretty easily paint your own small icons:"));
                     use core::f32::consts::TAU;
                     let size = Vec2::splat(16.0);
                     let (response, painter) = ui.allocate_painter(size, Sense::hover());
@@ -208,7 +247,7 @@ impl View for MiscDemoWindow {
                 });
             });
 
-        CollapsingHeader::new("Many circles of different sizes")
+        CollapsingHeader::new(i18n::t("Many circles of different sizes"))
             .default_open(false)
             .show(ui, |ui| {
                 ui.horizontal_wrapped(|ui| {
@@ -236,27 +275,31 @@ fn label_ui(ui: &mut egui::Ui) {
             let width = ui.fonts_mut(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
             ui.spacing_mut().item_spacing.x = width;
 
-            ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
-            ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
-            ui.label("and tooltips.").on_hover_text(
+            ui.label(RichText::new(i18n::t("Text can have")).color(Color32::from_rgb(110, 255, 110)));
+            ui.colored_label(Color32::from_rgb(128, 140, 255), i18n::t("color")); // Shortcut version
+            ui.label(i18n::t("and tooltips.")).on_hover_text(i18n::t(
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
-            );
+            ));
 
-            ui.label("You can mix in other widgets into text, like");
-            let _ = ui.small_button("this button");
+            ui.label(i18n::t("You can mix in other widgets into text, like"));
+            let _ = ui.small_button(i18n::t("this button"));
             ui.label(".");
 
-            ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟📐…).")
-                .on_hover_text("There is currently no support for right-to-left languages.");
-            ui.label("See the 🔤 Font Book for more!");
+            ui.label(i18n::t(
+                "The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟📐…).",
+            ))
+            .on_hover_text(i18n::t(
+                "There is currently no support for right-to-left languages.",
+            ));
+            ui.label(i18n::t("See the 🔤 Font Book for more!"));
 
-            ui.monospace("There is also a monospace font.");
+            ui.monospace(i18n::t("There is also a monospace font."));
         });
 
     ui.add(
-        egui::Label::new(
+        egui::Label::new(i18n::t(
             "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::truncate`. When hovered, the label will show the full text.",
-        )
+        ))
         .truncate(),
     );
 }
@@ -289,19 +332,26 @@ impl Widgets {
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.label("An angle:");
+            ui.label(i18n::t("An angle:"));
             ui.drag_angle(angle);
             ui.label(format!("≈ {:.3}τ", *angle / core::f32::consts::TAU))
-                .on_hover_text("Each τ represents one turn (τ = 2π)");
+                .on_hover_text(i18n::t("Each τ represents one turn (τ = 2π)"));
         })
         .response
-        .on_hover_text("The angle is stored in radians, but presented in degrees");
+        .on_hover_text(i18n::t(
+            "The angle is stored in radians, but presented in degrees",
+        ));
 
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.hyperlink_to("Password:", super::password::url_to_file_source_code())
-                .on_hover_text("See the example code for how to use egui to store UI state");
+            ui.hyperlink_to(
+                i18n::t("Password:"),
+                super::password::url_to_file_source_code(),
+            )
+            .on_hover_text(i18n::t(
+                "See the example code for how to use egui to store UI state",
+            ));
             ui.add(super::password::password(password));
         });
     }
@@ -360,50 +410,60 @@ impl Repaint {
             log::info!("Repaint demo: `ui` frame {}", self.ui_count);
         }
 
-        ui.label("Use this to verify if logic is correctly called while in background.");
+        ui.label(i18n::t(
+            "Use this to verify if logic is correctly called while in background.",
+        ));
 
         ui.horizontal(|ui| {
-            if ui.button("Reset counts").clicked() {
+            if ui.button(i18n::t("Reset counts")).clicked() {
                 self.ui_count = 0;
                 self.logic_count = 0;
             }
-            ui.label(format!(
-                "`ui`: {}, `logic`: {}",
-                self.ui_count, self.logic_count
+            // The `{ui}`/`{logic}` placeholders are filled by `i18n::fmt`, not by `format!`.
+            #[expect(clippy::literal_string_with_formatting_args)]
+            ui.label(i18n::fmt(
+                i18n::t("`ui`: {ui}, `logic`: {logic}"),
+                &[
+                    ("ui", self.ui_count.to_string().as_str()),
+                    ("logic", self.logic_count.to_string().as_str()),
+                ],
             ))
-            .on_hover_text(
+            .on_hover_text(i18n::t(
                 "`ui` is incremented in `App::ui` (only runs while visible), \
                      `logic` in `App::logic` (runs even while hidden).",
-            );
+            ));
         });
 
         ui.separator();
 
         ui.checkbox(
             &mut self.repaint_continuously,
-            "Repaint continuously (every frame)",
+            i18n::t("Repaint continuously (every frame)"),
         );
 
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.repaint_after_delay, "Repaint after");
+            ui.checkbox(&mut self.repaint_after_delay, i18n::t("Repaint after"));
             ui.add_enabled(
                 self.repaint_after_delay,
                 Slider::new(&mut self.delay, 0.0..=5.0)
                     .suffix(" s")
-                    .text("delay"),
+                    .text(i18n::t("delay")),
             );
         });
 
-        ui.checkbox(&mut self.in_background, "In the background (during logic)")
-            .on_hover_text(
-                "Issue the repaint requests from `App::logic` (which runs even while hidden) \
-                 instead of `App::ui` (which is skipped while hidden).\n\n\
-                 With this enabled, hide this tab for a while, then come back: \
-                 the `logic` count will have kept climbing.",
-            );
+        ui.checkbox(
+            &mut self.in_background,
+            i18n::t("In the background (during logic)"),
+        )
+        .on_hover_text(i18n::t(
+            "Issue the repaint requests from `App::logic` (which runs even while hidden) \
+             instead of `App::ui` (which is skipped while hidden).\n\n\
+             With this enabled, hide this tab for a while, then come back: \
+             the `logic` count will have kept climbing.",
+        ));
 
-        ui.checkbox(&mut self.log_each_frame, "Log each frame")
-            .on_hover_text("Log each `ui` and `logic` frame to the console.");
+        ui.checkbox(&mut self.log_each_frame, i18n::t("Log each frame"))
+            .on_hover_text(i18n::t("Log each `ui` and `logic` frame to the console."));
 
         // When not in background mode, drive the repaints from here (`ui`), which only
         // runs while visible. Otherwise they are driven from `logic` (see below).
@@ -461,9 +521,11 @@ impl Default for ColorWidgets {
 
 impl ColorWidgets {
     fn ui(&mut self, ui: &mut Ui) {
-        egui::reset_button(ui, self, "Reset");
+        egui::reset_button(ui, self, i18n::t("Reset"));
 
-        ui.label("egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha");
+        ui.label(i18n::t(
+            "egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha",
+        ));
 
         let Self {
             srgba_unmul,
@@ -474,33 +536,58 @@ impl ColorWidgets {
 
         ui.horizontal(|ui| {
             ui.color_edit_button_srgba_unmultiplied(srgba_unmul);
-            ui.label(format!(
-                "sRGBA: {} {} {} {}",
-                srgba_unmul[0], srgba_unmul[1], srgba_unmul[2], srgba_unmul[3],
+            // The component numbers are pre-formatted in Rust (format specs never enter a
+            // catalogue); the translated template is filled by `i18n::fmt`, not by `format!`.
+            ui.label(i18n::fmt(
+                i18n::t("sRGBA: {r} {g} {b} {a}"),
+                &[
+                    ("r", format!("{}", srgba_unmul[0]).as_str()),
+                    ("g", format!("{}", srgba_unmul[1]).as_str()),
+                    ("b", format!("{}", srgba_unmul[2]).as_str()),
+                    ("a", format!("{}", srgba_unmul[3]).as_str()),
+                ],
             ));
         });
 
         ui.horizontal(|ui| {
             ui.color_edit_button_srgba_premultiplied(srgba_premul);
-            ui.label(format!(
-                "sRGBA with premultiplied alpha: {} {} {} {}",
-                srgba_premul[0], srgba_premul[1], srgba_premul[2], srgba_premul[3],
+
+            ui.label(i18n::fmt(
+                i18n::t("sRGBA with premultiplied alpha: {r} {g} {b} {a}"),
+                &[
+                    ("r", format!("{}", srgba_premul[0]).as_str()),
+                    ("g", format!("{}", srgba_premul[1]).as_str()),
+                    ("b", format!("{}", srgba_premul[2]).as_str()),
+                    ("a", format!("{}", srgba_premul[3]).as_str()),
+                ],
             ));
         });
 
         ui.horizontal(|ui| {
             ui.color_edit_button_rgba_unmultiplied(rgba_unmul);
-            ui.label(format!(
-                "Linear RGBA: {:.02} {:.02} {:.02} {:.02}",
-                rgba_unmul[0], rgba_unmul[1], rgba_unmul[2], rgba_unmul[3],
+
+            ui.label(i18n::fmt(
+                i18n::t("Linear RGBA: {r} {g} {b} {a}"),
+                &[
+                    ("r", format!("{:.02}", rgba_unmul[0]).as_str()),
+                    ("g", format!("{:.02}", rgba_unmul[1]).as_str()),
+                    ("b", format!("{:.02}", rgba_unmul[2]).as_str()),
+                    ("a", format!("{:.02}", rgba_unmul[3]).as_str()),
+                ],
             ));
         });
 
         ui.horizontal(|ui| {
             ui.color_edit_button_rgba_premultiplied(rgba_premul);
-            ui.label(format!(
-                "Linear RGBA with premultiplied alpha: {:.02} {:.02} {:.02} {:.02}",
-                rgba_premul[0], rgba_premul[1], rgba_premul[2], rgba_premul[3],
+
+            ui.label(i18n::fmt(
+                i18n::t("Linear RGBA with premultiplied alpha: {r} {g} {b} {a}"),
+                &[
+                    ("r", format!("{:.02}", rgba_premul[0]).as_str()),
+                    ("g", format!("{:.02}", rgba_premul[1]).as_str()),
+                    ("b", format!("{:.02}", rgba_premul[2]).as_str()),
+                    ("a", format!("{:.02}", rgba_premul[3]).as_str()),
+                ],
             ));
         });
     }
@@ -530,11 +617,11 @@ impl Default for BoxPainting {
 
 impl BoxPainting {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text("width"));
-        ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text("height"));
-        ui.add(Slider::new(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
-        ui.add(Slider::new(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
-        ui.add(Slider::new(&mut self.num_boxes, 0..=8).text("num_boxes"));
+        ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text(i18n::t("width")));
+        ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text(i18n::t("height")));
+        ui.add(Slider::new(&mut self.corner_radius, 0.0..=50.0).text(i18n::t("corner_radius")));
+        ui.add(Slider::new(&mut self.stroke_width, 0.0..=10.0).text(i18n::t("stroke_width")));
+        ui.add(Slider::new(&mut self.num_boxes, 0..=8).text(i18n::t("num_boxes")));
 
         ui.horizontal_wrapped(|ui| {
             for _ in 0..self.num_boxes {
@@ -570,23 +657,25 @@ impl Default for CustomCollapsingHeader {
 
 impl CustomCollapsingHeader {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.label("Example of a collapsing header with custom header:");
+        ui.label(i18n::t(
+            "Example of a collapsing header with custom header:",
+        ));
 
         egui::CollapsingHeader::custom(
             ui,
             "my_collapsing_header",
             |ui| {
-                ui.toggle_value(&mut self.selected, "Click to select/unselect");
+                ui.toggle_value(&mut self.selected, i18n::t("Click to select/unselect"));
                 ui.radio_value(&mut self.radio_value, false, "");
                 ui.radio_value(&mut self.radio_value, true, "");
             },
             |ui| {
-                ui.label("The body is always custom");
+                ui.label(i18n::t("The body is always custom"));
             },
         );
 
-        CollapsingHeader::new("Normal collapsing header for comparison").show(ui, |ui| {
-            ui.label("Nothing exciting here");
+        CollapsingHeader::new(i18n::t("Normal collapsing header for comparison")).show(ui, |ui| {
+            ui.label(i18n::t("Nothing exciting here"));
         });
     }
 }
@@ -612,7 +701,7 @@ impl Tree {
     }
 
     pub fn ui(&mut self, ui: &mut Ui) -> Action {
-        self.ui_impl(ui, 0, "root")
+        self.ui_impl(ui, 0, i18n::t("root"))
     }
 }
 
@@ -628,7 +717,7 @@ impl Tree {
     fn children_ui(&mut self, ui: &mut Ui, depth: usize) -> Action {
         if depth > 0
             && ui
-                .button(RichText::new("delete").color(ui.visuals().warn_fg_color))
+                .button(RichText::new(i18n::t("delete")).color(ui.visuals().warn_fg_color))
                 .clicked()
         {
             return Action::Delete;
@@ -639,7 +728,10 @@ impl Tree {
             .into_iter()
             .enumerate()
             .filter_map(|(i, mut tree)| {
-                if tree.ui_impl(ui, depth + 1, &format!("child #{i}")) == Action::Keep {
+                // The `{i}` placeholder is filled by `i18n::fmt`, not by `format!`.
+                #[expect(clippy::literal_string_with_formatting_args)]
+                let name = i18n::fmt(i18n::t("child #{i}"), &[("i", i.to_string().as_str())]);
+                if tree.ui_impl(ui, depth + 1, &name) == Action::Keep {
                     Some(tree)
                 } else {
                     None
@@ -659,14 +751,14 @@ impl Tree {
 
 fn ui_stack_demo(ui: &mut Ui) {
     ui.horizontal_wrapped(|ui| {
-        ui.label("The");
+        ui.label(i18n::t("The"));
         ui.code("egui::Ui");
-        ui.label("core type is typically deeply nested in");
+        ui.label(i18n::t("core type is typically deeply nested in"));
         ui.code("egui");
-        ui.label(
+        ui.label(i18n::t(
             "applications. To provide context to nested code, it maintains a stack \
                         with various information.\n\nThis is how the stack looks like here:",
-        );
+        ));
     });
     let stack = Arc::clone(ui.stack());
     egui::Frame::new()
@@ -678,10 +770,10 @@ fn ui_stack_demo(ui: &mut Ui) {
                 .column(egui_extras::Column::auto())
                 .header(18.0, |mut header| {
                     header.col(|ui| {
-                        ui.strong("id");
+                        ui.strong(i18n::t("id"));
                     });
                     header.col(|ui| {
-                        ui.strong("kind");
+                        ui.strong(i18n::t("kind"));
                     });
                 })
                 .body(|mut body| {
@@ -716,7 +808,9 @@ fn ui_stack_demo(ui: &mut Ui) {
                 });
         });
 
-    ui.small("Hover on UI's ids to display their origin and max rect.");
+    ui.small(i18n::t(
+        "Hover on UI's ids to display their origin and max rect.",
+    ));
 }
 
 // ----------------------------------------------------------------------------
@@ -726,7 +820,7 @@ fn ui_stack_demo(ui: &mut Ui) {
 /// On native, eframe looks for these glyphs among the system fonts.
 /// On web, the browser draws them.
 fn system_font_fallback_demo(ui: &mut Ui) {
-    ui.label("Some non-latin chars to test font fallback:");
+    ui.label(i18n::t("Some non-latin chars to test font fallback:"));
     egui::Grid::new("system_font_fallback")
         .num_columns(2)
         .show(ui, |ui| {
@@ -741,7 +835,7 @@ fn system_font_fallback_demo(ui: &mut Ui) {
                 ("Korean", "안녕하세요"),
                 ("Thai", "สวัสดี"),
             ] {
-                ui.label(language);
+                ui.label(i18n::t(language));
                 ui.label(sample);
                 ui.end_row();
             }
@@ -762,7 +856,7 @@ fn text_layout_demo(ui: &mut Ui) {
     };
 
     job.append(
-        "This",
+        i18n::t("This"),
         first_row_indentation,
         TextFormat {
             color: default_color,
@@ -771,7 +865,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        " is a demonstration of ",
+        i18n::t(" is a demonstration of "),
         0.0,
         TextFormat {
             color: default_color,
@@ -779,7 +873,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "the egui text layout engine. ",
+        i18n::t("the egui text layout engine. "),
         0.0,
         TextFormat {
             color: strong_color,
@@ -787,7 +881,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "It supports ",
+        i18n::t("It supports "),
         0.0,
         TextFormat {
             color: default_color,
@@ -795,7 +889,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "different ",
+        i18n::t("different "),
         0.0,
         TextFormat {
             color: Color32::from_rgb(110, 255, 110),
@@ -803,7 +897,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "colors, ",
+        i18n::t("colors, "),
         0.0,
         TextFormat {
             color: Color32::from_rgb(128, 140, 255),
@@ -811,7 +905,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "backgrounds, ",
+        i18n::t("backgrounds, "),
         0.0,
         TextFormat {
             color: default_color,
@@ -820,7 +914,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "mixing ",
+        i18n::t("mixing "),
         0.0,
         TextFormat {
             font_id: FontId::proportional(20.0),
@@ -829,7 +923,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "fonts, ",
+        i18n::t("fonts, "),
         0.0,
         TextFormat {
             font_id: FontId::monospace(12.0),
@@ -838,7 +932,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "raised text, ",
+        i18n::t("raised text, "),
         0.0,
         TextFormat {
             font_id: FontId::proportional(7.0),
@@ -848,7 +942,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "with ",
+        i18n::t("with "),
         0.0,
         TextFormat {
             color: default_color,
@@ -856,7 +950,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "underlining",
+        i18n::t("underlining"),
         0.0,
         TextFormat {
             color: default_color,
@@ -865,7 +959,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        " and ",
+        i18n::t(" and "),
         0.0,
         TextFormat {
             color: default_color,
@@ -873,7 +967,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "strikethrough",
+        i18n::t("strikethrough"),
         0.0,
         TextFormat {
             color: default_color,
@@ -882,7 +976,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        ". Of course, ",
+        i18n::t(". Of course, "),
         0.0,
         TextFormat {
             color: default_color,
@@ -890,7 +984,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        "you can",
+        i18n::t("you can"),
         0.0,
         TextFormat {
             color: default_color,
@@ -899,7 +993,7 @@ fn text_layout_demo(ui: &mut Ui) {
         },
     );
     job.append(
-        " mix these!",
+        i18n::t(" mix these!"),
         0.0,
         TextFormat {
             font_id: FontId::proportional(7.0),
@@ -935,7 +1029,9 @@ impl Default for TextRotation {
 
 impl TextRotation {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.add(Slider::new(&mut self.angle, 0.0..=2.0 * core::f32::consts::PI).text("angle"));
+        ui.add(
+            Slider::new(&mut self.angle, 0.0..=2.0 * core::f32::consts::PI).text(i18n::t("angle")),
+        );
 
         let default_color = if ui.visuals().dark_mode {
             Color32::LIGHT_GRAY
@@ -955,7 +1051,7 @@ impl TextRotation {
             (Align2::RIGHT_BOTTOM, "RIGHT_BOTTOM"),
         ];
 
-        ComboBox::new("anchor", "Anchor")
+        ComboBox::new("anchor", i18n::t("Anchor"))
             .selected_text(aligns.iter().find(|(a, _)| *a == self.align).unwrap().1)
             .show_ui(ui, |ui| {
                 for (align2, name) in &aligns {
