@@ -266,6 +266,8 @@ impl WgpuSetupCreateNew {
 
                 wgpu::DeviceDescriptor {
                     label: Some("egui wgpu device"),
+                    // Subpixel text, where the adapter can (see `Renderer`).
+                    required_features: adapter.features() & wgpu::Features::DUAL_SOURCE_BLENDING,
                     required_limits: wgpu::Limits {
                         // When using a depth buffer, we have to be able to create a texture
                         // large enough for the entire surface, and we want to support 4k+ displays.

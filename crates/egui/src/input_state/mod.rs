@@ -268,6 +268,12 @@ pub struct InputState {
     /// This depends on the backend.
     pub max_texture_side: usize,
 
+    /// Whether the renderer can draw subpixel (LCD) text, see
+    /// [`epaint::TextOptions::subpixel_order`].
+    ///
+    /// This depends on the backend.
+    pub subpixel_text: bool,
+
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
 
@@ -348,6 +354,7 @@ impl Default for InputState {
             safe_area_insets: Default::default(),
             pixels_per_point: 1.0,
             max_texture_side: 2048,
+            subpixel_text: false,
             time: 0.0,
             unstable_dt: 1.0 / 60.0,
             predicted_dt: 1.0 / 60.0,
@@ -483,6 +490,7 @@ impl InputState {
             safe_area_insets,
             pixels_per_point,
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
+            subpixel_text: new.subpixel_text.unwrap_or(self.subpixel_text),
             time,
             unstable_dt,
             predicted_dt: new.predicted_dt,
@@ -1637,6 +1645,7 @@ impl InputState {
             safe_area_insets,
             pixels_per_point,
             max_texture_side,
+            subpixel_text,
             time,
             unstable_dt,
             predicted_dt,
@@ -1684,6 +1693,7 @@ impl InputState {
         ui.label(format!(
             "max texture size (on each side): {max_texture_side}"
         ));
+        ui.label(format!("subpixel text: {subpixel_text}"));
         ui.label(format!("time: {time:.3} s"));
         ui.label(format!(
             "time since previous frame: {:.1} ms",

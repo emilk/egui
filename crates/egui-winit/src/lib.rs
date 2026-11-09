@@ -238,6 +238,12 @@ impl State {
         self.egui_input.max_texture_side = Some(max_texture_side);
     }
 
+    /// Call this once a graphics context has been created to say whether the renderer can draw
+    /// subpixel (LCD) text ([`egui::epaint::TextOptions::subpixel_order`]).
+    pub fn set_subpixel_text(&mut self, supported: bool) {
+        self.egui_input.subpixel_text = Some(supported);
+    }
+
     /// Fetches text from the clipboard and returns it.
     pub fn clipboard_text(&mut self) -> Option<String> {
         self.clipboard.get()

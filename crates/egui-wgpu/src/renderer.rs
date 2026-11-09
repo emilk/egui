@@ -233,9 +233,32 @@ impl Default for RendererOptions {
     }
 }
 
+/// Does the font texture hold subpixel coverage after `delta`, if it did before (`was`)?
+///
+/// A subpixel texel has a color channel above its alpha; grayscale glyphs (all channels equal to
+/// alpha) and premultiplied color glyphs never do. A whole new texture (new
+/// [`epaint::TextOptions`]) starts over; an update only adds glyphs.
+fn font_subpixel_after(was: bool, delta: &epaint::ImageDelta) -> bool {
+    let epaint::ImageData::Color(image) = &delta.image;
+    let subpixel = || {
+        image.pixels().iter().any(|texel| {
+            let [r, g, b, a] = texel.to_array();
+            r.max(g).max(b) > a
+        })
+    };
+    (was && delta.pos.is_some()) || subpixel()
+}
+
 /// Renderer for a egui based GUI.
 pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
+
+    /// Draws the font texture, which may hold subpixel (LCD) coverage, where the device can.
+    lcd_pipeline: Option<wgpu::RenderPipeline>,
+
+    /// Does the font texture hold subpixel coverage? Only then is [`Self::lcd_pipeline`] used,
+    /// so with subpixel text off, everything is drawn as without it.
+    font_subpixel: bool,
 
     index_buffer: SlicedBuffer,
     vertex_buffer: SlicedBuffer,
@@ -266,6 +289,16 @@ pub struct Renderer {
 }
 
 impl Renderer {
+    /// Whether this renderer can draw subpixel text ([`epaint::TextOptions::subpixel_order`]) on
+    /// `device`: that needs [`wgpu::Features::DUAL_SOURCE_BLENDING`].
+    ///
+    /// Report it to egui with `egui::RawInput::subpixel_text`.
+    pub fn supports_subpixel_text(device: &wgpu::Device) -> bool {
+        device
+            .features()
+            .contains(wgpu::Features::DUAL_SOURCE_BLENDING)
+    }
+
     /// Creates a renderer for a egui UI.
     ///
     /// `output_color_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
@@ -396,14 +429,17 @@ impl Renderer {
                 bias: wgpu::DepthBiasState::default(),
             });
 
-        let pipeline = {
+        let create_pipeline = |label: &str,
+                               module: &wgpu::ShaderModule,
+                               fs_entry_point: &str,
+                               blend: wgpu::BlendState| {
             profiling::scope!("create_render_pipeline");
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("egui_pipeline"),
+                label: Some(label),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     entry_point: Some("vs_main"),
-                    module: &module,
+                    module,
                     buffers: &[Some(wgpu::VertexBufferLayout {
                         array_stride: 5 * 4,
                         step_mode: wgpu::VertexStepMode::Vertex,
@@ -423,7 +459,7 @@ impl Renderer {
                     polygon_mode: wgpu::PolygonMode::default(),
                     strip_index_format: None,
                 },
-                depth_stencil,
+                depth_stencil: depth_stencil.clone(),
                 multisample: wgpu::MultisampleState {
                     alpha_to_coverage_enabled: false,
                     count: options.msaa_samples.max(1),
@@ -431,27 +467,11 @@ impl Renderer {
                 },
 
                 fragment: Some(wgpu::FragmentState {
-                    module: &module,
-                    entry_point: Some(if output_color_format.is_srgb() {
-                        log::warn!("Detected a linear (sRGBA aware) framebuffer {output_color_format:?}. egui prefers Rgba8Unorm or Bgra8Unorm");
-                        "fs_main_linear_framebuffer"
-                    } else {
-                        "fs_main_gamma_framebuffer" // this is what we prefer
-                    }),
+                    module,
+                    entry_point: Some(fs_entry_point),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: output_color_format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::One,
-                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                                operation: wgpu::BlendOperation::Add,
-                            },
-                            alpha: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::OneMinusDstAlpha,
-                                dst_factor: wgpu::BlendFactor::One,
-                                operation: wgpu::BlendOperation::Add,
-                            },
-                        }),
+                        blend: Some(blend),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                     compilation_options: wgpu::PipelineCompilationOptions::default()
@@ -462,6 +482,65 @@ impl Renderer {
         )
         };
 
+        let linear_framebuffer = output_color_format.is_srgb();
+        if linear_framebuffer {
+            log::warn!(
+                "Detected a linear (sRGBA aware) framebuffer {output_color_format:?}. egui prefers Rgba8Unorm or Bgra8Unorm"
+            );
+        }
+        let alpha = wgpu::BlendComponent {
+            src_factor: wgpu::BlendFactor::OneMinusDstAlpha,
+            dst_factor: wgpu::BlendFactor::One,
+            operation: wgpu::BlendOperation::Add,
+        };
+        let pipeline = create_pipeline(
+            "egui_pipeline",
+            &module,
+            if linear_framebuffer {
+                "fs_main_linear_framebuffer"
+            } else {
+                "fs_main_gamma_framebuffer" // this is what we prefer
+            },
+            wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                    operation: wgpu::BlendOperation::Add,
+                },
+                alpha,
+            },
+        );
+
+        // Subpixel text: the font texture, with each channel weighed by its own coverage.
+        let lcd_pipeline = Self::supports_subpixel_text(device).then(|| {
+            let source = format!(
+                "enable dual_source_blending;\n{}{}",
+                include_str!("egui.wgsl"),
+                include_str!("egui_lcd.wgsl")
+            );
+            let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("egui_lcd"),
+                source: wgpu::ShaderSource::Wgsl(Cow::Owned(source)),
+            });
+            create_pipeline(
+                "egui_lcd_pipeline",
+                &module,
+                if linear_framebuffer {
+                    "fs_lcd_linear_framebuffer"
+                } else {
+                    "fs_lcd_gamma_framebuffer"
+                },
+                wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::One,
+                        dst_factor: wgpu::BlendFactor::OneMinusSrc1,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha,
+                },
+            )
+        });
+
         const VERTEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
             (core::mem::size_of::<Vertex>() * 1024) as _;
         const INDEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
@@ -469,6 +548,8 @@ impl Renderer {
 
         Self {
             pipeline,
+            lcd_pipeline,
+            font_subpixel: false,
             vertex_buffer: SlicedBuffer {
                 buffer: create_vertex_buffer(device, VERTEX_BUFFER_START_CAPACITY),
                 slices: Vec::with_capacity(64),
@@ -517,6 +598,8 @@ impl Renderer {
         // Whether or not we need to reset the render pass because a paint callback has just
         // run.
         let mut needs_reset = true;
+        // Whether the subpixel text pipeline is the one set.
+        let mut lcd_set = false;
 
         let mut index_buffer_slices = self.index_buffer.slices.iter();
         let mut vertex_buffer_slices = self.vertex_buffer.slices.iter();
@@ -537,6 +620,7 @@ impl Renderer {
                 );
                 render_pass.set_pipeline(&self.pipeline);
                 render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                lcd_set = false;
                 needs_reset = false;
             }
 
@@ -570,6 +654,14 @@ impl Renderer {
                         .expect("You must call .update_buffers() before .render()");
 
                     if let Some(Texture { bind_group, .. }) = self.textures.get(&mesh.texture_id) {
+                        // The font texture is the only one with subpixel coverage.
+                        let lcd = self.lcd_pipeline.as_ref().filter(|_| {
+                            self.font_subpixel && mesh.texture_id == epaint::TextureId::default()
+                        });
+                        if lcd.is_some() != lcd_set {
+                            render_pass.set_pipeline(lcd.unwrap_or(&self.pipeline));
+                            lcd_set = lcd.is_some();
+                        }
                         render_pass.set_bind_group(1, bind_group, &[]);
                         render_pass.set_index_buffer(
                             self.index_buffer.buffer.slice(
@@ -655,6 +747,10 @@ impl Renderer {
         let data_bytes: &[u8] = match &image_delta.image {
             epaint::ImageData::Color(image) => bytemuck::cast_slice(image.pixels()),
         };
+
+        if id == epaint::TextureId::default() && self.lcd_pipeline.is_some() {
+            self.font_subpixel = font_subpixel_after(self.font_subpixel, image_delta);
+        }
 
         let queue_write_data_to_texture = |texture, origin| {
             profiling::scope!("write_texture");
@@ -1265,3 +1361,33 @@ const _: () = {
     const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Renderer>();
 };
+
+#[cfg(test)]
+mod tests {
+    use super::font_subpixel_after;
+    use epaint::{Color32, ColorImage, ImageDelta, textures::TextureOptions};
+    use std::sync::Arc;
+
+    fn delta(texel: Color32, pos: Option<[usize; 2]>) -> ImageDelta {
+        let image = Arc::new(ColorImage::filled([2, 2], texel));
+        match pos {
+            Some(pos) => ImageDelta::partial(pos, image, TextureOptions::LINEAR),
+            None => ImageDelta::full(image, TextureOptions::LINEAR),
+        }
+    }
+
+    #[test]
+    fn the_subpixel_pipeline_follows_the_font_texture() {
+        let gray = Color32::from_rgba_premultiplied(90, 90, 90, 90);
+        let emoji = Color32::from_rgba_premultiplied(200, 40, 10, 220);
+        let subpixel = Color32::from_rgba_premultiplied(120, 90, 60, 60);
+        // Grayscale and color glyphs never turn it on.
+        assert!(!font_subpixel_after(false, &delta(gray, None)));
+        assert!(!font_subpixel_after(false, &delta(emoji, Some([0, 0]))));
+        // Subpixel glyphs do, and added grayscale glyphs keep it on.
+        assert!(font_subpixel_after(false, &delta(subpixel, Some([0, 0]))));
+        assert!(font_subpixel_after(true, &delta(gray, Some([4, 0]))));
+        // A new atlas (subpixel text turned off) starts over.
+        assert!(!font_subpixel_after(true, &delta(gray, None)));
+    }
+}
