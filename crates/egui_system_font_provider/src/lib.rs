@@ -101,7 +101,8 @@ fn load_system_fonts() -> SystemFonts {
 impl FontProvider for SystemFontProvider {
     fn font_for(&self, request: &FallbackRequest<'_>) -> Option<FontInsert> {
         let FallbackRequest { cluster, family } = request;
-        let base_char = cluster.chars().next()?;
+        let mut chars = cluster.chars();
+        let base_char = chars.next()?;
 
         // Blocks if the background thread is not done enumerating the system fonts yet:
         let mut fonts = self.fonts.lock();
@@ -135,17 +136,25 @@ impl FontProvider for SystemFontProvider {
             // Punctuation, symbols, emoji, etc. belong to no script, so there is no fallback for them.
             // Try the generic families instead.
             let mut query = collection.query(source_cache);
-            query.set_families(
-                [
-                    generic,
-                    GenericFamily::SystemUi,
-                    GenericFamily::Emoji,
-                    GenericFamily::Math,
-                    GenericFamily::Serif,
-                    GenericFamily::Monospace,
-                ]
-                .map(QueryFamily::Generic),
-            );
+
+            // If there is an emoji variation selector (U+FE0F), the family should be emoji
+            if let Some(next_ch) = chars.next()
+                && next_ch == '\u{FE0F}'
+            {
+                query.set_families([GenericFamily::Emoji, generic]);
+            } else {
+                query.set_families(
+                    [
+                        generic,
+                        GenericFamily::SystemUi,
+                        GenericFamily::Emoji,
+                        GenericFamily::Math,
+                        GenericFamily::Serif,
+                        GenericFamily::Monospace,
+                    ]
+                    .map(QueryFamily::Generic),
+                );
+            }
             find_font(&mut query, base_char)
         }?;
 
