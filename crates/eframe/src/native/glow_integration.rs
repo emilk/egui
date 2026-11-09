@@ -1538,6 +1538,13 @@ impl GlutinWindowContext {
             && !viewport_output.contains_key(&current_viewport)
         {
             // The context is still current, but on a surface we are about to drop.
+            // Unbind the GL context before dropping its current surface.
+            if let Some(context) = self.current_gl_context.as_ref() {
+                context
+                    .make_not_current_in_place()
+                    .expect("failed to unbind GL context before dropping its surface");
+            }
+
             self.current_viewport = None;
         }
 
