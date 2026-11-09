@@ -57,6 +57,9 @@ pub struct StyledMetrics {
     /// Hashed once per run of text so per-glyph cache lookups don't have to
     /// re-hash the full coordinate list.
     pub(crate) location_hash: LocationHash,
+
+    /// Font units the face's `trak` table adds to each glyph's advance at this size (0 without one).
+    pub tracking_units: f32,
 }
 
 impl StyledMetrics {
@@ -77,6 +80,7 @@ impl StyledMetrics {
             row_height: (1.2 * font_size).round_ui().max(ascent),
             location: Default::default(),
             location_hash: Default::default(),
+            tracking_units: 0.0,
         }
     }
 }
