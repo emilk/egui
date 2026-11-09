@@ -117,6 +117,10 @@ criterion.workspace = true
 mimalloc.workspace = true
 similar-asserts.workspace = true
 
+# Runs the glyph rasterizer through vello_cpu's multi-threaded dispatcher, which apps can turn on.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+vello_cpu = { workspace = true, features = ["multithreading"] }
+
 
 [[bench]]
 name = "benchmark"

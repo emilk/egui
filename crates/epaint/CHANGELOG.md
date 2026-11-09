@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+### 🐛 Fixed
+* Rasterize glyphs on a single-threaded `vello_cpu` context, so enabling `vello_cpu`'s `multithreading` feature anywhere in the build no longer panics in `render` ([#8641](https://github.com/emilk/egui/pull/8641))
+
 ## 0.37.0 - 2026-10-15
 ### ⭐ Added
 * Add `epaint::RoundedRect` primitive [#8440](https://github.com/emilk/egui/pull/8440) by [@emilk](https://github.com/emilk)
