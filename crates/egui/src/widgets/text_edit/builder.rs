@@ -877,6 +877,12 @@ impl<'t> TextEdit<'t> {
                 is_being_dragged,
             );
 
+            if did_interact && cursor_range.is_some() {
+                // The pointer moved the cursor after the key events were handled,
+                // so pick that up too (e.g. to report a selection made by dragging):
+                cursor_range = state.cursor.range(&galley);
+            }
+
             if did_interact || response.clicked() {
                 ui.memory_mut(|mem| mem.request_focus(response.id));
                 state.cursor_purpose = TextEditCursorPurpose::Selection;
