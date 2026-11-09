@@ -121,6 +121,37 @@ struct ViewportLabelSelectionState {
     /// Are we in drag-to-select state?
     is_dragging: bool,
 
+    /// The widget that the pointer was pressed on to start the drag, if a label.
+    drag_started_in: Option<Id>,
+
+    /// Is the anchor of the selection, where the drag started, inside a [`crate::ScrollArea`]
+    /// that can scroll towards the pointer?
+    anchor_in_scroll_area: bool,
+
+    /// The [`crate::ScrollArea`]s around the anchor, as of the last pass it was visited.
+    anchor_scroll_areas: Vec<Id>,
+
+    /// Has a widget asked to scroll this pass? (Only one should.)
+    asked_to_scroll_this_pass: bool,
+
+    /// The widget holding the moving end of the selection when this pass started.
+    primary_at_pass_start: Option<Id>,
+
+    /// Is the drag scrolling an enclosing [`crate::ScrollArea`], because the pointer
+    /// is held outside of it? This is set each pass by the widget that the drag started
+    /// in (or the one holding the moving end, if the former is in no scroll area
+    /// that can scroll towards the pointer).
+    ///
+    /// While it is, we don't also scroll to keep the moving end in view since
+    /// the two would add up. Deliberately not reset at the start of each pass
+    /// since the moving end may be visited before the widget that sets this,
+    /// and then the previous pass is the best we know (re-checked against the
+    /// current pointer in `on_begin_pass`).
+    auto_scrolling: bool,
+
+    /// While [`Self::auto_scrolling`], the viewports being scrolled.
+    auto_scroll_viewport: Option<super::drag_scroll::AutoScroll>,
+
     /// Set if the current selection started with a double- or triple-click,
     /// so that dragging extends the selection by whole words or lines.
     granular_drag: Option<GranularDrag>,
@@ -134,6 +165,12 @@ struct ViewportLabelSelectionState {
     /// Accumulated text to copy.
     text_to_copy: String,
     last_copied_galley_rect: Option<Rect>,
+
+    /// Was the galley at [`Self::last_copied_galley_rect`] in view?
+    last_copied_galley_visible: bool,
+
+    /// The [`crate::ScrollArea`] the galley at [`Self::last_copied_galley_rect`] was in, if any.
+    last_copied_galley_scroll_area: Option<Id>,
 
     /// Has the selection changed since it was last reported with [`crate::OutputCommand::TextSelectionSettled`]?
     selection_is_dirty: bool,
@@ -155,11 +192,20 @@ impl Default for ViewportLabelSelectionState {
             selection_bbox_this_frame: Rect::NOTHING,
             any_hovered: Default::default(),
             is_dragging: Default::default(),
+            drag_started_in: Default::default(),
+            anchor_in_scroll_area: Default::default(),
+            anchor_scroll_areas: Default::default(),
+            asked_to_scroll_this_pass: Default::default(),
+            primary_at_pass_start: Default::default(),
+            auto_scrolling: Default::default(),
+            auto_scroll_viewport: Default::default(),
             granular_drag: Default::default(),
             has_reached_primary: Default::default(),
             has_reached_secondary: Default::default(),
             text_to_copy: Default::default(),
             last_copied_galley_rect: Default::default(),
+            last_copied_galley_visible: Default::default(),
+            last_copied_galley_scroll_area: Default::default(),
             selection_is_dirty: Default::default(),
             report_selection: Default::default(),
             painted_selections: Default::default(),
@@ -173,10 +219,11 @@ impl Plugin for LabelSelectionState {
     }
 
     fn on_begin_pass(&mut self, ui: &mut Ui) {
-        self.states
-            .entry(ui.ctx().viewport_id())
-            .or_default()
-            .on_begin_pass(ui);
+        let state = self.states.entry(ui.ctx().viewport_id()).or_default();
+        state.on_begin_pass(ui);
+        // The root `Ui` was made before this plugin ran, so it read `false` from the pass state.
+        // Children inherit the value we set here
+        ui.label_selection_exists = state.selection.is_some();
     }
 
     fn on_end_pass(&mut self, ui: &mut Ui) {
@@ -197,6 +244,15 @@ impl LabelSelectionState {
             .any(ViewportLabelSelectionState::has_selection)
     }
 
+    /// May a label scrolled out of view take part in the selection in this viewport right now?
+    pub(crate) fn may_track_out_of_view(ctx: &crate::Context, widget_id: Id) -> bool {
+        ctx.pass_state(|state| {
+            state
+                .label_selection_ends
+                .is_some_and(|ends| state.label_selection_between || ends.contains(&widget_id))
+        })
+    }
+
     /// Clear all label text selections in all viewports.
     pub fn clear_selection(&mut self) {
         self.states.clear();
@@ -204,6 +260,10 @@ impl LabelSelectionState {
 
     /// Handle text selection state for a label or similar widget.
     /// This also takes care of painting the galley.
+    ///
+    /// Call this even when the widget is scrolled out of view.
+    /// Selections anchored in the widget survive, and text is still
+    /// included when copying (nothing painted out of view).
     pub fn label_text_selection(
         ui: &Ui,
         response: &Response,
@@ -212,10 +272,22 @@ impl LabelSelectionState {
         fallback_color: epaint::Color32,
         underline: epaint::Stroke,
     ) {
+        let is_visible = ui.is_rect_visible(response.rect);
+
         let plugin = ui.ctx().plugin::<Self>();
         let mut plugin = plugin.lock();
         let state = plugin.states.entry(ui.ctx().viewport_id()).or_default();
+
+        if !is_visible && !state.is_tracked_out_of_view(ui, response.id) {
+            // Only end of selection or label between ends has anything to keep track of out of view.
+            return;
+        }
+
         let new_vertex_indices = state.on_label(ui, response, galley_pos, &mut galley);
+
+        if !is_visible {
+            return;
+        }
 
         let shape_idx = ui.painter().add(
             epaint::TextShape::new(galley_pos, galley, fallback_color).with_underline(underline),
@@ -255,12 +327,38 @@ impl ViewportLabelSelectionState {
         self.selection_bbox_this_frame = Rect::NOTHING;
 
         self.any_hovered = false;
+        self.asked_to_scroll_this_pass = false;
+        self.primary_at_pass_start = self.selection.map(|selection| selection.primary.widget_id);
+        // The widget that sets `auto_scrolling` may come late in the pass, after labels the pointer
+        // has just moved onto, so check now whether the last pass's decision still holds:
+        if self.auto_scrolling
+            && let Some(pointer_pos) = ui.ctx().pointer_interact_pos()
+        {
+            self.auto_scroll_viewport = self
+                .auto_scroll_viewport
+                .and_then(|auto_scroll| auto_scroll.still_applies(pointer_pos));
+            self.auto_scrolling = self.auto_scroll_viewport.is_some();
+        }
         self.has_reached_primary = false;
         self.has_reached_secondary = false;
         self.text_to_copy.clear();
         self.last_copied_galley_rect = None;
         self.painted_selections.clear();
         self.report_selection = self.selection_is_dirty && !ui.input(|i| i.pointer.any_down());
+
+        self.publish_tracking(ui.ctx());
+    }
+
+    /// For [`LabelSelectionState::may_track_out_of_view`].
+    fn publish_tracking(&self, ctx: &Context) {
+        let ends = self
+            .selection
+            .map(|selection| [selection.primary.widget_id, selection.secondary.widget_id]);
+        let between = self.has_reached_primary != self.has_reached_secondary;
+        ctx.pass_state_mut(|state| {
+            state.label_selection_ends = ends;
+            state.label_selection_between = between;
+        });
     }
 
     fn on_end_pass(&mut self, ui: &Ui) {
@@ -318,6 +416,9 @@ impl ViewportLabelSelectionState {
 
         if ui.input(|i| i.pointer.any_released()) {
             self.is_dragging = false;
+            self.drag_started_in = None;
+            self.auto_scrolling = false;
+            self.auto_scroll_viewport = None;
         }
 
         let text_to_copy = core::mem::take(&mut self.text_to_copy);
@@ -335,6 +436,19 @@ impl ViewportLabelSelectionState {
         }
     }
 
+    /// Does a label scrolled out of view take part in the selection this pass?
+    fn is_tracked_out_of_view(&self, ui: &Ui, widget_id: Id) -> bool {
+        if !ui.is_visible() || ui.is_sizing_pass() {
+            return false;
+        }
+        let Some(selection) = &self.selection else {
+            return false;
+        };
+        selection.primary.widget_id == widget_id
+            || selection.secondary.widget_id == widget_id
+            || self.has_reached_primary != self.has_reached_secondary
+    }
+
     fn is_active(&self) -> bool {
         self.selection.is_some() || self.is_dragging
     }
@@ -343,11 +457,23 @@ impl ViewportLabelSelectionState {
         self.selection.is_some()
     }
 
-    fn copy_text(&mut self, new_galley_rect: Rect, galley: &Galley, cursor_range: &CCursorRange) {
+    fn copy_text(
+        &mut self,
+        new_galley_rect: Rect,
+        is_visible: bool,
+        scroll_area: Option<Id>,
+        galley: &Galley,
+        cursor_range: &CCursorRange,
+    ) {
         let new_text = selected_text(galley, cursor_range);
         if new_text.is_empty() {
             return;
         }
+
+        let last_copied_galley_visible =
+            core::mem::replace(&mut self.last_copied_galley_visible, is_visible);
+        let last_copied_galley_scroll_area =
+            core::mem::replace(&mut self.last_copied_galley_scroll_area, scroll_area);
 
         if self.text_to_copy.is_empty() {
             self.text_to_copy = new_text;
@@ -364,7 +490,13 @@ impl ViewportLabelSelectionState {
         // We need to append or prepend the new text to the already copied text.
         // We need to do so intelligently.
 
-        if last_copied_galley_rect.bottom() <= new_galley_rect.top() {
+        if !(last_copied_galley_visible && is_visible)
+            && last_copied_galley_scroll_area != scroll_area
+        {
+            // One of them is scrolled out of view in another scroll area, so where they are
+            // tells nothing about how they line up. Put them on separate lines.
+            self.text_to_copy.push('\n');
+        } else if last_copied_galley_rect.bottom() <= new_galley_rect.top() {
             self.text_to_copy.push('\n');
             let vertical_distance = new_galley_rect.top() - last_copied_galley_rect.bottom();
             if estimate_row_height(galley) * 0.5 < vertical_distance {
@@ -413,10 +545,85 @@ impl ViewportLabelSelectionState {
         let may_select_widget =
             multi_widget_text_select || selection.primary.widget_id == response.id;
 
+        let dragging_from_anchor =
+            self.is_dragging && self.drag_started_in == Some(selection.secondary.widget_id);
+        let pointer_pos = || ui.ctx().pointer_interact_pos();
+        // The selection can continue into other labels, so scroll in any direction,
+        // unless it is confined to this one widget
+        let selectable = if multi_widget_text_select {
+            Rect::EVERYTHING
+        } else {
+            response.rect
+        };
+        if dragging_from_anchor && response.id == selection.secondary.widget_id {
+            self.anchor_scroll_areas = super::drag_scroll::enclosing_scroll_areas(ui);
+            self.anchor_in_scroll_area = pointer_pos().is_some_and(|pointer_pos| {
+                super::drag_scroll::scroll_while_dragging(ui, pointer_pos, selectable, &[], false)
+                    .is_some()
+            });
+        }
+        let asks_to_scroll = dragging_from_anchor
+            && !self.asked_to_scroll_this_pass
+            && if self.anchor_in_scroll_area {
+                response.id == selection.secondary.widget_id
+            } else {
+                self.primary_at_pass_start == Some(response.id)
+            };
+
+        if asks_to_scroll {
+            self.asked_to_scroll_this_pass = true;
+            // The drag started in this widget, so we scroll the scroll area around it
+            // when the pointer is held outside of it.
+            // (If none of those can scroll towards the pointer, this is the moving end,
+            // and its scroll area is scrolled.)
+            // On the release pass only decide where the selection ends, without scrolling.
+            // A label outside the area only gets selected once the area can't scroll further.
+            let apply = !ui.input(|i| i.pointer.any_released());
+            let anchor_scroll_areas = if response.id == selection.secondary.widget_id {
+                &[][..]
+            } else {
+                &self.anchor_scroll_areas
+            };
+            self.auto_scroll_viewport = pointer_pos().and_then(|pointer_pos| {
+                super::drag_scroll::scroll_while_dragging(
+                    ui,
+                    pointer_pos,
+                    selectable,
+                    anchor_scroll_areas,
+                    apply,
+                )
+            });
+            self.auto_scrolling = self.auto_scroll_viewport.is_some();
+        }
+
+        // A widget scrolled out of view still updates `has_reached_*`, the cursor positions
+        // and the copied text below, but the drag only extends the selection through
+        // the visible widgets
+        let is_visible = ui.is_rect_visible(response.rect);
+
         if self.is_dragging
             && may_select_widget
+            && is_visible
             && let Some(pointer_pos) = ui.ctx().pointer_interact_pos()
         {
+            // While the drag scrolls the view, the pointer is outside of it, so no label contains
+            // it. Act as if it were at the edge of the view, so the selection follows the scroll.
+            let pointer_pos = match self.auto_scroll_viewport {
+                Some(auto_scroll) if self.auto_scrolling => auto_scroll.clamp(pointer_pos),
+                _ => pointer_pos,
+            };
+            let contains_pointer = if self.auto_scrolling {
+                let layer_from_global = ui
+                    .ctx()
+                    .layer_transform_from_global(response.layer_id)
+                    .unwrap_or_default();
+                response
+                    .interact_rect
+                    .contains(layer_from_global * pointer_pos)
+            } else {
+                response.contains_pointer()
+            };
+
             let galley_rect = global_from_galley * Rect::from_min_size(Pos2::ZERO, galley.size());
             let galley_rect = galley_rect.intersect(ui.clip_rect());
 
@@ -429,7 +636,7 @@ impl ViewportLabelSelectionState {
             let has_reached_secondary =
                 self.has_reached_secondary || response.id == selection.secondary.widget_id;
 
-            let new_primary = if response.contains_pointer() {
+            let new_primary = if contains_pointer {
                 // Dragging into this widget - easy case:
                 let cursor_at_pointer =
                     galley.cursor_from_pos((galley_from_global * pointer_pos).to_vec2());
@@ -647,6 +854,10 @@ impl ViewportLabelSelectionState {
 
         self.any_hovered |= response.hovered();
         self.is_dragging |= response.is_pointer_button_down_on(); // we don't want the initial latency of drag vs click decision
+        if response.is_pointer_button_down_on() && ui.input(|i| i.pointer.any_pressed()) {
+            self.drag_started_in = Some(response.id);
+            self.anchor_scroll_areas.clear();
+        }
 
         let old_selection = self.selection;
 
@@ -723,7 +934,9 @@ impl ViewportLabelSelectionState {
             }
 
             if got_copy_event(ui.ctx()) || self.report_selection {
-                self.copy_text(galley_rect, galley, &cursor_range);
+                let is_visible = ui.is_rect_visible(response.rect);
+                let scroll_area = super::drag_scroll::nearest_vertical_scroll_area(ui);
+                self.copy_text(galley_rect, is_visible, scroll_area, galley, &cursor_range);
             }
 
             cursor_state.set_char_range(Some(cursor_range));
@@ -790,7 +1003,7 @@ impl ViewportLabelSelectionState {
                 });
                 if primary_changed && new_primary.widget_id == widget_id {
                     let is_fully_visible = ui.clip_rect().contains_rect(response.rect); // TODO(emilk): remove this HACK workaround for https://github.com/emilk/egui/issues/1531
-                    if selection_changed && !is_fully_visible {
+                    if selection_changed && !is_fully_visible && !self.auto_scrolling {
                         // Scroll to keep primary cursor in view:
                         let row_height = estimate_row_height(galley);
                         let primary_cursor_rect =
@@ -805,7 +1018,10 @@ impl ViewportLabelSelectionState {
 
         let mut new_vertex_indices = vec![];
 
-        if let Some(cursor_range) = cursor_range {
+        // No need to paint the selection into a galley that is scrolled out of view
+        if let Some(cursor_range) = cursor_range
+            && ui.is_rect_visible(response.rect)
+        {
             paint_text_selection(
                 galley,
                 ui.visuals(),
@@ -814,13 +1030,17 @@ impl ViewportLabelSelectionState {
             );
         }
 
-        super::accesskit_text::update_accesskit_for_text_widget(
-            ui.ctx(),
-            response.id,
-            cursor_range,
-            global_from_galley,
-            galley,
-        );
+        if ui.is_rect_visible(response.rect) {
+            super::accesskit_text::update_accesskit_for_text_widget(
+                ui.ctx(),
+                response.id,
+                cursor_range,
+                global_from_galley,
+                galley,
+            );
+        }
+
+        self.publish_tracking(ui.ctx());
 
         new_vertex_indices
     }

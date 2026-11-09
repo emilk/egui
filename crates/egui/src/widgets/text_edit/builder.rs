@@ -846,6 +846,9 @@ impl<'t> TextEdit<'t> {
         let text_clip_rect = inner_rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
+        // Is a drag scrolling an enclosing `ScrollArea` because the pointer is held outside it?
+        let mut auto_scrolling = false;
+
         if interactive && let Some(pointer_pos) = response.interact_pointer_pos() {
             if response.hovered() && text.is_mutable() {
                 ui.output_mut(|o| o.mutable_text_under_cursor = true);
@@ -876,6 +879,21 @@ impl<'t> TextEdit<'t> {
                 &galley,
                 is_being_dragged,
             );
+
+            if did_interact && is_being_dragged && !ui.input(|i| i.pointer.any_released()) {
+                let pointer_in_global = ui
+                    .ctx()
+                    .layer_transform_to_global(response.layer_id)
+                    .map_or(pointer_pos, |to_global| to_global * pointer_pos);
+                auto_scrolling = text_selection::drag_scroll::scroll_while_dragging(
+                    ui,
+                    pointer_in_global,
+                    response.rect,
+                    &[],
+                    true,
+                )
+                .is_some();
+            }
 
             if did_interact || response.clicked() {
                 ui.memory_mut(|mem| mem.request_focus(response.id));
@@ -997,8 +1015,8 @@ impl<'t> TextEdit<'t> {
                 let primary_cursor_rect = cursor_rect(&galley, &cursor_range.primary, row_height)
                     .translate(galley_pos.to_vec2() - vec2(galley.rect.left(), 0.0));
 
-                if response.changed() || selection_changed {
-                    // Scroll to keep primary cursor in view:
+                if (response.changed() || selection_changed) && !auto_scrolling {
+                    // Scroll to keep primary cursor in view (unless the drag is already scrolling)
                     ui.scroll_to_rect(primary_cursor_rect, None);
                 }
 

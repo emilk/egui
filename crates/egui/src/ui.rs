@@ -71,6 +71,12 @@ pub struct Ui {
     /// This is an optimization, so we don't call [`Ui::remember_min_rect`] multiple times at the
     /// end of a [`Ui::scope`].
     min_rect_already_remembered: bool,
+
+    /// Was there a label text selection in this viewport when this [`Ui`] (or its root) was made?
+    ///
+    /// Lets labels scrolled out of view skip the selection handling without taking any lock
+    /// when there is none.
+    pub(crate) label_selection_exists: bool,
 }
 
 /// Allow using [`Ui`] like a [`Context`].
@@ -129,6 +135,7 @@ impl Ui {
         let unique_id = scope_id;
 
         let placer = Placer::new(max_rect, layout);
+        let label_selection_exists = ctx.pass_state(|state| state.label_selection_ends.is_some());
         let ui_stack = UiStack {
             unique_id,
             scope_id,
@@ -152,6 +159,7 @@ impl Ui {
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
+            label_selection_exists,
         };
 
         if let Some(accessibility_parent) = accessibility_parent {
@@ -288,6 +296,7 @@ impl Ui {
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
+            label_selection_exists: self.label_selection_exists,
         };
 
         if disabled {
