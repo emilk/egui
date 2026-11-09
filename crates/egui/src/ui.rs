@@ -1943,7 +1943,9 @@ impl Ui {
 
     /// A [`TextEdit`] for code editing.
     ///
-    /// This will be multiline, monospace, and will insert tabs instead of moving focus.
+    /// This will be multiline, monospace, will insert tabs instead of moving focus,
+    /// and the `Home` key will move the cursor to the first non-whitespace character
+    /// of the line.
     ///
     /// See also [`TextEdit::code_editor`].
     pub fn code_editor<S: widgets::text_edit::TextBuffer>(&mut self, text: &mut S) -> Response {
