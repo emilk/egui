@@ -145,6 +145,9 @@ impl AppRunner {
 
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
+
+            ui_language: None,
+            text_input_language: None,
         };
 
         let needs_repaint: Arc<NeedRepaint> = Arc::new(NeedRepaint::new(web_options.max_fps));
@@ -390,7 +393,10 @@ impl AppRunner {
     fn handle_platform_output(&self, platform_output: egui::PlatformOutput) {
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
-            super::screen_reader::speak(&platform_output.events_description());
+            super::screen_reader::speak(
+                &platform_output.events_description(),
+                self.frame.ui_language.as_deref(),
+            );
         }
 
         let egui::PlatformOutput {
@@ -421,6 +427,13 @@ impl AppRunner {
         }
 
         super::set_cursor_icon(self.canvas(), cursor_icon);
+
+        self.text_agent.set_lang(
+            self.frame
+                .text_input_language
+                .as_deref()
+                .or(self.frame.ui_language.as_deref()),
+        );
 
         if self.has_focus() {
             // The eframe app has focus.

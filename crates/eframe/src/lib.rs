@@ -168,6 +168,9 @@ pub use epi::*;
 
 pub(crate) mod stopwatch;
 
+#[cfg(any(target_arch = "wasm32", test))]
+mod web_keys;
+
 // ----------------------------------------------------------------------------
 // When compiling for web
 

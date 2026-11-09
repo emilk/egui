@@ -26,6 +26,9 @@ pub(crate) struct WebInput {
     /// emit [`egui::Event::ModifiersChanged`] when it changes (see [`Self::set_modifiers`]).
     pub modifiers: egui::Modifiers,
 
+    /// Resolves keyboard events to egui keys, following the keyboard layout.
+    pub keys: super::input::KeyboardKeys,
+
     /// The raw input to `egui`.
     pub raw: egui::RawInput,
 }
@@ -60,6 +63,11 @@ impl WebInput {
 
         // log::debug!("on_web_page_focus_change: {focused}");
         self.modifiers = egui::Modifiers::default(); // Avoid sticky modifier keys on alt-tab:
+        self.keys.clear_pressed();
+        if focused {
+            // The user may have switched keyboard layouts while we didn't have focus.
+            self.keys.read_layout_map();
+        }
         self.raw.focused = focused;
         self.raw.events.push(egui::Event::WindowFocused(focused));
         self.primary_touch = None;
