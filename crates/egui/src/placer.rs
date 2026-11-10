@@ -1,4 +1,4 @@
-use crate::{Layout, Painter, Pos2, Rect, Region, Vec2, grid, vec2};
+use crate::{Align, Layout, Painter, Pos2, Rect, Region, Vec2, grid, vec2};
 use emath::GuiRounding as _;
 
 #[cfg(debug_assertions)]
@@ -48,8 +48,9 @@ impl Placer {
     }
 
     #[inline(always)]
-    pub(crate) fn prefer_right_to_left(&self) -> bool {
+    pub(crate) fn prefer_right_to_left(&self, ui_is_rtl: bool) -> bool {
         self.layout.prefer_right_to_left()
+            || ui_is_rtl && self.layout.is_vertical() && self.layout.cross_align != Align::Max
     }
 
     #[inline(always)]
@@ -64,7 +65,7 @@ impl Placer {
 
     #[inline(always)]
     pub(crate) fn force_set_min_rect(&mut self, min_rect: Rect) {
-        self.region.min_rect = min_rect;
+        self.region.replace_min_rect(min_rect);
     }
 
     #[inline(always)]
@@ -110,7 +111,17 @@ impl Placer {
     /// The returned `frame_rect` will always be justified along the cross axis.
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
-    pub(crate) fn next_space(&self, child_size: Vec2, item_spacing: Vec2) -> Rect {
+    ///
+    /// `prefer_right_to_left` is the resolved reading-direction term
+    /// ([`Self::prefer_right_to_left`]): in a wrapping layout whose main axis is
+    /// vertical it makes new wrap columns grow leftward from the reading-start
+    /// edge instead of rightward.
+    pub(crate) fn next_space(
+        &self,
+        child_size: Vec2,
+        item_spacing: Vec2,
+        prefer_right_to_left: bool,
+    ) -> Rect {
         debug_assert!(
             0.0 <= child_size.x && 0.0 <= child_size.y,
             "Negative child size: {child_size:?}"
@@ -120,7 +131,7 @@ impl Placer {
             grid.next_cell(self.region.cursor, child_size)
         } else {
             self.layout
-                .next_frame(&self.region, child_size, item_spacing)
+                .next_frame(&self.region, child_size, item_spacing, prefer_right_to_left)
         }
     }
 
@@ -186,7 +197,21 @@ impl Placer {
             );
         }
 
-        self.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
+        // The reported `min_rect` must hug the content. A frame stretched to the available
+        // width (vertical layouts with `Align::Center` cross alignment, or justified ones —
+        // see `Layout::next_frame_ignore_wrap`) is placement-only and must not widen the
+        // minimum size; for every other vertical layout the frame already equals the widget
+        // rect. Horizontal layouts and grids keep folding the frame: there the frame is
+        // load-bearing (row height / cell size), not a measurement defect. The
+        // `region_from_max_rect` seed is a placeholder, not content: the first measured
+        // rect replaces it per axis, so a zero-size alignment anchor never widens the
+        // measured span.
+        let measured_rect = if self.grid.is_none() && self.layout.is_vertical() {
+            widget_rect
+        } else {
+            frame_rect
+        };
+        self.expand_to_include_rect(measured_rect);
 
         self.region.sanity_check();
     }
@@ -228,6 +253,20 @@ impl Placer {
             .next_widget_space_ignore_wrap_justify(&self.region, size)
     }
 
+    // Anchoring of the width setters (`set_max_width` / `set_min_width`):
+    // they claim their span with the layout-derived anchor
+    // (`Layout::horizontal_align`) — a vertical body claims from its
+    // `cross_align` edge — in every pass and every interface direction. The
+    // anchor must stay layout-derived: `Layout::region_from_max_rect` seeds
+    // `min_rect` as a zero-size rect at the `cross_align` edge,
+    // `Region::expand_to_include_x` unions any claim into it, and the
+    // `region.max_rect |= region.min_rect` guard below re-anchors every
+    // result to the body's content edge — so a claim from any other edge
+    // would only balloon the measured size to the offered span. In
+    // `Align::Max` bodies under a right-to-left interface (the popup/menu
+    // bodies) the layout-derived anchor already IS the reading edge, so
+    // reading-edge capping works there. The regression pins live in
+    // `crates/egui/tests/reading_edge_width.rs`.
     /// Set the maximum width of the ui.
     /// You won't be able to shrink it below the current minimum size.
     pub(crate) fn set_max_width(&mut self, width: f32) {
@@ -295,5 +334,151 @@ impl Placer {
             self.layout
                 .paint_text_at_cursor(painter, &self.region, stroke, text);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Placer;
+    use crate::{Align, Context, Direction, Layout, RawInput, Rect, UiBuilder, Vec2, pos2};
+
+    fn placer(layout: Layout) -> Placer {
+        Placer::new(
+            Rect::from_min_size(pos2(0.0, 0.0), crate::vec2(100.0, 100.0)),
+            layout,
+        )
+    }
+
+    /// A `Ui` built under a right-to-left interface resolves the effective
+    /// cross align of a vertical `Align::Min` body to `Max` at construction;
+    /// under a left-to-right interface it stays `Min`.
+    #[test]
+    fn ui_construction_resolves_the_effective_cross_align_of_vertical_min_bodies() {
+        for (rtl, expected) in [(false, Align::Min), (true, Align::Max)] {
+            let ctx = Context::default();
+            ctx.set_right_to_left(rtl);
+            let output = ctx.run_ui(
+                RawInput {
+                    screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), Vec2::splat(200.0))),
+                    ..Default::default()
+                },
+                |ui| {
+                    assert_eq!(ui.layout().cross_align(), expected, "root ui, rtl = {rtl}");
+                    let child = ui.new_child(UiBuilder::new().layout(Layout::top_down(Align::Min)));
+                    assert_eq!(
+                        child.layout().cross_align(),
+                        expected,
+                        "child ui, rtl = {rtl}"
+                    );
+                },
+            );
+            output.drop_without_applying_deltas();
+        }
+    }
+
+    /// The RTL term applies only to vertical layouts that are not `Align::Max`
+    /// (`Align::Min` and `Align::Center` bodies), and `rtl = false` matches the
+    /// old pure-layout answers.
+    #[test]
+    fn prefer_right_to_left_truth_table() {
+        let layouts = [
+            Layout::left_to_right(Align::Center),
+            Layout::right_to_left(Align::Center),
+            Layout::top_down(Align::Min),
+            Layout::top_down(Align::Center),
+            Layout::top_down(Align::Max),
+            Layout::top_down_justified(Align::Min),
+            Layout::top_down_justified(Align::Max),
+        ];
+
+        for layout in layouts {
+            let placer = placer(layout);
+
+            // With the flag off, the answer is exactly the old pure-layout one:
+            assert_eq!(
+                placer.prefer_right_to_left(false),
+                layout.prefer_right_to_left(),
+                "{layout:?} with ui_is_rtl=false"
+            );
+
+            // With the flag on, only vertical layouts that are not `Align::Max`
+            // gain the RTL term:
+            let expected = layout.prefer_right_to_left()
+                || layout.is_vertical() && layout.cross_align != Align::Max;
+            assert_eq!(
+                placer.prefer_right_to_left(true),
+                expected,
+                "{layout:?} with ui_is_rtl=true"
+            );
+        }
+    }
+
+    #[test]
+    fn right_to_left_interface_mirrors_nested_rows_of_vertical_bodies() {
+        // `ui.vertical` uses this exact layout:
+        let body = Layout::top_down(Align::Min);
+        assert!(placer(body).prefer_right_to_left(true));
+        assert!(!placer(body).prefer_right_to_left(false));
+
+        // `ui.vertical_centered` uses this exact layout; it mirrors under the
+        // interface flag just like a `Min` body:
+        let center_body = Layout::top_down(Align::Center);
+        assert!(placer(center_body).prefer_right_to_left(true));
+        assert!(!placer(center_body).prefer_right_to_left(false));
+
+        // Horizontal rows are never mirrored by the interface term:
+        let row = Layout::left_to_right(Align::Center);
+        assert!(!placer(row).prefer_right_to_left(true));
+
+        // A layout that already runs right-to-left is right-to-left either way:
+        let rtl_row = Layout::right_to_left(Align::Center);
+        assert!(placer(rtl_row).prefer_right_to_left(true));
+        assert!(placer(rtl_row).prefer_right_to_left(false));
+
+        // Vertical `Align::Max` is right-to-left regardless of the interface direction:
+        let max_body = Layout::top_down_justified(Align::Max);
+        assert!(placer(max_body).prefer_right_to_left(true));
+        assert!(placer(max_body).prefer_right_to_left(false));
+
+        // Sanity: `Direction::RightToLeft` main dir is what makes the pure-layout term true.
+        assert_eq!(rtl_row.main_dir, Direction::RightToLeft);
+    }
+
+    /// The reported `min_rect` hugs the widget for vertical layouts — even cross-`Center`,
+    /// whose frame is stretched to the available width and is placement-only — while
+    /// horizontal layouts keep folding the frame, whose cross extent is the row height.
+    #[test]
+    fn advance_after_rects_min_rect_hugs_widget_for_vertical_center() {
+        // Vertical cross-Center: the frame is stretched to the available width,
+        // but the reported minimum must stay content-tight:
+        let mut placer = Placer::new(
+            Rect::from_min_size(pos2(0.0, 0.0), crate::vec2(300.0, 100.0)),
+            Layout::top_down(Align::Center),
+        );
+        let frame = placer.next_space(crate::vec2(50.0, 10.0), Vec2::ZERO, false);
+        assert_eq!(
+            frame.width(),
+            300.0,
+            "the frame is stretched to the available width"
+        );
+        let widget = placer.justify_and_align(frame, crate::vec2(50.0, 10.0));
+        placer.advance_after_rects(frame, widget, Vec2::ZERO);
+        assert_eq!(placer.min_rect().width(), 50.0);
+
+        // Horizontal cross-Center: the frame is stretched to the available height, and the
+        // reported minimum must keep that frame (a widget fold would shrink every row):
+        let mut placer = Placer::new(
+            Rect::from_min_size(pos2(0.0, 0.0), crate::vec2(300.0, 20.0)),
+            Layout::left_to_right(Align::Center),
+        );
+        let frame = placer.next_space(crate::vec2(50.0, 15.0), Vec2::ZERO, false);
+        assert_eq!(
+            frame.height(),
+            20.0,
+            "the frame is stretched to the available height"
+        );
+        let widget = placer.justify_and_align(frame, crate::vec2(50.0, 15.0));
+        placer.advance_after_rects(frame, widget, Vec2::ZERO);
+        assert_eq!(placer.min_rect().height(), 20.0);
     }
 }

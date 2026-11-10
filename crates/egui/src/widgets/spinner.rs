@@ -45,6 +45,13 @@ impl Spinner {
             let radius = (rect.height().min(rect.width()) * 0.5) - 2.0;
             let n_points = (radius.round() as u32).clamp(8, 128);
             let time = ui.input(|i| i.time);
+            // The bare spinner always sweeps clockwise and does not mirror under a
+            // right-to-left reading direction, following Material Design's
+            // bidirectionality guidance: circular loading indicators keep their orbit
+            // in every reading direction, while linear indicators mirror. This is
+            // deliberately different from `ProgressBar`'s indeterminate arc, which
+            // orbits the fill's reading-start progress front and sweeps the mirrored
+            // way (see `progress_bar.rs`).
             let start_angle = time * core::f64::consts::TAU;
             let end_angle = start_angle + 240f64.to_radians() * time.sin();
             let points: Vec<Pos2> = (0..n_points)

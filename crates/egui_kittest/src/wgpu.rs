@@ -142,12 +142,14 @@ impl crate::TestRenderer for WgpuTestRenderer {
         #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
         for (id, images) in delta.set.drain() {
             for image in images {
-                renderer.update_texture(
+                if let Err(err) = renderer.update_texture(
                     &self.render_state.device,
                     &self.render_state.queue,
                     id,
                     &image,
-                );
+                ) {
+                    log::warn!("Skipping texture delta for {id:?}: {err}");
+                }
             }
         }
 
@@ -180,13 +182,15 @@ impl crate::TestRenderer for WgpuTestRenderer {
 
         let tessellated = ctx.tessellate(output.shapes.clone(), ctx.pixels_per_point());
 
-        let user_buffers = renderer.update_buffers(
-            &self.render_state.device,
-            &self.render_state.queue,
-            &mut encoder,
-            &tessellated,
-            &screen,
-        );
+        let user_buffers = renderer
+            .update_buffers(
+                &self.render_state.device,
+                &self.render_state.queue,
+                &mut encoder,
+                &tessellated,
+                &screen,
+            )
+            .map_err(|err| format!("egui_wgpu update_buffers failed: {err}"))?;
 
         let texture = self
             .render_state

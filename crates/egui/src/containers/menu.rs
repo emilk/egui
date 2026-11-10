@@ -10,10 +10,10 @@
 
 use crate::style::StyleModifier;
 use crate::{
-    Atom, AtomKind, AtomPaintArgs, Button, Color32, Context, FocusDirection, Frame, Id,
-    InnerResponse, IntoAtoms, IntoSizedResult, Layout, PointerButton, Popup, PopupCloseBehavior,
-    PopupKind, Response, SetOpenCommand, SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack,
-    UiStackInfo, Widget as _,
+    Atom, AtomExt as _, AtomKind, AtomPaintArgs, Button, Color32, Context, FocusDirection, Frame,
+    Id, InnerResponse, IntoAtoms, IntoSizedResult, Layout, PointerButton, Popup,
+    PopupCloseBehavior, PopupKind, Response, SetOpenCommand, SizedAtomKind, Style, TextStyle, Ui,
+    UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _, WidgetText,
 };
 use alloc::sync::Arc;
 use emath::{Align, Rect, RectAlign, Vec2, vec2};
@@ -29,6 +29,49 @@ pub fn menu_style(style: &mut Style) {
     style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
     style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
     style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
+}
+
+/// The checkmark column's content: mark plus a trailing space, so the column
+/// covers the gap between mark and label.
+const CHECK_MARK_COLUMN: &str = "✔ ";
+
+/// A menu item row: the label behind a fixed-width checkmark column at the
+/// reading start, an optional shortcut at the reading end.
+///
+/// The column is measured in the button font, so every row of a menu reserves
+/// the same width and check and no-check rows align. It is only reserved when
+/// the item is checked or the interface is right-to-left; otherwise the row is
+/// pixel-identical to a plain [`Button`].
+pub fn menu_item_button<'a>(
+    ui: &Ui,
+    label: impl Into<WidgetText>,
+    checked: bool,
+    shortcut: Option<impl IntoAtoms<'a>>,
+) -> Button<'a> {
+    let label = label.into();
+    let with_shortcut = |button: Button<'a>| match shortcut {
+        Some(shortcut) => button.shortcut_text(shortcut),
+        None => button,
+    };
+    if !checked && !ui.is_rtl() {
+        return with_shortcut(Button::new(label));
+    }
+
+    let font_id = TextStyle::Button.resolve(ui.style());
+    let column_width = ui
+        .painter()
+        .layout_no_wrap(CHECK_MARK_COLUMN.to_owned(), font_id, Color32::PLACEHOLDER)
+        .size()
+        .x;
+    let column = if checked {
+        Atom::from(CHECK_MARK_COLUMN)
+    } else {
+        Atom::default().atom_size(vec2(column_width, 0.0))
+    };
+    // The label's base direction and language are stamped from the interface by
+    // `WidgetText::into_galley_impl` (via `Button`), so a Latin-first label still
+    // reads as a right-to-left row; an explicit direction on the label still wins.
+    with_shortcut(Button::new((column, label)))
 }
 
 /// Find the root [`UiStack`] of the menu.
@@ -258,6 +301,14 @@ impl MenuState {
         if index.is_none() && !entering && !from_empty && !focus_first {
             return;
         }
+        // The reading-backward arrow returns focus to the anchor, closing the submenu:
+        // ArrowLeft in LTR, ArrowRight in RTL. SubMenu handles the reading-forward arrow
+        // on its own button before we get here.
+        let close_direction = if ui.is_rtl() {
+            FocusDirection::Right
+        } else {
+            FocusDirection::Left
+        };
         let next = if focus_first {
             entries.first().copied()
         } else {
@@ -271,8 +322,7 @@ impl MenuState {
                     .and_then(|index| entries.get(index))
                     .or_else(|| entries.last())
                     .copied(),
-                FocusDirection::Left => anchor_widget,
-                // SubMenu handles Right on its own button before we get here.
+                _ if direction == close_direction => anchor_widget,
                 _ => None,
             }
         };
@@ -364,13 +414,12 @@ impl MenuBar {
         // TODO(lucasmerlin): It'd be nice if we had a ui.horizontal_builder or something
         // So we don't need the nested scope here
         ui.horizontal(|ui| {
+            let layout = ui.mirrored_horizontal_layout(Align::Center);
             ui.scope_builder(
-                UiBuilder::new()
-                    .layout(Layout::left_to_right(Align::Center))
-                    .ui_stack_info(
-                        UiStackInfo::new(UiKind::Menu)
-                            .with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
-                    ),
+                UiBuilder::new().layout(layout).ui_stack_info(
+                    UiStackInfo::new(UiKind::Menu)
+                        .with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
+                ),
                 |ui| {
                     style.apply(ui.style_mut());
 
@@ -478,12 +527,22 @@ pub struct SubMenuButton<'a> {
 
 impl<'a> SubMenuButton<'a> {
     /// The submenu arrow triangle shape.
-    pub fn arrow_shape(rect: Rect, color: impl Into<Color32>) -> Shape {
+    ///
+    /// The closed triangle points at the reading end: the side the submenu opens
+    /// on (right in a left-to-right interface, left in a right-to-left one).
+    pub fn arrow_shape(ui: &Ui, rect: Rect, color: impl Into<Color32>) -> Shape {
         let rect = Rect::from_center_size(
             rect.center(),
             vec2(rect.width() * 0.55, rect.height() * 0.35),
         );
-        Shape::rotated_triangle(rect, -core::f32::consts::TAU / 4.0, color)
+        // Mirror the arrow in a right-to-left interface, like collapsing headers do:
+        // the triangle points at the reading end, where the submenu opens.
+        let rotation = if ui.is_rtl() {
+            core::f32::consts::TAU / 4.0
+        } else {
+            -core::f32::consts::TAU / 4.0
+        };
+        Shape::rotated_triangle(rect, rotation, color)
     }
 
     /// An [`Atom`] painting the [`Self::arrow_shape`].
@@ -498,7 +557,7 @@ impl<'a> SubMenuButton<'a> {
                 sized: SizedAtomKind::Paint {
                     paint: Arc::new(move |ui: &Ui, args: AtomPaintArgs| {
                         let color = color.unwrap_or(args.fallback_text_color);
-                        ui.painter().add(Self::arrow_shape(args.rect, color));
+                        ui.painter().add(Self::arrow_shape(ui, args.rect, color));
                     }),
                     size,
                 },
@@ -587,6 +646,12 @@ impl SubMenu {
     ///
     /// This does some heuristics to check if the `button_response` was the last thing in the
     /// menu that was hovered/clicked, and if so, shows the submenu.
+    ///
+    /// The submenu opens on the parent row's reading-direction side: to the right in a
+    /// left-to-right UI, to the left when [`crate::Style::right_to_left`] is set; the body
+    /// mirrors accordingly.
+    ///
+    /// A row scrolled out of the visible part of its menu does not open its submenu on hover.
     pub fn show<R>(
         self,
         ui: &Ui,
@@ -639,8 +704,16 @@ impl SubMenu {
             .expand2(ui.style().spacing.item_spacing / 2.0);
 
         // In theory some other widget could cover the button and this check would still pass
-        // But since we check if no other menu is open, nothing should be able to cover the button
-        let is_hovered = hover_pos.is_some_and(|pos| button_rect.contains(pos));
+        // But since we check if no other menu is open, nothing should be able to cover the
+        // button. A row scrolled out of the visible part of its menu (outside
+        // `ui.clip_rect()`) must not open its submenu: the pointer can sit where the hidden
+        // row would be (e.g. over the menu bar above a scrolled popup), and the submenu would
+        // then open for a row the user cannot see and swallow clicks meant for what is on
+        // screen. A submenu that is already open (opened from the keyboard, say) keeps
+        // behaving exactly as before.
+        let is_hovered = hover_pos.is_some_and(|pos| {
+            button_rect.contains(pos) && (was_open || ui.clip_rect().contains(pos))
+        });
 
         // `clicked` includes keyboard and accessibility click actions.
         // Enter/Space on the focused button enters the submenu, an accessibility click toggles it,
@@ -649,12 +722,17 @@ impl SubMenu {
         let clicked_by_pointer = button_response.clicked_by(PointerButton::Primary);
         let clicked_by_keyboard_or_access = clicked && !clicked_by_pointer;
         let focused = button_response.enabled() && button_response.has_focus();
-        let arrow_right =
-            focused && ui.memory(|mem| mem.focus_direction() == FocusDirection::Right);
-        if arrow_right {
+        // The reading-forward arrow opens the submenu: ArrowRight in LTR, ArrowLeft in RTL.
+        let open_direction = if ui.is_rtl() {
+            FocusDirection::Left
+        } else {
+            FocusDirection::Right
+        };
+        let arrow_open = focused && ui.memory(|mem| mem.focus_direction() == open_direction);
+        if arrow_open {
             ui.memory_mut(|mem| mem.move_focus(FocusDirection::None));
         }
-        let enter = arrow_right || (focused && clicked_by_keyboard_or_access);
+        let enter = arrow_open || (focused && clicked_by_keyboard_or_access);
         // Only arrow keys open on focus, so Tab can still move past the submenu.
         let focus_open = focused && parent_arrow_focus == Some(button_response.id);
         let keyboard_open = enter || focus_open || (!was_open && clicked_by_keyboard_or_access);
@@ -704,12 +782,24 @@ impl SubMenu {
         let expand = Vec2::new(0.0, measurement_frame.total_margin().sum().y * 0.5);
         response.interact_rect = response.interact_rect.expand2(expand);
 
+        // In a right-to-left interface the submenu opens at the reading-end (left)
+        // side of its button, with rows justified from the reading start.
+        let rtl = ui.is_rtl();
+
         let popup_response = Popup::from_response(&response)
             .id(id)
             .kind(PopupKind::Menu)
             .open(is_open)
-            .align(RectAlign::RIGHT_START)
-            .layout(Layout::top_down_justified(Align::Min))
+            .align(if rtl {
+                RectAlign::LEFT_START
+            } else {
+                RectAlign::RIGHT_START
+            })
+            .layout(if rtl {
+                Layout::top_down_justified(Align::Max)
+            } else {
+                Layout::top_down_justified(Align::Min)
+            })
             .gap(gap)
             .style(menu_config.style.clone())
             // The close behavior is handled by the menu (see below)
@@ -800,5 +890,68 @@ impl SubMenu {
         }
 
         popup_response
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SubMenuButton;
+    use crate::{Color32, Context};
+    use emath::{Pos2, Rect, Vec2};
+    use epaint::Shape;
+
+    /// The submenu arrow's closed triangle points at the reading end — the side
+    /// the submenu opens on (right under LTR, left under RTL).
+    ///
+    /// The three polygon points are discriminated by their horizontal extent
+    /// around their centroid: under a ±TAU/4 rotation the tip sits `2h/3` from
+    /// the centroid on one side and both base vertices `h/3` on the other
+    /// (`h = 0.35 * rect.height()`), for every input aspect ratio.
+    #[test]
+    fn submenu_arrow_points_at_the_reading_end() {
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::splat(20.0));
+        let color = Color32::WHITE;
+
+        // (extent to the right of the centroid, extent to the left of it).
+        let tip_extents = |shape: &Shape| {
+            let Shape::Path(path) = shape else {
+                panic!("arrow_shape should return a `Shape::Path`");
+            };
+            let mut centroid_x = 0.0;
+            let mut max_x = f32::MIN;
+            let mut min_x = f32::MAX;
+            for point in &path.points {
+                centroid_x += point.x;
+                max_x = max_x.max(point.x);
+                min_x = min_x.min(point.x);
+            }
+            centroid_x /= path.points.len() as f32;
+            (max_x - centroid_x, centroid_x - min_x)
+        };
+
+        let ctx = Context::default();
+
+        // LTR: the tip extends right, toward the reading end.
+        ctx.run_ui(Default::default(), |ui| {
+            let (right, left) = tip_extents(&SubMenuButton::arrow_shape(ui, rect, color));
+            assert!(
+                right > left,
+                "the LTR submenu arrow should point right, toward the reading end \
+                 (right extent {right}, left extent {left})"
+            );
+        })
+        .drop_without_applying_deltas();
+
+        // RTL: mirrored — the tip extends left, toward the reading end.
+        ctx.set_right_to_left(true);
+        ctx.run_ui(Default::default(), |ui| {
+            let (right, left) = tip_extents(&SubMenuButton::arrow_shape(ui, rect, color));
+            assert!(
+                left > right,
+                "the RTL submenu arrow should point left, toward the reading end \
+                 (right extent {right}, left extent {left})"
+            );
+        })
+        .drop_without_applying_deltas();
     }
 }

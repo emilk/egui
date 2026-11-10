@@ -2,7 +2,7 @@
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
-use emath::GuiRounding as _;
+use emath::{GuiRounding as _, RectAlign};
 
 use crate::{
     Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2, Rect, Response,
@@ -31,6 +31,14 @@ pub struct AreaState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub size: Option<Vec2>,
 
+    /// Placement size an anchored area uses in its anchor derivation instead of its
+    /// live size, once a user resize drag has happened on it (see the
+    /// `resize_drag_in_flight` flag `Resize` sets): the reading-start edge of the
+    /// placed rect pins and the area grows reading-forward from it. Not persisted
+    /// between sessions, like [`Self::size`].
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub resize_pin_placement: Option<Vec2>,
+
     /// If false, clicks goes straight through to what is behind us. Useful for tooltips etc.
     pub interactable: bool,
 
@@ -47,6 +55,7 @@ impl Default for AreaState {
             pivot_pos: None,
             pivot: Align2::LEFT_TOP,
             size: None,
+            resize_pin_placement: None,
             interactable: true,
             last_became_visible_at: None,
         }
@@ -77,6 +86,21 @@ impl AreaState {
         self.pivot_pos = Some(pos2(
             pos.x + self.pivot.x().to_factor() * size.x,
             pos.y + self.pivot.y().to_factor() * size.y,
+        ));
+    }
+
+    /// Place the area so that its pivot corner lands where `rect`'s pivot corner is.
+    ///
+    /// Unlike [`Self::set_left_top_pos`], which folds the given left-top position
+    /// through the persisted (and by then stale) [`Self::size`], this derives the
+    /// pivot position from `rect` itself, so it stays exact when `rect`'s size
+    /// differs from the persisted one — an interactive resize, where the pivot
+    /// corner is the un-dragged reading edge and must stay fixed while the drag
+    /// changes the size.
+    pub(crate) fn set_rect_pivot_pos(&mut self, rect: Rect) {
+        self.pivot_pos = Some(pos2(
+            rect.left() + self.pivot.x().to_factor() * rect.width(),
+            rect.top() + self.pivot.y().to_factor() * rect.height(),
         ));
     }
 
@@ -116,7 +140,12 @@ pub struct Area {
     order: Order,
     default_pos: Option<Pos2>,
     default_size: Vec2,
-    pivot: Align2,
+    /// The pivot the user explicitly set with [`Self::pivot`], or `None` for the default.
+    ///
+    /// The default pivot is mirrored to the reading direction
+    /// ([`crate::Style::right_to_left`]): `RIGHT_TOP` in a right-to-left interface,
+    /// `LEFT_TOP` otherwise, so areas widen towards the reading end.
+    pivot: Option<Align2>,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
     fade_in: bool,
@@ -147,7 +176,7 @@ impl Area {
             default_pos: None,
             default_size: Vec2::NAN,
             new_pos: None,
-            pivot: Align2::LEFT_TOP,
+            pivot: None,
             anchor: None,
             fade_in: true,
             layout: Layout::default(),
@@ -338,10 +367,12 @@ impl Area {
     /// then [`Self::fixed_pos`] will set the position of the right-top
     /// corner of the area.
     ///
-    /// Default: [`Align2::LEFT_TOP`].
+    /// Default: [`Align2::LEFT_TOP`], mirrored to [`Align2::RIGHT_TOP`]
+    /// in a right-to-left interface ([`crate::Style::right_to_left`]),
+    /// so areas widen towards the reading end.
     #[inline]
     pub fn pivot(mut self, pivot: Align2) -> Self {
-        self.pivot = pivot;
+        self.pivot = Some(pivot);
         self
     }
 
@@ -369,12 +400,29 @@ impl Area {
         self.movable(false)
     }
 
-    pub(crate) fn get_pivot(&self) -> Align2 {
+    /// The pivot in effect: the [`Self::anchor`] pivot if anchored,
+    /// the explicitly set [`Self::pivot`] if there is one, and otherwise
+    /// the default, mirrored to the reading direction (`rtl`):
+    /// `RIGHT_TOP` in a right-to-left interface, `LEFT_TOP` otherwise.
+    pub(crate) fn get_pivot(&self, rtl: bool) -> Align2 {
         if let Some((pivot, _)) = self.anchor {
             pivot
         } else {
-            Align2::LEFT_TOP
+            self.pivot.unwrap_or_else(|| default_pivot(rtl))
         }
+    }
+
+    /// Was this area placed with [`Area::anchor`] (position re-derived from the anchor each frame)?
+    pub(crate) fn anchored(&self) -> bool {
+        self.anchor.is_some()
+    }
+
+    /// Was this area placed with [`Area::fixed_pos`] or [`Area::current_pos`]?
+    ///
+    /// `Area::begin` re-applies that position every frame, overwriting whatever
+    /// was persisted in the state.
+    pub(crate) fn has_new_pos(&self) -> bool {
+        self.new_pos.is_some()
     }
 
     /// If `true`, quickly fade in the area.
@@ -412,6 +460,79 @@ impl Area {
     pub fn sizing_pass(mut self, resize: bool) -> Self {
         self.sizing_pass = resize;
         self
+    }
+}
+
+impl Area {
+    /// Find the pivot and position that place an area of `size` with its `pivot` corner
+    /// at `anchor`, fully inside `screen_rect`.
+    ///
+    /// Like [`crate::Popup`], the preferred side is kept when it fits; otherwise the flipped
+    /// side is tried ([`emath::RectAlign::symmetries`]). If no side fits (the area is larger
+    /// than `screen_rect`, or the anchor is pinned at its far edge) the rect is clamped inside.
+    ///
+    /// The search covers the preferred alignment and its symmetries only — unlike
+    /// [`crate::Popup::get_best_align`] it does not fall back to [`emath::RectAlign::MENU_ALIGNS`],
+    /// because the caller asked for the area to stay anchored (with its `pivot` corner) at
+    /// `anchor`, not to jump to a different edge.
+    ///
+    /// The returned position is the position of the *pivot* (what [`Self::fixed_pos`] expects),
+    /// not the top-left corner — feed the pair straight back into `.pivot(pivot).fixed_pos(pos)`.
+    ///
+    /// The function is direction-agnostic: an interface reading right-to-left passes the
+    /// mirrored preferred pivot (e.g. [`Align2::RIGHT_TOP`] instead of [`Align2::LEFT_TOP`]).
+    ///
+    /// Degenerate inputs never panic: a `screen_rect` with NaN bounds returns `(pivot, anchor)`
+    /// unchanged; other values outside the domain of `f32::clamp` (inverted or single-NaN
+    /// bounds, NaN or negative `size`) yield clamped or degenerate geometry, never a panic.
+    ///
+    /// ```
+    /// # use egui::{pos2, vec2, Area, Align2, Id, Order};
+    /// # egui::__run_test_ctx(|ctx| {
+    /// let anchor = pos2(790.0, 100.0); // e.g. the pointer position
+    /// let (pivot, pos) =
+    ///     Area::fit_pos(anchor, vec2(200.0, 140.0), Align2::LEFT_TOP, ctx.content_rect());
+    /// Area::new(Id::unique("fit_pos_example"))
+    ///     .order(Order::Foreground)
+    ///     .pivot(pivot)
+    ///     .fixed_pos(pos)
+    ///     .show(ctx, |ui| ui.set_min_size(vec2(200.0, 140.0)));
+    /// # });
+    /// ```
+    pub fn fit_pos(anchor: Pos2, size: Vec2, pivot: Align2, screen_rect: Rect) -> (Align2, Pos2) {
+        // Degenerate screen rects (unmeasured viewports) must not panic: `f32::clamp`
+        // asserts `min <= max`, which NaN bounds violate.
+        if screen_rect.any_nan() {
+            return (pivot, anchor);
+        }
+        let screen_rect = Rect::from_two_pos(screen_rect.min, screen_rect.max); // normalize inverted rects
+
+        let anchor_rect = Rect::from_min_size(anchor, Vec2::ZERO);
+        let preferred = RectAlign::from_align2(pivot);
+
+        let best = RectAlign::find_best_align(
+            core::iter::chain(core::iter::once(preferred), preferred.symmetries()),
+            screen_rect,
+            anchor_rect,
+            0.0,
+            size,
+        )
+        .unwrap_or(preferred); // find_best_align never returns None when given alternatives
+
+        let mut pos = best.align_rect(&anchor_rect, size, 0.0).min;
+        // No side fits: clamp what's left. The `.max` keeps the upper bound >= the lower one
+        // when `size` is larger than `screen_rect` (or NaN), so `clamp` cannot assert.
+        pos.x = pos.x.clamp(
+            screen_rect.min.x,
+            (screen_rect.max.x - size.x).max(screen_rect.min.x),
+        );
+        pos.y = pos.y.clamp(
+            screen_rect.min.y,
+            (screen_rect.max.y - size.y).max(screen_rect.min.y),
+        );
+
+        let rect = Rect::from_min_size(pos, size);
+        (best.child(), best.child().pos_in_rect(&rect))
     }
 }
 
@@ -474,6 +595,18 @@ impl Area {
             accessibility_role,
         } = self;
 
+        // An explicit pivot wins; the default pivot follows the reading direction
+        // so areas widen towards the reading end. Anchored areas are placed by
+        // their anchor, so their state pivot stays the plain default.
+        let rtl = ctx.is_rtl();
+        let pivot = if let Some(pivot) = pivot {
+            pivot
+        } else if anchor.is_none() {
+            default_pivot(rtl)
+        } else {
+            Align2::LEFT_TOP
+        };
+
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
 
         let layer_id = LayerId::new(order, id);
@@ -495,6 +628,7 @@ impl Area {
             pivot_pos: None,
             pivot,
             size: None,
+            resize_pin_placement: None,
             interactable,
             last_became_visible_at: None,
         });
@@ -502,12 +636,14 @@ impl Area {
             sizing_pass = true;
             state.size = None;
         }
+        let old_pivot = state.pivot;
         state.pivot = pivot;
         if let Some(new_pos) = new_pos {
             state.pivot_pos = Some(new_pos);
         }
         state.pivot_pos.get_or_insert_with(|| {
-            default_pos.unwrap_or_else(|| automatic_area_position(ctx, constrain_rect, layer_id))
+            default_pos
+                .unwrap_or_else(|| automatic_area_position(ctx, constrain_rect, layer_id, rtl))
         });
 
         let size = *state.size.get_or_insert_with(|| {
@@ -533,6 +669,26 @@ impl Area {
 
         let constrain = constrain && !restored_without_size;
 
+        // The stored pivot position was encoded in the previous pivot's space; when the
+        // pivot changes (the default pivot follows the interface direction), re-express
+        // it so the area's left-top stays where it was. Without a known size the stored
+        // point is treated as the old left-top (the default pivots anchor a corner).
+        // A caller re-asserting an explicit position re-pins below and wins, as today.
+        if pivot != old_pivot
+            && new_pos.is_none()
+            && let Some(pivot_pos) = state.pivot_pos
+        {
+            let size = state.size.unwrap_or_default();
+            let left_top = pos2(
+                pivot_pos.x - old_pivot.x().to_factor() * size.x,
+                pivot_pos.y - old_pivot.y().to_factor() * size.y,
+            );
+            state.pivot_pos = Some(pos2(
+                left_top.x + pivot.x().to_factor() * size.x,
+                left_top.y + pivot.y().to_factor() * size.y,
+            ));
+        }
+
         // We should never be interactable during a sizing pass, since then we are shown at a different
         // size which might interfere with hover state of the hovered widget causing popup feedback loops.
         state.interactable = interactable && !sizing_pass;
@@ -545,12 +701,41 @@ impl Area {
         }
 
         if let Some((anchor, offset)) = anchor {
-            state.set_left_top_pos(
-                anchor
-                    .align_size_within_rect(size, constrain_rect)
-                    .left_top()
-                    + offset,
-            );
+            // A `Resize` inside this area sets `resize_drag_in_flight` on its layer
+            // while a user resize drag is in flight. On such a frame the anchored
+            // placement is frozen: from then on the placement is derived from the
+            // frozen size instead of the live one, so the reading-start edge of the
+            // placed rect pins and the area grows reading-forward from it (a centered
+            // `Modal` with a resize grip, for instance, stops re-centering around the
+            // dragged size — which would otherwise grow it at double pointer rate,
+            // both edges moving by half the delta). The pin persists after the drag:
+            // unfreezing would re-derive the placement from the final size and jump
+            // the area back towards its anchor by half the growth, and a user-resized
+            // area stays where the user left it, like a user-resized window.
+            let resize_drag_in_flight = ctx.data(|d| {
+                d.get_temp::<()>(layer_id.id.with("resize_drag_in_flight"))
+                    .is_some()
+            });
+            if resize_drag_in_flight {
+                state.resize_pin_placement.get_or_insert(size);
+            }
+            let placement_size = state.resize_pin_placement.unwrap_or(size);
+            let placed = anchor
+                .align_size_within_rect(placement_size, constrain_rect)
+                .translate(offset);
+            // While the placement is pinned, the reading-start edge of the placed
+            // rect is the frozen-size placement's reading-start edge: under RTL the
+            // rect's right edge, under LTR its left edge, and in both directions its
+            // top edge (growth is downward). Anchors that already pin that edge for
+            // any size (corner anchors like `RIGHT_TOP` under RTL) are unaffected —
+            // the pin only changes anchors whose reading-start edge moves with size
+            // (`CENTER_*` and the mirrored `LEFT_*`/`RIGHT_*` cases).
+            let left_top = if state.resize_pin_placement.is_some() && rtl {
+                pos2(placed.right() - size.x, placed.top())
+            } else {
+                placed.left_top()
+            };
+            state.set_left_top_pos(left_top);
         }
 
         // interact right away to prevent frame-delay
@@ -641,6 +826,17 @@ impl Area {
             accessibility_label,
             accessibility_role,
         }
+    }
+}
+
+/// The default [`Area`] pivot, mirrored to the reading direction: `RIGHT_TOP`
+/// in a right-to-left interface, `LEFT_TOP` otherwise, so areas widen towards
+/// the reading end.
+fn default_pivot(rtl: bool) -> Align2 {
+    if rtl {
+        Align2::RIGHT_TOP
+    } else {
+        Align2::LEFT_TOP
     }
 }
 
@@ -765,8 +961,13 @@ fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
     }
 }
 
-fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerId) -> Pos2 {
-    let mut existing: Vec<Rect> = ctx.memory(|mem| {
+fn automatic_area_position(
+    ctx: &Context,
+    constrain_rect: Rect,
+    layer_id: LayerId,
+    rtl: bool,
+) -> Pos2 {
+    let existing: Vec<Rect> = ctx.memory(|mem| {
         mem.areas()
             .visible_windows()
             .filter(|(id, _)| id != &layer_id) // ignore ourselves
@@ -774,6 +975,37 @@ fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerI
             .map(|(_, state)| state.rect())
             .collect()
     });
+
+    // The packing below computes a left-top position for the default
+    // `LEFT_TOP` pivot. In a right-to-left interface, mirror the horizontal
+    // axis, run the same packing, and mirror the result back, so new areas
+    // appear at the reading-start edge and widen leftward.
+    if rtl {
+        let mirrored = existing
+            .iter()
+            .map(|&rect| mirror_rect_x(rect, constrain_rect))
+            .collect();
+        let pos = automatic_area_position_in(constrain_rect, mirrored);
+        return pos2(mirror_x(pos.x, constrain_rect), pos.y);
+    }
+
+    automatic_area_position_in(constrain_rect, existing)
+}
+
+/// Mirror a rect horizontally within `within`.
+fn mirror_rect_x(rect: Rect, within: Rect) -> Rect {
+    let left = mirror_x(rect.right(), within);
+    let right = mirror_x(rect.left(), within);
+    Rect::from_min_max(pos2(left, rect.top()), pos2(right, rect.bottom()))
+}
+
+/// Mirror an x coordinate horizontally within `within`.
+fn mirror_x(x: f32, within: Rect) -> f32 {
+    within.left() + within.right() - x
+}
+
+/// Place a new area so it doesn't overlap the (sorted) existing ones.
+fn automatic_area_position_in(constrain_rect: Rect, mut existing: Vec<Rect>) -> Pos2 {
     existing.sort_by_key(|r| r.left().round() as i32);
 
     let spacing = 16.0;
@@ -834,4 +1066,142 @@ fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerI
         }
     }
     best_pos
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Align2, Context, Id, Pos2, RawInput, Rect, Vec2, pos2, vec2};
+
+    use super::Area;
+
+    fn screen() -> Rect {
+        Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))
+    }
+
+    /// Show an area of `size` best-fit at `anchor` with the preferred `pivot`, and return
+    /// the rect it actually landed on (single `run_ui` frame; `Area::end` corrects the
+    /// response rect to the measured size in the same frame).
+    fn shown_rect(anchor: Pos2, size: Vec2, pivot: Align2) -> Rect {
+        let ctx = Context::default();
+        let (pivot, pos) = Area::fit_pos(anchor, size, pivot, screen());
+        let mut rect = None;
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(screen()),
+                ..Default::default()
+            },
+            |ui| {
+                let response = Area::new(Id::unique("test"))
+                    .pivot(pivot)
+                    .fixed_pos(pos)
+                    .show(ui.ctx(), |ui| {
+                        ui.set_min_size(size);
+                    });
+                rect = Some(response.response.rect);
+            },
+        );
+        output.drop_without_applying_deltas();
+        rect.expect("run_ui callback ran")
+    }
+
+    #[test]
+    fn fit_pos_keeps_the_preferred_side_when_it_fits() {
+        let (pivot, pos) = Area::fit_pos(
+            pos2(400.0, 300.0),
+            vec2(200.0, 140.0),
+            Align2::LEFT_TOP,
+            screen(),
+        );
+        assert_eq!(pivot, Align2::LEFT_TOP);
+        assert_eq!(pos, pos2(400.0, 300.0));
+    }
+
+    // The issue reproduction: a 200x140 area with a LEFT_TOP pivot at x=790 on an
+    // 800-wide screen used to extend to x=990 with nothing in the Area API to correct it.
+    #[test]
+    fn fit_pos_flips_to_the_left_near_the_right_edge() {
+        let (pivot, pos) = Area::fit_pos(
+            pos2(790.0, 100.0),
+            vec2(200.0, 140.0),
+            Align2::LEFT_TOP,
+            screen(),
+        );
+        assert_eq!(pivot, Align2::RIGHT_TOP);
+        assert_eq!(pos, pos2(790.0, 100.0)); // right edge stays at the anchor, grows leftward
+        let rect = shown_rect(pos2(790.0, 100.0), vec2(200.0, 140.0), Align2::LEFT_TOP);
+        assert_eq!(
+            rect,
+            Rect::from_min_size(pos2(590.0, 100.0), vec2(200.0, 140.0))
+        );
+    }
+
+    #[test]
+    fn fit_pos_flips_upward_near_the_bottom_edge() {
+        let (pivot, _) = Area::fit_pos(
+            pos2(400.0, 590.0),
+            vec2(200.0, 140.0),
+            Align2::LEFT_TOP,
+            screen(),
+        );
+        assert_eq!(pivot, Align2::LEFT_BOTTOM);
+    }
+
+    #[test]
+    fn fit_pos_flipped_side_is_clamped_too() {
+        // Anchor at the very right edge: flipping alone is not enough, the clamp must pull
+        // the rect back inside (an app anchoring a picker at the screen's reading-end edge).
+        let rect = shown_rect(pos2(800.0, 300.0), vec2(200.0, 140.0), Align2::LEFT_TOP);
+        assert!(
+            screen().contains_rect(rect),
+            "{rect:?} must stay inside the screen"
+        );
+    }
+
+    #[test]
+    fn fit_pos_clamps_when_no_side_fits() {
+        let rect = shown_rect(pos2(790.0, 590.0), vec2(900.0, 700.0), Align2::LEFT_TOP);
+        assert_eq!(
+            rect.min,
+            screen().min,
+            "no side fits: clamped to the screen corner"
+        );
+    }
+
+    #[test]
+    fn fit_pos_never_panics_on_degenerate_input() {
+        let nan_rect = Rect::from_min_size(pos2(f32::NAN, 0.0), vec2(800.0, 600.0));
+        assert_eq!(
+            Area::fit_pos(
+                pos2(100.0, 100.0),
+                vec2(200.0, 140.0),
+                Align2::LEFT_TOP,
+                nan_rect
+            ),
+            (Align2::LEFT_TOP, pos2(100.0, 100.0)),
+            "NaN screen bounds return the request unchanged"
+        );
+        let inverted = Rect::from_min_max(pos2(800.0, 600.0), Pos2::ZERO);
+        let (_, pos) = Area::fit_pos(
+            pos2(400.0, 300.0),
+            vec2(200.0, 140.0),
+            Align2::LEFT_TOP,
+            inverted,
+        );
+        assert!(
+            pos.is_finite(),
+            "inverted screen rect clamps, never panics: {pos:?}"
+        );
+        let _ = Area::fit_pos(
+            pos2(400.0, 300.0),
+            vec2(f32::NAN, 140.0),
+            Align2::LEFT_TOP,
+            screen(),
+        );
+        let _ = Area::fit_pos(
+            pos2(400.0, 300.0),
+            vec2(-200.0, 140.0),
+            Align2::LEFT_TOP,
+            screen(),
+        );
+    }
 }

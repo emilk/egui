@@ -179,6 +179,7 @@ impl AppRunner {
             .or_default()
             .native_pixels_per_point = Some(super::native_pixels_per_point());
         runner.input.raw.system_theme = super::system_theme();
+        runner.input.raw.system_locale = web_sys::window().and_then(|w| w.navigator().language());
 
         Ok(runner)
     }
@@ -424,7 +425,7 @@ impl AppRunner {
 
         if self.has_focus() {
             // The eframe app has focus.
-            if let Some(ime) = ime {
+            if let Some(ime) = &ime {
                 if ime.should_interrupt_composition {
                     self.text_agent.interrupt_ime_composition();
                 }

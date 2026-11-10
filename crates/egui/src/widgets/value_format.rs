@@ -63,7 +63,7 @@ impl<'a> ValueFormat<'a> {
     /// Goes in front of any prefix already set, so `.prefix("b").prefix("a")` shows `ab`.
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
-        self.prefix.extend_left(prefix.into_atoms());
+        self.prefix.extend_start(prefix.into_atoms());
         self
     }
 
@@ -72,7 +72,7 @@ impl<'a> ValueFormat<'a> {
     /// Goes after any suffix already set, so `.suffix("a").suffix("b")` shows `ab`.
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
-        self.suffix.extend_right(suffix.into_atoms());
+        self.suffix.extend_end(suffix.into_atoms());
         self
     }
 

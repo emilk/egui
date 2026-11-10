@@ -72,6 +72,7 @@
 use alloc::sync::Arc;
 
 use crate::{Context, Id, Ui};
+use epaint::emath::ReadingDirection;
 use epaint::{Pos2, Vec2};
 
 // ----------------------------------------------------------------------------
@@ -351,6 +352,18 @@ pub struct ViewportBuilder {
     /// for monitor selection: if both are set, the window will be fullscreen on
     /// the chosen monitor.
     pub monitor: Option<usize>,
+
+    /// A hint to the platform integration about how the native window chrome
+    /// should be laid out, for right-to-left interface languages
+    /// (e.g. Windows `WS_EX_LAYOUTRTL`, Qt per-window `setLayoutDirection`).
+    ///
+    /// This is a chrome hint, **not** a layout switch: egui's own layout
+    /// direction is [`Style::right_to_left`](crate::Style::right_to_left)
+    /// and is unaffected by this field. Integrations that don't support
+    /// native mirrored chrome (winit today) ignore it.
+    ///
+    /// `None` (the default) means "let the integration decide".
+    pub layout_direction: Option<ReadingDirection>,
 }
 
 impl ViewportBuilder {
@@ -712,6 +725,17 @@ impl ViewportBuilder {
         self
     }
 
+    /// Set the layout-direction hint for the native window chrome.
+    ///
+    /// See [`Self::layout_direction`] for what this does and does not do:
+    /// it is a hint to the platform integration, not a switch for egui's
+    /// own layout (that is [`Style::right_to_left`](crate::Style::right_to_left)).
+    #[inline]
+    pub fn with_layout_direction(mut self, direction: ReadingDirection) -> Self {
+        self.layout_direction = Some(direction);
+        self
+    }
+
     /// Update this `ViewportBuilder` with a delta,
     /// returning a list of commands and a bool indicating if the window needs to be recreated.
     #[must_use]
@@ -750,6 +774,7 @@ impl ViewportBuilder {
             window_type: new_window_type,
             override_redirect: new_override_redirect,
             monitor: new_monitor,
+            layout_direction: new_layout_direction,
         } = new_vp_builder;
 
         let mut commands = Vec::new();
@@ -957,6 +982,13 @@ impl ViewportBuilder {
         {
             self.monitor = Some(new_monitor);
             commands.push(ViewportCommand::SetMonitor(new_monitor));
+        }
+
+        // No `ViewportCommand` for the layout-direction hint: it is read by
+        // the integration when the native window is created, like the rest
+        // of the builder.
+        if new_layout_direction.is_some() && self.layout_direction != new_layout_direction {
+            self.layout_direction = new_layout_direction;
         }
 
         (commands, recreate_window)

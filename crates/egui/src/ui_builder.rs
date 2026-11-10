@@ -1,11 +1,11 @@
 use alloc::sync::Arc;
 
-#[expect(unused_imports)] // Used for doclinks
-use crate::Ui;
 use crate::{
     AsIdSalt, ClosableTag, Id, IdSalt, LayerId, Layout, Rect, Sense, Style, UiStackInfo,
     class::{Classes, HasClasses},
 };
+#[expect(unused_imports)] // Used for doclinks
+use crate::{Context, Ui};
 
 /// The properties specified when creating a top-level or child [`Ui`].
 ///
@@ -31,6 +31,18 @@ pub struct UiBuilder {
     pub accessibility_label: Option<String>,
     pub accessibility_role: Option<crate::accesskit::Role>,
     pub classes: Classes,
+
+    /// BCP 47 language tag of the text in this subtree, e.g. `"ar-EG"`.
+    ///
+    /// Inherited by child [`Ui`]s; falls back to [`Context::language`] at read time.
+    pub language: Option<String>,
+
+    /// Per-subtree reading-direction override: `None` inherits the effective
+    /// direction (like every other `Option` field here), `Some(true)` forces
+    /// this subtree right-to-left and `Some(false)` forces it left-to-right.
+    ///
+    /// See [`UiBuilder::right_to_left`] for the exact semantics.
+    pub right_to_left: Option<bool>,
 }
 
 /// Is this [`Ui`] a root or a child of another [`Ui`]?
@@ -163,6 +175,50 @@ impl UiBuilder {
     #[inline]
     pub fn style(mut self, style: impl Into<Arc<Style>>) -> Self {
         self.style = Some(style.into());
+        self
+    }
+
+    /// Set the language text in this [`Ui`] should be laid out in, as a BCP 47 tag.
+    ///
+    /// Otherwise will inherit the language of the parent, falling back to
+    /// [`Context::language`](crate::Context::language).
+    #[inline]
+    pub fn language(mut self, language: impl Into<String>) -> Self {
+        self.language = Some(language.into());
+        self
+    }
+
+    /// Force the reading direction of this subtree, overriding the surrounding
+    /// interface direction: `true` lays this subtree out right-to-left,
+    /// `false` left-to-right. Not calling this inherits the effective
+    /// direction.
+    ///
+    /// The override is resolved at construction: it flips this subtree's own
+    /// [`Style::right_to_left`] (one `Style` clone per boundary that actually
+    /// flips), so every direction consumer — the vertical mirror,
+    /// [`Ui::is_rtl`], the widget-text ambient direction and galley halign —
+    /// follows by construction.
+    ///
+    /// Placement caveat: a child [`Ui`] with no explicit layout inherits the
+    /// parent's [`Layout`], and that inherited layout is already mirrored to
+    /// the *parent's* reading direction. The override therefore changes the
+    /// style-driven consumers above (and re-maps the inherited cross
+    /// alignment only when the flipped style's mirror applies, e.g. an
+    /// inherited vertical [`crate::Align::Min`] under a forced-RTL subtree), but it
+    /// does not re-derive the inherited layout. Pass an explicit layout —
+    /// [`Layout::from_style`] of the subtree's own style — when the subtree's
+    /// placement must follow the overridden direction too.
+    ///
+    /// The override is *pinned* for the subtree's lifetime: it survives
+    /// [`Ui::style_mut`], but it does not track later
+    /// [`Context::set_right_to_left`](crate::Context::set_right_to_left)
+    /// flips — re-create the child with a new override to follow — and
+    /// [`Ui::set_style`](crate::Ui::set_style) replaces the whole style and
+    /// intentionally discards it. This matches per-widget direction overrides
+    /// in other toolkits (Qt `setLayoutDirection`, Flutter `Directionality`).
+    #[inline]
+    pub fn right_to_left(mut self, right_to_left: bool) -> Self {
+        self.right_to_left = Some(right_to_left);
         self
     }
 

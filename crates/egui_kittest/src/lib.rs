@@ -6,11 +6,14 @@
 
 mod accessibility;
 mod builder;
+pub mod rtl_font;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
 #[cfg(feature = "snapshot")]
 pub use crate::snapshot::*;
+
+pub use crate::rtl_font::{RTL_FONT_ENV_VAR, RTL_FONT_NAME, rtl_font_path};
 
 mod app_kind;
 mod config;
@@ -222,7 +225,7 @@ impl<'a, State> Harness<'a, State> {
                 render_options: _,
         } = builder;
         let ctx = ctx.unwrap_or_default();
-        if let Some(setup) = context_setup {
+        for setup in context_setup {
             setup(&ctx);
         }
         ctx.set_theme(theme);
@@ -363,6 +366,26 @@ impl<'a, State> Harness<'a, State> {
     pub fn set_pixels_per_point(&mut self, pixels_per_point: f32) -> &mut Self {
         self.ctx.set_pixels_per_point(pixels_per_point);
         self
+    }
+
+    /// Is the UI mirrored for a right-to-left reading direction?
+    ///
+    /// Reads [`egui::Style::right_to_left`] from the context style, i.e. the value
+    /// [`HarnessBuilder::with_right_to_left`] set (or the app changed since).
+    /// Useful as an assertion that the direction took effect:
+    ///
+    /// ```no_run
+    /// # use egui_kittest::Harness;
+    /// let mut harness = Harness::builder()
+    ///     .with_right_to_left(true)
+    ///     .build_ui(|ui| {
+    ///         ui.button("مرحبا");
+    ///     });
+    /// assert!(harness.right_to_left());
+    /// ```
+    #[inline]
+    pub fn right_to_left(&self) -> bool {
+        self.ctx.is_rtl()
     }
 
     /// Run a frame for each queued event (or a single frame if there are no events).

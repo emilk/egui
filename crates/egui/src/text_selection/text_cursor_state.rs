@@ -1,6 +1,6 @@
 //! Text cursor changes/interaction, without modifying the text.
 
-use epaint::text::{ByteIndex, ByteRangeExt as _, CharIndex, Galley, cursor::CCursor};
+use epaint::text::{ByteIndex, ByteRangeExt as _, CharIndex, Galley, WordStep, cursor::CCursor};
 use unicode_segmentation::UnicodeSegmentation as _;
 
 use crate::{NumExt as _, Rect, Response, Ui, epaint};
@@ -371,6 +371,39 @@ pub fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
     CCursor {
         index: num_chars - boundary.min(num_chars),
         prefer_next_row: true,
+    }
+}
+
+/// One visual word step, falling back to the whole-text logical word walk
+/// when the row offers no visual word edge in the stepping direction.
+///
+/// The walk exits through the row's visual edge when no word stop lies beyond
+/// the caret: continue with the historic logical step in the walk's reading
+/// sense, clamped to the exiting row's own caret columns. A landing back
+/// inside the row would move the caret visually *backward* across the edge
+/// (oscillating between the row ends), while a landing on the next row's
+/// first column is the legitimate reading-order crossing and passes through.
+/// An empty clamp window passes the logical step through unclamped — how pure
+/// left-to-right rows and degenerate carets keep the historic behavior
+/// exactly.
+pub(crate) fn visual_word_cursor(galley: &Galley, cursor: &CCursor, left: bool) -> CCursor {
+    match galley.step_one_word_visually(cursor, left) {
+        WordStep::Within(new_cursor) => new_cursor,
+        WordStep::Exit {
+            reading_forward,
+            row_range,
+        } => {
+            let stepped = if reading_forward {
+                ccursor_next_word(galley, *cursor)
+            } else {
+                ccursor_previous_word(galley, *cursor)
+            };
+            if row_range.contains(&stepped.index) {
+                *cursor
+            } else {
+                stepped
+            }
+        }
     }
 }
 

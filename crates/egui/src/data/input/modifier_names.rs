@@ -68,3 +68,15 @@ impl ModifierNames<'_> {
         s
     }
 }
+
+#[test]
+fn raw_format_output_stays_unisolated() {
+    // [`KeyboardShortcut::format`] adds the directional isolates on top of this
+    // low-level builder; this builder must stay raw so callers keep composing
+    // their own surrounding text.
+    let cmd_shift = Modifiers::COMMAND | Modifiers::SHIFT;
+    assert_eq!(ModifierNames::NAMES.format(&cmd_shift, false), "Ctrl+Shift");
+    assert_eq!(ModifierNames::NAMES.format(&cmd_shift, true), "Shift+Cmd");
+    assert_eq!(ModifierNames::SYMBOLS.format(&cmd_shift, false), "⌃⇧");
+    assert_eq!(ModifierNames::SYMBOLS.format(&cmd_shift, true), "⇧⌘");
+}

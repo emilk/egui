@@ -1,5 +1,6 @@
 //! Everything related to text, fonts, text layout, cursors etc.
 
+mod bidi;
 pub mod cursor;
 mod face_store;
 mod family;
@@ -14,11 +15,16 @@ mod galley_cache;
 mod glyph_atlas;
 mod glyph_rasterizer;
 mod index;
+mod line_breaker;
+#[cfg(feature = "sea_dictionary")]
+mod line_breaker_dict;
 mod styled_metrics;
 mod text_layout;
 mod text_layout_types;
 mod unicode;
 
+#[cfg(feature = "sea_dictionary")]
+pub use line_breaker::SeaLineBreaker;
 pub use {
     font_data::{Blob, FontData, FontVariationAxis},
     font_definitions::{FontDefinitions, FontInsert, FontPriority, InsertFontFamily},
@@ -31,6 +37,7 @@ pub use {
         has_emoji_presentation,
     },
     index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
+    line_breaker::{LineBreaker, NoopLineBreaker},
     text_layout_types::*,
 };
 

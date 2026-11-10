@@ -36,7 +36,11 @@ impl crate::View for Tooltips {
             ui.add(crate::egui_github_link_file_line!());
         });
 
-        egui::Panel::right("scroll_test").show(ui, |ui| {
+        // `end` anchors at the reading end (the physical right under LTR, the
+        // physical left under RTL), so the second-read column mirrors with the
+        // reading direction. The id salt is kept so a persisted size survives a
+        // direction flip:
+        egui::Panel::end("scroll_test").show(ui, |ui| {
             ui.label(
                 "The scroll area below has many labels with interactive tooltips. \
                  The purpose is to test that the tooltips close when you scroll.",

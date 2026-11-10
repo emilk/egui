@@ -12,6 +12,7 @@ use crate::{
     TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo,
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
     pos2,
+    widget_text::{DirectionStamp, stamped_direction},
 };
 
 /// A widget which displays an image.
@@ -46,6 +47,10 @@ use crate::{
 ///     .paint_at(ui, rect);
 /// # });
 /// ```
+///
+/// Under a right-to-left interface, directional glyphs either swap to a mirror-partner
+/// glyph (an app-side table) or draw flipped in place with [`Self::mirrored_x`]; glyphs
+/// naming physical space stay unmirrored.
 ///
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
@@ -213,6 +218,20 @@ impl<'a> Image<'a> {
     #[inline]
     pub fn uv(mut self, uv: impl Into<Rect>) -> Self {
         self.image_options.uv = uv.into();
+        self
+    }
+
+    /// Draw the image mirrored horizontally: the UV rect flipped about x
+    /// (`(1, 0)…(0, 1)` instead of `(0, 0)…(1, 1)`).
+    ///
+    /// For glyphs that point along the reading direction in a right-to-left interface and have
+    /// no mirror-partner glyph to swap to. Glyphs that name physical space (undo/redo, media
+    /// transport, canvas-alignment edges, vertical chevrons) must NOT be mirrored. The icon
+    /// catalog and the swap/flip/keep tables are per-app policy; egui supplies only this mirror
+    /// primitive. A later explicit [`Self::uv`] call overrides this, as with any builder.
+    #[inline]
+    pub fn mirrored_x(mut self) -> Self {
+        self.image_options.uv = Rect::from_min_max(pos2(1.0, 0.0), pos2(0.0, 1.0));
         self
     }
 
@@ -693,6 +712,7 @@ pub fn paint_texture_load_result(
             let mut job = LayoutJob {
                 wrap: TextWrapping::truncate_at_width(rect.width()),
                 halign: Align::Center,
+                language: ui.language(),
                 ..Default::default()
             };
             job.append(
@@ -707,6 +727,19 @@ pub fn paint_texture_load_result(
                     TextFormat::simple(font_id, ui.visuals().text_color()),
                 );
             }
+            // This site builds its job directly, so it never passes through
+            // `WidgetText::into_galley_impl` and must stamp the reading direction
+            // itself, the same way: right-to-left only when the interface is
+            // right-to-left AND first-strong has an opinion about the text; an
+            // explicit job direction still wins. Under a left-to-right interface the
+            // helper returns `None` and the job is untouched.
+            job.direction = job.direction.or_else(|| {
+                stamped_direction(
+                    ui.style(),
+                    alt_text.unwrap_or(job.text.as_str()),
+                    DirectionStamp::Label,
+                )
+            });
             let galley = ui.painter().layout_job(job);
             ui.painter().galley(
                 rect.center() - Vec2::Y * galley.size().y * 0.5,
@@ -715,6 +748,19 @@ pub fn paint_texture_load_result(
             );
         }
     }
+}
+
+/// The hover text shown while a texture loads, with the URI wrapped in bidi
+/// isolates (U+2066 LRI … U+2069 PDI) so a Latin uri cannot garble the
+/// punctuation of a right-to-left hover sentence. The invisible isolates are
+/// rendering-neutral in left-to-right sentences.
+fn loading_hover_text(uri: &str) -> String {
+    format!("Loading \u{2066}{uri}\u{2069}…")
+}
+
+/// Like [`loading_hover_text`], for a failed load.
+fn failed_hover_text(uri: &str, err: &str) -> String {
+    format!("Failed loading \u{2066}{uri}\u{2069}: {err}")
 }
 
 /// Attach tooltips like "Loading…" or "Failed loading: …".
@@ -727,11 +773,11 @@ pub fn texture_load_result_response(
         Ok(TexturePoll::Ready { .. }) => response,
         Ok(TexturePoll::Pending { .. }) => {
             let uri = source.uri().unwrap_or("image");
-            response.on_hover_text(format!("Loading {uri}…"))
+            response.on_hover_text(loading_hover_text(uri))
         }
         Err(err) => {
             let uri = source.uri().unwrap_or("image");
-            response.on_hover_text(format!("Failed loading {uri}: {err}"))
+            response.on_hover_text(failed_hover_text(uri, &err.to_string()))
         }
     }
 }
@@ -971,4 +1017,36 @@ fn is_animated_image_uri(uri: &str) -> bool {
 
 fn are_animated_image_bytes(bytes: &[u8]) -> bool {
     has_gif_magic_header(bytes) || has_webp_header(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{failed_hover_text, loading_hover_text};
+
+    #[test]
+    fn hover_texts_isolate_the_uri() {
+        // The uri is wrapped in U+2066 (LRI) … U+2069 (PDI), so a Latin uri cannot
+        // garble the punctuation of a right-to-left hover sentence:
+        assert_eq!(
+            loading_hover_text("https://example.invalid/x.png"),
+            "Loading \u{2066}https://example.invalid/x.png\u{2069}…"
+        );
+        assert_eq!(
+            failed_hover_text("https://example.invalid/x.png", "not found"),
+            "Failed loading \u{2066}https://example.invalid/x.png\u{2069}: not found"
+        );
+    }
+
+    #[test]
+    fn hover_texts_isolate_the_default_uri() {
+        // Widgets without a uri use the placeholder name, isolated the same way:
+        assert_eq!(
+            loading_hover_text("image"),
+            "Loading \u{2066}image\u{2069}…"
+        );
+        assert_eq!(
+            failed_hover_text("image", "no matching loader"),
+            "Failed loading \u{2066}image\u{2069}: no matching loader"
+        );
+    }
 }

@@ -85,6 +85,28 @@ impl From<Theme> for ThemePreference {
     }
 }
 
+/// The user's direction preference for the interface.
+///
+/// Mirrors [`ThemePreference`] for the reading direction: explicit
+/// left-to-right, explicit right-to-left, or following the system locale
+/// (see [`crate::RawInput::system_locale`]).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum DirectionPreference {
+    /// Left-to-right interface (e.g. Latin, Greek and Cyrillic scripts).
+    Ltr,
+
+    /// Right-to-left interface (e.g. Arabic and Hebrew scripts).
+    Rtl,
+
+    /// Follow the system's locale.
+    ///
+    /// When the integration reports no system locale this resolves to
+    /// left-to-right (i.e. today's behavior).
+    #[default]
+    System,
+}
+
 impl ThemePreference {
     /// A short icon representing this preference.
     pub fn icon(self) -> &'static str {

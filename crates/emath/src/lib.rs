@@ -9,6 +9,10 @@
 //! * (0,0) is left top.
 //! * Dimension order is always `x y`
 //!
+//! Reading direction ([`ReadingDirection`]) is orthogonal to these conventions:
+//! it describes the reading order of text and UI chrome, never the physical
+//! meaning of the X axis.
+//!
 //! ## Integrating with other math libraries.
 //! `emath` does not strive to become a general purpose or all-powerful math library.
 //!
@@ -36,6 +40,7 @@ mod numeric;
 mod ordered_float;
 mod pos2;
 mod range;
+mod reading_direction;
 mod rect;
 mod rect_align;
 mod rect_transform;
@@ -53,6 +58,7 @@ pub use self::{
     ordered_float::*,
     pos2::*,
     range::Rangef,
+    reading_direction::ReadingDirection,
     rect::*,
     rect_align::RectAlign,
     rect_transform::*,

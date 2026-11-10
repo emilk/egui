@@ -1,7 +1,7 @@
 use crate::{
-    Atom, AtomExt as _, AtomKind, Atoms, Color32, CornerRadius, Image, IntoAtoms, NumExt as _,
-    Response, Role, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetAtom,
-    WidgetAtomResponse, WidgetInfo, WidgetText,
+    Atom, AtomExt as _, AtomKind, Atoms, Color32, CornerRadius, Direction, Image, IntoAtoms,
+    NumExt as _, Response, Role, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget,
+    WidgetAtom, WidgetAtomResponse, WidgetInfo, WidgetText,
     class::{ClassName, Classes, HasClasses},
     widget_style::ButtonStyle,
 };
@@ -105,6 +105,10 @@ impl<'a> Button<'a> {
 
     /// Creates a button with an image to the left of the text.
     ///
+    /// "Left" is the reading start of the button: in a right-to-left layout (or an
+    /// interface with [`crate::Style::right_to_left`] set) the image lands on the
+    /// physical right of the text, mirroring the row.
+    ///
     /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
     /// (using [`crate::AtomExt::atom_max_height_font_size`]).
     pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
@@ -118,10 +122,10 @@ impl<'a> Button<'a> {
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
         let mut button = Self::new(());
         if let Some(image) = image {
-            button.layout.push_right(image);
+            button.layout.push_end(image);
         }
         if let Some(text) = text {
-            button.layout.push_right(text);
+            button.layout.push_end(text);
         }
         button.limit_image_size = true;
         button
@@ -248,41 +252,53 @@ impl<'a> Button<'a> {
     ///
     /// The text can be created with [`crate::Context::format_shortcut`].
     ///
+    /// "Right" is the reading end of the button: in a right-to-left layout (or an
+    /// interface with [`crate::Style::right_to_left`] set) the extra text lands on the
+    /// physical left, mirroring the row.
+    ///
     /// See also [`Self::right_text`].
     #[inline]
     pub fn shortcut_text(mut self, shortcut_text: impl IntoAtoms<'a>) -> Self {
-        self.layout.push_right(Atom::grow());
+        self.layout.push_end(Atom::grow());
 
         for mut atom in shortcut_text.into_atoms() {
             atom.kind = match atom.kind {
                 AtomKind::Text(text) => AtomKind::Text(text.weak()),
                 other => other,
             };
-            self.layout.push_right(atom);
+            self.layout.push_end(atom);
         }
 
         self
     }
 
     /// Show some text on the left side of the button.
+    ///
+    /// "Left" is the reading start of the button: in a right-to-left layout (or an
+    /// interface with [`crate::Style::right_to_left`] set) the text lands on the
+    /// physical right, mirroring the row.
     #[inline]
     pub fn left_text(mut self, left_text: impl IntoAtoms<'a>) -> Self {
-        self.layout.push_left(Atom::grow());
+        self.layout.push_start(Atom::grow());
 
         for atom in left_text.into_atoms() {
-            self.layout.push_left(atom);
+            self.layout.push_start(atom);
         }
 
         self
     }
 
     /// Show some text on the right side of the button.
+    ///
+    /// "Right" is the reading end of the button: in a right-to-left layout (or an
+    /// interface with [`crate::Style::right_to_left`] set) the text lands on the
+    /// physical left, mirroring the row.
     #[inline]
     pub fn right_text(mut self, right_text: impl IntoAtoms<'a>) -> Self {
-        self.layout.push_right(Atom::grow());
+        self.layout.push_end(Atom::grow());
 
         for atom in right_text.into_atoms() {
-            self.layout.push_right(atom);
+            self.layout.push_end(atom);
         }
 
         self
@@ -308,6 +324,20 @@ impl<'a> Button<'a> {
     #[inline]
     pub fn gap(mut self, gap: f32) -> Self {
         self.layout = self.layout.gap(gap);
+        self
+    }
+
+    /// Set the direction the button's atoms are laid out along.
+    ///
+    /// Defaults to the reading direction of the surrounding layout: inside a
+    /// right-to-left layout (or an interface with [`crate::Style::right_to_left`] set,
+    /// mirroring the way nested rows mirror) the atom order is reversed, so
+    /// [`Self::shortcut_text`] lands at the physical left. Set
+    /// [`Direction::LeftToRight`] to keep physical left-to-right atom order — e.g. a
+    /// media-transport button that must not mirror.
+    #[inline]
+    pub fn direction(mut self, direction: Direction) -> Self {
+        self.layout = self.layout.direction(direction);
         self
     }
 
