@@ -507,11 +507,16 @@ impl ViewportBuilder {
         self
     }
 
-    /// macOS: Set to `false` to make the window render without a drop shadow.
+    /// Set to `false` to make the window render without a drop shadow.
     ///
-    /// The default is `true`.
+    /// ## Platform-specific
     ///
+    /// **macOS:** The default is `true`.
     /// Disabling this feature can solve ghosting issues experienced if using [`Self::with_transparent`].
+    ///
+    /// **Windows:** Applies to windows without decorations, whose shadow the system draws
+    /// around the whole window rectangle. The default is `true`, except for a window with
+    /// [`Self::with_transparent`], which may paint any shape and gets no shadow unless it asks.
     ///
     /// Look at winit for more details
     #[inline]

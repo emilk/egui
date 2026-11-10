@@ -2009,7 +2009,22 @@ fn process_viewport_command(
         ViewportCommand::Title(title) => {
             window.set_title(&title);
         }
-        ViewportCommand::Transparent(v) => window.set_transparent(v),
+        ViewportCommand::Transparent(v) => {
+            window.set_transparent(v);
+            #[cfg(target_os = "windows")]
+            {
+                use winit::platform::windows::WindowExtWindows as _;
+
+                // DWM draws the undecorated-window shadow around the whole window rectangle,
+                // not around what a transparent window paints.
+                window.set_undecorated_shadow(wants_undecorated_shadow(
+                    &ViewportBuilder::default()
+                        .with_decorations(window.is_decorated())
+                        .with_fullscreen(window.fullscreen().is_some())
+                        .with_transparent(v),
+                ));
+            }
+        }
         ViewportCommand::Visible(v) => window.set_visible(v),
         ViewportCommand::OuterPosition(pos) => {
             window.set_outer_position(PhysicalPosition::new(
@@ -2241,6 +2256,9 @@ pub fn create_winit_window_attributes(
 ) -> winit::window::WindowAttributes {
     profiling::function_scope!();
 
+    #[cfg(target_os = "windows")]
+    let want_undecorated_shadow = wants_undecorated_shadow(&viewport_builder);
+
     let ViewportBuilder {
         title,
         position,
@@ -2448,8 +2466,6 @@ pub fn create_winit_window_attributes(
             window_attributes = window_attributes.with_skip_taskbar(!show);
         }
 
-        // don't request the undecorated-window drop shadow in fullscreen (#8399)
-        let want_undecorated_shadow = !decorations.unwrap_or(true) && !fullscreen.unwrap_or(false);
         window_attributes = window_attributes.with_undecorated_shadow(want_undecorated_shadow);
     }
 
@@ -2466,6 +2482,21 @@ pub fn create_winit_window_attributes(
     }
 
     window_attributes
+}
+
+/// Whether to ask Windows for the drop shadow winit can give an undecorated window.
+///
+/// Decorated windows get their shadow from the system frame, and a fullscreen window
+/// should have none (#8399). DWM draws this shadow around the whole window rectangle,
+/// so a transparent window, which may paint any shape, only gets it when it asks with
+/// [`ViewportBuilder::with_has_shadow`].
+#[cfg(any(target_os = "windows", test))]
+fn wants_undecorated_shadow(builder: &ViewportBuilder) -> bool {
+    !builder.decorations.unwrap_or(true)
+        && !builder.fullscreen.unwrap_or(false)
+        && builder
+            .has_shadow
+            .unwrap_or_else(|| builder.transparent != Some(true))
 }
 
 fn to_winit_icon(icon: &egui::IconData) -> Option<winit::window::Icon> {
@@ -2674,5 +2705,47 @@ pub fn short_window_event_description(event: &winit::event::WindowEvent) -> &'st
         WindowEvent::ThemeChanged { .. } => "WindowEvent::ThemeChanged",
         WindowEvent::Occluded { .. } => "WindowEvent::Occluded",
         WindowEvent::PanGesture { .. } => "WindowEvent::PanGesture",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::wants_undecorated_shadow;
+    use egui::ViewportBuilder;
+
+    fn undecorated() -> ViewportBuilder {
+        ViewportBuilder::default().with_decorations(false)
+    }
+
+    #[test]
+    fn undecorated_shadow_only_for_undecorated_opaque_windowed_windows() {
+        assert!(wants_undecorated_shadow(&undecorated()));
+        assert!(!wants_undecorated_shadow(&ViewportBuilder::default()));
+        assert!(!wants_undecorated_shadow(
+            &undecorated().with_fullscreen(true)
+        ));
+        assert!(!wants_undecorated_shadow(
+            &undecorated().with_transparent(true)
+        ));
+    }
+
+    #[test]
+    fn has_shadow_overrides_the_transparency_default() {
+        let transparent = undecorated().with_transparent(true);
+        assert!(wants_undecorated_shadow(
+            &transparent.clone().with_has_shadow(true)
+        ));
+        assert!(!wants_undecorated_shadow(
+            &undecorated().with_has_shadow(false)
+        ));
+        assert!(!wants_undecorated_shadow(
+            &transparent
+                .clone()
+                .with_decorations(true)
+                .with_has_shadow(true)
+        ));
+        assert!(!wants_undecorated_shadow(
+            &transparent.with_fullscreen(true).with_has_shadow(true)
+        ));
     }
 }
