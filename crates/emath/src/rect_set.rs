@@ -33,10 +33,12 @@ impl RectSet {
         self.0.iter()
     }
 
-    /// Is `pos` inside one of the rects?
+    /// Is `pos` inside one of the positive rects?
+    ///
+    /// Like with [`Rect::contains`], the edges of a rect are inside it.
     #[inline]
     pub fn contains(&self, pos: Pos2) -> bool {
-        self.0.iter().any(|rect| rect.contains(pos))
+        (self.0.iter()).any(|rect| rect.is_positive() && rect.contains(pos))
     }
 
     /// The smallest [`Rect`] around all the positive rects of the set.
@@ -328,5 +330,28 @@ mod tests {
         assert!(RectSet::new().is_empty());
         assert!(RectSet::from(Rect::NOTHING).is_empty());
         assert_eq!(RectSet::from(Rect::NOTHING).bounding_rect(), Rect::NOTHING);
+    }
+
+    #[test]
+    fn a_rect_without_area_adds_nothing_to_a_set() {
+        let line = Rect::from_min_max(pos2(0.0, 0.0), pos2(10.0, 0.0));
+        let set = RectSet::from(line);
+        assert!(set.is_empty());
+        assert!(
+            !set.contains(pos2(5.0, 0.0)),
+            "an empty set contains nothing"
+        );
+        assert_eq!(set.bounding_rect(), Rect::NOTHING);
+        assert_eq!(set.subtract(&RectSet::new()), RectSet::new());
+
+        let rect = Rect::from_min_size(pos2(0.0, 10.0), vec2(10.0, 10.0));
+        let set = RectSet(vec![line, Rect::NOTHING, rect]);
+        assert_eq!(set.bounding_rect(), rect);
+        assert_eq!(set.subtract(&RectSet::new()), RectSet::from(rect));
+        // A cut without area removes nothing.
+        assert_eq!(
+            rect.subtract(&line.translate(vec2(0.0, 15.0)).into()),
+            set.subtract(&RectSet::new())
+        );
     }
 }
