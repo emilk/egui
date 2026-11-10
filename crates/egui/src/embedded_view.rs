@@ -13,7 +13,7 @@
 //! where it takes the pointer input from the view ([`EmbeddedViewOutput::egui_input_areas`]). With
 //! these, the integration keeps egui's tooltips and popups over a view visible and interactive.
 
-use emath::{Rect, Vec2};
+use emath::{Rect, RectSet, Vec2};
 
 use crate::layers::GraphicLayers;
 use crate::{Id, LayerId, Memory, Response, Sense, Ui, Widget, WidgetRects};
@@ -229,18 +229,18 @@ pub struct EmbeddedViewOutput {
     /// A view above egui's surface has to mask these out.
     ///
     /// Only other layers count. What is painted over the view in the view's own layer, such as
-    /// a button put over it, is not in the list, nor in [`Self::egui_input_areas`]: show such a
+    /// a button put over it, is not in the set, nor in [`Self::egui_input_areas`]: show such a
     /// widget in a layer in front, for example in an [`crate::Area`].
-    pub egui_paint_areas: Vec<Rect>,
+    pub egui_paint_areas: RectSet,
 
     /// The parts of [`Self::visible`] where egui takes the pointer input from the view: the
     /// interact rects of the interactive widgets in the layers in front of the view's layer,
     /// such as the backdrop of a [`crate::Modal`].
     ///
     /// Unlike [`Self::egui_paint_areas`], this leaves out what egui only paints, such as
-    /// tooltips. A rect that lies inside another one of the list is left out. Like that list,
+    /// tooltips. A rect that lies inside another one of the set is left out. Like that set,
     /// it leaves out the widgets in the view's own layer.
-    pub egui_input_areas: Vec<Rect>,
+    pub egui_input_areas: RectSet,
 }
 
 impl EmbeddedViewOutput {
@@ -257,7 +257,7 @@ impl EmbeddedViewOutput {
     /// If it is empty, egui takes all the input, as it does under a modal.
     ///
     /// The returned rects don't overlap.
-    pub fn view_input_areas(&self) -> Vec<Rect> {
+    pub fn view_input_areas(&self) -> RectSet {
         self.visible.subtract(&self.egui_input_areas)
     }
 
@@ -274,7 +274,7 @@ impl EmbeddedViewOutput {
     /// use [`Self::view_input_and_paint_areas`] instead.
     ///
     /// The returned rects don't overlap.
-    pub fn view_paint_areas(&self) -> Vec<Rect> {
+    pub fn view_paint_areas(&self) -> RectSet {
         self.visible.subtract(&self.egui_paint_areas)
     }
 
@@ -292,8 +292,8 @@ impl EmbeddedViewOutput {
     /// block the view's input under tooltips. Use [`Self::view_input_areas`].
     ///
     /// The returned rects don't overlap.
-    pub fn view_input_and_paint_areas(&self) -> Vec<Rect> {
-        let egui_areas = [&self.egui_paint_areas[..], &self.egui_input_areas[..]].concat();
+    pub fn view_input_and_paint_areas(&self) -> RectSet {
+        let egui_areas = self.egui_paint_areas.clone().union(&self.egui_input_areas);
         self.visible.subtract(&egui_areas)
     }
 }
@@ -409,7 +409,7 @@ pub(crate) fn outputs(
                 rect,
                 visible,
                 egui_paint_areas,
-                egui_input_areas: without_contained(egui_input_areas),
+                egui_input_areas: RectSet(without_contained(egui_input_areas)),
                 z_index,
             }
         })
@@ -473,9 +473,9 @@ mod tests {
                 .show(ui.ctx(), |ui| ui.label("Hello"));
         })
         .expect("shown");
-        assert_eq!(view.egui_paint_areas.len(), 1, "{view:?}");
+        assert_eq!(view.egui_paint_areas.0.len(), 1, "{view:?}");
         assert!(
-            view.egui_paint_areas[0].contains(pos2(110.0, 110.0)),
+            view.egui_paint_areas.0[0].contains(pos2(110.0, 110.0)),
             "{view:?}"
         );
         // The window's own interact rect covers all of its contents, and its resize handles
@@ -483,7 +483,7 @@ mod tests {
         assert!(
             view.egui_input_areas
                 .iter()
-                .any(|area| area.contains_rect(view.egui_paint_areas[0])),
+                .any(|area| area.contains_rect(view.egui_paint_areas.0[0])),
             "{view:?}"
         );
     }
@@ -494,7 +494,7 @@ mod tests {
             crate::Modal::new(Id::unique("modal")).show(ui.ctx(), |ui| ui.label("Modal"));
         })
         .expect("shown");
-        assert!(view.egui_input_areas.contains(&view.visible), "{view:?}");
+        assert!(view.egui_input_areas.0.contains(&view.visible), "{view:?}");
         assert!(view.view_input_areas().is_empty(), "{view:?}");
     }
 
@@ -599,7 +599,7 @@ mod tests {
                 .fixed_pos(pos2(100.0, 100.0))
                 .show(ui.ctx(), |ui| ui.label("Hello"));
         });
-        assert_eq!(views[0].egui_paint_areas.len(), 1, "{views:?}");
+        assert_eq!(views[0].egui_paint_areas.0.len(), 1, "{views:?}");
         assert!(!views[0].egui_input_areas.is_empty(), "{views:?}");
     }
 
@@ -614,8 +614,11 @@ mod tests {
                 .rect_filled(painted, 0.0, crate::Color32::RED);
         })
         .expect("shown");
-        assert_eq!(view.egui_paint_areas.len(), 1, "{view:?}");
-        assert!(view.egui_paint_areas[0].contains_rect(painted), "{view:?}");
+        assert_eq!(view.egui_paint_areas.0.len(), 1, "{view:?}");
+        assert!(
+            view.egui_paint_areas.0[0].contains_rect(painted),
+            "{view:?}"
+        );
         assert!(view.egui_input_areas.is_empty(), "{view:?}");
     }
 }
