@@ -534,3 +534,31 @@ pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Mem
     #[cfg(not(feature = "persistence"))]
     None
 }
+
+/// The colour a viewport is cleared with.
+///
+/// [`epi::App::clear_color`] defaults to a colour with alpha, so that a window created with
+/// [`ViewportBuilder::with_transparent`] shows through from the first frame. A viewport that
+/// was not created transparent has an opaque surface as far as the window system knows, and
+/// a half-transparent buffer behind an opaque surface blends with whatever the compositor
+/// had on screen before (<https://github.com/emilk/egui/issues/8761>), so for those the
+/// alpha is forced to one.
+pub fn viewport_clear_color(clear_color: [f32; 4], transparent: bool) -> [f32; 4] {
+    if transparent {
+        clear_color
+    } else {
+        [clear_color[0], clear_color[1], clear_color[2], 1.0]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::viewport_clear_color;
+
+    #[test]
+    fn clear_color_is_opaque_unless_the_viewport_is_transparent() {
+        let color = [0.1, 0.2, 0.3, 0.7];
+        assert_eq!(viewport_clear_color(color, true), color);
+        assert_eq!(viewport_clear_color(color, false), [0.1, 0.2, 0.3, 1.0]);
+    }
+}

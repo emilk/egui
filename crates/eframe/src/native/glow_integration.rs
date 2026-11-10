@@ -760,9 +760,18 @@ impl GlowWinitRunning<'_> {
         self.integration
             .egui_ctx
             .options_mut(|opt| opt.begin_pass(&raw_input));
-        let clear_color = self
-            .app
-            .clear_color(&self.integration.egui_ctx.global_style().visuals);
+        let transparent = self
+            .glutin
+            .borrow()
+            .viewports
+            .get(&viewport_id)
+            .and_then(|viewport| viewport.builder.transparent)
+            .unwrap_or(false);
+        let clear_color = epi_integration::viewport_clear_color(
+            self.app
+                .clear_color(&self.integration.egui_ctx.global_style().visuals),
+            transparent,
+        );
 
         let has_many_viewports = self.glutin.borrow().viewports.len() > 1;
         let clear_before_update = !has_many_viewports; // HACK: for some reason, an early clear doesn't "take" on Mac with multiple viewports.

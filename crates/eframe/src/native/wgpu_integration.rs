@@ -830,10 +830,14 @@ impl WgpuWinitRunning<'_> {
                     true
                 }
             });
+            let clear_color = epi_integration::viewport_clear_color(
+                app.clear_color(&egui_ctx.global_style().visuals),
+                viewport.builder.transparent.unwrap_or(false),
+            );
             let vsync_secs = painter.paint_and_update_textures(
                 viewport_id,
                 pixels_per_point,
-                app.clear_color(&egui_ctx.global_style().visuals),
+                clear_color,
                 &clipped_primitives,
                 pending_deltas,
                 screenshot_commands,
