@@ -35,6 +35,10 @@ pub(crate) struct WebNativeViews {
     /// The `style` attribute that the input element has now, as of the last pass, so that an
     /// unchanged style isn't set again. `None` while the input element is hidden.
     current_input_style: Option<String>,
+
+    /// The canvas's inline `position` from before eframe set it to `relative`, to put back once
+    /// no view below the canvas is shown. `None` while eframe hasn't changed it.
+    canvas_position_before: Option<String>,
 }
 
 /// The attribute that marks the container, so that [`container_of`] can find it.
@@ -44,7 +48,7 @@ const CONTAINER_ATTRIBUTE: &str = "data-egui-native-view-container";
 struct Elements {
     /// The `position: fixed` container of the views and the input element, inserted right before
     /// the canvas. It precedes the canvas in the document, so a positioned canvas paints in front
-    /// of it.
+    /// of it. See [`WebNativeViews::route_input`] for a canvas that isn't positioned.
     container: HtmlElement,
 
     /// Takes egui's pointer input while views below the canvas are shown. See the module docs.
@@ -68,6 +72,7 @@ impl WebNativeViews {
             canvas,
             elements,
             current_input_style: None,
+            canvas_position_before: None,
         }
     }
 
@@ -93,6 +98,10 @@ impl WebNativeViews {
     /// While such a view is shown, the canvas has `pointer-events: none`, and the input element
     /// covers the canvas except where the views take the pointer input. Otherwise the input element
     /// is hidden and the canvas takes the pointer input as usual.
+    ///
+    /// While such a view is shown, a canvas with `position: static` also has `position: relative`.
+    /// The container is positioned, and a positioned element paints in front of a static one, so
+    /// the canvas needs a non-static `position` too, to stay in front of the views.
     pub fn route_input(&mut self, ctx: &Context, outputs: &[NativeViewOutput]) {
         let Some(elements) = &self.elements else {
             return;
@@ -125,9 +134,22 @@ impl WebNativeViews {
         let canvas_style = self.canvas.style();
         if let Some(css) = &input_style {
             canvas_style.set_property("pointer-events", "none").ok();
+            if self.canvas_position_before.is_none() && is_static(&self.canvas) {
+                self.canvas_position_before = canvas_style.get_property_value("position").ok();
+                canvas_style.set_property("position", "relative").ok();
+            }
             set_style(&elements.input, css);
         } else {
             canvas_style.remove_property("pointer-events").ok();
+            match self.canvas_position_before.take() {
+                Some(position) if position.is_empty() => {
+                    canvas_style.remove_property("position").ok();
+                }
+                Some(position) => {
+                    canvas_style.set_property("position", &position).ok();
+                }
+                None => {}
+            }
             set_style(&elements.input, "display: none;");
         }
         self.current_input_style = input_style;
@@ -143,7 +165,7 @@ impl WebNativeViews {
 /// parent since.
 pub(crate) fn container_of(canvas: &HtmlCanvasElement) -> Result<HtmlElement, JsValue> {
     let mut sibling = canvas.previous_element_sibling();
-    let container = loop {
+    loop {
         let Some(element) = sibling else {
             return Err(JsValue::from_str(
                 "eframe has no element for native views next to its canvas. Add the canvas to \
@@ -151,20 +173,18 @@ pub(crate) fn container_of(canvas: &HtmlCanvasElement) -> Result<HtmlElement, Js
             ));
         };
         if element.has_attribute(CONTAINER_ATTRIBUTE) {
-            break element.unchecked_into::<HtmlElement>();
+            return Ok(element.unchecked_into::<HtmlElement>());
         }
         sibling = element.previous_element_sibling();
-    };
-    // The container is positioned, and a positioned element paints in front of a static one. The
-    // canvas needs a non-static `position` too, to stay in front of the views.
-    let is_static = web_sys::window()
+    }
+}
+
+/// Whether the computed `position` of `canvas` is `static`.
+fn is_static(canvas: &HtmlCanvasElement) -> bool {
+    web_sys::window()
         .and_then(|window| window.get_computed_style(canvas).ok().flatten())
         .and_then(|style| style.get_property_value("position").ok())
-        .is_some_and(|position| position == "static");
-    if is_static {
-        canvas.style().set_property("position", "relative")?;
-    }
-    Ok(container)
+        .is_some_and(|position| position == "static")
 }
 
 /// Returns a function that converts rects from ui points to CSS pixels relative to the top left

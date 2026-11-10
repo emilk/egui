@@ -90,9 +90,10 @@ impl NativeViews {
     /// [`NativeViewOutput::z_index`] plus one, and `pointer-events: auto`, because the `<div>`
     /// has `pointer-events: none`.
     ///
-    /// If the canvas has `position: static`, the first call sets it to `position: relative`.
-    /// A positioned element is painted in front of a static one, so this keeps the canvas in
-    /// front of the `<div>`.
+    /// While a view below egui's surface is shown, eframe gives a canvas that has
+    /// `position: static` an inline `position: relative`, and puts the canvas's own value back
+    /// once no such view is shown. A positioned element is painted in front of a static one, so
+    /// this keeps the canvas in front of the `<div>`.
     ///
     /// # Errors
     /// If the canvas wasn't in the document when eframe started, or was moved to another parent
