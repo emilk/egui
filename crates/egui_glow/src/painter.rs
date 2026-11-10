@@ -420,9 +420,7 @@ impl Painter {
                     self.paint_mesh(mesh);
                 }
                 Primitive::Clear(rect) => {
-                    // `glClear` ignores blending but respects the scissor test, so this only
-                    // clears the clip rect. The scissor is already the clip rect for every
-                    // primitive, set above: here it is narrowed to the rect to clear.
+                    // `glClear` has no rect arg, so we need to use the clip_rect
                     set_clip_rect(
                         &self.gl,
                         screen_size_px,

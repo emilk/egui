@@ -465,8 +465,8 @@ impl AppRunner {
         }
 
         super::set_cursor_icon(self.canvas(), cursor_icon);
-        // While views below the canvas are shown, the input element is what the pointer is over
-        // wherever egui takes the input, so it shows egui's cursor. It has holes where a view
+        // While embedded views below the canvas are shown, the input element handles pointer events
+        // wherever egui takes the input, so it shows egui's cursor. It is clipped where a view
         // takes the input: there the pointer is over the view's own element, and the browser
         // shows that element's cursor, not egui's.
         if let Some(input_element) = self.web_embedded_views.input_element() {
