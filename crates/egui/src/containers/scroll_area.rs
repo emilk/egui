@@ -2,6 +2,7 @@
 
 #![expect(clippy::needless_range_loop)]
 
+use alloc::sync::Arc;
 use core::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
 use emath::GuiRounding as _;
@@ -10,7 +11,8 @@ use epaint::{Color32, Direction, Margin, Shape};
 use crate::{
     AsIdSalt, Context, CursorIcon, Id, IdSalt, MouseWheelSource, NumExt as _, Pos2, Rangef, Rect,
     Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath,
-    epaint, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
+    epaint, lerp, mutex::Mutex, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
+    ui_stack::SCROLL_AREA_RECTS_TAG,
 };
 
 use super::scroll_physics::{AxisPhysics, WheelScroll, scroll_bounds};
@@ -757,6 +759,7 @@ struct Prepared {
     /// Where on the screen the content is (excludes scroll bars; includes `content_margin`).
     inner_rect: Rect,
 
+    scroll_area_rects: Arc<Mutex<Option<(Rect, Rect)>>>,
     content_ui: Ui,
 
     /// Relative coordinates: the offset and size of the view of the inner UI.
@@ -885,10 +888,16 @@ impl ScrollArea {
         // Is there an enclosing scroll area? If so, we let the scroll wheel chain to it
         // when we're at the edge.
         let has_scrolling_ancestor = has_scrolling_ancestor(ui);
+        let previous_rects: Option<(Rect, Rect)> =
+            ctx.data(|data| data.get_temp(id.with(SCROLL_AREA_RECTS_TAG)));
+        let scroll_area_rects = Arc::new(Mutex::new(previous_rects));
 
         let mut content_ui = ui.new_child(
             UiBuilder::new()
-                .ui_stack_info(UiStackInfo::new(UiKind::ScrollArea))
+                .ui_stack_info(
+                    UiStackInfo::new(UiKind::ScrollArea)
+                        .with_tag_value(SCROLL_AREA_RECTS_TAG, Arc::clone(&scroll_area_rects)),
+                )
                 .max_rect(content_max_rect),
         );
 
@@ -907,6 +916,17 @@ impl ScrollArea {
             // Make sure we didn't accidentally expand the clip rect
             content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
             content_ui.set_clip_rect(content_clip_rect);
+        }
+        // Ui Stack consumers run while the contents are being rendered, before `end` stores the final rects.
+        // Keep the visible rect current so they don't read the previous frame's viewport after a resize.
+        let visible_rect = content_ui.clip_rect();
+        {
+            let mut rects = scroll_area_rects.lock();
+            if let Some(rects) = rects.as_mut() {
+                rects.1 = visible_rect;
+            } else {
+                *rects = Some((content_ui.min_rect(), visible_rect));
+            }
         }
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
@@ -1043,6 +1063,7 @@ impl ScrollArea {
             scroll_bar_visibility,
             scroll_bar_rect,
             inner_rect,
+            scroll_area_rects,
             content_ui,
             viewport,
             scroll_source,
@@ -1169,6 +1190,7 @@ impl Prepared {
             inner_rect,
             auto_shrink,
             direction_enabled,
+            scroll_area_rects,
             mut show_bars_factor,
             current_bar_use,
             scroll_bar_visibility,
@@ -1186,6 +1208,10 @@ impl Prepared {
             axis_physics,
         } = self;
 
+        let rects = (content_ui.min_rect(), content_ui.clip_rect());
+        *scroll_area_rects.lock() = Some(rects);
+        ui.ctx()
+            .data_mut(|data| data.insert_temp(id.with(SCROLL_AREA_RECTS_TAG), rects));
         let content_size = content_ui.min_size();
 
         let mut had_explicit_scroll_adjustment = Vec2b::FALSE;
