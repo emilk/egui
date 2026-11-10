@@ -244,33 +244,54 @@ pub struct EmbeddedViewOutput {
 }
 
 impl EmbeddedViewOutput {
-    /// The parts of [`Self::visible`] where the view takes the pointer input, that is,
-    /// outside [`Self::egui_input_areas`].
+    /// The parts of [`Self::visible`] where the view gets the pointer input: everything outside
+    /// [`Self::egui_input_areas`].
     ///
-    /// Use it to route the pointer: the integration delivers the input in these rects to the
-    /// view, and the rest to egui. The returned rects don't overlap.
+    /// Use it to decide who gets the pointer. It applies to both placements:
+    ///
+    /// * **Below:** egui's surface is in front of the view and would take every click. Let the
+    ///   input through to the view in these rects.
+    /// * **Above:** the view is in front and gets every click by default. Take the input away
+    ///   from the view outside these rects, for example under a window or a modal backdrop.
+    ///
+    /// If it is empty, egui takes all the input, as it does under a modal.
+    ///
+    /// The returned rects don't overlap.
     pub fn view_input_areas(&self) -> Vec<Rect> {
         self.visible.subtract(&self.egui_input_areas)
     }
 
-    /// The parts of [`Self::visible`] where the view shows, that is, outside
+    /// The parts of [`Self::visible`] where the view shows: everything outside
     /// [`Self::egui_paint_areas`].
     ///
-    /// Use it as the mask of a view above egui's surface, so that egui's windows and popups show
-    /// over the view. A view below the surface needs no mask: egui paints over it. The returned
-    /// rects don't overlap.
+    /// Use it as the mask of a view above egui's surface. The view covers egui, so egui's
+    /// windows, popups and tooltips only show over it if the view is cut out there. A view
+    /// below the surface doesn't need a mask: egui paints over the view by itself.
+    ///
+    /// Use it when the platform can mask drawing separately from input, and route the input
+    /// with [`Self::view_input_areas`]. Under a tooltip the view is then hidden but still gets
+    /// the click, which is right because a tooltip takes no input. If one shape has to do both,
+    /// use [`Self::view_input_and_paint_areas`] instead.
+    ///
+    /// The returned rects don't overlap.
     pub fn view_paint_areas(&self) -> Vec<Rect> {
         self.visible.subtract(&self.egui_paint_areas)
     }
 
     /// The parts of [`Self::visible`] that egui neither paints over nor takes the pointer input
-    /// from: [`Self::visible`] without [`Self::egui_paint_areas`] and
-    /// [`Self::egui_input_areas`].
+    /// from: everything outside [`Self::egui_paint_areas`] and [`Self::egui_input_areas`].
     ///
-    /// Use it for a view above egui's surface that takes one set of rects for both: where it
-    /// shows and where it gets the input. That hides the view wherever egui takes the input,
-    /// also where egui paints nothing, as under a widget that only senses clicks. The returned
-    /// rects don't overlap.
+    /// Use it for a view above egui's surface when a single shape clips both drawing and
+    /// hit-testing. A Win32 window region and a CSS `clip-path` work that way.
+    ///
+    /// The cost: the view also disappears where egui takes input but paints nothing, such as
+    /// under a widget that only senses clicks. If the platform can separate the two, use
+    /// [`Self::view_paint_areas`] and [`Self::view_input_areas`] instead.
+    ///
+    /// Don't use it for a view below the surface. Nothing needs masking there, and it would
+    /// block the view's input under tooltips. Use [`Self::view_input_areas`].
+    ///
+    /// The returned rects don't overlap.
     pub fn view_input_and_paint_areas(&self) -> Vec<Rect> {
         let egui_areas = [&self.egui_paint_areas[..], &self.egui_input_areas[..]].concat();
         self.visible.subtract(&egui_areas)
