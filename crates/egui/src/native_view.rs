@@ -56,14 +56,23 @@ pub enum NativeViewPlacement {
 /// of another widget's [`Response`].
 ///
 /// ```
-/// # egui::__run_test_ui(|ui| {
-/// let id = egui::Id::unique("page");
-/// ui.add(egui::NativeView::new(id));
-/// ui.add(egui::NativeView::new(id).size(egui::vec2(320.0, 240.0)).above());
+/// # let ctx = egui::Context::default();
+/// let id = egui::Id::unique("map");
 ///
-/// let response = ui.button("A page over a button");
-/// egui::NativeView::new(id).show_in(ui, response.rect);
-/// # });
+/// let output = ctx.run_ui(egui::RawInput::default(), |ui| {
+///     // Reserve the rest of the `Ui` for the map. egui draws nothing there.
+///     ui.add(egui::NativeView::new(id));
+/// });
+///
+/// // After the pass, move the platform's map view to where egui put the widget.
+/// for view in &output.platform_output.native_views {
+///     if view.id == id {
+///         // Show the map in `view.visible`, in front of the layers below `view.z_index`,
+///         // and leave the pointer input in `view.egui_input_areas` to egui.
+///     }
+/// }
+/// # let mut output = output;
+/// # output.textures_delta.clear(); // Nothing paints this pass.
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 #[derive(Clone, Copy, Debug)]

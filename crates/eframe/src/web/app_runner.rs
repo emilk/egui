@@ -243,9 +243,8 @@ impl AppRunner {
     /// Does the eframe app have focus?
     ///
     /// Technically: does the canvas, the [`TextAgent`] or one of the native views below the
-    /// canvas have focus? A native view with the focus, such as a text field, is part of the app:
-    /// the widget that shows it keeps egui's keyboard focus, and [`egui::Response::has_focus`] of
-    /// that widget is only `true` while the app counts as focused.
+    /// canvas have focus? The native view also counts as focus, so that
+    /// [`egui::Response::has_focus`] works on it.
     pub fn has_focus(&self) -> bool {
         self.egui_has_focus() || self.web_native_views.has_focus()
     }

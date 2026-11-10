@@ -7,12 +7,13 @@
 //! limit the hit-testing of an element to part of its area without also clipping its drawing:
 //! `clip-path` clips both.
 //!
-//! So while such a view is shown, the canvas only draws and has `pointer-events: none`. Instead, an
-//! invisible input element in front of the canvas and the views takes egui's pointer input, and
-//! eframe listens for pointer events on the input element like on the canvas. The input element's
-//! `clip-path` cuts out the areas where the views take the input
-//! ([`egui::NativeViewOutput::view_input_areas`]), so hit-testing there finds the views. The canvas
-//! isn't clipped, so egui paints over the views down to the last pixel, shadows included.
+//! So while such a view is shown, the canvas is only used for display and has
+//! `pointer-events: none`. Instead, an invisible input element in front of the canvas and the
+//! views takes egui's pointer input, and eframe listens for pointer events on the input element
+//! like on the canvas. The input element's `clip-path` cuts out the areas where the views take
+//! the input ([`egui::NativeViewOutput::view_input_areas`]), so hit-testing there finds the
+//! views. The canvas isn't clipped, so egui paints over the views down to the last pixel, shadows
+//! included.
 //!
 //! The keyboard focus stays on the canvas: the input element isn't focusable, and eframe cancels
 //! the default action of a `mousedown` on the input element, which would move the focus.
