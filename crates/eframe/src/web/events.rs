@@ -67,7 +67,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
         let runner = runner_ref.try_lock().unwrap();
         (
             runner.canvas().clone(),
-            runner.web_native_views.input_element().cloned(),
+            runner.web_embedded_views.input_element().cloned(),
         )
     };
 
@@ -347,8 +347,8 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 }
 
 /// The clipboard events of the document go to egui only while the canvas or the text agent has
-/// the focus, not `raw.focused`: that counts a native view with the focus too, and the view's own
-/// clipboard events bubble up to the document.
+/// the focus, not `raw.focused`: that counts an embedded view with the focus too, and the view's
+/// own clipboard events bubble up to the document.
 fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "paste", |event: web_sys::ClipboardEvent, runner| {
         if !runner.egui_has_focus() {
@@ -546,7 +546,7 @@ fn prevent_default_and_stop_propagation(
 }
 
 /// Installs the pointer listeners on the input element, which takes the canvas's pointer input
-/// while native views are shown below the canvas. See [`super::native_views`].
+/// while embedded views are shown below the canvas. See [`super::embedded_views`].
 fn install_input_element(
     runner_ref: &WebRunner,
     input_element: &EventTarget,
@@ -554,7 +554,7 @@ fn install_input_element(
     prevent_default_and_stop_propagation(runner_ref, input_element, &["contextmenu"])?;
     // Cancel the default action of `mousedown`, which would move the keyboard focus off the
     // canvas. The `pointerup` listener on the document focuses the canvas instead, unless a
-    // native view has the focus: then the view's backend gives it back to the canvas once egui
+    // embedded view has the focus: then the view's backend gives it back to the canvas once egui
     // moves its focus on.
     runner_ref.add_event_listener(
         input_element,
@@ -647,7 +647,7 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 // Only if the app doesn't have the focus already. Taking it
                 // from the text agent would cut an IME composition short,
                 // only for the logic below to give it back. Taking it from a
-                // native view would close its keyboard on a drag to scroll;
+                // embedded view would close its keyboard on a drag to scroll;
                 // egui gives up the view's focus itself on a click elsewhere.
                 if !runner.has_focus() {
                     super::focus_without_scroll(runner.canvas()).ok();
@@ -689,7 +689,7 @@ fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
         None
     };
 
-    let input_element = runner.web_native_views.input_element();
+    let input_element = runner.web_embedded_views.input_element();
     let is_hovering_canvas = element_at_point.is_some_and(|element| {
         element.eq(runner.canvas())
             // The input element takes the input through its children.

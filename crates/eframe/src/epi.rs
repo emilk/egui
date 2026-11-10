@@ -83,8 +83,8 @@ pub struct CreationContext<'s> {
     #[cfg(feature = "wgpu_no_default_features")]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
-    /// See [`Self::native_views`].
-    pub(crate) native_views: crate::NativeViews,
+    /// See [`Self::embedded_views`].
+    pub(crate) embedded_views: crate::EmbeddedViews,
 
     /// The root [`winit::window::Window`].
     #[cfg(not(target_arch = "wasm32"))]
@@ -100,10 +100,10 @@ pub struct CreationContext<'s> {
 }
 
 impl CreationContext<'_> {
-    /// The [`NativeViews`](crate::NativeViews) of the root window, which report where egui
+    /// The [`EmbeddedViews`](crate::EmbeddedViews) of the root window, which report where egui
     /// placed the views that the platform draws, such as web views.
-    pub fn native_views(&self) -> &crate::NativeViews {
-        &self.native_views
+    pub fn embedded_views(&self) -> &crate::EmbeddedViews {
+        &self.embedded_views
     }
 }
 
@@ -145,7 +145,7 @@ impl CreationContext<'_> {
             raw_window_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
             raw_display_handle: Err(HandleError::NotSupported),
-            native_views: crate::NativeViews::detached(),
+            embedded_views: crate::EmbeddedViews::detached(),
         }
     }
 
@@ -302,9 +302,9 @@ pub trait App {
     /// no pass runs.
     ///
     /// Use it to act on output that must be handled before the frame is painted, such as placing
-    /// the native views ([`egui::PlatformOutput::native_views`]) that the pass reserved rects for
-    /// with [`egui::NativeView`]: the code that shows a view moves it there, or hides it when
-    /// its view is missing from the output.
+    /// the embedded views ([`egui::PlatformOutput::embedded_views`]) that the pass reserved rects
+    /// for with [`egui::EmbeddedView`]: the code that shows a view moves it there, or hides it
+    /// when its view is missing from the output.
     fn output_hook(&mut self, _ctx: &egui::Context, _output: &mut egui::FullOutput) {}
 }
 
@@ -766,8 +766,8 @@ pub struct Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) activation_token: Option<String>,
 
-    /// See [`Self::native_views`].
-    pub(crate) native_views: crate::NativeViews,
+    /// See [`Self::embedded_views`].
+    pub(crate) embedded_views: crate::EmbeddedViews,
 }
 
 // Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
@@ -815,14 +815,14 @@ impl Frame {
             wgpu_render_state: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_surface_config: None,
-            native_views: crate::NativeViews::detached(),
+            embedded_views: crate::EmbeddedViews::detached(),
         }
     }
 
-    /// The [`NativeViews`](crate::NativeViews) of the root window, which report where egui
+    /// The [`EmbeddedViews`](crate::EmbeddedViews) of the root window, which report where egui
     /// placed the views that the platform draws, such as web views.
-    pub fn native_views(&self) -> &crate::NativeViews {
-        &self.native_views
+    pub fn embedded_views(&self) -> &crate::EmbeddedViews {
+        &self.embedded_views
     }
 
     /// True if you are in a web environment.

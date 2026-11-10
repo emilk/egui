@@ -400,6 +400,7 @@ mod context;
 mod data;
 pub mod debug_text;
 mod drag_and_drop;
+mod embedded_view;
 pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
@@ -412,7 +413,6 @@ pub mod layers;
 mod layout;
 pub mod load;
 mod memory;
-mod native_view;
 pub mod os;
 mod painter;
 mod pass_state;
@@ -504,6 +504,7 @@ pub use self::{
         },
     },
     drag_and_drop::DragAndDrop,
+    embedded_view::{EmbeddedView, EmbeddedViewOutput, EmbeddedViewPlacement},
     epaint::text::TextWrapMode,
     grid::Grid,
     id::{Id, IdMap, IdSet},
@@ -513,7 +514,6 @@ pub use self::{
     layout::Layout,
     load::SizeHint,
     memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
-    native_view::{NativeView, NativeViewOutput, NativeViewPlacement},
     painter::Painter,
     plugin::Plugin,
     response::{InnerResponse, Response},

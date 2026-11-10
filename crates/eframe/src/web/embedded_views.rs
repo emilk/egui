@@ -2,7 +2,7 @@
 //! of the pointer input.
 //!
 //! The canvas is in front of the views below egui's surface
-//! ([`egui::NativeViewPlacement::Below`]), so the browser's hit-testing would send all of the
+//! ([`egui::EmbeddedViewPlacement::Below`]), so the browser's hit-testing would send all of the
 //! pointer input to the canvas. The views need the input where egui doesn't take it. CSS can't
 //! limit the hit-testing of an element to part of its area without also clipping its drawing:
 //! `clip-path` clips both.
@@ -12,7 +12,7 @@
 //! views takes egui's pointer input, and eframe listens for pointer events on the input element
 //! like on the canvas. The input element takes the input through rectangles that together cover
 //! the canvas except where the views take the input
-//! ([`egui::NativeViewOutput::view_input_areas`]), so hit-testing there finds the views. The
+//! ([`egui::EmbeddedViewOutput::view_input_areas`]), so hit-testing there finds the views. The
 //! canvas isn't clipped, so egui paints over the views down to the last pixel, shadows included.
 //!
 //! The rectangles are elements of their own, rather than one element with the views cut out of
@@ -23,17 +23,18 @@
 //! The keyboard focus stays on the canvas: the input element isn't focusable, and eframe cancels
 //! the default action of a `mousedown` on the input element, which would move the focus.
 
-use egui::{Context, NativeViewOutput, NativeViewPlacement, Pos2, Rect, vec2};
+use egui::{Context, EmbeddedViewOutput, EmbeddedViewPlacement, Pos2, Rect, vec2};
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use web_sys::{HtmlCanvasElement, HtmlElement};
 
 /// The runner's state for the views below the canvas. See the module docs.
-pub(crate) struct WebNativeViews {
+pub(crate) struct WebEmbeddedViews {
     canvas: HtmlCanvasElement,
 
     /// `None` if the canvas wasn't in a document when eframe started. Then there are no views
-    /// below the canvas for the life of the runner, and [`crate::NativeViews::container`] says why.
+    /// below the canvas for the life of the runner, and [`crate::EmbeddedViews::container`] says
+    /// why.
     elements: Option<Elements>,
 
     /// How the input element is laid out now, as of the last pass, so that an unchanged layout
@@ -53,13 +54,13 @@ struct InputStyle {
 }
 
 /// The attribute that marks the container, so that [`container_of`] can find it.
-const CONTAINER_ATTRIBUTE: &str = "data-egui-native-view-container";
+const CONTAINER_ATTRIBUTE: &str = "data-egui-embedded-view-container";
 
 /// The elements that eframe adds to the document for the views below the canvas.
 struct Elements {
     /// The `position: fixed` container of the views and the input element, inserted right before
     /// the canvas. It precedes the canvas in the document, so a positioned canvas paints in front
-    /// of it. See [`WebNativeViews::route_input`] for a canvas that isn't positioned.
+    /// of it. See [`WebEmbeddedViews::route_input`] for a canvas that isn't positioned.
     container: HtmlElement,
 
     /// Takes egui's pointer input while views below the canvas are shown. See the module docs.
@@ -83,12 +84,12 @@ impl Drop for Elements {
     }
 }
 
-impl WebNativeViews {
+impl WebEmbeddedViews {
     pub fn new(canvas: HtmlCanvasElement) -> Self {
         // Create the elements now, so that eframe can install its event listeners on the input element
         // at startup.
         let elements = Elements::new(&canvas)
-            .inspect_err(|err| log::debug!("No native views below the canvas: {err:?}"))
+            .inspect_err(|err| log::debug!("No embedded views below the canvas: {err:?}"))
             .ok();
         Self {
             canvas,
@@ -124,7 +125,7 @@ impl WebNativeViews {
     /// `position: relative`, and keeps it. The container is positioned, and a positioned element
     /// paints in front of a static one, so the canvas needs a non-static `position` too, to stay
     /// in front of the views.
-    pub fn route_input(&mut self, ctx: &Context, outputs: &[NativeViewOutput]) {
+    pub fn route_input(&mut self, ctx: &Context, outputs: &[EmbeddedViewOutput]) {
         let Self {
             canvas,
             elements: Some(elements),
@@ -136,7 +137,7 @@ impl WebNativeViews {
         // The browser delivers the pointer input to views above the canvas without help.
         let mut below = outputs
             .iter()
-            .filter(|output| output.side == NativeViewPlacement::Below)
+            .filter(|output| output.side == EmbeddedViewPlacement::Below)
             .peekable();
         let input_style = below.peek().is_some().then(|| {
             // While egui has a pointer button down, the input element covers the views too, so that
@@ -148,7 +149,7 @@ impl WebNativeViews {
             } else {
                 let to_css = to_css_pixels(ctx, canvas);
                 below
-                    .flat_map(NativeViewOutput::view_input_areas)
+                    .flat_map(EmbeddedViewOutput::view_input_areas)
                     .map(to_css)
                     .collect()
             };
@@ -180,7 +181,7 @@ impl WebNativeViews {
 }
 
 /// Returns the container of `canvas`: the element that the views below the canvas go in.
-/// See [`crate::NativeViews::container`].
+/// See [`crate::EmbeddedViews::container`].
 ///
 /// # Errors
 /// If the container isn't before the canvas under the same parent: the canvas wasn't in the
@@ -191,7 +192,7 @@ pub(crate) fn container_of(canvas: &HtmlCanvasElement) -> Result<HtmlElement, Js
     loop {
         let Some(element) = sibling else {
             return Err(JsValue::from_str(
-                "eframe has no element for native views next to its canvas. Add the canvas to \
+                "eframe has no element for embedded views next to its canvas. Add the canvas to \
                  the document before starting eframe, and keep it under the same parent element.",
             ));
         };
@@ -258,7 +259,7 @@ fn input_style(
         Rect::from_min_size(Pos2::ZERO, vec2(rect.width() as f32, rect.height() as f32));
     InputStyle {
         element,
-        rects: crate::native_view::subtract_all(canvas_rect, view_areas),
+        rects: crate::embedded_view::subtract_all(canvas_rect, view_areas),
     }
 }
 

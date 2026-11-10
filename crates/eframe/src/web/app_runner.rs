@@ -15,7 +15,7 @@ pub struct AppRunner {
 
     /// The container of the views below the canvas, and the routing of the pointer input between
     /// them and the canvas.
-    pub(crate) web_native_views: super::native_views::WebNativeViews,
+    pub(crate) web_embedded_views: super::embedded_views::WebEmbeddedViews,
     pub(crate) input: super::WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: Arc<NeedRepaint>,
@@ -118,14 +118,15 @@ impl AppRunner {
             i.pixels_per_point = super::native_pixels_per_point();
         });
 
-        let web_native_views = super::native_views::WebNativeViews::new(painter.canvas().clone());
-        let native_views = crate::NativeViews::new(painter.canvas().clone());
+        let web_embedded_views =
+            super::embedded_views::WebEmbeddedViews::new(painter.canvas().clone());
+        let embedded_views = crate::EmbeddedViews::new(painter.canvas().clone());
 
         let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
             storage: Some(&storage),
-            native_views: native_views.clone(),
+            embedded_views: embedded_views.clone(),
 
             #[cfg(feature = "glow")]
             gl: gl.clone(),
@@ -154,7 +155,7 @@ impl AppRunner {
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
 
-            native_views,
+            embedded_views,
         };
 
         let needs_repaint: Arc<NeedRepaint> = Arc::new(NeedRepaint::new(web_options.max_fps));
@@ -170,7 +171,7 @@ impl AppRunner {
             frame,
             egui_ctx,
             painter,
-            web_native_views,
+            web_embedded_views,
             input: Default::default(),
             app,
             needs_repaint,
@@ -242,16 +243,16 @@ impl AppRunner {
 
     /// Does the eframe app have focus?
     ///
-    /// Technically: does the canvas, the [`TextAgent`] or one of the native views below the
-    /// canvas have focus? The native view also counts as focus, so that
+    /// Technically: does the canvas, the [`TextAgent`] or one of the embedded views below the
+    /// canvas have focus? The embedded view also counts as focus, so that
     /// [`egui::Response::has_focus`] works on it.
     pub fn has_focus(&self) -> bool {
-        self.egui_has_focus() || self.web_native_views.has_focus()
+        self.egui_has_focus() || self.web_embedded_views.has_focus()
     }
 
     /// Does egui itself have focus, that is the canvas or the [`TextAgent`]?
     ///
-    /// Unlike [`Self::has_focus`], this is `false` while a native view has the focus. Then the
+    /// Unlike [`Self::has_focus`], this is `false` while an embedded view has the focus. Then the
     /// keyboard and the clipboard belong to the view, and eframe must neither take the focus
     /// from it nor handle the events it gets.
     pub fn egui_has_focus(&self) -> bool {
@@ -322,8 +323,8 @@ impl AppRunner {
                 viewport_output,
             } = full_output;
 
-            self.web_native_views
-                .route_input(&self.egui_ctx, &platform_output.native_views);
+            self.web_embedded_views
+                .route_input(&self.egui_ctx, &platform_output.embedded_views);
 
             if viewport_output.len() > 1 {
                 log::warn!("Multiple viewports not yet supported on the web");
@@ -429,7 +430,7 @@ impl AppRunner {
             accesskit_update: _,        // not currently implemented
             num_completed_passes: _,    // handled by `Context::run`
             request_discard_reasons: _, // handled by `Context::run`
-            native_views: _,            // handled by `WebNativeViews::route_input` in `logic`
+            embedded_views: _,          // handled by `WebEmbeddedViews::route_input` in `logic`
         } = platform_output;
 
         for command in commands {
@@ -448,11 +449,11 @@ impl AppRunner {
         }
 
         super::set_cursor_icon(self.canvas(), cursor_icon);
-        if let Some(input_element) = self.web_native_views.input_element() {
+        if let Some(input_element) = self.web_embedded_views.input_element() {
             super::set_cursor_icon(input_element, cursor_icon);
         }
 
-        // Not while a native view has the focus: the view keeps it until egui moves its focus
+        // Not while an embedded view has the focus: the view keeps it until egui moves its focus
         // on, see `Self::has_focus`.
         if self.egui_has_focus() {
             // egui has focus.

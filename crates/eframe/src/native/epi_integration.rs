@@ -240,7 +240,7 @@ impl EpiIntegration {
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
             activation_token: None,
-            native_views: crate::NativeViews::new(window.window_handle().map(|h| h.as_raw())),
+            embedded_views: crate::EmbeddedViews::new(window.window_handle().map(|h| h.as_raw())),
         };
 
         let icon = native_options

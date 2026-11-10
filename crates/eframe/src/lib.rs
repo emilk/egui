@@ -166,9 +166,9 @@ mod epi;
 // Re-export everything in `epi` so `eframe` users don't have to care about what `epi` is:
 pub use epi::*;
 
-mod native_view;
+mod embedded_view;
 
-pub use native_view::NativeViews;
+pub use embedded_view::EmbeddedViews;
 
 pub(crate) mod stopwatch;
 

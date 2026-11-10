@@ -200,10 +200,10 @@ pub struct PlatformOutput {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub request_discard_reasons: Vec<RepaintCause>,
 
-    /// Where the native views that are on screen this pass go. See [`crate::NativeView`].
+    /// Where the embedded views that are on screen this pass go. See [`crate::EmbeddedView`].
     ///
-    /// The integration should hide every native view that is missing from this list.
-    pub native_views: Vec<crate::NativeViewOutput>,
+    /// The integration should hide every embedded view that is missing from this list.
+    pub embedded_views: Vec<crate::EmbeddedViewOutput>,
 }
 
 impl PlatformOutput {
@@ -237,7 +237,7 @@ impl PlatformOutput {
             accesskit_update,
             num_completed_passes,
             mut request_discard_reasons,
-            native_views,
+            embedded_views,
         } = newer;
 
         self.commands.append(&mut commands);
@@ -254,7 +254,7 @@ impl PlatformOutput {
         self.accesskit_update = accesskit_update;
 
         // Only the latest pass says where the views go.
-        self.native_views = native_views;
+        self.embedded_views = embedded_views;
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` and

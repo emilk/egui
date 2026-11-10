@@ -1,31 +1,32 @@
-//! Native views: UI handled and rendered by the OS and not egui. For example web views, videos, etc.
+//! Embedded views: UI handled and rendered by the OS and not egui. For example web views, videos,
+//! etc.
 //!
-//! This is a helper for implementing native views. For an example implementation, see
+//! This is a helper for implementing embedded views. For an example implementation, see
 //! [egui_webview](https://github.com/rerun-io/egui_crates/tree/main/crates/egui_webview).
 //!
-//! Native views can either be shown above or below the egui surface. Below usually works better
-//! since shadows, backdrops and rounded corners on top of the native view can be displayed correctly.
-//! Below is not supported on all platforms though, e.g. on Windows it can only be done with the wgpu
-//! dx12 backend.
+//! Embedded views can either be shown above or below the egui surface. Below usually works better
+//! since shadows, backdrops and rounded corners on top of the embedded view can be displayed
+//! correctly. Below is not supported on all platforms though, e.g. on Windows it can only be done
+//! with the wgpu dx12 backend.
 //!
-//! egui also reports where it paints over a view ([`NativeViewOutput::egui_paint_areas`]) and
-//! where it takes the pointer input from the view ([`NativeViewOutput::egui_input_areas`]). With
+//! egui also reports where it paints over a view ([`EmbeddedViewOutput::egui_paint_areas`]) and
+//! where it takes the pointer input from the view ([`EmbeddedViewOutput::egui_input_areas`]). With
 //! these, the integration keeps egui's tooltips and popups over a view visible and interactive.
 
 use emath::{Rect, Vec2};
 
 use crate::{Id, LayerId, Memory, Response, Sense, Ui, Widget, WidgetRects};
 
-/// Whether the [`NativeView`] will be shown above or below the egui surface.
+/// Whether the [`EmbeddedView`] will be shown above or below the egui surface.
 ///
 /// - Below, it shows through the rect egui clears to transparent, and egui paints over it like
-///   over anything else. Input should be handled by the native view outside
-///   [`NativeViewOutput::egui_input_areas`].
-/// - Above, to correctly show egui tooltips and popups, the native view has to mask
-///   [`NativeViewOutput::egui_paint_areas`].
+///   over anything else. Input should be handled by the embedded view outside
+///   [`EmbeddedViewOutput::egui_input_areas`].
+/// - Above, to correctly show egui tooltips and popups, the embedded view has to mask
+///   [`EmbeddedViewOutput::egui_paint_areas`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum NativeViewPlacement {
+pub enum EmbeddedViewPlacement {
     /// The view is under egui's surface and shows through where egui clears the surface to
     /// transparent.
     ///
@@ -41,11 +42,11 @@ pub enum NativeViewPlacement {
     Above,
 }
 
-/// A widget that reserves a rect of the UI for a native view, which the platform draws, such as
+/// A widget that reserves a rect of the UI for an embedded view, which the platform draws, such as
 /// a web view.
 ///
 /// At the end of the pass, egui reports where the view goes in
-/// [`crate::PlatformOutput::native_views`]. A view that is not on screen is missing from that
+/// [`crate::PlatformOutput::embedded_views`]. A view that is not on screen is missing from that
 /// list, and the integration should hide it. That is the case when the widget wasn't added this
 /// pass, is in an invisible [`Ui`], or is clipped out, for example by scrolling.
 ///
@@ -61,11 +62,11 @@ pub enum NativeViewPlacement {
 ///
 /// let output = ctx.run_ui(egui::RawInput::default(), |ui| {
 ///     // Reserve the rest of the `Ui` for the map. egui draws nothing there.
-///     ui.add(egui::NativeView::new(id));
+///     ui.add(egui::EmbeddedView::new(id));
 /// });
 ///
 /// // After the pass, move the platform's map view to where egui put the widget.
-/// for view in &output.platform_output.native_views {
+/// for view in &output.platform_output.embedded_views {
 ///     if view.id == id {
 ///         // Show the map in `view.visible`, in front of the layers below `view.z_index`,
 ///         // and leave the pointer input in `view.egui_input_areas` to egui.
@@ -76,23 +77,23 @@ pub enum NativeViewPlacement {
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 #[derive(Clone, Copy, Debug)]
-pub struct NativeView {
+pub struct EmbeddedView {
     id: Id,
     size: Option<Vec2>,
-    side: NativeViewPlacement,
+    side: EmbeddedViewPlacement,
     clear: Option<bool>,
 }
 
-impl NativeView {
-    /// Creates the native view `id`, [below](NativeViewPlacement::Below) egui's surface.
+impl EmbeddedView {
+    /// Creates the embedded view `id`, [below](EmbeddedViewPlacement::Below) egui's surface.
     ///
-    /// `id` identifies the view in [`NativeViewOutput::id`], so it must be unique among the
-    /// native views.
+    /// `id` identifies the view in [`EmbeddedViewOutput::id`], so it must be unique among the
+    /// embedded views.
     pub fn new(id: Id) -> Self {
         Self {
             id,
             size: None,
-            side: NativeViewPlacement::Below,
+            side: EmbeddedViewPlacement::Below,
             clear: None,
         }
     }
@@ -107,9 +108,9 @@ impl NativeView {
         self
     }
 
-    /// Places the view below or above egui's surface. Default: [`NativeViewPlacement::Below`].
+    /// Places the view below or above egui's surface. Default: [`EmbeddedViewPlacement::Below`].
     #[inline]
-    pub fn placement(mut self, side: NativeViewPlacement) -> Self {
+    pub fn placement(mut self, side: EmbeddedViewPlacement) -> Self {
         self.side = side;
         self
     }
@@ -118,14 +119,14 @@ impl NativeView {
     /// [`Self::clear`] asks for it.
     #[inline]
     pub fn above(self) -> Self {
-        self.placement(NativeViewPlacement::Above)
+        self.placement(EmbeddedViewPlacement::Above)
     }
 
     /// Places the view below egui's surface, where it shows through the rect that egui clears.
     /// This is the default.
     #[inline]
     pub fn below(self) -> Self {
-        self.placement(NativeViewPlacement::Below)
+        self.placement(EmbeddedViewPlacement::Below)
     }
 
     /// Whether egui clears the visible part of the view's rect to transparent with
@@ -141,12 +142,12 @@ impl NativeView {
     }
 }
 
-impl NativeView {
+impl EmbeddedView {
     /// Shows the view in `rect` of `ui`, a rect that is already allocated, such as the rect of
     /// a [`Response`].
     ///
     /// Unlike [`Ui::add`], this allocates no space and senses no input, so the view is reported
-    /// in [`crate::PlatformOutput::native_views`] but has no [`Response`] of its own: the widget
+    /// in [`crate::PlatformOutput::embedded_views`] but has no [`Response`] of its own: the widget
     /// that owns `rect` keeps egui's clicks, drags and keyboard focus. [`Self::size`] is ignored.
     ///
     /// The view is clipped like the contents of `ui`, and is not shown when `ui` is invisible or
@@ -161,11 +162,11 @@ impl NativeView {
         if !ui.is_rect_visible(rect) {
             return;
         }
-        if clear.unwrap_or(side == NativeViewPlacement::Below) {
+        if clear.unwrap_or(side == EmbeddedViewPlacement::Below) {
             // The painter's clip rect limits the clear to the visible part of `rect`.
             ui.painter().add(epaint::Shape::Clear(rect));
         }
-        let shown = NativeViewShown {
+        let shown = EmbeddedViewShown {
             id,
             side,
             layer: ui.layer_id(),
@@ -173,11 +174,11 @@ impl NativeView {
             visible: visible_rect(ui, rect),
         };
         ui.ctx()
-            .pass_state_mut(|state| state.native_views.push(shown));
+            .pass_state_mut(|state| state.embedded_views.push(shown));
     }
 }
 
-impl Widget for NativeView {
+impl Widget for EmbeddedView {
     fn ui(self, ui: &mut Ui) -> Response {
         let (_, rect) = ui.allocate_space(self.size.unwrap_or_else(|| ui.available_size()));
         let response = ui.interact(rect, self.id, Sense::click_and_drag());
@@ -186,17 +187,18 @@ impl Widget for NativeView {
     }
 }
 
-/// Where a [`NativeView`] goes this pass, as reported in [`crate::PlatformOutput::native_views`].
+/// Where an [`EmbeddedView`] goes this pass, as reported in
+/// [`crate::PlatformOutput::embedded_views`].
 ///
 /// All rects are in ui points.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct NativeViewOutput {
-    /// The id passed to [`NativeView::new`].
+pub struct EmbeddedViewOutput {
+    /// The id passed to [`EmbeddedView::new`].
     pub id: Id,
 
     /// Whether the view is below or above egui's surface.
-    pub side: NativeViewPlacement,
+    pub side: EmbeddedViewPlacement,
 
     /// The view's full rect, including any part that is clipped out.
     pub rect: Rect,
@@ -224,7 +226,7 @@ pub struct NativeViewOutput {
     pub z_index: usize,
 }
 
-impl NativeViewOutput {
+impl EmbeddedViewOutput {
     /// The parts of [`Self::visible`] where the view takes the pointer input, that is,
     /// outside [`Self::egui_input_areas`].
     ///
@@ -244,11 +246,11 @@ impl NativeViewOutput {
     }
 }
 
-/// A [`NativeView`] that is on screen this pass.
+/// An [`EmbeddedView`] that is on screen this pass.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct NativeViewShown {
+pub(crate) struct EmbeddedViewShown {
     pub id: Id,
-    pub side: NativeViewPlacement,
+    pub side: EmbeddedViewPlacement,
     pub layer: LayerId,
     pub rect: Rect,
     pub visible: Rect,
@@ -267,10 +269,10 @@ fn visible_rect(ui: &Ui, rect: Rect) -> Rect {
 /// Call it after [`Memory::end_pass`], which sorts the layers into their paint order for the
 /// pass.
 pub(crate) fn outputs(
-    shown: &[NativeViewShown],
+    shown: &[EmbeddedViewShown],
     memory: &Memory,
     widgets: &WidgetRects,
-) -> Vec<NativeViewOutput> {
+) -> Vec<EmbeddedViewOutput> {
     if shown.is_empty() {
         return Vec::new();
     }
@@ -298,7 +300,7 @@ pub(crate) fn outputs(
                 .map(|widget| widget.interact_rect.intersect(view.visible))
                 .filter(|rect| rect.is_positive())
                 .collect();
-            NativeViewOutput {
+            EmbeddedViewOutput {
                 id: view.id,
                 side: view.side,
                 rect: view.rect,
@@ -358,7 +360,7 @@ mod tests {
     use emath::{Rect, pos2, vec2};
 
     use super::subtract;
-    use crate::{Context, Id, NativeView, NativeViewOutput, RawInput};
+    use crate::{Context, EmbeddedView, EmbeddedViewOutput, Id, RawInput};
 
     fn area(rects: &[Rect]) -> f32 {
         rects.iter().map(Rect::area).sum()
@@ -400,9 +402,9 @@ mod tests {
         assert_eq!(subtract(rect, &[other]), vec![rect]);
     }
 
-    /// Runs three passes, so the layout settles, with a 400×300 native view at the top left of
+    /// Runs three passes, so the layout settles, with a 400×300 embedded view at the top left of
     /// an 800×600 screen followed by `more`. Returns the view's output of the last pass.
-    fn view_with(mut more: impl FnMut(&mut crate::Ui)) -> Option<NativeViewOutput> {
+    fn view_with(mut more: impl FnMut(&mut crate::Ui)) -> Option<EmbeddedViewOutput> {
         let ctx = Context::default();
         let mut output = None;
         for _ in 0..3 {
@@ -411,11 +413,15 @@ mod tests {
                 ..Default::default()
             };
             let mut full_output = ctx.run_ui(input, |ui| {
-                ui.add(NativeView::new(Id::unique("view")).size(vec2(400.0, 300.0)));
+                ui.add(EmbeddedView::new(Id::unique("view")).size(vec2(400.0, 300.0)));
                 more(ui);
             });
             full_output.textures_delta.clear();
-            output = full_output.platform_output.native_views.into_iter().next();
+            output = full_output
+                .platform_output
+                .embedded_views
+                .into_iter()
+                .next();
         }
         output
     }
@@ -462,19 +468,19 @@ mod tests {
 
     #[test]
     fn only_a_view_below_clears_its_rect() {
-        let clears = |view: NativeView| {
+        let clears = |view: EmbeddedView| {
             let ctx = Context::default();
             let mut output = ctx.run_ui(RawInput::default(), |ui| {
                 ui.add(view.size(vec2(100.0, 100.0)));
             });
             output.textures_delta.clear();
-            assert_eq!(output.platform_output.native_views[0].side, view.side);
+            assert_eq!(output.platform_output.embedded_views[0].side, view.side);
             output
                 .shapes
                 .iter()
                 .any(|shape| matches!(shape.shape, epaint::Shape::Clear(_)))
         };
-        let view = NativeView::new(Id::unique("view"));
+        let view = EmbeddedView::new(Id::unique("view"));
         assert!(clears(view));
         assert!(!clears(view.clear(false)));
         assert!(!clears(view.above()));
@@ -486,10 +492,10 @@ mod tests {
         let ctx = Context::default();
         let mut output = ctx.run_ui(RawInput::default(), |ui| {
             ui.set_invisible();
-            ui.add(NativeView::new(Id::unique("view")).size(vec2(400.0, 300.0)));
+            ui.add(EmbeddedView::new(Id::unique("view")).size(vec2(400.0, 300.0)));
         });
         output.textures_delta.clear();
-        assert!(output.platform_output.native_views.is_empty());
+        assert!(output.platform_output.embedded_views.is_empty());
     }
 
     #[test]
@@ -498,9 +504,9 @@ mod tests {
         let mut output = ctx.run_ui(RawInput::default(), |ui| {
             ui.set_clip_rect(Rect::from_min_size(pos2(0.0, 0.0), vec2(10.0, 10.0)));
             ui.add_space(100.0);
-            ui.add(NativeView::new(Id::unique("view")).size(vec2(400.0, 300.0)));
+            ui.add(EmbeddedView::new(Id::unique("view")).size(vec2(400.0, 300.0)));
         });
         output.textures_delta.clear();
-        assert!(output.platform_output.native_views.is_empty());
+        assert!(output.platform_output.embedded_views.is_empty());
     }
 }
