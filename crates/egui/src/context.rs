@@ -3173,6 +3173,16 @@ impl ContextImpl {
 
         let mut platform_output: PlatformOutput = core::mem::take(&mut viewport.output);
 
+        // This has to come after `Memory::end_pass`, which sorts the layers into their paint
+        // order for this pass.
+        platform_output.embedded_views = crate::embedded_view::outputs(
+            &viewport.this_pass.embedded_views,
+            &self.memory,
+            &viewport.this_pass.widgets,
+            &viewport.graphics,
+            pixels_per_point,
+        );
+
         if self.memory.should_interrupt_ime()
             && let Some(ime) = &mut platform_output.ime
         {

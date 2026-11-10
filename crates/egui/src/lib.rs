@@ -400,6 +400,7 @@ mod context;
 mod data;
 pub mod debug_text;
 mod drag_and_drop;
+mod embedded_view;
 pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
@@ -503,6 +504,7 @@ pub use self::{
         },
     },
     drag_and_drop::DragAndDrop,
+    embedded_view::{EmbeddedView, EmbeddedViewOutput, EmbeddedViewPlacement},
     epaint::text::TextWrapMode,
     grid::Grid,
     id::{Id, IdMap, IdSet},

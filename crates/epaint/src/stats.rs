@@ -205,7 +205,8 @@ impl PaintStats {
             | Shape::LineSegment { .. }
             | Shape::Rect { .. }
             | Shape::CubicBezier(_)
-            | Shape::QuadraticBezier(_) => {}
+            | Shape::QuadraticBezier(_)
+            | Shape::Clear(_) => {}
             Shape::Path(path_shape) => {
                 self.shape_path += AllocInfo::from_slice(&path_shape.points);
             }
