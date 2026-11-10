@@ -15,6 +15,7 @@
 
 use emath::{Rect, Vec2};
 
+use crate::layers::GraphicLayers;
 use crate::{Id, LayerId, Memory, Response, Sense, Ui, Widget, WidgetRects};
 
 /// Whether the [`EmbeddedView`] will be shown above or below the egui surface.
@@ -171,7 +172,7 @@ impl EmbeddedView {
             side,
             layer: ui.layer_id(),
             rect,
-            visible: visible_rect(ui, rect),
+            visible: rect.intersect(ui.clip_rect()),
         };
         ui.ctx()
             .pass_state_mut(|state| state.embedded_views.push(shown));
@@ -190,7 +191,9 @@ impl Widget for EmbeddedView {
 /// Where an [`EmbeddedView`] goes this pass, as reported in
 /// [`crate::PlatformOutput::embedded_views`].
 ///
-/// All rects are in ui points.
+/// All rects are in ui points, in the coordinates of the viewport: a view in a layer that is
+/// transformed, such as the contents of a [`crate::Scene`], is reported where it ends up on
+/// screen.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct EmbeddedViewOutput {
@@ -208,9 +211,15 @@ pub struct EmbeddedViewOutput {
     pub visible: Rect,
 
     /// The parts of [`Self::visible`] that egui paints over: the rects of the visible areas
-    /// (windows, popups, tooltips, …) in the layers in front of the view's layer.
+    /// (windows, popups, tooltips, …) in the layers in front of the view's layer, and the bounds
+    /// of what is painted to a layer in front that isn't an area, such as a drag-and-drop preview
+    /// or [`crate::Context::debug_painter`].
     ///
     /// A view above egui's surface has to mask these out.
+    ///
+    /// Only other layers count. What is painted over the view in the view's own layer, such as
+    /// a button put over it, is not in the list, nor in [`Self::egui_input_areas`]: show such a
+    /// widget in a layer in front, for example in an [`crate::Area`].
     pub egui_paint_areas: Vec<Rect>,
 
     /// The parts of [`Self::visible`] where egui takes the pointer input from the view: the
@@ -218,7 +227,8 @@ pub struct EmbeddedViewOutput {
     /// such as the backdrop of a [`crate::Modal`].
     ///
     /// Unlike [`Self::egui_paint_areas`], this leaves out what egui only paints, such as
-    /// tooltips. A rect that lies inside another one of the list is left out.
+    /// tooltips. A rect that lies inside another one of the list is left out. Like that list,
+    /// it leaves out the widgets in the view's own layer.
     pub egui_input_areas: Vec<Rect>,
 
     /// The position of the view's layer in egui's paint order. A view with a higher `z_index`
@@ -232,7 +242,7 @@ impl EmbeddedViewOutput {
     ///
     /// The returned rects don't overlap.
     pub fn view_input_areas(&self) -> Vec<Rect> {
-        subtract(self.visible, &self.egui_input_areas)
+        self.visible.subtract(&self.egui_input_areas)
     }
 
     /// The parts of [`Self::visible`] that egui neither paints over nor takes the pointer input
@@ -242,7 +252,7 @@ impl EmbeddedViewOutput {
     /// The returned rects don't overlap.
     pub fn view_input_and_paint_areas(&self) -> Vec<Rect> {
         let egui_areas = [&self.egui_paint_areas[..], &self.egui_input_areas[..]].concat();
-        subtract(self.visible, &egui_areas)
+        self.visible.subtract(&egui_areas)
     }
 }
 
@@ -252,59 +262,114 @@ pub(crate) struct EmbeddedViewShown {
     pub id: Id,
     pub side: EmbeddedViewPlacement,
     pub layer: LayerId,
+
+    /// In the coordinates of [`Self::layer`], like [`Self::visible`].
     pub rect: Rect,
+
+    /// The part of [`Self::rect`] inside the clip rect of the view's [`Ui`].
     pub visible: Rect,
-}
-
-/// The part of `rect` inside the clip rect of `ui`, rounded to physical pixels.
-fn visible_rect(ui: &Ui, rect: Rect) -> Rect {
-    use emath::GuiRounding as _;
-
-    rect.intersect(ui.clip_rect())
-        .round_to_pixels(ui.pixels_per_point())
 }
 
 /// Computes the output of the views on screen this pass.
 ///
 /// Call it after [`Memory::end_pass`], which sorts the layers into their paint order for the
-/// pass.
+/// pass, and before the shapes of `graphics` are drained.
 pub(crate) fn outputs(
     shown: &[EmbeddedViewShown],
     memory: &Memory,
     widgets: &WidgetRects,
+    graphics: &GraphicLayers,
+    pixels_per_point: f32,
 ) -> Vec<EmbeddedViewOutput> {
+    use emath::GuiRounding as _;
+
     if shown.is_empty() {
         return Vec::new();
     }
     let order = memory.layer_ids().collect::<Vec<_>>();
     let areas = memory.areas();
+    // Rects are recorded in the coordinates of their layer.
+    let to_global = |layer: LayerId, rect: Rect| match memory.to_global.get(&layer) {
+        Some(to_global) => *to_global * rect,
+        None => rect,
+    };
+
+    // The layers that aren't areas, such as the one of a drag-and-drop preview. egui paints
+    // them after the areas of the same `Order`, see `GraphicLayers::drain`.
+    let mut other_layers: Vec<LayerId> = graphics
+        .painted_layer_ids()
+        .chain(widgets.layer_ids())
+        .filter(|layer| !order.contains(layer))
+        .collect();
+    other_layers.sort_by_key(|layer| (layer.order, layer.id.value()));
+    other_layers.dedup();
+
     shown
         .iter()
         .map(|view| {
-            let z_index = order
+            let rect = to_global(view.layer, view.rect);
+            let visible = to_global(view.layer, view.visible).round_to_pixels(pixels_per_point);
+
+            let in_order = order.iter().rposition(|layer| *layer == view.layer);
+            // A view in a layer that isn't an area is in front of the areas of its `Order`.
+            let z_index = in_order.map_or_else(
+                || {
+                    order
+                        .iter()
+                        .rposition(|layer| layer.order <= view.layer.order)
+                        .map_or(0, |i| i + 1)
+                },
+                |i| i + 1,
+            );
+            let areas_above = &order[z_index..];
+            let others_above: Vec<LayerId> = other_layers
                 .iter()
-                .rposition(|layer| *layer == view.layer)
-                .map_or(order.len(), |i| i + 1);
-            let above = &order[z_index..];
-            let egui_paint_areas = above
+                .copied()
+                .filter(|layer| *layer != view.layer)
+                .filter(|layer| {
+                    view.layer.order < layer.order
+                        || (view.layer.order == layer.order && in_order.is_some())
+                })
+                .collect();
+
+            let area_rects = areas_above
                 .iter()
                 .filter(|layer| areas.is_visible(layer))
-                .filter_map(|layer| memory.area_rect(layer.id))
-                .map(|rect| rect.intersect(view.visible))
-                .filter(|rect| rect.is_positive())
+                .filter_map(|layer| Some(to_global(*layer, memory.area_rect(layer.id)?)));
+            let painted_bounds = others_above.iter().filter_map(|layer| {
+                let bounds = graphics
+                    .get(*layer)?
+                    .all_entries()
+                    .map(|shape| {
+                        shape
+                            .shape
+                            .visual_bounding_rect()
+                            .intersect(shape.clip_rect)
+                    })
+                    .filter(Rect::is_positive)
+                    .reduce(Rect::union)?;
+                Some(to_global(*layer, bounds))
+            });
+            let egui_paint_areas = area_rects
+                .chain(painted_bounds)
+                .map(|rect| rect.intersect(visible))
+                .filter(Rect::is_positive)
                 .collect();
-            let egui_input_areas = above
+
+            let egui_input_areas = areas_above
                 .iter()
+                .chain(&others_above)
                 .flat_map(|layer| widgets.get_layer(*layer))
                 .filter(|widget| widget.sense.interactive())
-                .map(|widget| widget.interact_rect.intersect(view.visible))
-                .filter(|rect| rect.is_positive())
+                .map(|widget| to_global(widget.layer_id, widget.interact_rect).intersect(visible))
+                .filter(Rect::is_positive)
                 .collect();
+
             EmbeddedViewOutput {
                 id: view.id,
                 side: view.side,
-                rect: view.rect,
-                visible: view.visible,
+                rect,
+                visible,
                 egui_paint_areas,
                 egui_input_areas: without_contained(egui_input_areas),
                 z_index,
@@ -327,83 +392,12 @@ fn without_contained(mut rects: Vec<Rect>) -> Vec<Rect> {
     kept
 }
 
-/// Returns the parts of `rect` outside all of `others`, as rects that don't overlap.
-fn subtract(rect: Rect, others: &[Rect]) -> Vec<Rect> {
-    let mut parts = vec![rect];
-    for other in others {
-        parts = parts
-            .into_iter()
-            .flat_map(|part| {
-                let cut = part.intersect(*other);
-                if !cut.is_positive() {
-                    return vec![part];
-                }
-                // The strips above and below the cut span the full width of `part`. The strips
-                // to the left and right of the cut span only its height, so none overlap.
-                [
-                    Rect::from_x_y_ranges(part.x_range(), part.min.y..=cut.min.y),
-                    Rect::from_x_y_ranges(part.x_range(), cut.max.y..=part.max.y),
-                    Rect::from_x_y_ranges(part.min.x..=cut.min.x, cut.y_range()),
-                    Rect::from_x_y_ranges(cut.max.x..=part.max.x, cut.y_range()),
-                ]
-                .into_iter()
-                .filter(Rect::is_positive)
-                .collect()
-            })
-            .collect();
-    }
-    parts
-}
-
 #[cfg(test)]
 mod tests {
     use emath::{Rect, pos2, vec2};
 
-    use super::subtract;
-    use crate::{Context, EmbeddedView, EmbeddedViewOutput, Id, RawInput};
+    use crate::{Context, EmbeddedView, EmbeddedViewOutput, Id, LayerId, Order, RawInput};
 
-    fn area(rects: &[Rect]) -> f32 {
-        rects.iter().map(Rect::area).sum()
-    }
-
-    #[test]
-    fn subtract_one_in_the_middle() {
-        let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0));
-        let other = Rect::from_min_size(pos2(25.0, 25.0), vec2(50.0, 50.0));
-        let parts = subtract(rect, &[other]);
-        assert_eq!(parts.len(), 4, "{parts:?}");
-        assert_eq!(area(&parts), 100.0 * 100.0 - 50.0 * 50.0, "{parts:?}");
-        assert!(
-            parts.iter().all(|part| !part.intersects(other.shrink(0.1))),
-            "{parts:?}"
-        );
-    }
-
-    #[test]
-    fn subtract_overlapping_ones() {
-        let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0));
-        let others = [
-            Rect::from_min_size(pos2(-10.0, -10.0), vec2(60.0, 60.0)),
-            Rect::from_min_size(pos2(25.0, 25.0), vec2(50.0, 50.0)),
-        ];
-        let parts = subtract(rect, &others);
-        // The first cuts out 50×50. The second cuts out three more 25×25 squares, because its
-        // fourth one overlaps the first.
-        assert_eq!(
-            area(&parts),
-            100.0 * 100.0 - 50.0 * 50.0 - 3.0 * 25.0 * 25.0
-        );
-    }
-
-    #[test]
-    fn subtract_one_outside() {
-        let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0));
-        let other = Rect::from_min_size(pos2(200.0, 0.0), vec2(50.0, 50.0));
-        assert_eq!(subtract(rect, &[other]), vec![rect]);
-    }
-
-    /// Runs three passes, so the layout settles, with a 400×300 embedded view at the top left of
-    /// an 800×600 screen followed by `more`. Returns the view's output of the last pass.
     fn view_with(mut more: impl FnMut(&mut crate::Ui)) -> Option<EmbeddedViewOutput> {
         let ctx = Context::default();
         let mut output = None;
@@ -508,5 +502,82 @@ mod tests {
         });
         output.textures_delta.clear();
         assert!(output.platform_output.embedded_views.is_empty());
+    }
+
+    /// Runs three passes of `add` and returns the views of the last one.
+    fn views_of(mut add: impl FnMut(&mut crate::Ui)) -> Vec<EmbeddedViewOutput> {
+        let ctx = Context::default();
+        let mut views = Vec::new();
+        for _ in 0..3 {
+            let input = RawInput {
+                screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(800.0, 600.0))),
+                ..Default::default()
+            };
+            let mut full_output = ctx.run_ui(input, |ui| add(ui));
+            full_output.textures_delta.clear();
+            views = full_output.platform_output.embedded_views;
+        }
+        views
+    }
+
+    #[test]
+    fn a_view_in_a_transformed_layer_is_reported_where_it_is_on_screen() {
+        let layer = LayerId::new(Order::Middle, Id::unique("moved"));
+        let to_global = emath::TSTransform::new(vec2(100.0, 50.0), 2.0);
+        let views = views_of(|ui| {
+            ui.ctx().set_transform_layer(layer, to_global);
+            crate::Area::new(layer.id)
+                .order(layer.order)
+                .fixed_pos(pos2(10.0, 20.0))
+                .show(ui.ctx(), |ui| {
+                    ui.add(EmbeddedView::new(Id::unique("view")).size(vec2(100.0, 80.0)));
+                });
+        });
+        let in_layer = Rect::from_min_size(pos2(10.0, 20.0), vec2(100.0, 80.0));
+        assert_eq!(views[0].rect, to_global * in_layer, "{views:?}");
+        assert_eq!(views[0].visible, to_global * in_layer, "{views:?}");
+    }
+
+    #[test]
+    fn a_button_put_over_a_view_in_its_own_layer_is_not_reported() {
+        let button = Rect::from_min_size(pos2(50.0, 50.0), vec2(80.0, 20.0));
+        let view = view_with(|ui| {
+            ui.put(button, crate::Button::new("Over the view"));
+        })
+        .expect("shown");
+        // Neither as painted over the view nor as taking its input: the two lists agree.
+        assert!(view.egui_paint_areas.is_empty(), "{view:?}");
+        assert!(view.egui_input_areas.is_empty(), "{view:?}");
+    }
+
+    #[test]
+    fn a_view_in_a_layer_that_is_not_an_area_knows_what_is_above_it() {
+        let layer = LayerId::new(Order::Background, Id::unique("not an area"));
+        let views = views_of(|ui| {
+            ui.scope_builder(crate::UiBuilder::new().layer_id(layer), |ui| {
+                ui.add(EmbeddedView::new(Id::unique("view")).size(vec2(400.0, 300.0)));
+            });
+            crate::Window::new("Over the view")
+                .fixed_pos(pos2(100.0, 100.0))
+                .show(ui.ctx(), |ui| ui.label("Hello"));
+        });
+        assert_eq!(views[0].egui_paint_areas.len(), 1, "{views:?}");
+        assert!(!views[0].egui_input_areas.is_empty(), "{views:?}");
+    }
+
+    #[test]
+    fn painting_to_a_layer_in_front_that_is_not_an_area_is_a_paint_area() {
+        // Like the preview of a drag-and-drop.
+        let painted = Rect::from_min_size(pos2(50.0, 50.0), vec2(40.0, 30.0));
+        let view = view_with(|ui| {
+            let layer = LayerId::new(Order::Tooltip, Id::unique("preview"));
+            ui.ctx()
+                .layer_painter(layer)
+                .rect_filled(painted, 0.0, crate::Color32::RED);
+        })
+        .expect("shown");
+        assert_eq!(view.egui_paint_areas.len(), 1, "{view:?}");
+        assert!(view.egui_paint_areas[0].contains_rect(painted), "{view:?}");
+        assert!(view.egui_input_areas.is_empty(), "{view:?}");
     }
 }

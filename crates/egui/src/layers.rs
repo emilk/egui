@@ -233,6 +233,16 @@ impl GraphicLayers {
         self.0[layer_id.order as usize].get_mut(&layer_id.id)
     }
 
+    /// The layers that something was painted to.
+    pub(crate) fn painted_layer_ids(&self) -> impl Iterator<Item = LayerId> + '_ {
+        Order::ALL.iter().flat_map(|&order| {
+            self.0[order as usize]
+                .iter()
+                .filter(|(_, list)| !list.is_empty())
+                .map(move |(&id, _)| LayerId::new(order, id))
+        })
+    }
+
     pub fn drain(
         &mut self,
         area_order: &[LayerId],

@@ -3179,6 +3179,8 @@ impl ContextImpl {
             &viewport.this_pass.embedded_views,
             &self.memory,
             &viewport.this_pass.widgets,
+            &viewport.graphics,
+            pixels_per_point,
         );
 
         if self.memory.should_interrupt_ime()
