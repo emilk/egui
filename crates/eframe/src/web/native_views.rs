@@ -10,17 +10,20 @@
 //! So while such a view is shown, the canvas is only used for display and has
 //! `pointer-events: none`. Instead, an invisible input element in front of the canvas and the
 //! views takes egui's pointer input, and eframe listens for pointer events on the input element
-//! like on the canvas. The input element's `clip-path` cuts out the areas where the views take
-//! the input ([`egui::NativeViewOutput::view_input_areas`]), so hit-testing there finds the
-//! views. The canvas isn't clipped, so egui paints over the views down to the last pixel, shadows
-//! included.
+//! like on the canvas. The input element takes the input through rectangles that together cover
+//! the canvas except where the views take the input
+//! ([`egui::NativeViewOutput::view_input_areas`]), so hit-testing there finds the views. The
+//! canvas isn't clipped, so egui paints over the views down to the last pixel, shadows included.
+//!
+//! The rectangles are elements of their own, rather than one element with the views cut out of
+//! it by a `clip-path`. A page from another origin runs in a process of its own, and Firefox
+//! picks the process that gets a click by the bounding box of a `clip-path`, which a hole doesn't
+//! shrink. The click would go to the app's process and never reach the page.
 //!
 //! The keyboard focus stays on the canvas: the input element isn't focusable, and eframe cancels
 //! the default action of a `mousedown` on the input element, which would move the focus.
 
-use core::fmt::Write as _;
-
-use egui::{Context, NativeViewOutput, NativeViewPlacement, Rect};
+use egui::{Context, NativeViewOutput, NativeViewPlacement, Pos2, Rect, vec2};
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use web_sys::{HtmlCanvasElement, HtmlElement};
@@ -33,9 +36,20 @@ pub(crate) struct WebNativeViews {
     /// below the canvas for the life of the runner, and [`crate::NativeViews::container`] says why.
     elements: Option<Elements>,
 
-    /// The `style` attribute that the input element has now, as of the last pass, so that an
-    /// unchanged style isn't set again. `None` while the input element is hidden.
-    current_input_style: Option<String>,
+    /// How the input element is laid out now, as of the last pass, so that an unchanged layout
+    /// isn't set again. `None` while the input element is hidden.
+    current_input_style: Option<InputStyle>,
+}
+
+/// The layout of the input element: where it is, and where in it egui takes the pointer input.
+#[derive(PartialEq)]
+struct InputStyle {
+    /// The `style` attribute of the input element, which places it over the canvas.
+    element: String,
+
+    /// The rects that take egui's pointer input, in CSS pixels relative to the input element.
+    /// They don't overlap.
+    rects: Vec<Rect>,
 }
 
 /// The attribute that marks the container, so that [`container_of`] can find it.
@@ -49,7 +63,18 @@ struct Elements {
     container: HtmlElement,
 
     /// Takes egui's pointer input while views below the canvas are shown. See the module docs.
+    ///
+    /// It covers the canvas, but takes the input only through [`Self::input_rects`], so eframe
+    /// listens on it for the events that bubble up from them.
     input: HtmlElement,
+
+    /// The children of [`Self::input`] that take the pointer input, one per rect of
+    /// [`InputStyle::rects`]. The ones that aren't needed are hidden.
+    ///
+    /// None is ever removed from the document: a touch keeps reporting to the element it started
+    /// on, and the events of a removed element no longer reach the document, where eframe
+    /// listens for the end of a drag.
+    input_rects: Vec<HtmlElement>,
 }
 
 impl Drop for Elements {
@@ -92,15 +117,20 @@ impl WebNativeViews {
     /// Updates the input element and the canvas for the views below the canvas in `outputs`.
     ///
     /// While such a view is shown, the canvas has `pointer-events: none`, and the input element
-    /// covers the canvas except where the views take the pointer input. Otherwise the input element
-    /// is hidden and the canvas takes the pointer input as usual.
+    /// takes the pointer input over the canvas except where the views take it. Otherwise the input
+    /// element is hidden and the canvas takes the pointer input as usual.
     ///
     /// When such a view is first shown, a canvas with `position: static` also gets
     /// `position: relative`, and keeps it. The container is positioned, and a positioned element
     /// paints in front of a static one, so the canvas needs a non-static `position` too, to stay
     /// in front of the views.
     pub fn route_input(&mut self, ctx: &Context, outputs: &[NativeViewOutput]) {
-        let Some(elements) = &self.elements else {
+        let Self {
+            canvas,
+            elements: Some(elements),
+            current_input_style,
+        } = self
+        else {
             return;
         };
         // The browser delivers the pointer input to views above the canvas without help.
@@ -116,31 +146,36 @@ impl WebNativeViews {
             let view_areas: Vec<Rect> = if egui_press {
                 Vec::new()
             } else {
-                let to_css = to_css_pixels(ctx, &self.canvas);
-                crate::native_view::disjoint_union(
-                    below
-                        .flat_map(NativeViewOutput::view_input_areas)
-                        .map(to_css),
-                )
+                let to_css = to_css_pixels(ctx, canvas);
+                below
+                    .flat_map(NativeViewOutput::view_input_areas)
+                    .map(to_css)
+                    .collect()
             };
-            input_element_style(&self.canvas, &elements.container, &view_areas)
+            input_style(canvas, &elements.container, &view_areas)
         });
-        if input_style == self.current_input_style {
+        if input_style == *current_input_style {
             return;
         }
-        let canvas_style = self.canvas.style();
-        if let Some(css) = &input_style {
+        let canvas_style = canvas.style();
+        if let Some(style) = &input_style {
             canvas_style.set_property("pointer-events", "none").ok();
             // Only when the views come on screen, not on every change of the input element.
-            if self.current_input_style.is_none() && is_static(&self.canvas) {
+            if current_input_style.is_none() && is_static(canvas) {
                 canvas_style.set_property("position", "relative").ok();
             }
-            set_style(&elements.input, css);
+            set_style(&elements.input, &style.element);
+            if let Err(err) = elements.set_input_rects(&style.rects) {
+                log::warn!(
+                    "Failed to lay out the input element: {}",
+                    super::string_from_js_value(&err)
+                );
+            }
         } else {
             canvas_style.remove_property("pointer-events").ok();
             set_style(&elements.input, "display: none;");
         }
-        self.current_input_style = input_style;
+        *current_input_style = input_style;
     }
 }
 
@@ -196,38 +231,35 @@ fn to_css_pixels(
     move |rect| rect * scale
 }
 
-/// Returns the `style` attribute of the input element: it covers `canvas`, with `view_areas` (in
-/// CSS pixels relative to the canvas, and not overlapping) cut out.
-fn input_element_style(
+/// Returns the layout of the input element: it covers `canvas`, and takes the pointer input
+/// everywhere but in `view_areas` (in CSS pixels relative to the canvas).
+fn input_style(
     canvas: &HtmlCanvasElement,
     container: &HtmlElement,
     view_areas: &[Rect],
-) -> String {
+) -> InputStyle {
     let rect = canvas.get_bounding_client_rect();
     // The input element is placed in the container's frame, which is not always the viewport's:
     // with the keyboard up, iOS Safari scrolls the page and reports fixed elements, the container
     // included, off by the scroll. Placing the element by the canvas's viewport position alone
     // would then move it by the scroll twice.
     let origin = container.get_bounding_client_rect();
-    // The maximum `z-index` puts the input element in front of the views.
-    let mut css = format!(
+    // The maximum `z-index` puts the input element in front of the views. It takes no pointer
+    // input itself, only its rects do.
+    let element = format!(
         "position: fixed; left: {}px; top: {}px; width: {}px; height: {}px; \
-         z-index: 2147483647; pointer-events: auto;",
+         z-index: 2147483647; pointer-events: none;",
         rect.left() - origin.left(),
         rect.top() - origin.top(),
         rect.width(),
         rect.height(),
     );
-    if !view_areas.is_empty() {
-        // The path is the input element's rect followed by the view areas. The `evenodd` fill rule
-        // cuts out each area, as long as no two areas overlap: it would fill an overlap again.
-        let mut path = format!("M0 0H{}V{}H0Z", rect.width(), rect.height());
-        for Rect { min, max } in view_areas {
-            write!(path, "M{} {}H{}V{}H{}Z", min.x, min.y, max.x, max.y, min.x).ok();
-        }
-        write!(css, " clip-path: path(evenodd, '{path}');").ok();
+    let canvas_rect =
+        Rect::from_min_size(Pos2::ZERO, vec2(rect.width() as f32, rect.height() as f32));
+    InputStyle {
+        element,
+        rects: crate::native_view::subtract_all(canvas_rect, view_areas),
     }
-    css
 }
 
 impl Elements {
@@ -254,7 +286,43 @@ impl Elements {
         container.append_child(&input)?;
         parent.insert_before(&container, Some(canvas))?;
 
-        Ok(Self { container, input })
+        Ok(Self {
+            container,
+            input,
+            input_rects: Vec::new(),
+        })
+    }
+
+    /// Lays out [`Self::input_rects`] as `rects`, in CSS pixels relative to the input element,
+    /// and hides the ones that are left over.
+    fn set_input_rects(&mut self, rects: &[Rect]) -> Result<(), JsValue> {
+        while self.input_rects.len() < rects.len() {
+            let document = self
+                .input
+                .owner_document()
+                .ok_or_else(|| JsValue::from_str("The input element has no document"))?;
+            let element: HtmlElement = document.create_element("div")?.unchecked_into();
+            self.input.append_child(&element)?;
+            self.input_rects.push(element);
+        }
+        for (i, element) in self.input_rects.iter().enumerate() {
+            if let Some(rect) = rects.get(i) {
+                set_style(
+                    element,
+                    &format!(
+                        "position: absolute; left: {}px; top: {}px; width: {}px; height: {}px; \
+                         pointer-events: auto;",
+                        rect.min.x,
+                        rect.min.y,
+                        rect.width(),
+                        rect.height(),
+                    ),
+                );
+            } else {
+                set_style(element, "display: none;");
+            }
+        }
+        Ok(())
     }
 }
 

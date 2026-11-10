@@ -692,7 +692,8 @@ fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
     let input_element = runner.web_native_views.input_element();
     let is_hovering_canvas = element_at_point.is_some_and(|element| {
         element.eq(runner.canvas())
-            || input_element.is_some_and(|input_element| element.eq(input_element))
+            // The input element takes the input through its children.
+            || input_element.is_some_and(|input_element| input_element.contains(Some(&element)))
     });
     let is_pointer_down = runner
         .egui_ctx()

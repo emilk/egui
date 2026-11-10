@@ -120,41 +120,66 @@ impl raw_window_handle::HasWindowHandle for NativeViews {
     }
 }
 
-/// Splits the union of `rects` into rects that don't overlap.
+/// Returns the parts of `rect` outside all of `others`, as rects that don't overlap.
+///
+/// It cuts `rect` into horizontal bands at the top and bottom edges of `others`, and joins the
+/// parts of adjacent bands that span the same x-range, so the result is a few tall rects rather
+/// than many small ones.
 #[cfg(any(target_arch = "wasm32", test))]
-pub(crate) fn disjoint_union(rects: impl IntoIterator<Item = egui::Rect>) -> Vec<egui::Rect> {
-    let mut disjoint: Vec<egui::Rect> = Vec::new();
-    for rect in rects {
-        let mut parts = vec![rect];
-        for &other in &disjoint {
-            parts = parts
-                .into_iter()
-                .flat_map(|part| subtract(part, other))
-                .collect();
-        }
-        disjoint.extend(parts);
-    }
-    disjoint
-}
+pub(crate) fn subtract_all(rect: egui::Rect, others: &[egui::Rect]) -> Vec<egui::Rect> {
+    let others: Vec<egui::Rect> = others
+        .iter()
+        .map(|other| other.intersect(rect))
+        .filter(egui::Rect::is_positive)
+        .collect();
 
-/// Returns `rect` without `other`, as up to four rects that don't overlap.
-#[cfg(any(target_arch = "wasm32", test))]
-fn subtract(rect: egui::Rect, other: egui::Rect) -> Vec<egui::Rect> {
-    let cut = rect.intersect(other);
-    if !cut.is_positive() {
-        return vec![rect];
+    let mut ys = vec![rect.min.y, rect.max.y];
+    ys.extend(others.iter().flat_map(|other| [other.min.y, other.max.y]));
+    ys.sort_by(f32::total_cmp);
+    ys.dedup();
+
+    let mut parts = Vec::new();
+    // The parts of the band above, which a part of this band with the same x-range extends.
+    let mut open: Vec<egui::Rect> = Vec::new();
+    for band in ys.windows(2) {
+        let (top, bottom) = (band[0], band[1]);
+        // Every one of `others` that reaches into the band spans its whole height.
+        let mut cuts: Vec<egui::Rangef> = others
+            .iter()
+            .filter(|other| other.min.y < bottom && top < other.max.y)
+            .map(|other| other.x_range())
+            .collect();
+        cuts.sort_by(|a, b| a.min.total_cmp(&b.min));
+
+        let mut in_band = Vec::new();
+        let mut x = rect.min.x;
+        for cut in cuts {
+            if x < cut.min {
+                in_band.push(egui::Rangef::new(x, cut.min));
+            }
+            x = x.max(cut.max);
+        }
+        if x < rect.max.x {
+            in_band.push(egui::Rangef::new(x, rect.max.x));
+        }
+
+        let mut still_open = Vec::new();
+        for x_range in in_band {
+            let above = open.iter().position(|part| part.x_range() == x_range);
+            let part = if let Some(above) = above {
+                let mut part = open.swap_remove(above);
+                part.max.y = bottom;
+                part
+            } else {
+                egui::Rect::from_x_y_ranges(x_range, top..=bottom)
+            };
+            still_open.push(part);
+        }
+        parts.append(&mut open);
+        open = still_open;
     }
-    // The strips above and below the cut span the full width of `rect`, and the strips to its
-    // left and right only the height of the cut.
-    [
-        egui::Rect::from_x_y_ranges(rect.x_range(), rect.min.y..=cut.min.y),
-        egui::Rect::from_x_y_ranges(rect.x_range(), cut.max.y..=rect.max.y),
-        egui::Rect::from_x_y_ranges(rect.min.x..=cut.min.x, cut.y_range()),
-        egui::Rect::from_x_y_ranges(cut.max.x..=rect.max.x, cut.y_range()),
-    ]
-    .into_iter()
-    .filter(egui::Rect::is_positive)
-    .collect()
+    parts.append(&mut open);
+    parts
 }
 
 #[cfg(test)]
@@ -162,22 +187,85 @@ fn subtract(rect: egui::Rect, other: egui::Rect) -> Vec<egui::Rect> {
 mod tests {
     use egui::{Rect, pos2, vec2};
 
-    use super::disjoint_union;
+    use super::subtract_all;
 
-    #[test]
-    fn a_disjoint_union_covers_overlaps_once() {
-        let rects = [
-            Rect::from_min_size(pos2(0.0, 0.0), vec2(60.0, 60.0)),
-            Rect::from_min_size(pos2(40.0, 40.0), vec2(60.0, 60.0)),
-            Rect::from_min_size(pos2(50.0, 50.0), vec2(10.0, 10.0)),
-        ];
-        let parts = disjoint_union(rects);
-        let area: f32 = parts.iter().map(Rect::area).sum();
-        assert_eq!(area, 2.0 * 60.0 * 60.0 - 20.0 * 20.0, "{parts:?}");
+    fn assert_disjoint(parts: &[Rect]) {
         for (i, a) in parts.iter().enumerate() {
             for b in &parts[i + 1..] {
                 assert!(!a.intersect(*b).is_positive(), "{a:?} overlaps {b:?}");
             }
         }
+    }
+
+    #[test]
+    fn subtracting_a_rect_in_the_middle_leaves_a_frame_around_it() {
+        let canvas = Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 80.0));
+        let view = Rect::from_min_size(pos2(10.0, 20.0), vec2(50.0, 30.0));
+        let parts = subtract_all(canvas, &[view]);
+        assert_eq!(parts.len(), 4, "{parts:?}");
+        assert_disjoint(&parts);
+        let area: f32 = parts.iter().map(Rect::area).sum();
+        assert_eq!(area, canvas.area() - view.area(), "{parts:?}");
+        for part in &parts {
+            assert!(
+                !part.intersect(view).is_positive(),
+                "{part:?} covers the view"
+            );
+        }
+    }
+
+    #[test]
+    fn subtracting_overlapping_rects_removes_the_overlap_once() {
+        let canvas = Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0));
+        let views = [
+            Rect::from_min_size(pos2(0.0, 0.0), vec2(60.0, 60.0)),
+            Rect::from_min_size(pos2(40.0, 40.0), vec2(60.0, 60.0)),
+        ];
+        let parts = subtract_all(canvas, &views);
+        assert_disjoint(&parts);
+        let area: f32 = parts.iter().map(Rect::area).sum();
+        let covered = 2.0 * 60.0 * 60.0 - 20.0 * 20.0;
+        assert_eq!(area, canvas.area() - covered, "{parts:?}");
+    }
+
+    #[test]
+    fn a_window_over_a_page_leaves_few_rects() {
+        // A page with margins around it, and a window over it whose own page is cut out too:
+        // what is left is the margins and the window's frame.
+        let canvas = Rect::from_min_size(pos2(0.0, 0.0), vec2(1000.0, 700.0));
+        let page = Rect::from_min_max(pos2(8.0, 33.0), pos2(992.0, 640.0));
+        let window = Rect::from_min_max(pos2(300.0, 200.0), pos2(780.0, 560.0));
+        let window_page = Rect::from_min_max(pos2(306.0, 250.0), pos2(774.0, 554.0));
+        // The page takes the input around the window, as four rects.
+        let views = [
+            Rect::from_min_max(page.min, pos2(page.max.x, window.min.y)),
+            Rect::from_min_max(pos2(page.min.x, window.max.y), page.max),
+            Rect::from_min_max(
+                pos2(page.min.x, window.min.y),
+                pos2(window.min.x, window.max.y),
+            ),
+            Rect::from_min_max(
+                pos2(window.max.x, window.min.y),
+                pos2(page.max.x, window.max.y),
+            ),
+            window_page,
+        ];
+        let parts = subtract_all(canvas, &views);
+        assert_disjoint(&parts);
+        let area: f32 = parts.iter().map(Rect::area).sum();
+        let frame = window.area() - window_page.area();
+        assert_eq!(area, canvas.area() - page.area() + frame, "{parts:?}");
+        assert_eq!(
+            parts.len(),
+            8,
+            "four margins and the four sides of the window: {parts:?}"
+        );
+    }
+
+    #[test]
+    fn subtracting_nothing_or_everything() {
+        let canvas = Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 80.0));
+        assert_eq!(subtract_all(canvas, &[]), vec![canvas]);
+        assert_eq!(subtract_all(canvas, &[canvas.expand(5.0)]), Vec::new());
     }
 }
