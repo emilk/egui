@@ -226,7 +226,8 @@ pub struct EmbeddedViewOutput {
     /// layer, and the bounds of what is painted to a layer in front that isn't an area, such as
     /// a drag-and-drop preview or [`crate::Context::debug_painter`].
     ///
-    /// A view above egui's surface has to mask these out.
+    /// A view above egui's surface has to mask these out. A rect that lies inside another one of
+    /// the set is left out, such as a tooltip that is all inside a window.
     ///
     /// Only other layers count. What is painted over the view in the view's own layer, such as
     /// a button put over it, is not in the set, nor in [`Self::egui_input_areas`]: show such a
@@ -394,7 +395,7 @@ pub(crate) fn outputs(
             let egui_paint_areas = core::iter::chain(area_rects, painted_bounds)
                 .map(|rect| rect.intersect(visible))
                 .filter(Rect::is_positive)
-                .collect();
+                .collect::<RectSet>();
 
             let egui_input_areas = core::iter::chain(areas_above, &others_above)
                 .flat_map(|layer| widgets.get_layer(*layer))
@@ -408,7 +409,7 @@ pub(crate) fn outputs(
                 side: view.side,
                 rect,
                 visible,
-                egui_paint_areas,
+                egui_paint_areas: egui_paint_areas.without_contained(),
                 egui_input_areas: egui_input_areas.without_contained(),
                 z_index,
             }
@@ -472,6 +473,36 @@ mod tests {
                 .any(|area| area.contains_rect(view.egui_paint_areas.0[0])),
             "{view:?}"
         );
+    }
+
+    #[test]
+    fn an_area_inside_a_window_over_a_view_is_no_paint_area_of_its_own() {
+        let inside = Rect::from_min_size(pos2(120.0, 140.0), vec2(40.0, 20.0));
+        let outside = Rect::from_min_size(pos2(300.0, 250.0), vec2(40.0, 20.0));
+        let paint_areas_with = |in_front: Rect| {
+            let view = view_with(|ui| {
+                crate::Window::new("Over the view")
+                    .fixed_pos(pos2(100.0, 100.0))
+                    .fixed_size(vec2(150.0, 100.0))
+                    .show(ui.ctx(), |ui| ui.label("Hello"));
+                crate::Area::new(Id::unique("in front"))
+                    .order(Order::Tooltip)
+                    .fixed_pos(in_front.min)
+                    .show(ui.ctx(), |ui| ui.allocate_space(in_front.size()));
+            })
+            .expect("shown");
+            view.egui_paint_areas
+        };
+
+        let areas = paint_areas_with(inside);
+        assert_eq!(areas.0.len(), 1, "{areas:?}");
+        assert!(areas.0[0].contains_rect(inside), "the window: {areas:?}");
+
+        // An area that reaches out of the window stays. The window is larger, so it is first.
+        let areas = paint_areas_with(outside);
+        assert_eq!(areas.0.len(), 2, "{areas:?}");
+        assert!(!areas.0[0].contains_rect(outside), "the window: {areas:?}");
+        assert!(areas.0[1].contains_rect(outside), "the area: {areas:?}");
     }
 
     #[test]
