@@ -5,7 +5,7 @@ use egui_kittest::Harness;
 const NO_FONT_HAS_THIS: &str = "\u{10FFFD}";
 
 #[test]
-#[should_panic(expected = "(U+10FFFD) in Proportional. Installed fonts: [\"Ubuntu-Light\"")]
+#[should_panic(expected = "(U+10FFFD) in Proportional. Installed fonts: [\"Albert Sans\"")]
 fn missing_glyph_panics_by_default() {
     let mut harness = Harness::new_ui(|ui| {
         ui.label(NO_FONT_HAS_THIS);
