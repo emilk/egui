@@ -16,7 +16,7 @@
 ///
 /// Natively, it implements [`raw_window_handle::HasWindowHandle`] with the root window's handle,
 /// so that the views can be added to that window. On the web, it gives access to the canvas and
-/// to the element that the views below the canvas go in (`NativeViews::layer`, web only).
+/// to the element that the views below the canvas go in (`NativeViews::container`, web only).
 #[derive(Clone)]
 pub struct NativeViews {
     #[cfg(not(target_arch = "wasm32"))]
@@ -71,8 +71,8 @@ impl NativeViews {
         &self.canvas
     }
 
-    /// Returns the element to add the elements of views below egui's surface
-    /// ([`egui::NativeViewPlacement::Below`]) to.
+    /// Returns the container that the elements of views below egui's surface
+    /// ([`egui::NativeViewPlacement::Below`]) go in.
     ///
     /// It is a `<div>` right before the canvas in the document, so the canvas paints over it.
     /// The `<div>` has `position: fixed` at the top left of the browser viewport and a size of
@@ -89,8 +89,8 @@ impl NativeViews {
     /// If the canvas wasn't in the document when eframe started, or was moved to another parent
     /// element since. eframe only makes the `<div>` at startup, next to the canvas.
     #[cfg(target_arch = "wasm32")]
-    pub fn layer(&self) -> Result<web_sys::HtmlElement, wasm_bindgen::JsValue> {
-        crate::web::native_views::layer_of(&self.canvas)
+    pub fn container(&self) -> Result<web_sys::HtmlElement, wasm_bindgen::JsValue> {
+        crate::web::native_views::container_of(&self.canvas)
     }
 }
 

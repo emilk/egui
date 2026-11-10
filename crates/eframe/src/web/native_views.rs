@@ -29,28 +29,29 @@ pub(crate) struct WebNativeViews {
     canvas: HtmlCanvasElement,
 
     /// `None` if the canvas wasn't in a document when eframe started. Then there are no views
-    /// below the canvas for the life of the runner, and [`crate::NativeViews::layer`] says why.
-    layer: Option<Layer>,
+    /// below the canvas for the life of the runner, and [`crate::NativeViews::container`] says why.
+    elements: Option<Elements>,
 
     /// The `style` attribute that the input element has now, as of the last pass, so that an
     /// unchanged style isn't set again. `None` while the input element is hidden.
     current_input_style: Option<String>,
 }
 
-/// The attribute that marks the layer element, so that [`layer_of`] can find it.
-const LAYER_ATTRIBUTE: &str = "data-egui-native-view-layer";
+/// The attribute that marks the container, so that [`container_of`] can find it.
+const CONTAINER_ATTRIBUTE: &str = "data-egui-native-view-container";
 
-/// The element that holds the views below the canvas, inserted right before the canvas.
-struct Layer {
-    /// The `position: fixed` container of the views and the input element. It precedes the canvas
-    /// in the document, so a positioned canvas paints in front of it.
+/// The elements that eframe adds to the document for the views below the canvas.
+struct Elements {
+    /// The `position: fixed` container of the views and the input element, inserted right before
+    /// the canvas. It precedes the canvas in the document, so a positioned canvas paints in front
+    /// of it.
     container: HtmlElement,
 
     /// Takes egui's pointer input while views below the canvas are shown. See the module docs.
     input: HtmlElement,
 }
 
-impl Drop for Layer {
+impl Drop for Elements {
     fn drop(&mut self) {
         self.container.remove();
     }
@@ -58,33 +59,33 @@ impl Drop for Layer {
 
 impl WebNativeViews {
     pub fn new(canvas: HtmlCanvasElement) -> Self {
-        // Create the layer now, so that eframe can install its event listeners on the input element
+        // Create the elements now, so that eframe can install its event listeners on the input element
         // at startup.
-        let layer = Layer::new(&canvas)
+        let elements = Elements::new(&canvas)
             .inspect_err(|err| log::debug!("No native views below the canvas: {err:?}"))
             .ok();
         Self {
             canvas,
-            layer,
+            elements,
             current_input_style: None,
         }
     }
 
     /// The element that takes egui's pointer input in front of the views. See the module docs.
     pub fn input_element(&self) -> Option<&HtmlElement> {
-        self.layer.as_ref().map(|layer| &layer.input)
+        self.elements.as_ref().map(|elements| &elements.input)
     }
 
     /// Whether the keyboard focus is in one of the views below the canvas, such as a text field.
     pub fn has_focus(&self) -> bool {
-        let Some(layer) = &self.layer else {
+        let Some(elements) = &self.elements else {
             return false;
         };
-        layer
+        elements
             .container
             .owner_document()
             .and_then(|document| document.active_element())
-            .is_some_and(|active| layer.container.contains(Some(&active)))
+            .is_some_and(|active| elements.container.contains(Some(&active)))
     }
 
     /// Updates the input element and the canvas for the views below the canvas in `outputs`.
@@ -93,7 +94,7 @@ impl WebNativeViews {
     /// covers the canvas except where the views take the pointer input. Otherwise the input element
     /// is hidden and the canvas takes the pointer input as usual.
     pub fn route_input(&mut self, ctx: &Context, outputs: &[NativeViewOutput]) {
-        let Some(layer) = &self.layer else {
+        let Some(elements) = &self.elements else {
             return;
         };
         // The browser delivers the pointer input to views above the canvas without help.
@@ -116,7 +117,7 @@ impl WebNativeViews {
                         .map(to_css),
                 )
             };
-            input_element_style(&self.canvas, &layer.container, &view_areas)
+            input_element_style(&self.canvas, &elements.container, &view_areas)
         });
         if input_style == self.current_input_style {
             return;
@@ -124,36 +125,37 @@ impl WebNativeViews {
         let canvas_style = self.canvas.style();
         if let Some(css) = &input_style {
             canvas_style.set_property("pointer-events", "none").ok();
-            set_style(&layer.input, css);
+            set_style(&elements.input, css);
         } else {
             canvas_style.remove_property("pointer-events").ok();
-            set_style(&layer.input, "display: none;");
+            set_style(&elements.input, "display: none;");
         }
         self.current_input_style = input_style;
     }
 }
 
-/// Returns the layer element of `canvas`: the element that the views below the canvas go in.
-/// See [`crate::NativeViews::layer`].
+/// Returns the container of `canvas`: the element that the views below the canvas go in.
+/// See [`crate::NativeViews::container`].
 ///
 /// # Errors
-/// If the layer isn't before the canvas under the same parent: the canvas wasn't in the document
-/// when eframe started, so that eframe made no layer, or it was moved to another parent since.
-pub(crate) fn layer_of(canvas: &HtmlCanvasElement) -> Result<HtmlElement, JsValue> {
+/// If the container isn't before the canvas under the same parent: the canvas wasn't in the
+/// document when eframe started, so that eframe made no container, or it was moved to another
+/// parent since.
+pub(crate) fn container_of(canvas: &HtmlCanvasElement) -> Result<HtmlElement, JsValue> {
     let mut sibling = canvas.previous_element_sibling();
-    let layer = loop {
+    let container = loop {
         let Some(element) = sibling else {
             return Err(JsValue::from_str(
                 "eframe has no element for native views next to its canvas. Add the canvas to \
                  the document before starting eframe, and keep it under the same parent element.",
             ));
         };
-        if element.has_attribute(LAYER_ATTRIBUTE) {
+        if element.has_attribute(CONTAINER_ATTRIBUTE) {
             break element.unchecked_into::<HtmlElement>();
         }
         sibling = element.previous_element_sibling();
     };
-    // The layer is positioned, and a positioned element paints in front of a static one. The
+    // The container is positioned, and a positioned element paints in front of a static one. The
     // canvas needs a non-static `position` too, to stay in front of the views.
     let is_static = web_sys::window()
         .and_then(|window| window.get_computed_style(canvas).ok().flatten())
@@ -162,7 +164,7 @@ pub(crate) fn layer_of(canvas: &HtmlCanvasElement) -> Result<HtmlElement, JsValu
     if is_static {
         canvas.style().set_property("position", "relative")?;
     }
-    Ok(layer)
+    Ok(container)
 }
 
 /// Returns a function that converts rects from ui points to CSS pixels relative to the top left
@@ -190,15 +192,15 @@ fn to_css_pixels(
 /// CSS pixels relative to the canvas, and not overlapping) cut out.
 fn input_element_style(
     canvas: &HtmlCanvasElement,
-    layer: &HtmlElement,
+    container: &HtmlElement,
     view_areas: &[Rect],
 ) -> String {
     let rect = canvas.get_bounding_client_rect();
-    // The input element is placed in the layer's frame, which is not always the viewport's:
-    // with the keyboard up, iOS Safari scrolls the page and reports fixed elements, the layer
+    // The input element is placed in the container's frame, which is not always the viewport's:
+    // with the keyboard up, iOS Safari scrolls the page and reports fixed elements, the container
     // included, off by the scroll. Placing the element by the canvas's viewport position alone
     // would then move it by the scroll twice.
-    let origin = layer.get_bounding_client_rect();
+    let origin = container.get_bounding_client_rect();
     // The maximum `z-index` puts the input element in front of the views, whose `z-index` is at
     // least 1.
     let mut css = format!(
@@ -221,7 +223,7 @@ fn input_element_style(
     css
 }
 
-impl Layer {
+impl Elements {
     fn new(canvas: &HtmlCanvasElement) -> Result<Self, JsValue> {
         let document = canvas
             .owner_document()
@@ -231,7 +233,7 @@ impl Layer {
             .ok_or_else(|| JsValue::from_str("The canvas isn't in the document"))?;
 
         let container: HtmlElement = document.create_element("div")?.unchecked_into();
-        container.set_attribute(LAYER_ATTRIBUTE, "")?;
+        container.set_attribute(CONTAINER_ATTRIBUTE, "")?;
         // `position: fixed` makes the container a stacking context, so the `z-index` of the views
         // and the input element only orders them within it. Its children inherit
         // `pointer-events: none`, so the input element and the views have to set

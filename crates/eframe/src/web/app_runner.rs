@@ -13,7 +13,7 @@ pub struct AppRunner {
     egui_ctx: egui::Context,
     painter: Box<dyn WebPainter>,
 
-    /// The layer of the views below the canvas, and the routing of the pointer input between
+    /// The container of the views below the canvas, and the routing of the pointer input between
     /// them and the canvas.
     pub(crate) web_native_views: super::native_views::WebNativeViews,
     pub(crate) input: super::WebInput,
