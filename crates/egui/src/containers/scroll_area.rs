@@ -1,7 +1,5 @@
 //! See [`ScrollArea`] for docs.
 
-#![expect(clippy::needless_range_loop)]
-
 use core::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
 use emath::GuiRounding as _;
@@ -1190,9 +1188,14 @@ impl Prepared {
 
         let mut had_explicit_scroll_adjustment = Vec2b::FALSE;
 
+        // Scroll targets for an axis this area cannot scroll, handed back up the stack below.
+        let mut passed_up_scroll_target = [None, None];
+
         for d in 0..2 {
             // We always take both scroll targets regardless of which scroll axes are enabled. This
-            // is to avoid them leaking to other scroll areas.
+            // is to avoid them leaking to other scroll areas. A target for an axis this area
+            // cannot scroll is handed back up the stack for an enclosing `ScrollArea`, and a later
+            // sibling `ScrollArea` saves and restores it rather than taking it.
             let scroll_target = content_ui
                 .ctx()
                 .pass_state_mut(|state| state.scroll_target[d].take());
@@ -1271,14 +1274,20 @@ impl Prepared {
                 if delta != 0.0 {
                     had_explicit_scroll_adjustment[d] = true;
                 }
+            } else {
+                passed_up_scroll_target[d] = scroll_target;
             }
         }
 
-        // Restore scroll target meant for ScrollAreas up the stack (if any)
+        // Restore scroll target meant for ScrollAreas up the stack (if any).
+        // A target passed up from inside this area was set after any saved one, so it wins.
         ui.ctx().pass_state_mut(|state| {
             for d in 0..2 {
-                if saved_scroll_target[d].is_some() {
-                    state.scroll_target[d] = saved_scroll_target[d].clone();
+                if let Some(scroll_target) = passed_up_scroll_target[d]
+                    .take()
+                    .or_else(|| saved_scroll_target[d].clone())
+                {
+                    state.scroll_target[d] = Some(scroll_target);
                 }
             }
         });
