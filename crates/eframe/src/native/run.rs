@@ -26,6 +26,27 @@ use crate::{
 /// See <https://github.com/emilk/egui/issues/7776>.
 const INVISIBLE_WINDOW_REPAINT_INTERVAL: Duration = Duration::from_millis(100);
 
+/// Soft limit for painting older Windows redraw requests during one redraw event.
+/// A paint already started may exceed this budget.
+#[cfg(target_os = "windows")]
+const REDRAW_DIRECT_PAINT_BUDGET: Duration = Duration::from_millis(5);
+
+#[cfg(target_os = "windows")]
+struct RedrawLedger<Id> {
+    next: u64,
+    asked: HashMap<Id, u64>,
+}
+
+#[cfg(target_os = "windows")]
+impl<Id> Default for RedrawLedger<Id> {
+    fn default() -> Self {
+        Self {
+            next: 0,
+            asked: HashMap::default(),
+        }
+    }
+}
+
 /// How long to wait for a requested `RedrawRequested` before running the app logic anyway.
 ///
 /// On Wayland, `RedrawRequested` waits for the compositor's frame callback, and compositors
@@ -92,6 +113,9 @@ struct WinitAppWrapper<T: WinitApp> {
     /// Windows we asked to redraw, and when to give up waiting for their `RedrawRequested`.
     windows_redraw_deadlines: HashMap<WindowId, Instant>,
 
+    #[cfg(target_os = "windows")]
+    redraw_ledger: RedrawLedger<WindowId>,
+
     winit_app: T,
     return_result: Result<(), crate::Error>,
     run_and_return: bool,
@@ -102,6 +126,8 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         Self {
             windows_next_repaint_times: HashMap::default(),
             windows_redraw_deadlines: HashMap::default(),
+            #[cfg(target_os = "windows")]
+            redraw_ledger: RedrawLedger::default(),
             winit_app,
             return_result: Ok(()),
             run_and_return,
@@ -233,6 +259,9 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                         self.windows_redraw_deadlines
                             .entry(*window_id)
                             .or_insert(now + MISSED_REDRAW_TIMEOUT);
+
+                        #[cfg(target_os = "windows")]
+                        self.redraw_ledger.asked(*window_id);
                     }
                 } else {
                     log::trace!("No window found for {window_id:?}");
@@ -419,8 +448,35 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
             let event_result = match event {
                 winit::event::WindowEvent::RedrawRequested => {
                     self.windows_redraw_deadlines.remove(&window_id);
-                    self.winit_app
-                        .run_ui_and_paint(event_loop, window_id, PassMode::Full)
+
+                    #[cfg(target_os = "windows")]
+                    let painted_order = self.redraw_ledger.painted(window_id);
+
+                    let event_result =
+                        self.winit_app
+                            .run_ui_and_paint(event_loop, window_id, PassMode::Full);
+                    self.handle_event_result(event_loop, event_result);
+
+                    #[cfg(target_os = "windows")]
+                    if let Some(painted_order) = painted_order {
+                        let budget_start = Instant::now();
+                        while budget_start.elapsed() < REDRAW_DIRECT_PAINT_BUDGET
+                            && !event_loop.exiting()
+                        {
+                            let Some(passed_window) =
+                                self.redraw_ledger.next_older_than(painted_order)
+                            else {
+                                break;
+                            };
+                            let event_result = self.winit_app.run_ui_and_paint(
+                                event_loop,
+                                passed_window,
+                                PassMode::Full,
+                            );
+                            self.handle_event_result(event_loop, event_result);
+                        }
+                    }
+                    return;
                 }
                 _ => self.winit_app.window_event(event_loop, window_id, event),
             };
@@ -633,4 +689,32 @@ pub enum EframePumpStatus {
 
     /// The exit code for the application
     Exit(i32),
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg(target_os = "windows")]
+impl<Id: Copy + Eq + std::hash::Hash> RedrawLedger<Id> {
+    /// Keep the earliest unanswered redraw request for each window.
+    fn asked(&mut self, window: Id) {
+        let order = self.next;
+        self.next += 1;
+        self.asked.entry(window).or_insert(order);
+    }
+
+    /// Forget this paint and return its request order, if it was tracked.
+    fn painted(&mut self, window: Id) -> Option<u64> {
+        self.asked.remove(&window)
+    }
+
+    /// Remove and return the oldest request made before the given paint.
+    fn next_older_than(&mut self, order: u64) -> Option<Id> {
+        let (_, window) = self
+            .asked
+            .iter()
+            .filter_map(|(&window, &asked)| (asked < order).then_some((asked, window)))
+            .min_by_key(|(asked, _)| *asked)?;
+        self.asked.remove(&window);
+        Some(window)
+    }
 }
