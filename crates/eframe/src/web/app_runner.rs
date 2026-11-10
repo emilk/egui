@@ -91,12 +91,12 @@ impl AppRunner {
             },
             cpu_usage: None,
         };
-        let storage = LocalStorage::default();
+        let storage = web_options.storage_build.try_create_storage_web("app_name");
 
         egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
             &super::user_agent().unwrap_or_default(),
         ));
-        super::storage::load_memory(&egui_ctx);
+        super::storage::load_memory(&egui_ctx, storage.as_deref());
 
         egui_ctx.options_mut(|o| {
             // On web by default egui follows the zoom factor of the browser,
@@ -117,7 +117,7 @@ impl AppRunner {
         let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
-            storage: Some(&storage),
+            storage: storage.as_deref(),
 
             #[cfg(feature = "glow")]
             gl: gl.clone(),
@@ -132,7 +132,7 @@ impl AppRunner {
 
         let frame = epi::Frame {
             info,
-            storage: Some(Box::new(storage)),
+            storage,
 
             #[cfg(feature = "glow")]
             gl,
@@ -207,7 +207,7 @@ impl AppRunner {
 
     pub fn save(&mut self) {
         if self.app.persist_egui_memory() {
-            super::storage::save_memory(&self.egui_ctx);
+            super::storage::save_memory(&self.egui_ctx, self.frame.storage_mut());
         }
         if let Some(storage) = self.frame.storage_mut() {
             self.app.save(storage);
@@ -468,4 +468,16 @@ impl epi::Storage for LocalStorage {
     }
 
     fn flush(&mut self) {}
+}
+
+impl epi::StorageProvider {
+    /// For loading/saving app state and/or egui memory to disk.
+    pub fn try_create_storage_web(&self, app_name: &str) -> Option<Box<dyn epi::Storage>> {
+        match self {
+            epi::StorageProvider::Default | epi::StorageProvider::AtPath(_) => {
+                Some(Box::new(LocalStorage::default()))
+            }
+            epi::StorageProvider::Custom(f) => f(app_name),
+        }
+    }
 }
