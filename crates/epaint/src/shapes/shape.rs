@@ -1,6 +1,6 @@
 //! The different shapes that can be painted.
 
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use emath::{Align2, Pos2, Rangef, Rect, Rot2, TSTransform, Vec2, pos2};
 

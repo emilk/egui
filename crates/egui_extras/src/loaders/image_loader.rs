@@ -1,10 +1,11 @@
-use core::{mem::size_of, task::Poll};
+use alloc::sync::Arc;
+use core::task::Poll;
 use egui::{
     ColorImage, decode_animated_image_uri,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
 };
 use image::ImageFormat;
-use std::{ffi::OsStr, path::Path, sync::Arc};
+use std::{ffi::OsStr, path::Path};
 
 use super::background_decode::DecodeCache;
 
@@ -143,8 +144,7 @@ impl ImageLoader for ImageCrateLoader {
     }
 
     fn byte_size(&self) -> usize {
-        self.cache
-            .byte_size(|image| image.pixels.len() * size_of::<egui::Color32>())
+        self.cache.byte_size(|image| size_of_val(image.pixels()))
     }
 
     fn has_pending(&self) -> bool {

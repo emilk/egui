@@ -3,8 +3,8 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
+use alloc::sync::Arc;
 use core::any::Any;
-use std::sync::Arc;
 // -----------------------------------------------------------------------------------------------
 
 /// Like [`std::any::TypeId`], but can be serialized and deserialized.
@@ -715,7 +715,7 @@ impl PersistedMap {
 
         profiling::function_scope!();
 
-        use std::collections::BTreeMap;
+        use alloc::collections::BTreeMap;
 
         let mut types_map: nohash_hasher::IntMap<TypeId, TypeStats> = Default::default();
         #[derive(Default)]

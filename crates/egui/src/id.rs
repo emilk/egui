@@ -211,13 +211,16 @@ pub type IdMap<V> = nohash_hasher::IntMap<Id, V>;
 ///
 /// Used by [`Id`]'s `Debug` impl so that `Id::unique("foo")` prints as `Id::unique("foo")`,
 /// and `Id::unique("foo").with("bar")` prints as `Id::unique("foo").with("bar")`, etc.
+///
+/// Entries that have not been seen recently are purged by [`id_source::end_pass`],
+/// so that the map does not grow without bound.
 #[cfg(debug_assertions)]
 pub(crate) mod id_source {
-    use super::{AsIdSalt, Id, IdMap};
+    use super::{AsIdSalt, Id};
+    use core::sync::atomic::{AtomicU64, Ordering::Relaxed};
     use epaint::mutex::RwLock;
+    use nohash_hasher::IntMap;
     use std::sync::LazyLock;
-
-    static SOURCE_MAP: LazyLock<RwLock<IdMap<String>>> = LazyLock::new(RwLock::default);
 
     /// Stored sources are truncated to at most this many bytes.
     ///
@@ -226,8 +229,70 @@ pub(crate) mod id_source {
     /// doubles the length of the stored source at every level of nesting.
     const MAX_SOURCE_LEN: usize = 1024;
 
+    /// Only purge stale entries once a map grows larger than this.
+    ///
+    /// This keeps the names of long-lived ids (e.g. created once at startup)
+    /// in small apps, while still bounding the memory use of huge ones.
+    const PURGE_THRESHOLD: usize = 10_000;
+
+    /// Incremented at the end of each pass (of any [`crate::Context`]).
+    static GENERATION: AtomicU64 = AtomicU64::new(0);
+
+    static SOURCE_MAP: LazyLock<SourceMap<Id>> = LazyLock::new(SourceMap::default);
+
+    struct Entry {
+        source: String,
+
+        /// The last [`GENERATION`] in which this entry was created or recreated.
+        last_seen: AtomicU64,
+    }
+
+    /// Maps an [`Id`] or [`crate::IdSalt`] to the `Debug`-formatted source that produced it.
+    pub(crate) struct SourceMap<K>(RwLock<IntMap<K, Entry>>);
+
+    impl<K> Default for SourceMap<K> {
+        fn default() -> Self {
+            Self(RwLock::default())
+        }
+    }
+
+    impl<K: Copy + Eq + core::hash::Hash + nohash_hasher::IsEnabled> SourceMap<K> {
+        /// Mark `key` as seen, inserting the output of `format_source` if it is new.
+        ///
+        /// `format_source` is called without holding the lock,
+        /// since formatting may itself recurse into the map.
+        pub(crate) fn touch_or_insert_with(&self, key: K, format_source: impl FnOnce() -> String) {
+            let generation = GENERATION.load(Relaxed);
+            if let Some(entry) = self.0.read().get(&key) {
+                entry.last_seen.store(generation, Relaxed);
+                return;
+            }
+            let source = truncate(format_source());
+            self.0
+                .write()
+                .entry(key)
+                .and_modify(|entry| entry.last_seen.store(generation, Relaxed))
+                .or_insert_with(|| Entry {
+                    source,
+                    last_seen: AtomicU64::new(generation),
+                });
+        }
+
+        pub(crate) fn get(&self, key: K) -> Option<String> {
+            self.0.read().get(&key).map(|entry| entry.source.clone())
+        }
+
+        /// Remove entries not seen in this or the previous generation.
+        pub(crate) fn purge(&self, generation: u64) {
+            let mut map = self.0.write();
+            if PURGE_THRESHOLD < map.len() {
+                map.retain(|_, entry| generation <= entry.last_seen.load(Relaxed) + 1);
+            }
+        }
+    }
+
     /// Keep the end, since that is the most specific part.
-    pub(crate) fn truncate(mut source: String) -> String {
+    fn truncate(mut source: String) -> String {
         if MAX_SOURCE_LEN < source.len() {
             let start = source.ceil_char_boundary(source.len() - MAX_SOURCE_LEN);
             source.replace_range(..start, "…");
@@ -235,29 +300,66 @@ pub(crate) mod id_source {
         source
     }
 
+    /// Purge stale entries and start a new generation.
+    ///
+    /// Called at the end of each pass.
+    pub(crate) fn end_pass() {
+        let generation = GENERATION.fetch_add(1, Relaxed);
+        SOURCE_MAP.purge(generation);
+        crate::id_salt::id_salt_source::purge(generation);
+    }
+
     pub(super) fn insert_root(id: Id, source: &impl core::fmt::Debug) {
-        if SOURCE_MAP.read().contains_key(&id) {
-            return;
-        }
-        // Format outside the lock since `{source:?}` may itself recurse into [`Id`]'s `Debug` impl.
-        let formatted = truncate(format!("Id::unique({source:?})"));
-        SOURCE_MAP.write().insert(id, formatted);
+        SOURCE_MAP.touch_or_insert_with(id, || format!("Id::unique({source:?})"));
     }
 
     pub(super) fn insert_child(id: Id, parent: Id, salt: &impl AsIdSalt) {
-        if SOURCE_MAP.read().contains_key(&id) {
-            return;
-        }
-        // Look up parent's repr and drop the read guard before formatting,
-        // since `{parent:?}` and `{salt:?}` may themselves recurse into [`Id`]'s `Debug` impl.
-        let cached_parent_repr = SOURCE_MAP.read().get(&parent).cloned();
-        let parent_repr = cached_parent_repr.unwrap_or_else(|| format!("{parent:?}"));
-        let formatted = truncate(format!("{parent_repr}.with({salt:?})"));
-        SOURCE_MAP.write().insert(id, formatted);
+        SOURCE_MAP.touch_or_insert_with(id, || {
+            let parent_repr = SOURCE_MAP
+                .get(parent)
+                .unwrap_or_else(|| format!("{parent:?}"));
+            format!("{parent_repr}.with({salt:?})")
+        });
     }
 
     pub(super) fn get(id: Id) -> Option<String> {
-        SOURCE_MAP.read().get(&id).cloned()
+        SOURCE_MAP.get(id)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{GENERATION, Id, PURGE_THRESHOLD, Relaxed, SourceMap};
+
+        fn filled_map(len: usize) -> SourceMap<Id> {
+            let map = SourceMap::default();
+            for i in 1..=len as u64 {
+                map.touch_or_insert_with(Id::from_hash(i), || i.to_string());
+            }
+            map
+        }
+
+        #[test]
+        fn small_map_is_not_purged() {
+            let map = filled_map(PURGE_THRESHOLD);
+            map.purge(u64::MAX);
+            assert_eq!(map.get(Id::from_hash(1)).as_deref(), Some("1"));
+        }
+
+        #[test]
+        fn large_map_is_purged() {
+            // Other tests may bump the generation concurrently.
+            let generation_before = GENERATION.load(Relaxed);
+            let map = filled_map(PURGE_THRESHOLD + 1);
+            let generation_after = GENERATION.load(Relaxed);
+            map.purge(generation_before + 1);
+            assert_eq!(
+                map.0.read().len(),
+                PURGE_THRESHOLD + 1,
+                "Seen last generation"
+            );
+            map.purge(generation_after + 2);
+            assert!(map.0.read().is_empty());
+        }
     }
 }
 

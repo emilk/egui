@@ -5,6 +5,30 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.37.0 - 2026-10-15
+### ⭐ Added
+* Add `epaint::RoundedRect` primitive [#8440](https://github.com/emilk/egui/pull/8440) by [@emilk](https://github.com/emilk)
+* Add `FaceStore`: one place that parses and stores font faces [#8502](https://github.com/emilk/egui/pull/8502) by [@emilk](https://github.com/emilk)
+* Add `BandShape` [#8476](https://github.com/emilk/egui/pull/8476) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Split `fonts.rs` and `font.rs` into one file per type [#8500](https://github.com/emilk/egui/pull/8500) by [@emilk](https://github.com/emilk)
+* Move glyph bitmap caches out of `FontFace` into a new `GlyphAtlas` [#8501](https://github.com/emilk/egui/pull/8501) by [@emilk](https://github.com/emilk)
+* Replace `CachedFamily` with `Family`, which owns the fallback walk [#8503](https://github.com/emilk/egui/pull/8503) by [@emilk](https://github.com/emilk)
+* Draw tofu for families without fonts, and add `MissingGlyphPolicy` (panics by default in `egui_kittest`) [#8601](https://github.com/emilk/egui/pull/8601) by [@emilk](https://github.com/emilk)
+* Apply font changes right away while no text has been laid out this pass [#8609](https://github.com/emilk/egui/pull/8609) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove the `Font` borrow-bag; put its methods on `FontsImpl` [#8504](https://github.com/emilk/egui/pull/8504) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix: TextFormat::valign not applied correctly with custom line_height [#8030](https://github.com/emilk/egui/pull/8030) by [@rustbasic](https://github.com/rustbasic)
+* Fix missing Chinese characters from system fonts on Windows [#8688](https://github.com/emilk/egui/pull/8688) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🚀 Performance
+* Optimize CubicBezierShape::find_cross_t [#8413](https://github.com/emilk/egui/pull/8413) by [@oscargus](https://github.com/oscargus)
+
+
 ## 0.36.2 - 2026-09-08
 * Fix rendering of thin, angled rectangles [#8482](https://github.com/emilk/egui/pull/8482) by [@emilk](https://github.com/emilk)
 * Simplify and optimize `Color32::from_rgba_unmultiplied` [#8427](https://github.com/emilk/egui/pull/8427) by [@Keith-Cancel](https://github.com/Keith-Cancel)

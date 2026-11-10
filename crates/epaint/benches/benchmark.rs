@@ -69,7 +69,7 @@ fn tessellate_circles(c: &mut Criterion) {
         let options = TessellationOptions::default();
 
         let atlas = TextureAtlas::new([4096, 256], Default::default());
-        let font_tex_size = atlas.size();
+        let font_tex_size = atlas.resolution();
         let prepared_discs = atlas.prepared_discs();
 
         b.iter(|| {

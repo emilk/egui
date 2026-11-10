@@ -20,6 +20,9 @@
 //!
 
 #![expect(clippy::float_cmp)]
+#![warn(clippy::std_instead_of_alloc)]
+
+extern crate alloc;
 
 use core::ops::{Add, Div, Mul, RangeInclusive, Sub};
 

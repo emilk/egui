@@ -2,8 +2,8 @@
 //!
 //! Used by [`crate::DragValue`], [`crate::Slider`], and [`crate::RangeSlider`].
 
+use alloc::sync::Arc;
 use core::ops::RangeInclusive;
-use std::sync::Arc;
 
 use crate::{Atoms, IntoAtoms, MINUS_CHAR_STR, emath};
 

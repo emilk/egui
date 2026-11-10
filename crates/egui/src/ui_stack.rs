@@ -1,5 +1,5 @@
+use alloc::sync::Arc;
 use core::{any::Any, iter::FusedIterator};
-use std::sync::Arc;
 
 use crate::class::{Classes, HasClasses as _};
 use epaint::Color32;

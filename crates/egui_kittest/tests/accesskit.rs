@@ -749,3 +749,103 @@ fn sensed_ui_can_be_scrolled_into_view() {
         "not scrolled into view: {rect:?}"
     );
 }
+
+/// <https://github.com/emilk/egui/issues/8699>
+#[test]
+fn text_edit_value_can_be_set_via_accesskit_without_focus() {
+    let mut harness = Harness::builder().build_ui_state(
+        |ui, text: &mut String| {
+            ui.name_inputs("Filter", |ui| ui.text_edit_singleline(text));
+        },
+        "old".to_owned(),
+    );
+    harness.run();
+    assert!(!harness.get_by_role(Role::TextInput).is_focused());
+
+    harness
+        .get_by_role(Role::TextInput)
+        .set_text_value_accesskit("new\nvalue");
+    harness.run();
+
+    assert_eq!(
+        harness.state(),
+        "new value",
+        "SetValue should replace the text, turning newlines into spaces in a single-line field"
+    );
+    assert_eq!(
+        harness.get_by_role(Role::TextInput).value().as_deref(),
+        Some("new value")
+    );
+}
+
+#[test]
+fn text_edit_set_value_respects_char_limit() {
+    let mut harness = Harness::builder().build_ui_state(
+        |ui, text: &mut String| {
+            ui.name_inputs("Filter", |ui| {
+                ui.add(egui::TextEdit::singleline(text).char_limit(3))
+            });
+        },
+        String::new(),
+    );
+    harness.run();
+
+    harness
+        .get_by_role(Role::TextInput)
+        .set_text_value_accesskit("abcdef");
+    harness.run();
+
+    assert_eq!(harness.state(), "abc");
+}
+
+#[test]
+fn text_edit_selected_text_can_be_replaced_via_accesskit() {
+    let mut harness = Harness::builder().build_ui_state(
+        |ui, text: &mut String| {
+            ui.name_inputs("Filter", |ui| ui.text_edit_singleline(text));
+        },
+        "ab".to_owned(),
+    );
+    harness.run();
+    harness.get_by_role(Role::TextInput).focus();
+    harness.run();
+
+    // Focusing puts the cursor at the end, so this inserts there:
+    harness
+        .get_by_role(Role::TextInput)
+        .replace_selected_text_accesskit("c");
+    harness.run();
+
+    assert_eq!(harness.state(), "abc");
+}
+
+#[test]
+fn only_editable_text_edits_offer_text_actions() {
+    let output = accesskit_output_single_egui_frame(|ui| {
+        CentralPanel::default().show(ui, |ui| {
+            let mut editable = "editable".to_owned();
+            ui.text_edit_singleline(&mut editable);
+            let mut read_only = "read only";
+            ui.add(egui::TextEdit::singleline(&mut read_only));
+        });
+    });
+
+    let text_input = |value: &str| {
+        output
+            .nodes
+            .iter()
+            .map(|(_, node)| node)
+            .find(|node| node.role() == Role::TextInput && node.value() == Some(value))
+            .unwrap_or_else(|| panic!("No text input with value {value:?}; found: {output:#?}"))
+    };
+
+    let editable = text_input("editable");
+    assert!(!editable.is_read_only());
+    assert!(editable.supports_action(Action::SetValue));
+    assert!(editable.supports_action(Action::ReplaceSelectedText));
+
+    let read_only = text_input("read only");
+    assert!(read_only.is_read_only());
+    assert!(!read_only.supports_action(Action::SetValue));
+    assert!(!read_only.supports_action(Action::ReplaceSelectedText));
+}

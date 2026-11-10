@@ -274,6 +274,11 @@ jobs:
         if: always()
         run: cargo test --all-features --doc --no-fail-fast
 
+      # `--all-features` turns on `syntect`, so the fallback highlighter needs its own run.
+      - name: Run egui_extras tests without syntect
+        if: always()
+        run: cargo test -p egui_extras --no-fail-fast
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         if: always()

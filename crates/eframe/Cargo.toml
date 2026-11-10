@@ -85,7 +85,7 @@ wayland = [
 ## Load system fonts on demand for characters that the installed fonts lack (native only).
 ##
 ## Turn it off at runtime with [`NativeOptions::system_font_fallback`].
-system_fonts = ["dep:egui_system_fonts"]
+system_fonts = ["dep:egui_system_font_provider"]
 
 ## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
 ##
@@ -171,7 +171,7 @@ image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 # optional native:
-egui_system_fonts = { workspace = true, optional = true }
+egui_system_font_provider = { workspace = true, optional = true }
 egui-wgpu = { workspace = true, optional = true, features = [
   "winit",
   "capture",

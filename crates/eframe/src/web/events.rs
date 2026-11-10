@@ -420,7 +420,7 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
 
 fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result<(), JsValue> {
     // Save-on-close
-    runner_ref.add_event_listener(window, "onbeforeunload", |_: web_sys::Event, runner| {
+    runner_ref.add_event_listener(window, "beforeunload", |_: web_sys::Event, runner| {
         runner.egui_ctx().on_exit();
         runner.save();
     })?;

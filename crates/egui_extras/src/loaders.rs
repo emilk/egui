@@ -67,13 +67,15 @@
 pub fn install_image_loaders(ctx: &egui::Context) {
     #[cfg(all(not(target_arch = "wasm32"), feature = "file"))]
     if !ctx.is_loader_installed(self::file_loader::FileLoader::ID) {
-        ctx.add_bytes_loader(std::sync::Arc::new(self::file_loader::FileLoader::default()));
+        ctx.add_bytes_loader(alloc::sync::Arc::new(
+            self::file_loader::FileLoader::default(),
+        ));
         log::trace!("installed FileLoader");
     }
 
     #[cfg(feature = "http")]
     if !ctx.is_loader_installed(self::http_loader::EhttpLoader::ID) {
-        ctx.add_bytes_loader(std::sync::Arc::new(
+        ctx.add_bytes_loader(alloc::sync::Arc::new(
             self::http_loader::EhttpLoader::default(),
         ));
         log::trace!("installed EhttpLoader");
@@ -81,7 +83,7 @@ pub fn install_image_loaders(ctx: &egui::Context) {
 
     #[cfg(feature = "image")]
     if !ctx.is_loader_installed(self::image_loader::ImageCrateLoader::ID) {
-        ctx.add_image_loader(std::sync::Arc::new(
+        ctx.add_image_loader(alloc::sync::Arc::new(
             self::image_loader::ImageCrateLoader::default(),
         ));
         log::trace!("installed ImageCrateLoader");
@@ -89,19 +91,21 @@ pub fn install_image_loaders(ctx: &egui::Context) {
 
     #[cfg(feature = "gif")]
     if !ctx.is_loader_installed(self::gif_loader::GifLoader::ID) {
-        ctx.add_image_loader(std::sync::Arc::new(self::gif_loader::GifLoader::default()));
+        ctx.add_image_loader(alloc::sync::Arc::new(self::gif_loader::GifLoader::default()));
         log::trace!("installed GifLoader");
     }
 
     #[cfg(feature = "webp")]
     if !ctx.is_loader_installed(self::webp_loader::WebPLoader::ID) {
-        ctx.add_image_loader(std::sync::Arc::new(self::webp_loader::WebPLoader::default()));
+        ctx.add_image_loader(alloc::sync::Arc::new(
+            self::webp_loader::WebPLoader::default(),
+        ));
         log::trace!("installed WebPLoader");
     }
 
     #[cfg(feature = "svg")]
     if !ctx.is_loader_installed(self::svg_loader::SvgLoader::ID) {
-        ctx.add_image_loader(std::sync::Arc::new(self::svg_loader::SvgLoader::default()));
+        ctx.add_image_loader(alloc::sync::Arc::new(self::svg_loader::SvgLoader::default()));
         log::trace!("installed SvgLoader");
     }
 

@@ -652,17 +652,9 @@ impl Renderer {
             depth_or_array_layers: 1,
         };
 
-        let data_color32 = match &image_delta.image {
-            epaint::ImageData::Color(image) => {
-                assert_eq!(
-                    width as usize * height as usize,
-                    image.pixels.len(),
-                    "Mismatch between texture size and texel count"
-                );
-                Cow::Borrowed(&image.pixels)
-            }
+        let data_bytes: &[u8] = match &image_delta.image {
+            epaint::ImageData::Color(image) => bytemuck::cast_slice(image.pixels()),
         };
-        let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
 
         let queue_write_data_to_texture = |texture, origin| {
             profiling::scope!("write_texture");

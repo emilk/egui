@@ -257,7 +257,7 @@ def main() -> None:
         "egui_glow",
         "egui_inspection",
         "egui_kittest",
-        "egui_system_fonts",
+        "egui_system_font_provider",
         "egui-wgpu",
         "egui-winit",
         "egui",

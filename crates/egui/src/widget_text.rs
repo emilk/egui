@@ -1,6 +1,6 @@
+use alloc::{borrow::Cow, sync::Arc};
 use core::fmt::Formatter;
 use epaint::text::{IntoTag, TextFormat, VariationCoords};
-use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,

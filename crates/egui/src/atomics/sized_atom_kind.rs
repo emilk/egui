@@ -1,8 +1,8 @@
 use crate::{AtomPaint, Image, SizedContainerAtom, SizedWidgetAtom};
+use alloc::sync::Arc;
 use core::fmt::Debug;
 use emath::Vec2;
 use epaint::Galley;
-use std::sync::Arc;
 
 /// A sized [`crate::AtomKind`].
 #[derive(Clone)]

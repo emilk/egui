@@ -69,7 +69,7 @@
 //! There are several more things related to viewports that we want to add.
 //! Read more at <https://github.com/emilk/egui/issues/3556>.
 
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use crate::{Context, Id, Ui};
 use epaint::{Pos2, Vec2};
@@ -176,7 +176,7 @@ pub type ViewportIdSet = nohash_hasher::IntSet<ViewportId>;
 pub type ViewportIdMap<T> = nohash_hasher::IntMap<ViewportId, T>;
 
 /// An order map from [`ViewportId`] to `T`.
-pub type OrderedViewportIdMap<T> = std::collections::BTreeMap<ViewportId, T>;
+pub type OrderedViewportIdMap<T> = alloc::collections::BTreeMap<ViewportId, T>;
 
 // ----------------------------------------------------------------------------
 

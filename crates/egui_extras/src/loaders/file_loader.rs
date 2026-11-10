@@ -1,4 +1,5 @@
 use ahash::HashMap;
+use alloc::sync::Arc;
 use core::task::Poll;
 use egui::{
     load::{Bytes, BytesLoadResult, BytesLoader, BytesPoll, LoadError},
@@ -6,7 +7,6 @@ use egui::{
 };
 use std::{
     path::{Path, PathBuf},
-    sync::Arc,
     thread,
 };
 

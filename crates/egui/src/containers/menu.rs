@@ -15,9 +15,9 @@ use crate::{
     PopupKind, Response, SetOpenCommand, SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack,
     UiStackInfo, Widget as _,
 };
+use alloc::sync::Arc;
 use emath::{Align, Rect, RectAlign, Vec2, vec2};
 use epaint::{Shape, Stroke};
-use std::sync::Arc;
 
 /// Apply a menu style to the [`Style`].
 ///
