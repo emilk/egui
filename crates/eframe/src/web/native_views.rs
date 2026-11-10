@@ -32,9 +32,9 @@ pub(crate) struct WebNativeViews {
     /// below the canvas for the life of the runner, and [`crate::NativeViews::layer`] says why.
     layer: Option<Layer>,
 
-    /// The `style` attribute last set on the input element, so that an unchanged style isn't set
-    /// again. `None` while the input element is hidden.
-    input_style: Option<String>,
+    /// The `style` attribute that the input element has now, as of the last pass, so that an
+    /// unchanged style isn't set again. `None` while the input element is hidden.
+    current_input_style: Option<String>,
 }
 
 /// The attribute that marks the layer element, so that [`layer_of`] can find it.
@@ -66,7 +66,7 @@ impl WebNativeViews {
         Self {
             canvas,
             layer,
-            input_style: None,
+            current_input_style: None,
         }
     }
 
@@ -118,7 +118,7 @@ impl WebNativeViews {
             };
             input_element_style(&self.canvas, &layer.container, &view_areas)
         });
-        if input_style == self.input_style {
+        if input_style == self.current_input_style {
             return;
         }
         let canvas_style = self.canvas.style();
@@ -129,7 +129,7 @@ impl WebNativeViews {
             canvas_style.remove_property("pointer-events").ok();
             set_style(&layer.input, "display: none;");
         }
-        self.input_style = input_style;
+        self.current_input_style = input_style;
     }
 }
 
