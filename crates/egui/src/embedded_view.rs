@@ -203,6 +203,17 @@ pub struct EmbeddedViewOutput {
     /// Whether the view is below or above egui's surface.
     pub side: EmbeddedViewPlacement,
 
+    /// How the views stack among each other: a view with a higher `z_index` is in front of one
+    /// with a lower `z_index`.
+    ///
+    /// It is the position of the view's egui layer ([`LayerId`]) in egui's paint order, counted
+    /// over all of egui's layers, the ones of [`crate::Area`]s included. So it is not a count of
+    /// the embedded views, the numbers have gaps, and views in the same layer share one.
+    ///
+    /// Only compare views with the same [`Self::side`]: every view above egui's surface is in
+    /// front of every view below it, whatever their `z_index`.
+    pub z_index: usize,
+
     /// The view's full rect, including any part that is clipped out.
     pub rect: Rect,
 
@@ -211,9 +222,9 @@ pub struct EmbeddedViewOutput {
     pub visible: Rect,
 
     /// The parts of [`Self::visible`] that egui paints over: the rects of the visible areas
-    /// (windows, popups, tooltips, …) in the layers in front of the view's layer, and the bounds
-    /// of what is painted to a layer in front that isn't an area, such as a drag-and-drop preview
-    /// or [`crate::Context::debug_painter`].
+    /// (windows, popups, tooltips, …) in the egui layers ([`LayerId`]) in front of the view's
+    /// layer, and the bounds of what is painted to a layer in front that isn't an area, such as
+    /// a drag-and-drop preview or [`crate::Context::debug_painter`].
     ///
     /// A view above egui's surface has to mask these out.
     ///
@@ -230,26 +241,36 @@ pub struct EmbeddedViewOutput {
     /// tooltips. A rect that lies inside another one of the list is left out. Like that list,
     /// it leaves out the widgets in the view's own layer.
     pub egui_input_areas: Vec<Rect>,
-
-    /// The position of the view's layer in egui's paint order. A view with a higher `z_index`
-    /// is in front of one with a lower `z_index`, and views in the same layer have the same one.
-    pub z_index: usize,
 }
 
 impl EmbeddedViewOutput {
     /// The parts of [`Self::visible`] where the view takes the pointer input, that is,
     /// outside [`Self::egui_input_areas`].
     ///
-    /// The returned rects don't overlap.
+    /// Use it to route the pointer: the integration delivers the input in these rects to the
+    /// view, and the rest to egui. The returned rects don't overlap.
     pub fn view_input_areas(&self) -> Vec<Rect> {
         self.visible.subtract(&self.egui_input_areas)
+    }
+
+    /// The parts of [`Self::visible`] where the view shows, that is, outside
+    /// [`Self::egui_paint_areas`].
+    ///
+    /// Use it as the mask of a view above egui's surface, so that egui's windows and popups show
+    /// over the view. A view below the surface needs no mask: egui paints over it. The returned
+    /// rects don't overlap.
+    pub fn view_paint_areas(&self) -> Vec<Rect> {
+        self.visible.subtract(&self.egui_paint_areas)
     }
 
     /// The parts of [`Self::visible`] that egui neither paints over nor takes the pointer input
     /// from: [`Self::visible`] without [`Self::egui_paint_areas`] and
     /// [`Self::egui_input_areas`].
     ///
-    /// The returned rects don't overlap.
+    /// Use it for a view above egui's surface that takes one set of rects for both: where it
+    /// shows and where it gets the input. That hides the view wherever egui takes the input,
+    /// also where egui paints nothing, as under a widget that only senses clicks. The returned
+    /// rects don't overlap.
     pub fn view_input_and_paint_areas(&self) -> Vec<Rect> {
         let egui_areas = [&self.egui_paint_areas[..], &self.egui_input_areas[..]].concat();
         self.visible.subtract(&egui_areas)

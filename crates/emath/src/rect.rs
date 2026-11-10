@@ -361,16 +361,14 @@ impl Rect {
     /// the parts of adjacent bands that span the same x-range, so the result is a few tall rects
     /// rather than many small ones.
     #[must_use]
-    pub fn subtract(self, others: &[Self]) -> alloc::vec::Vec<Self> {
-        use alloc::vec::Vec;
-
+    pub fn subtract(self, others: &[Self]) -> Vec<Self> {
         let others: Vec<Self> = others
             .iter()
             .map(|other| other.intersect(self))
             .filter(Self::is_positive)
             .collect();
 
-        let mut ys = alloc::vec![self.min.y, self.max.y];
+        let mut ys = vec![self.min.y, self.max.y];
         ys.extend(others.iter().flat_map(|other| [other.min.y, other.max.y]));
         ys.sort_by(f32::total_cmp);
         ys.dedup();

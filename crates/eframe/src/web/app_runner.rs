@@ -4,7 +4,7 @@ use egui::{ScreenshotCallback, TexturesDelta, ViewportCommand};
 
 use crate::{App, epi, web::web_painter::WebPainter};
 
-use super::{NeedRepaint, now_sec, text_agent::TextAgent};
+use super::{NeedRepaint, embedded_views::WebEmbeddedViews, now_sec, text_agent::TextAgent};
 
 pub struct AppRunner {
     #[allow(clippy::allow_attributes, dead_code)]
@@ -15,7 +15,7 @@ pub struct AppRunner {
 
     /// The container of the views below the canvas, and the routing of the pointer input between
     /// them and the canvas.
-    pub(crate) web_embedded_views: super::embedded_views::WebEmbeddedViews,
+    pub(crate) web_embedded_views: WebEmbeddedViews,
     pub(crate) input: super::WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: Arc<NeedRepaint>,
@@ -118,8 +118,7 @@ impl AppRunner {
             i.pixels_per_point = super::native_pixels_per_point();
         });
 
-        let web_embedded_views =
-            super::embedded_views::WebEmbeddedViews::new(painter.canvas().clone());
+        let web_embedded_views = WebEmbeddedViews::new(painter.canvas().clone());
         let embedded_views = crate::EmbeddedViews::new(painter.canvas().clone());
 
         let cc = epi::CreationContext {
@@ -244,8 +243,8 @@ impl AppRunner {
     /// Does the eframe app have focus?
     ///
     /// Technically: does the canvas, the [`TextAgent`] or one of the embedded views below the
-    /// canvas have focus? The embedded view also counts as focus, so that
-    /// [`egui::Response::has_focus`] works on it.
+    /// canvas have focus? The embedded views also count, so that
+    /// [`egui::Response::has_focus`] works on them.
     pub fn has_focus(&self) -> bool {
         self.egui_has_focus() || self.web_embedded_views.has_focus()
     }
@@ -466,6 +465,10 @@ impl AppRunner {
         }
 
         super::set_cursor_icon(self.canvas(), cursor_icon);
+        // While views below the canvas are shown, the input element is what the pointer is over
+        // wherever egui takes the input, so it shows egui's cursor. It has holes where a view
+        // takes the input: there the pointer is over the view's own element, and the browser
+        // shows that element's cursor, not egui's.
         if let Some(input_element) = self.web_embedded_views.input_element() {
             super::set_cursor_icon(input_element, cursor_icon);
         }
