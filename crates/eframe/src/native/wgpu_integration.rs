@@ -35,7 +35,12 @@ use crate::{
     },
 };
 
-use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
+use super::{
+    epi_integration, event_loop_context,
+    modal_viewports::{self, ModalView},
+    winit_integration,
+    winit_integration::WinitApp,
+};
 
 // ----------------------------------------------------------------------------
 // Types:
@@ -91,6 +96,9 @@ pub struct SharedState {
     focused_viewport: Option<ViewportId>,
     resized_viewport: Option<ViewportId>,
 
+    /// Owners of modal viewports that we have disabled. See [`modal_viewports::sync_modal_owners`].
+    modal_owners: ViewportIdSet,
+
     /// Passed on to each [`egui_winit::State`]. See [`NativeOptions::clipboard_shortcuts`].
     clipboard_shortcuts: bool,
 }
@@ -117,6 +125,13 @@ pub struct Viewport {
 
     /// `window` and `egui_winit` are initialized together.
     egui_winit: Option<egui_winit::State>,
+
+    /// The window was shown cloaked (Windows, owned dialogs):
+    /// uncloak it after the first paint, so it never shows an unpainted frame.
+    uncloak_after_paint: bool,
+
+    /// The viewport whose window this window was created as an owned window of, if any.
+    owned_by: Option<ViewportId>,
 }
 
 impl Drop for Viewport {
@@ -164,19 +179,44 @@ impl<'app> WgpuWinitApp<'app> {
             viewports,
             painter,
             viewport_from_window,
+            modal_owners,
             clipboard_shortcuts,
             ..
         } = &mut *shared;
 
-        for viewport in viewports.values_mut() {
-            viewport.initialize_window(
-                event_loop,
-                &running.integration.egui_ctx,
-                viewport_from_window,
-                painter,
-                *clipboard_shortcuts,
-            );
+        if viewports.values().all(|viewport| viewport.window.is_some()) {
+            // Nothing to create. This is the common case, and it is free of allocations.
+            return;
         }
+
+        let missing: Vec<ViewportId> = viewports
+            .iter()
+            .filter(|(_, viewport)| viewport.window.is_none())
+            .map(|(id, _)| *id)
+            .collect();
+
+        // Owners first, an owned window needs its owner's window:
+        let order = modal_viewports::in_creation_order(missing, |id| {
+            let viewport = viewports.get(&id)?;
+            modal_viewports::resolve_owner(&viewport.builder, id, viewport.ids.parent)
+        });
+
+        for id in order {
+            // Look up the owner before we borrow the viewport mutably:
+            let owner = owner_window(viewports, id);
+            if let Some(viewport) = viewports.get_mut(&id) {
+                viewport.initialize_window(
+                    event_loop,
+                    &running.integration.egui_ctx,
+                    viewport_from_window,
+                    painter,
+                    *clipboard_shortcuts,
+                    owner.as_ref().map(|(id, window)| (*id, &**window)),
+                );
+            }
+        }
+
+        modal_viewports::sync_modal_owners(viewports, modal_view, None, modal_owners);
     }
 
     #[cfg(target_os = "android")]
@@ -186,25 +226,29 @@ impl<'app> WgpuWinitApp<'app> {
             viewports,
             viewport_from_window,
             painter,
+            modal_owners,
             clipboard_shortcuts,
             ..
         } = &mut *running.shared.borrow_mut();
 
-        initialize_or_update_viewport(
+        if let Some(viewport) = initialize_or_update_viewport(
             viewports,
             ViewportIdPair::ROOT,
             ViewportClass::Root,
             self.native_options.viewport.clone(),
             None,
             painter,
-        )
-        .initialize_window(
-            event_loop,
-            egui_ctx,
-            viewport_from_window,
-            painter,
-            *clipboard_shortcuts,
-        );
+            modal_owners,
+        ) {
+            viewport.initialize_window(
+                event_loop,
+                egui_ctx,
+                viewport_from_window,
+                painter,
+                *clipboard_shortcuts,
+                None,
+            );
+        }
     }
 
     #[cfg(target_os = "android")]
@@ -361,6 +405,8 @@ impl<'app> WgpuWinitApp<'app> {
                 viewport_ui_cb: None,
                 window: Some(window),
                 egui_winit: Some(egui_winit),
+                uncloak_after_paint: false,
+                owned_by: None,
                 pending_delta: Default::default(),
             },
         );
@@ -372,6 +418,7 @@ impl<'app> WgpuWinitApp<'app> {
             painter,
             focused_viewport: Some(ViewportId::ROOT),
             resized_viewport: None,
+            modal_owners: ViewportIdSet::default(),
             clipboard_shortcuts: self.native_options.clipboard_shortcuts,
         }));
 
@@ -603,6 +650,15 @@ impl WgpuWinitRunning<'_> {
         self.app.on_exit();
 
         let mut shared = self.shared.borrow_mut();
+        {
+            // Enable the owners of modal dialogs before any window is destroyed:
+            let SharedState {
+                viewports,
+                modal_owners,
+                ..
+            } = &mut *shared;
+            modal_viewports::enable_all_modal_owners(viewports, modal_view, modal_owners);
+        }
         shared.painter.destroy();
     }
 
@@ -691,7 +747,16 @@ impl WgpuWinitRunning<'_> {
 
             {
                 profiling::scope!("set_window");
-                pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(window))))?;
+                if let Err(err) =
+                    pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(window))))
+                {
+                    // Never leave the window cloaked (it would be invisible):
+                    modal_viewports::uncloak_after_first_paint(
+                        &mut viewport.uncloak_after_paint,
+                        window,
+                    );
+                    return Err(err.into());
+                }
             }
 
             let Some(egui_winit) = egui_winit.as_mut() else {
@@ -781,6 +846,7 @@ impl WgpuWinitRunning<'_> {
             viewports,
             painter,
             viewport_from_window,
+            modal_owners,
             ..
         } = &mut *shared_mut;
 
@@ -794,7 +860,13 @@ impl WgpuWinitRunning<'_> {
 
         pending_deltas.append(textures_delta);
 
-        remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
+        remove_viewports_not_in(
+            viewports,
+            painter,
+            viewport_from_window,
+            modal_owners,
+            &viewport_output,
+        );
 
         // Synchronization between the integration layer and the painter layer
         if let Some(surface_config) = integration.frame.wgpu_surface_config {
@@ -839,6 +911,9 @@ impl WgpuWinitRunning<'_> {
                 screenshot_commands,
                 window,
             );
+
+            // The first frame has been presented: now it is safe to show the window.
+            modal_viewports::uncloak_after_first_paint(&mut viewport.uncloak_after_paint, window);
 
             for action in viewport.actions_requested.drain(..) {
                 match action {
@@ -886,6 +961,7 @@ impl WgpuWinitRunning<'_> {
             viewports,
             painter,
             viewport_from_window,
+            modal_owners,
         );
 
         // Prune dead viewports:
@@ -1092,6 +1168,15 @@ impl Viewport {
         egui_winit.on_mouse_motion(delta).then(|| window.id())
     }
 
+    /// Take the window and drop the state that belongs to it, so that a new window is created
+    /// on the next window-creation pass. The painter's surface for it is dropped separately.
+    fn take_window(&mut self) -> Option<Arc<Window>> {
+        self.egui_winit = None;
+        self.uncloak_after_paint = false;
+        self.owned_by = None;
+        self.window.take()
+    }
+
     /// Apply the commands, or defer them until we have a window.
     fn process_commands(
         &mut self,
@@ -1101,6 +1186,7 @@ impl Viewport {
         self.deferred_commands.append(&mut commands);
 
         if let Some(window) = self.window.as_ref() {
+            let changed = !self.deferred_commands.is_empty();
             egui_winit::process_viewport_commands(
                 egui_ctx,
                 &mut self.info,
@@ -1108,6 +1194,9 @@ impl Viewport {
                 window,
                 &mut self.actions_requested,
             );
+            if changed {
+                modal_viewports::refresh_dialog_chrome(&self.builder, window);
+            }
         }
     }
 
@@ -1119,6 +1208,7 @@ impl Viewport {
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
         clipboard_shortcuts: bool,
+        owner: Option<(ViewportId, &Window)>,
     ) {
         if self.window.is_some() {
             return; // we already have one
@@ -1128,16 +1218,33 @@ impl Viewport {
 
         let viewport_id = self.ids.this;
 
-        match egui_winit::create_window(egui_ctx, event_loop, &self.builder) {
+        match egui_winit::create_window_with_owner(
+            egui_ctx,
+            event_loop,
+            &self.builder,
+            owner.map(|(_, window)| window),
+        ) {
             Ok(window) => {
                 windows_id.insert(window.id(), viewport_id);
 
                 let window = Arc::new(window);
 
+                self.owned_by = owner.map(|(id, _)| id);
+                self.uncloak_after_paint = modal_viewports::show_new_window(
+                    &window,
+                    &self.builder,
+                    owner.map(|(_, window)| window),
+                );
+
                 if let Err(err) =
                     pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(&window))))
                 {
                     log::error!("on set_window: viewport_id {viewport_id:?} {err}");
+                    // Nothing will be painted, so never leave the window cloaked:
+                    modal_viewports::uncloak_after_first_paint(
+                        &mut self.uncloak_after_paint,
+                        &window,
+                    );
                 }
 
                 let mut egui_winit = egui_winit::State::new(
@@ -1158,6 +1265,27 @@ impl Viewport {
                 log::error!("Failed to create window: {err}");
             }
         }
+    }
+}
+
+/// The window of the owner of this viewport, if it has an owner with a window.
+fn owner_window(viewports: &Viewports, id: ViewportId) -> Option<(ViewportId, Arc<Window>)> {
+    let viewport = viewports.get(&id)?;
+    let owner = modal_viewports::resolve_owner(&viewport.builder, id, viewport.ids.parent)?;
+    let window = viewports.get(&owner)?.window.clone();
+    if window.is_none() {
+        log::debug!("The owner of viewport {id:?} has no window yet, so the dialog is unowned");
+    }
+    window.map(|window| (owner, window))
+}
+
+fn modal_view(viewport: &Viewport) -> ModalView<'_> {
+    ModalView {
+        id: viewport.ids.this,
+        parent: viewport.ids.parent,
+        builder: &viewport.builder,
+        window: viewport.window.as_deref(),
+        owned_by: viewport.owned_by,
     }
 }
 
@@ -1221,29 +1349,43 @@ fn render_immediate_viewport(
             viewports,
             painter,
             viewport_from_window,
+            modal_owners,
             clipboard_shortcuts,
             ..
         } = &mut *shared.borrow_mut();
 
-        let viewport = initialize_or_update_viewport(
+        initialize_or_update_viewport(
             viewports,
             ids,
             ViewportClass::Immediate,
             builder,
             None,
             painter,
+            modal_owners,
         );
-        if viewport.window.is_none() {
+        if viewports
+            .get(&ids.this)
+            .is_some_and(|viewport| viewport.window.is_none())
+        {
+            // Look up the owner before we borrow the viewport mutably:
+            let owner = owner_window(viewports, ids.this);
             event_loop_context::with_current_event_loop(|event_loop| {
-                viewport.initialize_window(
-                    event_loop,
-                    egui_ctx,
-                    viewport_from_window,
-                    painter,
-                    *clipboard_shortcuts,
-                );
+                if let Some(viewport) = viewports.get_mut(&ids.this) {
+                    viewport.initialize_window(
+                        event_loop,
+                        egui_ctx,
+                        viewport_from_window,
+                        painter,
+                        *clipboard_shortcuts,
+                        owner.as_ref().map(|(id, window)| (*id, &**window)),
+                    );
+                }
             });
+            modal_viewports::sync_modal_owners(viewports, modal_view, None, modal_owners);
         }
+        let Some(viewport) = viewports.get_mut(&ids.this) else {
+            return;
+        };
 
         let (Some(window), Some(egui_winit)) = (&viewport.window, &mut viewport.egui_winit) else {
             return;
@@ -1282,6 +1424,7 @@ fn render_immediate_viewport(
         viewports,
         painter,
         viewport_from_window,
+        modal_owners,
         ..
     } = &mut *shared_mut;
 
@@ -1318,6 +1461,9 @@ fn render_immediate_viewport(
         window,
     );
 
+    // The first frame has been presented: now it is safe to show the window.
+    modal_viewports::uncloak_after_first_paint(&mut viewport.uncloak_after_paint, window);
+
     egui_winit.handle_platform_output(window, platform_output);
 
     handle_viewport_output(
@@ -1326,6 +1472,7 @@ fn render_immediate_viewport(
         viewports,
         painter,
         viewport_from_window,
+        modal_owners,
     );
 }
 
@@ -1333,9 +1480,45 @@ pub(crate) fn remove_viewports_not_in(
     viewports: &mut Viewports,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
+    modal_owners: &mut ViewportIdSet,
     viewport_output: &OrderedViewportIdMap<ViewportOutput>,
 ) {
     let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
+
+    // Windows destroys the windows owned by the windows that go, and the ones they own: take
+    // them from the viewports that stay, so they are recreated on the next window-creation pass.
+    let removed: Vec<ViewportId> = viewports
+        .keys()
+        .copied()
+        .filter(|id| !active_viewports_ids.contains(id))
+        .collect();
+    let owned_windows =
+        modal_viewports::take_owned_windows(viewports, &removed, modal_view, Viewport::take_window);
+
+    // Re-enable the owners whose modal dialogs go away, before any dialog window is dropped,
+    // and disable the owners whose dialog already has a window (e.g. when `modal` was turned on
+    // later). This creates no dialogs.
+    modal_viewports::sync_modal_owners(
+        viewports,
+        modal_view,
+        Some(&|id| active_viewports_ids.contains(&id)),
+        modal_owners,
+    );
+
+    if !owned_windows.is_empty() {
+        // The painter's surfaces hold the windows too: drop the surfaces of the viewports
+        // that have no window now.
+        let with_window: ViewportIdSet = viewports
+            .iter()
+            .filter(|(_, viewport)| viewport.window.is_some())
+            .map(|(id, _)| *id)
+            .collect();
+        painter.gc_viewports(&with_window);
+
+        // Drop the owned windows deepest first (breadth-first order reversed),
+        // then (below) the other windows of removed viewports:
+        owned_windows.into_iter().rev().for_each(drop);
+    }
 
     // Prune dead viewports:
     viewports.retain(|id, _| active_viewports_ids.contains(id));
@@ -1350,6 +1533,7 @@ fn handle_viewport_output(
     viewports: &mut Viewports,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
+    modal_owners: &mut ViewportIdSet,
 ) {
     for (
         viewport_id,
@@ -1365,8 +1549,18 @@ fn handle_viewport_output(
     {
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
-        let viewport =
-            initialize_or_update_viewport(viewports, ids, class, builder, viewport_ui_cb, painter);
+        let Some(viewport) = initialize_or_update_viewport(
+            viewports,
+            ids,
+            class,
+            builder,
+            viewport_ui_cb,
+            painter,
+            modal_owners,
+        ) else {
+            log::debug!("Viewport {viewport_id:?} is missing after it was patched or inserted");
+            continue;
+        };
 
         let old_inner_size = viewport.window.as_ref().map(|window| window.inner_size());
 
@@ -1389,7 +1583,13 @@ fn handle_viewport_output(
         }
     }
 
-    remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
+    remove_viewports_not_in(
+        viewports,
+        painter,
+        viewport_from_window,
+        modal_owners,
+        viewport_output,
+    );
 }
 
 fn initialize_or_update_viewport<'a>(
@@ -1399,9 +1599,8 @@ fn initialize_or_update_viewport<'a>(
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
     painter: &mut egui_wgpu::winit::Painter,
-) -> &'a mut Viewport {
-    use std::collections::btree_map::Entry;
-
+    modal_owners: &mut ViewportIdSet,
+) -> Option<&'a mut Viewport> {
     profiling::function_scope!();
 
     if builder.icon.is_none() {
@@ -1411,11 +1610,54 @@ fn initialize_or_update_viewport<'a>(
             .and_then(|vp| vp.builder.icon.clone());
     }
 
-    match viewports.entry(ids.this) {
-        Entry::Vacant(entry) => {
-            // New viewport:
-            log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
-            entry.insert(Viewport {
+    if let Some(viewport) = viewports.get_mut(&ids.this) {
+        // Patch an existing viewport:
+        viewport.class = class;
+        viewport.ids.parent = ids.parent;
+        viewport.viewport_ui_cb = viewport_ui_cb;
+
+        let (mut delta_commands, recreate) = viewport.builder.patch(builder);
+        viewport.deferred_commands.append(&mut delta_commands);
+
+        if recreate {
+            log::debug!(
+                "Recreating window for viewport {:?} ({:?})",
+                ids.this,
+                viewport.builder.title
+            );
+            let old_window = viewport.take_window();
+
+            // Windows destroys the windows this window owns, and the ones they own:
+            // they are recreated, owned by the new window, on the next window-creation pass.
+            let old_owned_windows = modal_viewports::take_owned_windows(
+                viewports,
+                &[ids.this],
+                modal_view,
+                Viewport::take_window,
+            );
+
+            // If this was a modal dialog, enable its owner before its window is destroyed:
+            modal_viewports::sync_modal_owners(viewports, modal_view, None, modal_owners);
+
+            // This drops the painter's surfaces of all viewports (they are recreated when
+            // painted), which hold the windows too:
+            if let Err(err) = pollster::block_on(painter.set_window(ids.this, None)) {
+                log::error!(
+                    "when rendering viewport_id={:?}, set_window Error {err}",
+                    ids.this
+                );
+            }
+
+            // Drop the owned windows deepest first (breadth-first order reversed), then this one:
+            old_owned_windows.into_iter().rev().for_each(drop);
+            drop(old_window);
+        }
+    } else {
+        // New viewport:
+        log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
+        viewports.insert(
+            ids.this,
+            Viewport {
                 ids,
                 class,
                 builder,
@@ -1425,39 +1667,12 @@ fn initialize_or_update_viewport<'a>(
                 viewport_ui_cb,
                 window: None,
                 egui_winit: None,
+                uncloak_after_paint: false,
+                owned_by: None,
                 pending_delta: Default::default(),
-            })
-        }
-
-        Entry::Occupied(mut entry) => {
-            // Patch an existing viewport:
-            let viewport = entry.get_mut();
-
-            viewport.class = class;
-            viewport.ids.parent = ids.parent;
-            viewport.viewport_ui_cb = viewport_ui_cb;
-
-            let (mut delta_commands, recreate) = viewport.builder.patch(builder);
-
-            if recreate {
-                log::debug!(
-                    "Recreating window for viewport {:?} ({:?})",
-                    ids.this,
-                    viewport.builder.title
-                );
-                viewport.window = None;
-                viewport.egui_winit = None;
-                if let Err(err) = pollster::block_on(painter.set_window(viewport.ids.this, None)) {
-                    log::error!(
-                        "when rendering viewport_id={:?}, set_window Error {err}",
-                        viewport.ids.this
-                    );
-                }
-            }
-
-            viewport.deferred_commands.append(&mut delta_commands);
-
-            entry.into_mut()
-        }
+            },
+        );
     }
+
+    viewports.get_mut(&ids.this)
 }
