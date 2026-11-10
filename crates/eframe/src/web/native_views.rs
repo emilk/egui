@@ -35,10 +35,6 @@ pub(crate) struct WebNativeViews {
     /// The `style` attribute that the input element has now, as of the last pass, so that an
     /// unchanged style isn't set again. `None` while the input element is hidden.
     current_input_style: Option<String>,
-
-    /// The canvas's inline `position` from before eframe set it to `relative`, to put back once
-    /// no view below the canvas is shown. `None` while eframe hasn't changed it.
-    canvas_position_before: Option<String>,
 }
 
 /// The attribute that marks the container, so that [`container_of`] can find it.
@@ -72,7 +68,6 @@ impl WebNativeViews {
             canvas,
             elements,
             current_input_style: None,
-            canvas_position_before: None,
         }
     }
 
@@ -99,9 +94,10 @@ impl WebNativeViews {
     /// covers the canvas except where the views take the pointer input. Otherwise the input element
     /// is hidden and the canvas takes the pointer input as usual.
     ///
-    /// While such a view is shown, a canvas with `position: static` also has `position: relative`.
-    /// The container is positioned, and a positioned element paints in front of a static one, so
-    /// the canvas needs a non-static `position` too, to stay in front of the views.
+    /// When such a view is first shown, a canvas with `position: static` also gets
+    /// `position: relative`, and keeps it. The container is positioned, and a positioned element
+    /// paints in front of a static one, so the canvas needs a non-static `position` too, to stay
+    /// in front of the views.
     pub fn route_input(&mut self, ctx: &Context, outputs: &[NativeViewOutput]) {
         let Some(elements) = &self.elements else {
             return;
@@ -134,22 +130,13 @@ impl WebNativeViews {
         let canvas_style = self.canvas.style();
         if let Some(css) = &input_style {
             canvas_style.set_property("pointer-events", "none").ok();
-            if self.canvas_position_before.is_none() && is_static(&self.canvas) {
-                self.canvas_position_before = canvas_style.get_property_value("position").ok();
+            // Only when the views come on screen, not on every change of the input element.
+            if self.current_input_style.is_none() && is_static(&self.canvas) {
                 canvas_style.set_property("position", "relative").ok();
             }
             set_style(&elements.input, css);
         } else {
             canvas_style.remove_property("pointer-events").ok();
-            match self.canvas_position_before.take() {
-                Some(position) if position.is_empty() => {
-                    canvas_style.remove_property("position").ok();
-                }
-                Some(position) => {
-                    canvas_style.set_property("position", &position).ok();
-                }
-                None => {}
-            }
             set_style(&elements.input, "display: none;");
         }
         self.current_input_style = input_style;
@@ -221,8 +208,7 @@ fn input_element_style(
     // included, off by the scroll. Placing the element by the canvas's viewport position alone
     // would then move it by the scroll twice.
     let origin = container.get_bounding_client_rect();
-    // The maximum `z-index` puts the input element in front of the views, whose `z-index` is at
-    // least 1.
+    // The maximum `z-index` puts the input element in front of the views.
     let mut css = format!(
         "position: fixed; left: {}px; top: {}px; width: {}px; height: {}px; \
          z-index: 2147483647; pointer-events: auto;",

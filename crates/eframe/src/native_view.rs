@@ -87,13 +87,13 @@ impl NativeViews {
     /// The `<div>` has `position: fixed` at the top left of the browser viewport and a size of
     /// zero. It forms its own stacking context, so the `z-index` of a view only orders it among
     /// the other views in it. Give each view's element `position: fixed`, a `z-index` of
-    /// [`NativeViewOutput::z_index`] plus one, and `pointer-events: auto`, because the `<div>`
-    /// has `pointer-events: none`.
+    /// [`NativeViewOutput::z_index`], and `pointer-events: auto`, because the `<div>` has
+    /// `pointer-events: none`.
     ///
-    /// While a view below egui's surface is shown, eframe gives a canvas that has
-    /// `position: static` an inline `position: relative`, and puts the canvas's own value back
-    /// once no such view is shown. A positioned element is painted in front of a static one, so
-    /// this keeps the canvas in front of the `<div>`.
+    /// When a view below egui's surface is first shown, eframe gives a canvas that has
+    /// `position: static` an inline `position: relative`, and leaves it that way. A positioned
+    /// element is painted in front of a static one, so this keeps the canvas in front of the
+    /// `<div>`.
     ///
     /// # Errors
     /// If the canvas wasn't in the document when eframe started, or was moved to another parent
