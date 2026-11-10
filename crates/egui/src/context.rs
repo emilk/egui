@@ -5264,6 +5264,44 @@ mod test {
         );
     }
 
+    /// Pointer motion alone may be asked not to schedule a frame; a click still does.
+    #[test]
+    fn pointer_motion_repaints_unless_asked_not_to() {
+        use crate::{Event, PointerButton, RawInput, pos2};
+
+        let run = |motion_repaints: bool, click: bool| {
+            let ctx = Context::default();
+            for _ in 0..3 {
+                let out = ctx.run_ui(RawInput::default(), |_| {});
+                out.drop_without_applying_deltas();
+            }
+            let mut input = RawInput {
+                repaint_on_pointer_move: motion_repaints,
+                ..Default::default()
+            };
+            input.events.push(Event::PointerMoved(pos2(10.0, 10.0)));
+            if click {
+                input.events.push(Event::PointerButton {
+                    pos: pos2(10.0, 10.0),
+                    button: PointerButton::Primary,
+                    pressed: true,
+                    modifiers: Default::default(),
+                });
+            }
+            let out = ctx.run_ui(input, |_| {});
+            let requested = ctx.has_requested_repaint();
+            out.drop_without_applying_deltas();
+            requested
+        };
+
+        assert!(!run(false, false), "motion alone must not repaint");
+        assert!(run(true, false), "motion repaints by default");
+        assert!(
+            run(false, true),
+            "a click repaints even when motion does not"
+        );
+    }
+
     #[test]
     fn test_single_pass() {
         let ctx = Context::default();

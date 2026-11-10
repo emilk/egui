@@ -17,6 +17,72 @@ pub fn is_invisible_or_minimized(window: &Window) -> bool {
     window.is_visible() == Some(false) || window.is_minimized() == Some(true)
 }
 
+/// The repaint an event asks for, after the app's [`crate::App::repaint_on_window_event`]
+/// override: `default` unless the app says otherwise.
+pub(crate) fn repaint_for_event(
+    app: &mut dyn crate::App,
+    event: &winit::event::WindowEvent,
+    default: bool,
+) -> bool {
+    app.repaint_on_window_event(event).unwrap_or(default)
+}
+
+/// [`repaint_for_event`] for a device event ([`crate::App::repaint_on_device_event`]).
+pub(crate) fn repaint_for_device_event(
+    app: &mut dyn crate::App,
+    event: &winit::event::DeviceEvent,
+    default: bool,
+) -> bool {
+    app.repaint_on_device_event(event).unwrap_or(default)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{repaint_for_device_event, repaint_for_event};
+
+    struct TestApp {
+        answer: Option<bool>,
+    }
+
+    impl crate::App for TestApp {
+        fn ui(&mut self, _ui: &mut egui::Ui, _frame: &mut crate::Frame) {}
+
+        fn repaint_on_window_event(&mut self, _event: &winit::event::WindowEvent) -> Option<bool> {
+            self.answer
+        }
+
+        fn repaint_on_device_event(&mut self, _event: &winit::event::DeviceEvent) -> Option<bool> {
+            self.answer
+        }
+    }
+
+    /// An app can suppress or force the repaint a window or device event asks for; `None` keeps
+    /// the default.
+    #[test]
+    fn the_app_can_override_the_repaint_an_event_asks_for() {
+        let window_event = winit::event::WindowEvent::Focused(true);
+        let device_event = winit::event::DeviceEvent::MouseMotion { delta: (1.0, 2.0) };
+        for (answer, default, expected) in [
+            (None, true, true),
+            (None, false, false),
+            (Some(false), true, false),
+            (Some(true), false, true),
+        ] {
+            let mut app = TestApp { answer };
+            assert_eq!(
+                repaint_for_event(&mut app, &window_event, default),
+                expected,
+                "{answer:?} over {default} for a window event"
+            );
+            assert_eq!(
+                repaint_for_device_event(&mut app, &device_event, default),
+                expected,
+                "{answer:?} over {default} for a device event"
+            );
+        }
+    }
+}
+
 /// On Mac, a minimized window uses up all CPU:
 /// <https://github.com/emilk/egui/issues/325>
 ///
