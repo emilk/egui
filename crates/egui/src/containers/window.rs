@@ -157,6 +157,16 @@ impl<'a> Window<'a> {
         window
     }
 
+    pub(crate) fn from_viewport_with_title(
+        id: ViewportId,
+        viewport: ViewportBuilder,
+        title: impl IntoAtoms<'a>,
+    ) -> Self {
+        let mut window = Self::from_viewport(id, viewport);
+        window.title = title.into_atoms();
+        window
+    }
+
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
