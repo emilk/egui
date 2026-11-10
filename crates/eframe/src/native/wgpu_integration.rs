@@ -345,6 +345,17 @@ impl<'app> WgpuWinitApp<'app> {
             app_creator(&cc).map_err(crate::Error::AppCreation)?
         };
 
+        // Apply the app's initial theme before the hidden root window is first shown.
+        if egui_ctx.options(|options| options.sync_window_theme) {
+            let theme = egui_ctx.options(|options| options.theme_preference);
+            let window_theme = match theme {
+                egui::ThemePreference::Dark => egui::SystemTheme::Dark,
+                egui::ThemePreference::Light => egui::SystemTheme::Light,
+                egui::ThemePreference::System => egui::SystemTheme::SystemDefault,
+            };
+            egui_winit::set_window_theme(&window, window_theme);
+        }
+
         let mut viewport_from_window = HashMap::default();
         viewport_from_window.insert(window.id(), ViewportId::ROOT);
 
