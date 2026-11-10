@@ -644,10 +644,12 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 // This attempts to fix that by forcing the focus on any
                 // click on the canvas.
                 //
-                // Not while a native view has it: a drag to scroll would
-                // close its keyboard. egui gives up the view's focus itself
-                // on a click elsewhere.
-                if !runner.web_native_views.has_focus() {
+                // Only if the app doesn't have the focus already. Taking it
+                // from the text agent would cut an IME composition short,
+                // only for the logic below to give it back. Taking it from a
+                // native view would close its keyboard on a drag to scroll;
+                // egui gives up the view's focus itself on a click elsewhere.
+                if !runner.has_focus() {
                     super::focus_without_scroll(runner.canvas()).ok();
                 }
 
