@@ -60,6 +60,26 @@ impl RectSet {
         self
     }
 
+    /// The same region with fewer rects: without the rects that aren't positive, and without the
+    /// ones that lie inside another rect of the set, such as the widgets inside a window.
+    ///
+    /// The rects that are left can still overlap. They are sorted by area, largest first.
+    #[must_use]
+    pub fn without_contained(self) -> Self {
+        let mut rects = self.0;
+        rects.retain(Rect::is_positive);
+        // Sorting by area, largest first, means a rect can only lie inside one that was kept
+        // before it.
+        rects.sort_by(|a, b| b.area().total_cmp(&a.area()));
+        let mut kept: Vec<Rect> = Vec::with_capacity(rects.len());
+        for rect in rects {
+            if !kept.iter().any(|outer| outer.contains_rect(rect)) {
+                kept.push(rect);
+            }
+        }
+        Self(kept)
+    }
+
     /// The region covered by this set but not by `other`, as rects that don't overlap.
     ///
     /// It cuts the region into horizontal bands at the top and bottom edges of all the rects,
@@ -353,6 +373,18 @@ mod tests {
             rect.subtract(&line.translate(vec2(0.0, 15.0)).into()),
             set.subtract(&RectSet::new())
         );
+    }
+
+    #[test]
+    fn without_contained_keeps_the_rects_that_are_inside_no_other() {
+        let window = Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 80.0));
+        let button = Rect::from_min_size(pos2(10.0, 10.0), vec2(40.0, 20.0));
+        let label = Rect::from_min_size(pos2(15.0, 15.0), vec2(10.0, 10.0));
+        let popup = Rect::from_min_size(pos2(90.0, 70.0), vec2(200.0, 100.0));
+        let set = RectSet(vec![label, button, window, Rect::NOTHING, popup, window]);
+        // The popup reaches out of the window, so it stays. It is the largest, so it is first.
+        assert_eq!(set.without_contained(), RectSet(vec![popup, window]));
+        assert_eq!(RectSet::new().without_contained(), RectSet::new());
     }
 
     /// Checks [`RectSet::subtract`] against a point-by-point test, for sets of rects on a grid.

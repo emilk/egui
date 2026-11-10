@@ -401,7 +401,7 @@ pub(crate) fn outputs(
                 .filter(|widget| widget.sense.interactive())
                 .map(|widget| to_global(widget.layer_id, widget.interact_rect).intersect(visible))
                 .filter(Rect::is_positive)
-                .collect();
+                .collect::<RectSet>();
 
             EmbeddedViewOutput {
                 id: view.id,
@@ -409,25 +409,11 @@ pub(crate) fn outputs(
                 rect,
                 visible,
                 egui_paint_areas,
-                egui_input_areas: RectSet(without_contained(egui_input_areas)),
+                egui_input_areas: egui_input_areas.without_contained(),
                 z_index,
             }
         })
         .collect()
-}
-
-/// Removes the rects that lie inside another one of `rects`, such as the widgets inside a window.
-fn without_contained(mut rects: Vec<Rect>) -> Vec<Rect> {
-    // Sorting by area, largest first, means a rect can only lie inside one that was kept before
-    // it.
-    rects.sort_by(|a, b| b.area().total_cmp(&a.area()));
-    let mut kept: Vec<Rect> = Vec::with_capacity(rects.len());
-    for rect in rects {
-        if !kept.iter().any(|outer| outer.contains_rect(rect)) {
-            kept.push(rect);
-        }
-    }
-    kept
 }
 
 #[cfg(test)]
