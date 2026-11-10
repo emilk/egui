@@ -28,11 +28,12 @@ pub(crate) trait WebPainter {
         capture: Vec<ScreenshotCallback>,
     ) -> Result<(), JsValue>;
 
-    /// Lets the page behind the canvas show through the pixels that egui leaves transparent.
+    /// Makes the canvas transparent where egui paints nothing or clears it, so that what is
+    /// behind the canvas shows, or makes it opaque again.
     ///
-    /// eframe calls it while an embedded view below the canvas is shown. A WebGL canvas already
-    /// composites that way, so the default does nothing.
-    fn show_page_through(&mut self) {}
+    /// eframe makes it transparent when an embedded view below the canvas is shown. A WebGL
+    /// canvas is always transparent, so the default does nothing.
+    fn set_transparent(&mut self, _transparent: bool) {}
 
     /// Destroy all resources.
     fn destroy(&mut self);

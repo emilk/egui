@@ -332,8 +332,10 @@ impl AppRunner {
 
             self.web_embedded_views
                 .route_input(&self.egui_ctx, &platform_output.embedded_views);
+            // The views show through the canvas. It stays transparent once it is: a view that
+            // was shown is likely shown again, and each switch reconfigures the surface.
             if self.web_embedded_views.shows_views_below() {
-                self.painter.show_page_through();
+                self.painter.set_transparent(true);
             }
             // A view that is hidden or removed while it has the focus leaves the focus on the
             // document's body, where no key reaches egui.
