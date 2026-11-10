@@ -239,7 +239,9 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
                 });
             }
 
-            {
+            // A pointer move that paints the same shapes skips the redraw.
+            // Clearing and swapping in that case would show an empty window.
+            if !self.egui_glow.as_ref().unwrap().skip_redraw() {
                 unsafe {
                     use glow::HasContext as _;
                     self.gl.as_mut().unwrap().clear_color(

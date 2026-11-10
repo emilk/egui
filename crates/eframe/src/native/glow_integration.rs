@@ -142,6 +142,12 @@ struct Viewport {
     /// Any not yet applied deltas for this viewport.
     pending_delta: TexturesDelta,
 
+    /// The window still shows the last painted picture.
+    ///
+    /// Cleared when this viewport is not visible, so the next visible frame
+    /// paints even if the shapes match.
+    picture_presented: bool,
+
     /// The user-callback that shows the ui.
     /// None for immediate viewports.
     viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
@@ -649,13 +655,18 @@ impl GlowWinitRunning<'_> {
         frame_timer.start();
 
         {
-            let glutin = self.glutin.borrow();
+            let mut glutin = self.glutin.borrow_mut();
             let viewport = &glutin.viewports[&viewport_id];
             let is_immediate = viewport.viewport_ui_cb.is_none();
             if is_immediate && viewport_id != ViewportId::ROOT {
                 // This will only happen if this is an immediate viewport.
                 // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent)
+                // This pass does not present, so the next real paint cannot skip.
+                let parent_id = viewport.ids.parent;
+                if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
+                    viewport.picture_presented = false;
+                }
+                if let Some(parent_viewport) = glutin.viewports.get(&parent_id)
                     && let Some(window) = parent_viewport.window.as_ref()
                 {
                     return Ok(EventResult::RepaintNext(window.id()));
@@ -671,6 +682,7 @@ impl GlowWinitRunning<'_> {
                 return Ok(EventResult::Wait);
             };
             let Some(window) = viewport.window.as_ref() else {
+                viewport.picture_presented = false;
                 return Ok(EventResult::Wait);
             };
             egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window, false);
@@ -682,8 +694,12 @@ impl GlowWinitRunning<'_> {
                     .actions_requested
                     .iter()
                     .any(egui_winit::ActionRequested::wants_paint);
+            if !is_visible {
+                viewport.picture_presented = false;
+            }
 
             let Some(egui_winit) = viewport.egui_winit.as_mut() else {
+                viewport.picture_presented = false;
                 return Ok(EventResult::Wait);
             };
             let mut raw_input = egui_winit.take_egui_input(window);
@@ -709,6 +725,14 @@ impl GlowWinitRunning<'_> {
             // Nothing will be shown, so we run no egui pass at all.
             // That way all ui state is left untouched, and is still there
             // when this viewport becomes visible again.
+            //
+            // Wayland runs this pass while the window is still reported visible,
+            // because the compositor withheld the frame callback. The next full
+            // frame is often only the replayed pointer move. It has to present,
+            // or that compositor never receives a buffer.
+            if let Some(viewport) = self.glutin.borrow_mut().viewports.get_mut(&viewport_id) {
+                viewport.picture_presented = false;
+            }
             let is_root_viewport = viewport_ui_cb.is_none();
             if is_root_viewport {
                 // The app logic keeps ticking, so it can e.g. ask to be shown again:
@@ -780,9 +804,15 @@ impl GlowWinitRunning<'_> {
             } = &mut *glutin;
             let viewport = &viewports[&viewport_id];
             let Some(window) = viewport.window.as_ref() else {
+                if let Some(viewport) = viewports.get_mut(&viewport_id) {
+                    viewport.picture_presented = false;
+                }
                 return Ok(EventResult::Wait);
             };
             let Some(gl_surface) = viewport.gl_surface.as_ref() else {
+                if let Some(viewport) = viewports.get_mut(&viewport_id) {
+                    viewport.picture_presented = false;
+                }
                 return Ok(EventResult::Wait);
             };
 
@@ -832,6 +862,7 @@ impl GlowWinitRunning<'_> {
             textures_delta,
             shapes,
             pixels_per_point,
+            skip_redraw,
             viewport_output,
         } = full_output;
         pending_deltas.append(textures_delta);
@@ -858,33 +889,51 @@ impl GlowWinitRunning<'_> {
         egui_winit.handle_platform_output_with_event_loop(&window, event_loop, platform_output);
 
         if is_visible {
-            let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
-
-            {
-                // We may need to switch contexts again, because of immediate viewports:
-                frame_timer.pause();
-                change_gl_context(
-                    current_gl_context,
-                    not_current_gl_context,
-                    current_viewport,
-                    viewport_id,
-                    gl_surface,
-                );
-                frame_timer.resume();
-            }
+            let wants_screenshot = viewport
+                .actions_requested
+                .iter()
+                .any(|action| matches!(action, ActionRequested::Screenshot(_)));
+            // A hidden frame clears `picture_presented`, so the first visible
+            // frame paints even when the shapes match the last tessellation.
+            // Skipping also skips the clear and the buffer swap, or the window
+            // would show an empty back buffer.
+            let skip_redraw = skip_redraw
+                && pending_deltas.is_empty()
+                && !wants_screenshot
+                && viewport.picture_presented;
 
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-            if !clear_before_update {
-                painter.clear(screen_size_in_pixels, clear_color);
-            }
+            if !skip_redraw {
+                // Cleared until the swap below succeeds. A failed swap must not
+                // let the next pointer move skip a picture that never showed.
+                viewport.picture_presented = false;
+                let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
-            painter.paint_and_update_textures(
-                screen_size_in_pixels,
-                pixels_per_point,
-                &clipped_primitives,
-                pending_deltas,
-            );
+                {
+                    // We may need to switch contexts again, because of immediate viewports:
+                    frame_timer.pause();
+                    change_gl_context(
+                        current_gl_context,
+                        not_current_gl_context,
+                        current_viewport,
+                        viewport_id,
+                        gl_surface,
+                    );
+                    frame_timer.resume();
+                }
+
+                if !clear_before_update {
+                    painter.clear(screen_size_in_pixels, clear_color);
+                }
+
+                painter.paint_and_update_textures(
+                    screen_size_in_pixels,
+                    pixels_per_point,
+                    &clipped_primitives,
+                    pending_deltas,
+                );
+            }
 
             {
                 let mut screenshot_callbacks = Vec::new();
@@ -927,35 +976,39 @@ impl GlowWinitRunning<'_> {
                         callback.complete(Arc::clone(&screenshot));
                     }
                 }
+            }
 
+            if !skip_redraw {
+                {
+                    // vsync - don't count as frame-time:
+                    frame_timer.pause();
+                    profiling::scope!("swap_buffers");
+                    let context = current_gl_context.as_ref().ok_or_else(|| {
+                        egui_glow::PainterError::from(
+                            "failed to get current context to swap buffers".to_owned(),
+                        )
+                    })?;
+
+                    // On Wayland this makes winit hold back the next `RedrawRequested` until the
+                    // compositor sends a frame callback. That is our frame pacing there, since we
+                    // swap with interval 0 on Wayland (see `GlutinWindowContext::new`).
+                    // egui-wgpu does the same. A no-op on other platforms.
+                    window.pre_present_notify();
+                    gl_surface.swap_buffers(context)?;
+                    frame_timer.resume();
+                }
+
+                viewport.picture_presented = true;
+                // Show the window only once a buffer has been swapped. See `post_rendering`.
                 integration.post_rendering(&window);
-            }
 
-            {
-                // vsync - don't count as frame-time:
-                frame_timer.pause();
-                profiling::scope!("swap_buffers");
-                let context = current_gl_context.as_ref().ok_or_else(|| {
-                    egui_glow::PainterError::from(
-                        "failed to get current context to swap buffers".to_owned(),
-                    )
-                })?;
-
-                // On Wayland this makes winit hold back the next `RedrawRequested` until the
-                // compositor sends a frame callback. That is our frame pacing there, since we
-                // swap with interval 0 on Wayland (see `GlutinWindowContext::new`).
-                // egui-wgpu does the same. A no-op on other platforms.
-                window.pre_present_notify();
-                gl_surface.swap_buffers(context)?;
-                frame_timer.resume();
-            }
-
-            // give it time to settle:
-            #[cfg(feature = "__screenshot")]
-            if integration.egui_ctx.cumulative_pass_nr() == 2
-                && let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO")
-            {
-                save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
+                // give it time to settle:
+                #[cfg(feature = "__screenshot")]
+                if integration.egui_ctx.cumulative_pass_nr() == 2
+                    && let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO")
+                {
+                    save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
+                }
             }
         }
 
@@ -1318,6 +1371,7 @@ impl GlutinWindowContext {
                 info: viewport_info,
                 actions_requested: Default::default(),
                 pending_delta: Default::default(),
+                picture_presented: false,
                 viewport_ui_cb: None,
                 gl_surface: None,
                 window: window.map(Arc::new),
@@ -1408,6 +1462,9 @@ impl GlutinWindowContext {
         });
 
         if viewport.gl_surface.is_none() {
+            // No surface has been presented. A later failure in this function
+            // returns before the assignment below, and the flag must stay clear.
+            viewport.picture_presented = false;
             log::debug!("Creating a gl_surface for viewport {viewport_id:?}");
 
             // surface attributes
@@ -1474,6 +1531,7 @@ impl GlutinWindowContext {
     fn on_suspend(&mut self) -> Result {
         log::debug!("received suspend event. dropping window and surface");
         for viewport in self.viewports.values_mut() {
+            viewport.picture_presented = false;
             viewport.gl_surface = None;
             viewport.window = None;
         }
@@ -1643,6 +1701,7 @@ fn initialize_or_update_viewport<'a>(
                 info: Default::default(),
                 actions_requested: Default::default(),
                 pending_delta: Default::default(),
+                picture_presented: false,
                 viewport_ui_cb,
                 window: None,
                 egui_winit: None,
@@ -1666,6 +1725,7 @@ fn initialize_or_update_viewport<'a>(
                     ids.this,
                     viewport.builder.title
                 );
+                viewport.picture_presented = false;
                 viewport.window = None;
                 viewport.egui_winit = None;
                 viewport.gl_surface = None;
@@ -1777,14 +1837,13 @@ fn render_immediate_viewport(
         textures_delta,
         shapes,
         pixels_per_point,
+        skip_redraw,
         viewport_output,
     } = egui_ctx.run_ui(input, |ui| {
         viewport_ui_cb(ui);
     });
 
     // ---------------------------------------------------
-
-    let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
     let mut glutin = glutin.borrow_mut();
 
@@ -1801,6 +1860,14 @@ fn render_immediate_viewport(
         return;
     };
     viewport.pending_delta.append(textures_delta);
+    // A minimized immediate viewport is not on screen. Leave `picture_presented`
+    // clear so the first frame after it returns paints, even if the shapes match.
+    let visible = viewport.info.visible() != Some(false);
+    if !visible {
+        viewport.picture_presented = false;
+    }
+    let skip_redraw =
+        visible && skip_redraw && viewport.pending_delta.is_empty() && viewport.picture_presented;
 
     viewport.info.events.clear(); // they should have been processed
 
@@ -1812,47 +1879,52 @@ fn render_immediate_viewport(
         return;
     };
 
-    let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
+    egui_winit.handle_platform_output(window, platform_output);
 
-    change_gl_context(
-        current_gl_context,
-        not_current_gl_context,
-        current_viewport,
-        viewport_id,
-        gl_surface,
-    );
+    if !skip_redraw && visible {
+        viewport.picture_presented = false;
+        let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+        let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-    let current_gl_context = current_gl_context.as_ref().unwrap();
-
-    if !gl_surface.is_current(current_gl_context) {
-        log::error!(
-            "egui::show_viewport_immediate: viewport {:?} ({:?}) was not created on main thread.",
-            viewport.ids.this,
-            viewport.builder.title
+        change_gl_context(
+            current_gl_context,
+            not_current_gl_context,
+            current_viewport,
+            viewport_id,
+            gl_surface,
         );
-    }
 
-    egui_glow::painter::clear(
-        painter.borrow().gl(),
-        screen_size_in_pixels,
-        [0.0, 0.0, 0.0, 0.0],
-    );
+        let current_gl_context = current_gl_context.as_ref().unwrap();
 
-    painter.borrow_mut().paint_and_update_textures(
-        screen_size_in_pixels,
-        pixels_per_point,
-        &clipped_primitives,
-        &mut viewport.pending_delta,
-    );
+        if !gl_surface.is_current(current_gl_context) {
+            log::error!(
+                "egui::show_viewport_immediate: viewport {:?} ({:?}) was not created on main thread.",
+                viewport.ids.this,
+                viewport.builder.title
+            );
+        }
 
-    {
-        profiling::scope!("swap_buffers");
-        if let Err(err) = gl_surface.swap_buffers(current_gl_context) {
-            log::error!("swap_buffers failed: {err}");
+        egui_glow::painter::clear(
+            painter.borrow().gl(),
+            screen_size_in_pixels,
+            [0.0, 0.0, 0.0, 0.0],
+        );
+
+        painter.borrow_mut().paint_and_update_textures(
+            screen_size_in_pixels,
+            pixels_per_point,
+            &clipped_primitives,
+            &mut viewport.pending_delta,
+        );
+
+        {
+            profiling::scope!("swap_buffers");
+            match gl_surface.swap_buffers(current_gl_context) {
+                Ok(()) => viewport.picture_presented = true,
+                Err(err) => log::error!("swap_buffers failed: {err}"),
+            }
         }
     }
-
-    egui_winit.handle_platform_output(window, platform_output);
 
     event_loop_context::with_current_event_loop(|event_loop| {
         glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);

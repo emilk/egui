@@ -102,6 +102,8 @@ impl ContextImpl {
     fn begin_pass_repaint_logic(&mut self, viewport_id: ViewportId) {
         let viewport = self.viewports.entry(viewport_id).or_default();
 
+        viewport.repaint.woken_by_app = core::mem::take(&mut viewport.repaint.app_repaint_pending);
+
         core::mem::swap(
             &mut viewport.repaint.prev_causes,
             &mut viewport.repaint.causes,
@@ -127,7 +129,7 @@ impl ContextImpl {
     }
 
     fn request_repaint(&mut self, viewport_id: ViewportId, cause: RepaintCause) {
-        self.request_repaint_after(Duration::ZERO, viewport_id, cause);
+        self.request_repaint_after(Duration::ZERO, viewport_id, cause, true);
     }
 
     fn request_repaint_after(
@@ -135,8 +137,13 @@ impl ContextImpl {
         delay: Duration,
         viewport_id: ViewportId,
         cause: RepaintCause,
+        app_requested: bool,
     ) {
         let viewport = self.viewports.entry(viewport_id).or_default();
+
+        if app_requested {
+            viewport.repaint.app_repaint_pending = true;
+        }
 
         if delay == Duration::ZERO {
             // Each request results in two repaints, just to give some things time to settle.
@@ -264,6 +271,14 @@ pub struct ViewportState {
     pub output: PlatformOutput,
     pub commands: Vec<ViewportCommand>,
 
+    /// `true` when every event this pass is pointer motion.
+    ///
+    /// Captured at the start of the pass, before widgets consume key events.
+    pointer_move_only: bool,
+
+    /// The last shape list passed to [`Context::tessellate`] for this viewport.
+    last_painted: Option<LastPainted>,
+
     // ----------------------
     // Cross-frame statistics:
     pub num_multipass_in_row: usize,
@@ -278,6 +293,15 @@ pub struct ViewportState {
     ///
     /// Only set between [`Context::begin_pass`] and [`Context::end_pass`].
     root_ui: RootUi,
+}
+
+/// The picture last handed to the renderer.
+///
+/// Compared with the next frame's shapes before tessellation.
+struct LastPainted {
+    shapes: Vec<ClippedShape>,
+    pixels_per_point: f32,
+    viewport_rect: Rect,
 }
 
 /// What called [`Context::request_repaint`] or [`Context::request_discard`]?
@@ -356,6 +380,16 @@ struct ViewportRepaintInfo {
     /// While positive, keep requesting repaints. Decrement at the start of each pass.
     outstanding: u8,
 
+    /// The application, or a widget, asked for another frame.
+    ///
+    /// The repaint scheduled from input at the start of a pass does not set this.
+    /// A pointer move would otherwise count as an application repaint, and the
+    /// redraw skip would never run.
+    app_repaint_pending: bool,
+
+    /// [`Self::app_repaint_pending`] captured at the start of this pass.
+    woken_by_app: bool,
+
     /// What caused repaints during this pass?
     causes: Vec<RepaintCause>,
 
@@ -381,6 +415,9 @@ impl Default for ViewportRepaintInfo {
 
             // Let's run a couple of frames at the start, because why not.
             outstanding: 1,
+
+            app_repaint_pending: false,
+            woken_by_app: false,
 
             causes: Default::default(),
             prev_causes: Default::default(),
@@ -508,6 +545,9 @@ impl ContextImpl {
             self.memory.options.input_options,
         );
         let repaint_after = viewport.input.wants_repaint_after();
+        // Widgets consume key events later. The frame's reason is the events
+        // that arrived, read at the same point as `wants_repaint_after`.
+        viewport.pointer_move_only = pointer_move_only(&viewport.input.events);
 
         let content_rect = viewport.input.content_rect();
 
@@ -576,7 +616,9 @@ impl ContextImpl {
         self.update_fonts_mut();
 
         if let Some(delay) = repaint_after {
-            self.request_repaint_after(delay, viewport_id, RepaintCause::new());
+            // Input already woke this pass. Do not record it as an application
+            // repaint, or a pointer move could never skip the redraw.
+            self.request_repaint_after(delay, viewport_id, RepaintCause::new(), false);
         }
     }
 
@@ -772,8 +814,11 @@ impl ContextImpl {
 ///         });
 ///     });
 ///     handle_platform_output(full_output.platform_output);
-///     let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
-///     paint(full_output.textures_delta, clipped_primitives);
+///     if !full_output.skip_redraw {
+///         let clipped_primitives =
+///             ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
+///         paint(full_output.textures_delta, clipped_primitives);
+///     }
 /// }
 /// ```
 #[derive(Clone)]
@@ -2221,7 +2266,7 @@ impl Context {
     #[track_caller]
     pub fn request_repaint_after_for(&self, duration: Duration, id: ViewportId) {
         let cause = RepaintCause::new();
-        self.write(|ctx| ctx.request_repaint_after(duration, id, cause));
+        self.write(|ctx| ctx.request_repaint_after(duration, id, cause, true));
     }
 
     /// Was a repaint requested last pass for the current viewport?
@@ -3342,14 +3387,56 @@ impl ContextImpl {
 
         platform_output.num_completed_passes += 1;
 
+        let skip_redraw = self
+            .viewports
+            .get(&ended_viewport_id)
+            .is_some_and(|viewport| {
+                let app_asked =
+                    viewport.repaint.woken_by_app || viewport.repaint.app_repaint_pending;
+                viewport.pointer_move_only
+                    && !app_asked
+                    && textures_delta.is_empty()
+                    && !shapes_have_callback(&shapes)
+                    && viewport.last_painted.as_ref().is_some_and(|painted| {
+                        painted.pixels_per_point == pixels_per_point
+                            && painted.viewport_rect == viewport.input.viewport_rect()
+                            && painted.shapes == shapes
+                    })
+            });
+
         FullOutput {
             platform_output,
             textures_delta,
             shapes,
             pixels_per_point,
+            skip_redraw,
             viewport_output,
         }
     }
+}
+
+fn pointer_move_only(events: &[crate::Event]) -> bool {
+    !events.is_empty()
+        && events.iter().all(|event| {
+            matches!(
+                event,
+                crate::Event::PointerMoved(_) | crate::Event::MouseMoved(_)
+            )
+        })
+}
+
+fn shapes_have_callback(shapes: &[ClippedShape]) -> bool {
+    fn shape_has_callback(shape: &epaint::Shape) -> bool {
+        match shape {
+            epaint::Shape::Callback(_) => true,
+            epaint::Shape::Vec(shapes) => shapes.iter().any(shape_has_callback),
+            _ => false,
+        }
+    }
+
+    shapes
+        .iter()
+        .any(|clipped| shape_has_callback(&clipped.shape))
 }
 
 impl Context {
@@ -3365,11 +3452,26 @@ impl Context {
     ) -> Vec<ClippedPrimitive> {
         profiling::function_scope!();
 
-        // A tempting optimization is to reuse the tessellation from last frame if the
-        // shapes are the same, but just comparing the shapes takes about 50% of the time
-        // it takes to tessellate them, so it is not a worth optimization.
+        // Comparing shapes to reuse the triangle lists is a poor trade: the
+        // compare is about half the cost of tessellation. Skipping the present
+        // is the other question, and [`FullOutput::skip_redraw`] answers it
+        // before this runs. Reaching `tessellate` means the integration is
+        // painting, so this list is the picture the next frame compares against.
 
         self.write(|ctx| {
+            let viewport_rect = ctx
+                .viewports
+                .get(&ctx.last_viewport)
+                .map(|viewport| viewport.input.viewport_rect())
+                .unwrap_or(Rect::NOTHING);
+            if let Some(viewport) = ctx.viewports.get_mut(&ctx.last_viewport) {
+                viewport.last_painted = Some(LastPainted {
+                    shapes: shapes.clone(),
+                    pixels_per_point,
+                    viewport_rect,
+                });
+            }
+
             let tessellation_options = ctx.memory.options.tessellation_options;
             let texture_atlas = if let Some(fonts) = ctx.fonts.as_ref() {
                 fonts.texture_atlas()

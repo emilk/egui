@@ -32,6 +32,19 @@ pub struct FullOutput {
     /// You can pass this to [`crate::Context::tessellate`] together with [`Self::shapes`].
     pub pixels_per_point: f32,
 
+    /// The interface pass ran, and it produced the same picture as the last
+    /// call to [`crate::Context::tessellate`] for this viewport.
+    ///
+    /// The integration can skip tessellation and the redraw. It still has to
+    /// apply [`Self::platform_output`], including the cursor icon.
+    ///
+    /// This stays `false` unless a pointer move is the only reason this frame
+    /// exists. An application repaint, a non-empty [`Self::textures_delta`],
+    /// a [`epaint::Shape::Callback`], a viewport-rectangle change, or a change
+    /// of [`Self::pixels_per_point`] all paint. There is no previous picture
+    /// on the first frame, so that frame paints too.
+    pub skip_redraw: bool,
+
     /// All the active viewports, including the root.
     ///
     /// It is up to the integration to spawn a native window for each viewport,
@@ -49,6 +62,7 @@ impl FullOutput {
             textures_delta,
             shapes,
             pixels_per_point,
+            skip_redraw,
             viewport_output,
         } = newer;
 
@@ -56,6 +70,7 @@ impl FullOutput {
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
         self.pixels_per_point = pixels_per_point; // Use latest
+        self.skip_redraw = skip_redraw;
 
         for (id, new_viewport) in viewport_output {
             match self.viewport_output.entry(id) {

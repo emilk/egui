@@ -480,12 +480,12 @@ impl Painter {
         }
     }
 
-    /// Returns two things:
+    /// Returns the approximate number of seconds spent on vsync-waiting (if any),
+    /// and whether a frame was presented to `window`.
     ///
-    /// The approximate number of seconds spent on vsync-waiting (if any),
-    /// and the captures captured screenshot if it was requested.
-    ///
-    /// If `capture_data` isn't empty, a screenshot will be captured.
+    /// A screenshot requested through `capture_data` is captured even when nothing
+    /// is presented. The second value is then `false`: the window did not show
+    /// this picture, so the caller cannot treat it as the frame on screen.
     #[expect(clippy::too_many_arguments)]
     pub fn paint_and_update_textures(
         &mut self,
@@ -496,7 +496,7 @@ impl Painter {
         textures_delta: &mut epaint::textures::TexturesDelta,
         capture_data: Vec<egui::ScreenshotCallback>,
         window: &Arc<winit::window::Window>,
-    ) -> f32 {
+    ) -> (f32, bool) {
         profiling::function_scope!();
 
         /// Guard to ensure that commands are always submitted to the renderer queue
@@ -534,11 +534,11 @@ impl Painter {
             && let Err(err) = self.recreate_surface(viewport_id, window)
         {
             log::error!("Failed to recreate surface for {viewport_id:?}: {err}");
-            return vsync_sec;
+            return (vsync_sec, false);
         }
 
         let Some(render_state) = self.render_state.as_mut() else {
-            return vsync_sec;
+            return (vsync_sec, false);
         };
 
         let mut render_queue_guard = RendererQueueGuard {
@@ -547,7 +547,7 @@ impl Painter {
         };
 
         let Some(surface_state) = self.surfaces.get_mut(&viewport_id) else {
-            return vsync_sec;
+            return (vsync_sec, false);
         };
 
         let mut encoder =
@@ -627,7 +627,7 @@ impl Painter {
                     SurfaceErrorAction::SkipFrame => {}
                 }
                 if !capture {
-                    return vsync_sec;
+                    return (vsync_sec, false);
                 }
                 None
             }
@@ -656,7 +656,7 @@ impl Painter {
                 };
                 if size.width == 0 || size.height == 0 {
                     log::warn!("Cannot capture a screenshot of a zero-sized surface");
-                    return vsync_sec;
+                    return (vsync_sec, false);
                 }
 
                 let capture_state = self
@@ -670,7 +670,7 @@ impl Painter {
             } else {
                 // Unreachable: without a frame to present to, and with nothing to capture,
                 // we returned above.
-                return vsync_sec;
+                return (vsync_sec, false);
             };
             let target_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -783,6 +783,7 @@ impl Painter {
             screen_capture_state.read_screen_rgba(capture_buffer, capture_data);
         }
 
+        let presented = output_frame.is_some();
         if let Some(output_frame) = output_frame {
             window.pre_present_notify();
 
@@ -793,7 +794,7 @@ impl Painter {
             vsync_sec += start.elapsed().as_secs_f32();
         }
 
-        vsync_sec
+        (vsync_sec, presented)
     }
 
     pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {
