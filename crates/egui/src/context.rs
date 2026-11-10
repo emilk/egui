@@ -565,6 +565,11 @@ impl ContextImpl {
             let mut root_node = accesskit::Node::new(accesskit::Role::Window);
             let pixels_per_point = viewport.input.pixels_per_point();
             root_node.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
+            // Screen readers name the window after this label.
+            // On Linux (AT-SPI) nothing else names it.
+            if let Some(title) = &viewport.input.viewport().title {
+                root_node.set_label(title.as_str());
+            }
             let mut nodes = IdMap::default();
             nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {

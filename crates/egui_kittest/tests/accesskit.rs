@@ -41,6 +41,29 @@ fn empty_ui_should_return_tree_with_only_root_window() {
 
     assert_eq!(*id, output.tree.unwrap().root);
     assert_eq!(root.role(), Role::Window);
+    assert_eq!(root.label(), None, "No viewport title, so no label");
+}
+
+#[test]
+fn root_window_is_labelled_with_the_viewport_title() {
+    let ctx = Context::default();
+    ctx.enable_accesskit();
+
+    let mut raw_input = RawInput::default();
+    raw_input
+        .viewports
+        .get_mut(&raw_input.viewport_id)
+        .unwrap()
+        .title = Some("My app".to_owned());
+
+    let mut output = ctx.run_ui(raw_input, |_ui| {});
+    output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
+    let update = output.platform_output.accesskit_update.unwrap();
+
+    let root_id = update.tree.unwrap().root;
+    let (_, root) = update.nodes.iter().find(|(id, _)| *id == root_id).unwrap();
+    assert_eq!(root.role(), Role::Window);
+    assert_eq!(root.label(), Some("My app"));
 }
 
 #[test]
