@@ -1,3 +1,5 @@
+use core::cell::RefCell;
+
 use eframe::wasm_bindgen::{self, prelude::*};
 
 use crate::WrapApp;
@@ -74,4 +76,51 @@ impl WebHandle {
     pub fn panic_callstack(&self) -> Option<String> {
         self.runner.panic_summary().map(|s| s.callstack())
     }
+}
+
+thread_local! {
+    /// The runner must outlive `start_offscreen_egui`; the worker has no JS object
+    /// holding it (unlike [`WebHandle`] in DOM mode).
+    static OFFSCREEN_RUNNER: RefCell<Option<eframe::WebRunner>> = const { RefCell::new(None) };
+}
+
+/// Start the demo in a web worker, rendering to an `OffscreenCanvas`.
+///
+/// Call this from the worker's `onmessage` handler with the canvas transferred
+/// by the main thread.
+///
+/// # Errors
+/// Returns an error if the renderer could not be initialized.
+#[wasm_bindgen]
+pub async fn start_offscreen_egui(
+    canvas: web_sys::OffscreenCanvas,
+) -> Result<(), wasm_bindgen::JsValue> {
+    let log_level = if cfg!(debug_assertions) {
+        log::LevelFilter::Trace
+    } else {
+        log::LevelFilter::Debug
+    };
+    eframe::WebLogger::init(log_level).ok();
+
+    let runner = eframe::WebRunner::new();
+    runner
+        .start_offscreen(
+            canvas,
+            eframe::WebOptions::default(),
+            Box::new(|cc| Ok(Box::new(WrapApp::new(cc)))),
+        )
+        .await?;
+    OFFSCREEN_RUNNER.with(|slot| *slot.borrow_mut() = Some(runner));
+    Ok(())
+}
+
+/// Feed one message from the host page into the offscreen app.
+#[wasm_bindgen]
+#[expect(clippy::needless_pass_by_value)]
+pub fn offscreen_on_message(message: wasm_bindgen::JsValue) {
+    OFFSCREEN_RUNNER.with(|slot| {
+        if let Some(runner) = slot.borrow().as_ref() {
+            runner.on_worker_message(&message);
+        }
+    });
 }

@@ -3,14 +3,13 @@ use egui_glow::glow;
 use std::sync::Arc;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
-use web_sys::HtmlCanvasElement;
 
 use crate::{WebGlContextOption, WebOptions};
 
-use super::web_painter::WebPainter;
+use super::{WebCanvas, web_painter::WebPainter};
 
 pub(crate) struct WebPainterGlow {
-    canvas: HtmlCanvasElement,
+    canvas: WebCanvas,
     painter: egui_glow::Painter,
 }
 
@@ -21,7 +20,7 @@ impl WebPainterGlow {
 
     pub fn new(
         _ctx: egui::Context,
-        canvas: HtmlCanvasElement,
+        canvas: WebCanvas,
         options: &WebOptions,
     ) -> Result<Self, String> {
         let (gl, shader_prefix) =
@@ -45,10 +44,6 @@ impl WebPainterGlow {
 impl WebPainter for WebPainterGlow {
     fn max_texture_side(&self) -> usize {
         self.painter.max_texture_side()
-    }
-
-    fn canvas(&self) -> &HtmlCanvasElement {
-        &self.canvas
     }
 
     fn paint_and_update_textures(
@@ -94,7 +89,7 @@ impl WebPainter for WebPainterGlow {
 
 /// Returns glow context and shader prefix.
 fn init_glow_context_from_canvas(
-    canvas: &HtmlCanvasElement,
+    canvas: &WebCanvas,
     options: WebGlContextOption,
 ) -> Result<(glow::Context, &'static str), String> {
     let result = match options {
@@ -117,7 +112,7 @@ fn init_glow_context_from_canvas(
     }
 }
 
-fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static str)> {
+fn init_webgl1(canvas: &WebCanvas) -> Option<(glow::Context, &'static str)> {
     let gl1_ctx = canvas
         .get_context("webgl")
         .expect("Failed to query about WebGL2 context");
@@ -141,7 +136,7 @@ fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
     Some((gl, shader_prefix))
 }
 
-fn init_webgl2(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static str)> {
+fn init_webgl2(canvas: &WebCanvas) -> Option<(glow::Context, &'static str)> {
     let gl2_ctx = canvas
         .get_context("webgl2")
         .expect("Failed to query about WebGL2 context");
@@ -166,7 +161,8 @@ fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {
     // WebKitGTK use WebKit default unmasked vendor and renderer
     // but safari use same vendor and renderer
     // so exclude "Mac OS X" user-agent.
-    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
+    // In a worker there is no `window`, so `user_agent()` can be `None`.
+    let user_agent = super::user_agent().unwrap_or_default();
     !user_agent.contains("Mac OS X") && is_safari_and_webkit_gtk(gl)
 }
 
