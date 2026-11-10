@@ -44,15 +44,15 @@ const LAYER_ATTRIBUTE: &str = "data-egui-native-view-layer";
 struct Layer {
     /// The `position: fixed` container of the views and the input element. It precedes the canvas
     /// in the document, so a positioned canvas paints in front of it.
-    element: HtmlElement,
+    container: HtmlElement,
 
     /// Takes egui's pointer input while views below the canvas are shown. See the module docs.
-    input_element: HtmlElement,
+    input: HtmlElement,
 }
 
 impl Drop for Layer {
     fn drop(&mut self) {
-        self.element.remove();
+        self.container.remove();
     }
 }
 
@@ -72,7 +72,7 @@ impl WebNativeViews {
 
     /// The element that takes egui's pointer input in front of the views. See the module docs.
     pub fn input_element(&self) -> Option<&HtmlElement> {
-        self.layer.as_ref().map(|layer| &layer.input_element)
+        self.layer.as_ref().map(|layer| &layer.input)
     }
 
     /// Whether the keyboard focus is in one of the views below the canvas, such as a text field.
@@ -81,10 +81,10 @@ impl WebNativeViews {
             return false;
         };
         layer
-            .element
+            .container
             .owner_document()
             .and_then(|document| document.active_element())
-            .is_some_and(|active| layer.element.contains(Some(&active)))
+            .is_some_and(|active| layer.container.contains(Some(&active)))
     }
 
     /// Updates the input element and the canvas for the views below the canvas in `outputs`.
@@ -116,7 +116,7 @@ impl WebNativeViews {
                         .map(to_css),
                 )
             };
-            input_element_style(&self.canvas, &layer.element, &view_areas)
+            input_element_style(&self.canvas, &layer.container, &view_areas)
         });
         if input_style == self.input_style {
             return;
@@ -124,10 +124,10 @@ impl WebNativeViews {
         let canvas_style = self.canvas.style();
         if let Some(css) = &input_style {
             canvas_style.set_property("pointer-events", "none").ok();
-            set_style(&layer.input_element, css);
+            set_style(&layer.input, css);
         } else {
             canvas_style.remove_property("pointer-events").ok();
-            set_style(&layer.input_element, "display: none;");
+            set_style(&layer.input, "display: none;");
         }
         self.input_style = input_style;
     }
@@ -230,25 +230,22 @@ impl Layer {
             .parent_node()
             .ok_or_else(|| JsValue::from_str("The canvas isn't in the document"))?;
 
-        let element: HtmlElement = document.create_element("div")?.unchecked_into();
-        element.set_attribute(LAYER_ATTRIBUTE, "")?;
-        // `position: fixed` makes the element a stacking context, so the `z-index` of the views
+        let container: HtmlElement = document.create_element("div")?.unchecked_into();
+        container.set_attribute(LAYER_ATTRIBUTE, "")?;
+        // `position: fixed` makes the container a stacking context, so the `z-index` of the views
         // and the input element only orders them within it. Its children inherit
         // `pointer-events: none`, so the input element and the views have to set
         // `pointer-events: auto`.
         set_style(
-            &element,
+            &container,
             "position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none;",
         );
-        let input_element: HtmlElement = document.create_element("div")?.unchecked_into();
-        set_style(&input_element, "display: none;");
-        element.append_child(&input_element)?;
-        parent.insert_before(&element, Some(canvas))?;
+        let input: HtmlElement = document.create_element("div")?.unchecked_into();
+        set_style(&input, "display: none;");
+        container.append_child(&input)?;
+        parent.insert_before(&container, Some(canvas))?;
 
-        Ok(Self {
-            element,
-            input_element,
-        })
+        Ok(Self { container, input })
     }
 }
 
