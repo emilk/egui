@@ -354,4 +354,45 @@ mod tests {
             set.subtract(&RectSet::new())
         );
     }
+
+    /// Checks [`RectSet::subtract`] against a point-by-point test, for sets of rects on a grid.
+    #[test]
+    fn subtracting_matches_a_point_by_point_test() {
+        const GRID: u32 = 8;
+
+        // A linear congruential generator, so that the test needs no dependency.
+        let mut state = 0x2545_f491_u32;
+        let mut random = |below: u32| {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (state >> 16) % below
+        };
+        let mut random_set = |max_rects: u32| -> RectSet {
+            (0..random(max_rects + 1))
+                .map(|_| {
+                    let (x, y) = (random(GRID), random(GRID));
+                    let (width, height) = (random(GRID - x) + 1, random(GRID - y) + 1);
+                    Rect::from_min_size(pos2(x as f32, y as f32), vec2(width as f32, height as f32))
+                })
+                .collect()
+        };
+
+        for _ in 0..500 {
+            let set = random_set(4);
+            let other = random_set(4);
+            let parts = set.subtract(&other);
+            assert_disjoint(&parts);
+            for part in &parts {
+                assert!(part.is_positive(), "{part:?} of {set:?} without {other:?}");
+            }
+            // The center of a grid cell is on no edge, and every rect covers whole cells.
+            for (x, y) in (0..GRID).flat_map(|x| (0..GRID).map(move |y| (x, y))) {
+                let center = pos2(x as f32 + 0.5, y as f32 + 0.5);
+                assert_eq!(
+                    parts.contains(center),
+                    set.contains(center) && !other.contains(center),
+                    "At {center:?} of {set:?} without {other:?}: {parts:?}"
+                );
+            }
+        }
+    }
 }
