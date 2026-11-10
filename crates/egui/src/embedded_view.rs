@@ -296,11 +296,10 @@ pub(crate) fn outputs(
 
     // The layers that aren't areas, such as the one of a drag-and-drop preview. egui paints
     // them after the areas of the same `Order`, see `GraphicLayers::drain`.
-    let mut other_layers: Vec<LayerId> = graphics
-        .painted_layer_ids()
-        .chain(widgets.layer_ids())
-        .filter(|layer| !order.contains(layer))
-        .collect();
+    let mut other_layers: Vec<LayerId> =
+        core::iter::chain(graphics.painted_layer_ids(), widgets.layer_ids())
+            .filter(|layer| !order.contains(layer))
+            .collect();
     other_layers.sort_by_key(|layer| (layer.order, layer.id.value()));
     other_layers.dedup();
 
@@ -350,15 +349,12 @@ pub(crate) fn outputs(
                     .reduce(Rect::union)?;
                 Some(to_global(*layer, bounds))
             });
-            let egui_paint_areas = area_rects
-                .chain(painted_bounds)
+            let egui_paint_areas = core::iter::chain(area_rects, painted_bounds)
                 .map(|rect| rect.intersect(visible))
                 .filter(Rect::is_positive)
                 .collect();
 
-            let egui_input_areas = areas_above
-                .iter()
-                .chain(&others_above)
+            let egui_input_areas = core::iter::chain(areas_above, &others_above)
                 .flat_map(|layer| widgets.get_layer(*layer))
                 .filter(|widget| widget.sense.interactive())
                 .map(|widget| to_global(widget.layer_id, widget.interact_rect).intersect(visible))
