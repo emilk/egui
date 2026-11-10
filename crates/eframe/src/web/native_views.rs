@@ -28,7 +28,8 @@ use web_sys::{HtmlCanvasElement, HtmlElement};
 pub(crate) struct WebNativeViews {
     canvas: HtmlCanvasElement,
 
-    /// `None` if the canvas wasn't in a document when eframe started.
+    /// `None` if the canvas wasn't in a document when eframe started. Then there are no views
+    /// below the canvas for the life of the runner, and [`crate::NativeViews::layer`] says why.
     layer: Option<Layer>,
 
     /// The `style` attribute last set on the input element, so that an unchanged style isn't set
@@ -136,13 +137,15 @@ impl WebNativeViews {
 /// See [`crate::NativeViews::layer`].
 ///
 /// # Errors
-/// If the canvas wasn't in the document when eframe started, so that it has no layer.
+/// If the layer isn't before the canvas under the same parent: the canvas wasn't in the document
+/// when eframe started, so that eframe made no layer, or it was moved to another parent since.
 pub(crate) fn layer_of(canvas: &HtmlCanvasElement) -> Result<HtmlElement, JsValue> {
     let mut sibling = canvas.previous_element_sibling();
     let layer = loop {
         let Some(element) = sibling else {
             return Err(JsValue::from_str(
-                "The canvas wasn't in the document when eframe started",
+                "eframe has no element for native views next to its canvas. Add the canvas to \
+                 the document before starting eframe, and keep it under the same parent element.",
             ));
         };
         if element.has_attribute(LAYER_ATTRIBUTE) {

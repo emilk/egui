@@ -86,7 +86,8 @@ impl NativeViews {
     /// front of the `<div>`.
     ///
     /// # Errors
-    /// If the canvas wasn't in the document when eframe started.
+    /// If the canvas wasn't in the document when eframe started, or was moved to another parent
+    /// element since. eframe only makes the `<div>` at startup, next to the canvas.
     #[cfg(target_arch = "wasm32")]
     pub fn layer(&self) -> Result<web_sys::HtmlElement, wasm_bindgen::JsValue> {
         crate::web::native_views::layer_of(&self.canvas)
