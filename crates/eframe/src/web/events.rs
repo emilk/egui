@@ -553,9 +553,8 @@ fn install_input_element(
 ) -> Result<(), JsValue> {
     prevent_default_and_stop_propagation(runner_ref, input_element, &["contextmenu"])?;
     // Cancel the default action of `mousedown`, which would move the keyboard focus off the
-    // canvas. The `pointerup` listener on the document focuses the canvas instead, unless a
-    // embedded view has the focus: then the view's backend gives it back to the canvas once egui
-    // moves its focus on.
+    // canvas. The `pointerup` listener on the document focuses the canvas instead. While an
+    // embedded view has the focus, it does so only once egui's own focus moved off the view.
     runner_ref.add_event_listener(
         input_element,
         "mousedown",
@@ -646,9 +645,8 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 //
                 // Only if the app doesn't have the focus already. Taking it
                 // from the text agent would cut an IME composition short,
-                // only for the logic below to give it back. Taking it from a
-                // embedded view would close its keyboard on a drag to scroll;
-                // egui gives up the view's focus itself on a click elsewhere.
+                // only for the logic below to give it back. Whether to take
+                // it from an embedded view depends on that logic, see below.
                 if !runner.has_focus() {
                     super::focus_without_scroll(runner.canvas()).ok();
                 }
@@ -658,6 +656,16 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 // on user action, such as a click.
                 // So we need to run the app logic here and now:
                 runner.logic();
+
+                // The release moved egui's keyboard focus off the embedded view
+                // that has the browser's focus, for example to a text edit:
+                // the keys have to reach egui again. As long as egui's focus
+                // stays on the view's widget, the view keeps the browser's
+                // too, so that a drag to scroll doesn't close its keyboard.
+                if runner.web_embedded_views.has_focus() && !runner.egui_focus_is_on_embedded_view()
+                {
+                    super::focus_without_scroll(runner.canvas()).ok();
+                }
 
                 // Make sure we paint the output of the above logic call asap:
                 runner.needs_repaint.repaint_asap();

@@ -40,6 +40,21 @@ pub(crate) struct WebEmbeddedViews {
     /// How the input element is laid out now, as of the last pass, so that an unchanged layout
     /// isn't set again. `None` while the input element is hidden.
     current_input_style: Option<InputStyle>,
+
+    /// The ids of the views below the canvas that were shown in the last pass.
+    views_below: Vec<egui::Id>,
+
+    /// The element in a view below the canvas that had the keyboard focus as of the last pass.
+    focused: Option<web_sys::Element>,
+}
+
+impl Drop for WebEmbeddedViews {
+    fn drop(&mut self) {
+        // The canvas outlives the runner, and another runner may be started on it.
+        if self.current_input_style.is_some() {
+            self.canvas.style().remove_property("pointer-events").ok();
+        }
+    }
 }
 
 /// The layout of the input element: where it is, and where in it egui takes the pointer input.
@@ -58,10 +73,17 @@ const CONTAINER_ATTRIBUTE: &str = "data-egui-embedded-view-container";
 
 /// The elements that eframe adds to the document for the views below the canvas.
 struct Elements {
-    /// The `position: fixed` container of the views and the input element, inserted right before
-    /// the canvas. It precedes the canvas in the document, so a positioned canvas paints in front
-    /// of it. See [`WebEmbeddedViews::route_input`] for a canvas that isn't positioned.
+    /// The container of the views and the input element, inserted right before the canvas. It
+    /// precedes the canvas in the document, so a positioned canvas paints in front of it. See
+    /// [`WebEmbeddedViews::route_input`] for a canvas that isn't positioned.
+    ///
+    /// It is positioned next to the canvas, in the same containing block, with its top left
+    /// corner on the canvas's. So what is in it is placed relative to the canvas, and the browser
+    /// scrolls and clips it together with the canvas, without waiting for eframe's next frame.
     container: HtmlElement,
+
+    /// The `left` and `top` of [`Self::container`], in CSS pixels.
+    container_offset: (f64, f64),
 
     /// Takes egui's pointer input while views below the canvas are shown. See the module docs.
     ///
@@ -95,6 +117,8 @@ impl WebEmbeddedViews {
             canvas,
             elements,
             current_input_style: None,
+            views_below: Vec::new(),
+            focused: None,
         }
     }
 
@@ -115,6 +139,42 @@ impl WebEmbeddedViews {
             .is_some_and(|active| elements.container.contains(Some(&active)))
     }
 
+    /// Whether a view below the canvas was shown in the last pass.
+    pub fn shows_views_below(&self) -> bool {
+        self.current_input_style.is_some()
+    }
+
+    /// Whether `id` is the id of a view below the canvas that was shown in the last pass.
+    pub fn is_view_below(&self, id: egui::Id) -> bool {
+        self.views_below.contains(&id)
+    }
+
+    /// Whether the keyboard focus is nowhere now because the view that had it went away: its
+    /// focused element was removed from the document or hidden since the last call.
+    ///
+    /// The focus then is on the document's body, and eframe has to take it back. A focus that
+    /// left a view that is still there went where the user put it.
+    pub fn lost_focus_with_its_view(&mut self) -> bool {
+        let Some(elements) = &self.elements else {
+            return false;
+        };
+        let active = elements
+            .container
+            .owner_document()
+            .and_then(|document| document.active_element());
+        let in_view = active
+            .clone()
+            .filter(|active| elements.container.contains(Some(active)));
+        let previous = core::mem::replace(&mut self.focused, in_view);
+
+        let is_nowhere = active.is_none_or(|active| active.tag_name() == "BODY");
+        let went_away = previous.is_some_and(|element| {
+            let rect = element.get_bounding_client_rect();
+            !element.is_connected() || (rect.width() == 0.0 && rect.height() == 0.0)
+        });
+        is_nowhere && went_away
+    }
+
     /// Updates the input element and the canvas for the views below the canvas in `outputs`.
     ///
     /// While such a view is shown, the canvas has `pointer-events: none`, and the input element
@@ -130,6 +190,8 @@ impl WebEmbeddedViews {
             canvas,
             elements: Some(elements),
             current_input_style,
+            views_below,
+            focused: _,
         } = self
         else {
             return;
@@ -139,6 +201,13 @@ impl WebEmbeddedViews {
             .iter()
             .filter(|output| output.side == EmbeddedViewPlacement::Below)
             .peekable();
+        views_below.clear();
+        views_below.extend(
+            outputs
+                .iter()
+                .filter(|output| output.side == EmbeddedViewPlacement::Below)
+                .map(|output| output.id),
+        );
         let input_style = below.peek().is_some().then(|| {
             // While egui has a pointer button down, the input element covers the views too, so that
             // egui keeps getting the drag. eframe tracks a drag with `mousemove` events on the
@@ -153,8 +222,16 @@ impl WebEmbeddedViews {
                     .map(to_css)
                     .collect()
             };
-            input_style(canvas, &elements.container, &view_areas)
+            input_style(canvas, &view_areas)
         });
+        if input_style.is_some() {
+            if current_input_style.is_none() {
+                elements.position_like(canvas);
+            }
+            // Scrolling moves the canvas and the container together. Only a change of the
+            // layout around the canvas moves one without the other.
+            elements.anchor_to(canvas);
+        }
         if input_style == *current_input_style {
             return;
         }
@@ -162,7 +239,9 @@ impl WebEmbeddedViews {
         if let Some(style) = &input_style {
             canvas_style.set_property("pointer-events", "none").ok();
             // Only when the views come on screen, not on every change of the input element.
-            if current_input_style.is_none() && is_static(canvas) {
+            if current_input_style.is_none()
+                && computed_position(canvas).as_deref() == Some("static")
+            {
                 canvas_style.set_property("position", "relative").ok();
             }
             set_style(&elements.input, &style.element);
@@ -203,12 +282,13 @@ pub(crate) fn container_of(canvas: &HtmlCanvasElement) -> Result<HtmlElement, Js
     }
 }
 
-/// Whether the computed `position` of `canvas` is `static`.
-fn is_static(canvas: &HtmlCanvasElement) -> bool {
-    web_sys::window()
-        .and_then(|window| window.get_computed_style(canvas).ok().flatten())
-        .and_then(|style| style.get_property_value("position").ok())
-        .is_some_and(|position| position == "static")
+/// The computed `position` of `canvas`.
+fn computed_position(canvas: &HtmlCanvasElement) -> Option<String> {
+    web_sys::window()?
+        .get_computed_style(canvas)
+        .ok()??
+        .get_property_value("position")
+        .ok()
 }
 
 /// Returns a function that converts rects from ui points to CSS pixels relative to the top left
@@ -234,24 +314,13 @@ fn to_css_pixels(
 
 /// Returns the layout of the input element: it covers `canvas`, and takes the pointer input
 /// everywhere but in `view_areas` (in CSS pixels relative to the canvas).
-fn input_style(
-    canvas: &HtmlCanvasElement,
-    container: &HtmlElement,
-    view_areas: &[Rect],
-) -> InputStyle {
+fn input_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> InputStyle {
     let rect = canvas.get_bounding_client_rect();
-    // The input element is placed in the container's frame, which is not always the viewport's:
-    // with the keyboard up, iOS Safari scrolls the page and reports fixed elements, the container
-    // included, off by the scroll. Placing the element by the canvas's viewport position alone
-    // would then move it by the scroll twice.
-    let origin = container.get_bounding_client_rect();
-    // The maximum `z-index` puts the input element in front of the views. It takes no pointer
-    // input itself, only its rects do.
+    // The container's top left corner is the canvas's. The maximum `z-index` puts the input
+    // element in front of the views. It takes no pointer input itself, only its rects do.
     let element = format!(
-        "position: fixed; left: {}px; top: {}px; width: {}px; height: {}px; \
+        "position: absolute; left: 0px; top: 0px; width: {}px; height: {}px; \
          z-index: 2147483647; pointer-events: none;",
-        rect.left() - origin.left(),
-        rect.top() - origin.top(),
         rect.width(),
         rect.height(),
     );
@@ -259,7 +328,7 @@ fn input_style(
         Rect::from_min_size(Pos2::ZERO, vec2(rect.width() as f32, rect.height() as f32));
     InputStyle {
         element,
-        rects: crate::embedded_view::subtract_all(canvas_rect, view_areas),
+        rects: canvas_rect.subtract(view_areas),
     }
 }
 
@@ -274,13 +343,14 @@ impl Elements {
 
         let container: HtmlElement = document.create_element("div")?.unchecked_into();
         container.set_attribute(CONTAINER_ATTRIBUTE, "")?;
-        // `position: fixed` makes the container a stacking context, so the `z-index` of the views
+        // The `z-index` makes the container a stacking context, so the `z-index` of the views
         // and the input element only orders them within it. Its children inherit
         // `pointer-events: none`, so the input element and the views have to set
         // `pointer-events: auto`.
         set_style(
             &container,
-            "position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none;",
+            "position: absolute; left: 0px; top: 0px; width: 0; height: 0; z-index: 0; \
+             pointer-events: none;",
         );
         let input: HtmlElement = document.create_element("div")?.unchecked_into();
         set_style(&input, "display: none;");
@@ -289,9 +359,49 @@ impl Elements {
 
         Ok(Self {
             container,
+            container_offset: (0.0, 0.0),
             input,
             input_rects: Vec::new(),
         })
+    }
+
+    /// Moves the top left corner of the container onto the top left corner of `canvas`.
+    ///
+    /// It measures where the two are and corrects the difference, which works whatever the
+    /// container's containing block is.
+    fn anchor_to(&mut self, canvas: &HtmlCanvasElement) {
+        let canvas = canvas.get_bounding_client_rect();
+        let container = self.container.get_bounding_client_rect();
+        let (dx, dy) = (
+            canvas.left() - container.left(),
+            canvas.top() - container.top(),
+        );
+        if dx.abs() < 0.01 && dy.abs() < 0.01 {
+            return;
+        }
+        self.container_offset.0 += dx;
+        self.container_offset.1 += dy;
+        let style = self.container.style();
+        style
+            .set_property("left", &format!("{}px", self.container_offset.0))
+            .ok();
+        style
+            .set_property("top", &format!("{}px", self.container_offset.1))
+            .ok();
+    }
+
+    /// Positions the container like `canvas`: a canvas with `position: fixed` stays put when the
+    /// page scrolls, and any other canvas moves with it.
+    fn position_like(&self, canvas: &HtmlCanvasElement) {
+        let position = if computed_position(canvas).as_deref() == Some("fixed") {
+            "fixed"
+        } else {
+            "absolute"
+        };
+        self.container
+            .style()
+            .set_property("position", position)
+            .ok();
     }
 
     /// Lays out [`Self::input_rects`] as `rects`, in CSS pixels relative to the input element,

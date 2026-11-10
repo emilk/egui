@@ -250,6 +250,13 @@ impl AppRunner {
         self.egui_has_focus() || self.web_embedded_views.has_focus()
     }
 
+    /// Is egui's keyboard focus on the widget of an embedded view below the canvas?
+    pub fn egui_focus_is_on_embedded_view(&self) -> bool {
+        self.egui_ctx
+            .memory(|memory| memory.focused())
+            .is_some_and(|id| self.web_embedded_views.is_view_below(id))
+    }
+
     /// Does egui itself have focus, that is the canvas or the [`TextAgent`]?
     ///
     /// Unlike [`Self::has_focus`], this is `false` while an embedded view has the focus. Then the
@@ -325,6 +332,14 @@ impl AppRunner {
 
             self.web_embedded_views
                 .route_input(&self.egui_ctx, &platform_output.embedded_views);
+            if self.web_embedded_views.shows_views_below() {
+                self.painter.show_page_through();
+            }
+            // A view that is hidden or removed while it has the focus leaves the focus on the
+            // document's body, where no key reaches egui.
+            if self.web_embedded_views.lost_focus_with_its_view() {
+                super::focus_without_scroll(self.canvas()).ok();
+            }
 
             if viewport_output.len() > 1 {
                 log::warn!("Multiple viewports not yet supported on the web");
