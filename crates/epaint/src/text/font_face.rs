@@ -125,7 +125,7 @@ impl FontCell {
             if let Some(hinting_instance) = &mut font_data.hinting_instance {
                 let size = skrifa::instance::Size::new(metrics.scale);
                 if hinting_instance.size() != size
-                    || hinting_instance.location().coords() != location.coords()
+                    || !same_location(hinting_instance.location(), location)
                     || hinting_instance.target() != hinting_target
                 {
                     hinting_instance
@@ -285,6 +285,18 @@ impl FontCell {
             is_color: true,
         })
     }
+}
+
+/// Do `a` and `b` describe the same point in variation space?
+///
+/// [`skrifa::outline::HintingInstance::location`] returns the default location as no
+/// coordinates at all, while `axes().location(..)` gives one zero per axis, so `[]` and `[0, 0]`
+/// must compare equal.
+fn same_location(
+    a: skrifa::instance::LocationRef<'_>,
+    b: skrifa::instance::LocationRef<'_>,
+) -> bool {
+    a.coords() == b.coords() || (a.is_default() && b.is_default())
 }
 
 /// Collects a `skrifa` glyph outline into a `kurbo` path, flipping Y to point down.
@@ -685,4 +697,29 @@ pub(crate) struct ShapedGlyph {
 
     /// CJK glyphs skip subpixel positioning to save atlas space.
     pub is_cjk: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use skrifa::instance::{LocationRef, NormalizedCoord};
+
+    use super::same_location;
+
+    #[test]
+    fn default_location_with_and_without_coordinates_is_the_same() {
+        let zero = [NormalizedCoord::ZERO, NormalizedCoord::ZERO];
+        let bold = [NormalizedCoord::from_f32(0.5), NormalizedCoord::ZERO];
+        assert!(same_location(
+            LocationRef::new(&[]),
+            LocationRef::new(&zero)
+        ));
+        assert!(same_location(
+            LocationRef::new(&bold),
+            LocationRef::new(&bold)
+        ));
+        assert!(!same_location(
+            LocationRef::new(&[]),
+            LocationRef::new(&bold)
+        ));
+    }
 }
