@@ -1,22 +1,31 @@
-//! Native views: rects of the UI that the platform draws instead of egui, such as a web view, a
-//! map or a video player.
+//! Native views: parts of the UI that the platform draws instead of egui.
 //!
-//! The app reserves the rect with the [`egui::NativeView`] widget, and places the view from
-//! [`crate::App::output_hook`] with [`egui::PlatformOutput::native_views`]. [`NativeViews`]
-//! gives the code that shows a view what it needs from the window.
+//! A web view, a map or a video player can't be painted by egui. The app reserves a rect for
+//! it in the UI, and the platform shows the view in that rect.
 //!
-//! eframe also handles what all the views of a window share. On the web, that is the pointer
-//! input: the canvas is in front of the views below egui's surface, so eframe lets the pointer
-//! through the canvas wherever a view takes the input
+//! It takes three steps:
+//!
+//! 1. The app adds an [`egui::NativeView`] widget. It reserves the rect and draws nothing.
+//! 2. After each pass, egui reports where every view ended up, in
+//!    [`egui::PlatformOutput::native_views`].
+//! 3. The app moves the platform's view there, from [`crate::App::output_hook`].
+//!
+//! To create the platform's view in the first place, the app needs the window it goes in.
+//! [`NativeViews`] gives access to it.
+//!
+//! On the web, eframe also routes the pointer input. The canvas is in front of the views that
+//! are below egui's surface, so on its own it would take every click. eframe lets the pointer
+//! through to a view wherever the view takes the input
 //! ([`egui::NativeViewOutput::view_input_areas`]).
 
-/// What the code that shows native views needs from the app's root window.
+/// Access to the app's root window, for the code that creates native views in it.
 ///
 /// Get it from [`crate::CreationContext::native_views`] or [`crate::Frame::native_views`].
 ///
-/// Natively, it implements [`raw_window_handle::HasWindowHandle`] with the root window's handle,
-/// so that the views can be added to that window. On the web, it gives access to the canvas and
-/// to the element that the views below the canvas go in (`NativeViews::container`, web only).
+/// - Natively, it implements [`raw_window_handle::HasWindowHandle`] with the root window's
+///   handle, so a view can be added to that window.
+/// - On the web, it has the canvas, and the element that views below the canvas go in
+///   (`NativeViews::container`).
 #[derive(Clone)]
 pub struct NativeViews {
     #[cfg(not(target_arch = "wasm32"))]
