@@ -96,6 +96,9 @@ pub struct Painter {
 
     textures: HashMap<egui::TextureId, glow::Texture>,
 
+    /// Size of the storage allocated for each texture uploaded through [`Self::set_texture`].
+    texture_sizes: HashMap<egui::TextureId, [usize; 2]>,
+
     next_native_tex_id: u64,
 
     /// Stores outdated OpenGL textures that are yet to be deleted
@@ -265,6 +268,7 @@ impl Painter {
                 vbo,
                 element_array_buffer,
                 textures: Default::default(),
+                texture_sizes: Default::default(),
                 next_native_tex_id: 1 << 32,
                 textures_to_destroy: Vec::new(),
                 destroyed: false,
@@ -523,7 +527,16 @@ impl Painter {
         match &delta.image {
             egui::ImageData::Color(image) => {
                 let data: &[u8] = bytemuck::cast_slice(image.pixels());
-                self.upload_texture_srgb(delta.pos, image.resolution(), delta.options, data);
+                let size = image.resolution();
+                // replacing the whole image of an unchanged size keeps the storage, e.g. a video frame
+                let pos = match delta.pos {
+                    None if self.texture_sizes.get(&tex_id) == Some(&size) => Some([0, 0]),
+                    pos => pos,
+                };
+                if pos.is_none() {
+                    self.texture_sizes.insert(tex_id, size);
+                }
+                self.upload_texture_srgb(pos, size, delta.options, data);
             }
         }
     }
@@ -629,6 +642,7 @@ impl Painter {
     }
 
     pub fn free_texture(&mut self, tex_id: egui::TextureId) {
+        self.texture_sizes.remove(&tex_id);
         if let Some(old_tex) = self.textures.remove(&tex_id) {
             unsafe { self.gl.delete_texture(old_tex) };
         }
@@ -648,6 +662,7 @@ impl Painter {
     }
 
     pub fn replace_native_texture(&mut self, id: egui::TextureId, replacing: glow::Texture) {
+        self.texture_sizes.remove(&id);
         if let Some(old_tex) = self.textures.insert(id, replacing) {
             self.textures_to_destroy.push(old_tex);
         }
