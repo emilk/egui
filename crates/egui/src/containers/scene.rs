@@ -245,25 +245,36 @@ impl Scene {
 
     /// Helper function to handle pan and zoom interactions on a response.
     pub fn register_pan_and_zoom(&self, ui: &Ui, resp: &mut Response, to_global: &mut TSTransform) {
-        let dragged = self.drag_pan_buttons.iter().any(|button| match button {
-            DragPanButtons::PRIMARY => resp.dragged_by(PointerButton::Primary),
-            DragPanButtons::SECONDARY => resp.dragged_by(PointerButton::Secondary),
-            DragPanButtons::MIDDLE => resp.dragged_by(PointerButton::Middle),
-            DragPanButtons::EXTRA_1 => resp.dragged_by(PointerButton::Extra1),
-            DragPanButtons::EXTRA_2 => resp.dragged_by(PointerButton::Extra2),
-            _ => false,
-        });
+        let multi_touch_active = ui.input(|i| i.multi_touch()).is_some();
+
+        let dragged = !multi_touch_active
+            && self.drag_pan_buttons.iter().any(|button| match button {
+                DragPanButtons::PRIMARY => resp.dragged_by(PointerButton::Primary),
+                DragPanButtons::SECONDARY => resp.dragged_by(PointerButton::Secondary),
+                DragPanButtons::MIDDLE => resp.dragged_by(PointerButton::Middle),
+                DragPanButtons::EXTRA_1 => resp.dragged_by(PointerButton::Extra1),
+                DragPanButtons::EXTRA_2 => resp.dragged_by(PointerButton::Extra2),
+                _ => false,
+            });
         if dragged {
             to_global.translation += to_global.scaling * resp.drag_delta();
             resp.mark_changed();
         }
 
-        if let Some(mouse_pos) = ui.input(|i| i.pointer.latest_pos())
+        let mut pointer_in_scene = Pos2::ZERO;
+        let mut zoom_delta = 1.0;
+        let mut translation_delta = Vec2::ZERO;
+
+        if let Some(multi_touch) = ui.input(|i| i.multi_touch()) {
+            pointer_in_scene = to_global.inverse() * multi_touch.center_pos;
+            zoom_delta = multi_touch.zoom_delta;
+            translation_delta = multi_touch.translation_delta;
+        } else if !multi_touch_active
+            && let Some(mouse_pos) = ui.input(|i| i.pointer.latest_pos())
             && resp.contains_pointer()
         {
-            let pointer_in_scene = to_global.inverse() * mouse_pos;
-            let mut zoom_delta = ui.ctx().input(|i| i.zoom_delta());
-            let mut pan_delta = Vec2::ZERO;
+            pointer_in_scene = to_global.inverse() * mouse_pos;
+            zoom_delta = ui.ctx().input(|i| i.zoom_delta());
 
             // If scroll_zooms is set to true the scroll input will be consumed and
             // added to any zoom input. This is required to support both mouse wheel
@@ -275,33 +286,40 @@ impl Scene {
                     .input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y);
                 zoom_delta += scroll_delta * scroll_zoom_speed;
             } else {
-                pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
+                translation_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
             }
+        }
 
-            // Most of the time we can return early. This is also important to
-            // avoid `ui_from_scene` to change slightly due to floating point errors.
-            if zoom_delta == 1.0 && pan_delta == Vec2::ZERO {
-                return;
-            }
+        // Most of the time we can return early. This is also important to
+        // avoid `ui_from_scene` to change slightly due to floating point errors.
+        if zoom_delta == 1.0 && translation_delta == Vec2::ZERO {
+            return;
+        }
 
-            if zoom_delta != 1.0 {
-                // Zoom in on pointer, but only if we are not zoomed in or out too far.
-                let zoom_delta = zoom_delta.clamp(
-                    self.zoom_range.min / to_global.scaling,
-                    self.zoom_range.max / to_global.scaling,
-                );
+        let zoomed = zoom_delta != 1.0;
+        if zoomed {
+            // Zoom in on pointer, but only if we are not zoomed in or out too far.
+            let zoom_delta = zoom_delta.clamp(
+                self.zoom_range.min / to_global.scaling,
+                self.zoom_range.max / to_global.scaling,
+            );
 
-                *to_global = *to_global
-                    * TSTransform::from_translation(pointer_in_scene.to_vec2())
-                    * TSTransform::from_scaling(zoom_delta)
-                    * TSTransform::from_translation(-pointer_in_scene.to_vec2());
+            *to_global = *to_global
+                * TSTransform::from_translation(pointer_in_scene.to_vec2())
+                * TSTransform::from_scaling(zoom_delta)
+                * TSTransform::from_translation(-pointer_in_scene.to_vec2());
 
-                // Clamp to exact zoom range.
-                to_global.scaling = self.zoom_range.clamp(to_global.scaling);
-            }
+            // Clamp to exact zoom range.
+            to_global.scaling = self.zoom_range.clamp(to_global.scaling);
+        }
 
-            // Pan:
-            *to_global = TSTransform::from_translation(pan_delta) * *to_global;
+        // Pan:
+        let translated = translation_delta != Vec2::ZERO;
+        if translated {
+            *to_global = TSTransform::from_translation(translation_delta) * *to_global;
+        }
+
+        if zoomed || translated {
             resp.mark_changed();
         }
     }
