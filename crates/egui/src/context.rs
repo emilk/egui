@@ -228,6 +228,7 @@ pub struct ViewportState {
     /// `None` for immediate viewports.
     pub viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
+    /// The input for this viewport, for the current pass.
     pub input: InputState,
 
     /// State that is collected during a pass and then cleared.
@@ -258,13 +259,20 @@ pub struct ViewportState {
     // ----------------------
     // The output of a pass:
     //
+    /// The shapes painted this pass, per layer.
     pub graphics: GraphicLayers,
-    // Most of the things in `PlatformOutput` are not actually viewport dependent.
+
+    /// The platform output of this pass.
+    ///
+    /// Most of the things in `PlatformOutput` are not actually viewport dependent.
     pub output: PlatformOutput,
+
+    /// Commands sent to this viewport this pass.
     pub commands: Vec<ViewportCommand>,
 
     // ----------------------
     // Cross-frame statistics:
+    /// How many frames in a row used more than one pass.
     pub num_multipass_in_row: usize,
 
     /// The last theme we sent to the native window via [`ViewportCommand::SetTheme`],

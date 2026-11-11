@@ -6,7 +6,7 @@ use crate::{App, epi, web::web_painter::WebPainter};
 
 use super::{NeedRepaint, embedded_views::WebEmbeddedViews, now_sec, text_agent::TextAgent};
 
-pub struct AppRunner {
+pub(crate) struct AppRunner {
     #[allow(clippy::allow_attributes, dead_code)]
     pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
