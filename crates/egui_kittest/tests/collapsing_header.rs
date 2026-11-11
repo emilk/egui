@@ -29,6 +29,16 @@ fn headers_in_window(ui: &mut Ui) {
     });
 }
 
+/// A harness with [`egui::style::Interaction::collapsing_header_drag_toggle`] on.
+fn harness_with_drag_toggle(app: impl FnMut(&mut Ui) + 'static) -> Harness<'static> {
+    let mut harness = Harness::new_ui(app);
+    harness
+        .ctx
+        .all_styles_mut(|style| style.interaction.collapsing_header_drag_toggle = true);
+    harness.run(); // Hit testing uses the senses of the last frame.
+    harness
+}
+
 fn center(harness: &Harness<'_>, label: &str) -> Pos2 {
     harness.get_by_label(label).rect().center()
 }
@@ -61,7 +71,7 @@ fn drag_over(harness: &mut Harness<'_>, from: &str, over: &[&str]) {
 
 #[test]
 fn dragging_over_headers_opens_them_all() {
-    let mut harness = Harness::new_ui(headers);
+    let mut harness = harness_with_drag_toggle(headers);
 
     drag_over(&mut harness, "A", &["C"]);
 
@@ -72,7 +82,7 @@ fn dragging_over_headers_opens_them_all() {
 
 #[test]
 fn dragging_from_an_open_header_closes_the_others() {
-    let mut harness = Harness::new_ui(headers);
+    let mut harness = harness_with_drag_toggle(headers);
     for name in ["A", "B"] {
         harness.get_by_label(name).click();
         harness.run();
@@ -86,7 +96,7 @@ fn dragging_from_an_open_header_closes_the_others() {
 
 #[test]
 fn dragging_leaves_headers_at_other_levels_alone() {
-    let mut harness = Harness::new_ui(headers);
+    let mut harness = harness_with_drag_toggle(headers);
 
     // From X up over its parent "Group", then down past Y to "Z" one level up:
     drag_over(&mut harness, "X", &["Group", "Z"]);
@@ -103,7 +113,7 @@ fn dragging_leaves_headers_at_other_levels_alone() {
 
 #[test]
 fn dragging_works_inside_a_window() {
-    let mut harness = Harness::new_ui(headers_in_window);
+    let mut harness = harness_with_drag_toggle(headers_in_window);
     let window_before = harness.get_by_label("Window").rect();
 
     drag_over(&mut harness, "A", &["C"]);
@@ -120,7 +130,7 @@ fn dragging_works_inside_a_window() {
 
 #[test]
 fn clicking_still_toggles_only_one_header() {
-    let mut harness = Harness::new_ui(headers);
+    let mut harness = harness_with_drag_toggle(headers);
 
     harness.get_by_label("A").click();
     harness.run();
@@ -132,4 +142,15 @@ fn clicking_still_toggles_only_one_header() {
     harness.run();
 
     assert!(!is_open(&harness, "A"));
+}
+
+#[test]
+fn dragging_does_nothing_when_off() {
+    let mut harness = Harness::new_ui(headers);
+
+    drag_over(&mut harness, "A", &["C"]);
+
+    assert!(!is_open(&harness, "A"));
+    assert!(!is_open(&harness, "B"));
+    assert!(!is_open(&harness, "C"));
 }

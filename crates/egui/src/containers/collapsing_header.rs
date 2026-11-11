@@ -358,14 +358,15 @@ pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
 
 /// What a collapsing header senses.
 ///
-/// With a mouse, it also senses drags, so that dragging from it toggles the headers next to it
+/// With [`crate::style::Interaction::collapsing_header_drag_toggle`] on and a mouse,
+/// it also senses drags, so that dragging from it toggles the headers next to it
 /// (see [`DragToggle`]) instead of moving the window it is in.
 /// On a touch screen, dragging scrolls instead.
 fn header_sense(ui: &Ui) -> Sense {
-    if ui.input(|i| i.has_touch_screen()) {
-        Sense::click()
-    } else {
+    if ui.style().interaction.collapsing_header_drag_toggle && !ui.input(|i| i.has_touch_screen()) {
         Sense::click_and_drag()
+    } else {
+        Sense::click()
     }
 }
 
@@ -460,8 +461,9 @@ fn drag_toggle(ui: &Ui, response: &Response, state: &mut CollapsingState) -> boo
 ///
 /// If you want to customize the header contents, see [`CollapsingState::show_header`].
 ///
-/// Pressing a header and dragging up or down over the headers at the same level
-/// opens or closes them all, the same way as the first one.
+/// With [`crate::style::Interaction::collapsing_header_drag_toggle`] on, pressing a header
+/// and dragging up or down over the headers at the same level opens or closes them all,
+/// the same way as the first one.
 #[must_use = "You should call .show()"]
 pub struct CollapsingHeader<'a> {
     atoms: Atoms<'a>,

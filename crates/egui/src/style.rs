@@ -1052,6 +1052,16 @@ pub struct Interaction {
     /// The default is `true`, but text selection can be slightly glitchy,
     /// so you may want to disable it.
     pub multi_widget_text_select: bool,
+
+    /// Pressing a [`crate::CollapsingHeader`] and dragging up or down over the headers
+    /// at the same level opens or closes them all, the same way as the first one.
+    ///
+    /// When on, headers also sense drags with a mouse, so a drag that starts on a header
+    /// no longer moves the [`crate::Window`] it is in, nor a [`Ui::dnd_drag_source`] around it.
+    /// On a touch screen, dragging still scrolls.
+    ///
+    /// Off by default.
+    pub collapsing_header_drag_toggle: bool,
 }
 
 /// Look and feel of the text cursor.
@@ -1598,6 +1608,7 @@ impl Default for Interaction {
             tooltip_grace_time: 0.2,
             selectable_labels: true,
             multi_widget_text_select: true,
+            collapsing_header_drag_toggle: false,
         }
     }
 }
@@ -2197,6 +2208,7 @@ impl Interaction {
             tooltip_grace_time,
             selectable_labels,
             multi_widget_text_select,
+            collapsing_header_drag_toggle,
         } = self;
 
         ui.spacing_mut().item_spacing = vec2(12.0, 8.0);
@@ -2252,6 +2264,11 @@ impl Interaction {
                 ui.checkbox(multi_widget_text_select, "Across multiple labels");
             }
         });
+
+        ui.checkbox(
+            collapsing_header_drag_toggle,
+            "Drag across collapsing headers to open or close them",
+        );
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset interaction settings"));
     }
