@@ -1159,26 +1159,8 @@ pub struct Visuals {
     /// Defaults to [`Self::extreme_bg_color`].
     pub text_edit_bg_color: Option<Color32>,
 
-    /// Background color behind code-styled monospaced labels.
-    pub code_bg_color: Color32,
-
-    /// Text color of code-styled monospaced labels.
-    ///
-    /// If `None` (the default), code uses the same color as other text.
-    pub code_text_color: Option<Color32>,
-
-    /// Corner radius of the background behind code-styled monospaced labels.
-    pub code_bg_corner_radius: CornerRadius,
-
-    /// Horizontal space between the edges of the code background and the code text.
-    ///
-    /// This takes up space in the layout.
-    pub code_bg_padding_x: f32,
-
-    /// How much to expand the code background beyond the text row, without affecting the layout.
-    ///
-    /// A negative `y` keeps the code backgrounds on adjacent rows apart.
-    pub code_bg_expand: Vec2,
+    /// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
+    pub code: CodeVisuals,
 
     /// A good color for warning text (e.g. orange).
     pub warn_fg_color: Color32,
@@ -1325,6 +1307,33 @@ pub struct Selection {
 
     /// Color of selected text.
     pub stroke: Stroke,
+}
+
+/// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct CodeVisuals {
+    /// Background color behind the code.
+    pub bg_color: Color32,
+
+    /// Text color of the code.
+    ///
+    /// If `None` (the default), code uses the same color as other text.
+    pub text_color: Option<Color32>,
+
+    /// Corner radius of the background.
+    pub corner_radius: CornerRadius,
+
+    /// Horizontal space between the edges of the background and the code text.
+    ///
+    /// This takes up space in the layout.
+    pub padding_x: f32,
+
+    /// How much to expand the background beyond the text row, without affecting the layout.
+    ///
+    /// A negative `y` keeps the code backgrounds on adjacent rows apart.
+    pub expand: Vec2,
 }
 
 /// Visual style for IME composition.
@@ -1640,11 +1649,7 @@ impl Visuals {
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
             text_edit_bg_color: None, // use `extreme_bg_color` by default
-            code_bg_color: Color32::from_gray(48),
-            code_text_color: None,
-            code_bg_corner_radius: CornerRadius::same(1),
-            code_bg_padding_x: 2.0,
-            code_bg_expand: vec2(0.0, -1.0),
+            code: CodeVisuals::dark(),
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
@@ -1707,7 +1712,7 @@ impl Visuals {
             hyperlink_color: Color32::from_rgb(0, 155, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(255),           // e.g. TextEdit background
-            code_bg_color: Color32::from_gray(230),
+            code: CodeVisuals::light(),
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
@@ -1762,6 +1767,33 @@ impl Selection {
 }
 
 impl Default for Selection {
+    fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl CodeVisuals {
+    /// The default for dark mode.
+    pub fn dark() -> Self {
+        Self {
+            bg_color: Color32::from_gray(48),
+            text_color: None,
+            corner_radius: CornerRadius::same(1),
+            padding_x: 2.0,
+            expand: vec2(0.0, -1.0),
+        }
+    }
+
+    /// The default for light mode.
+    pub fn light() -> Self {
+        Self {
+            bg_color: Color32::from_gray(230),
+            ..Self::dark()
+        }
+    }
+}
+
+impl Default for CodeVisuals {
     fn default() -> Self {
         Self::dark()
     }
@@ -2316,6 +2348,69 @@ impl Widgets {
     }
 }
 
+impl CodeVisuals {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            bg_color,
+            text_color,
+            corner_radius,
+            padding_x,
+            expand,
+        } = self;
+
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.label("For monospaced inlined text ");
+            ui.code("like this");
+            ui.label(".");
+        });
+
+        Grid::new("code_visuals").num_columns(2).show(ui, |ui| {
+            ui.label("Background color");
+            ui.color_edit_button_srgba(bg_color);
+            ui.end_row();
+
+            ui.label("Text color");
+            ui.horizontal(|ui| {
+                let mut set = text_color.is_some();
+                ui.checkbox(&mut set, "");
+                if set {
+                    let default_color = ui.visuals().text_color();
+                    ui.color_edit_button_srgba(text_color.get_or_insert(default_color));
+                } else {
+                    *text_color = None;
+                }
+            });
+            ui.end_row();
+
+            ui.label("Corner radius");
+            ui.add(corner_radius);
+            ui.end_row();
+
+            ui.label("Padding x");
+            ui.add(DragValue::new(padding_x).range(0.0..=8.0).speed(0.1));
+            ui.end_row();
+
+            ui.label("Expand");
+            ui.horizontal(|ui| {
+                ui.add(
+                    DragValue::new(&mut expand.x)
+                        .range(-4.0..=4.0)
+                        .speed(0.1)
+                        .prefix("x: "),
+                );
+                ui.add(
+                    DragValue::new(&mut expand.y)
+                        .range(-4.0..=4.0)
+                        .speed(0.1)
+                        .prefix("y: "),
+                );
+            });
+            ui.end_row();
+        });
+    }
+}
+
 impl Selection {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self { bg_fill, stroke } = self;
@@ -2423,11 +2518,7 @@ impl Visuals {
             faint_bg_color,
             extreme_bg_color,
             text_edit_bg_color,
-            code_bg_color,
-            code_text_color,
-            code_bg_corner_radius,
-            code_bg_padding_x,
-            code_bg_expand,
+            code,
             warn_fg_color,
             error_fg_color,
 
@@ -2540,54 +2631,6 @@ impl Visuals {
 
                 ui_text_color(ui, hyperlink_color, "hyperlink_color");
 
-                ui.label(RichText::new("Code background").code())
-                    .on_hover_ui(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.spacing_mut().item_spacing.x = 0.0;
-                            ui.label("For monospaced inlined text ");
-                            ui.code("like this");
-                            ui.label(".");
-                        });
-                    });
-                ui.color_edit_button_srgba(code_bg_color);
-                ui.end_row();
-
-                ui_optional_color(
-                    ui,
-                    code_text_color,
-                    widgets.noninteractive.text_color(),
-                    "Code text color",
-                );
-
-                ui.label("Code background corner radius");
-                ui.add(code_bg_corner_radius);
-                ui.end_row();
-
-                ui.label("Code background padding x");
-                ui.add(
-                    DragValue::new(code_bg_padding_x)
-                        .range(0.0..=8.0)
-                        .speed(0.1),
-                );
-                ui.end_row();
-
-                ui.label("Code background expand");
-                ui.horizontal(|ui| {
-                    ui.add(
-                        DragValue::new(&mut code_bg_expand.x)
-                            .range(-4.0..=4.0)
-                            .speed(0.1)
-                            .prefix("x: "),
-                    );
-                    ui.add(
-                        DragValue::new(&mut code_bg_expand.y)
-                            .range(-4.0..=4.0)
-                            .speed(0.1)
-                            .prefix("y: "),
-                    );
-                });
-                ui.end_row();
-
                 ui.label("Weak text alpha");
                 ui.add_enabled(
                     weak_text_color.is_none(),
@@ -2666,6 +2709,7 @@ impl Visuals {
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
+        ui.collapsing("Code", |ui| code.ui(ui));
         ui.collapsing("IME composition", |ui| ime_composition.ui(ui));
 
         ui.collapsing("Misc", |ui| {

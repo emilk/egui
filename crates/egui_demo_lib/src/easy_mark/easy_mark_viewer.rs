@@ -95,7 +95,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
             let mut rect = ui.monospace(code).rect;
             rect = rect.expand(1.0); // looks better
             rect.max.x = ui.max_rect().max.x;
-            let code_bg_color = ui.visuals().code_bg_color;
+            let code_bg_color = ui.visuals().code.bg_color;
             ui.painter().set(
                 where_to_put_background,
                 Shape::rect_filled(rect, 1.0, code_bg_color),

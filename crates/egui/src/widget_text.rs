@@ -460,10 +460,10 @@ impl RichText {
 
         let (background, expand_bg, background_padding_x, background_corner_radius) = if code {
             (
-                style.visuals.code_bg_color,
-                style.visuals.code_bg_expand,
-                style.visuals.code_bg_padding_x,
-                style.visuals.code_bg_corner_radius,
+                style.visuals.code.bg_color,
+                style.visuals.code.expand,
+                style.visuals.code.padding_x,
+                style.visuals.code.corner_radius,
             )
         } else {
             (background_color, expand_bg, 0.0, epaint::CornerRadius::ZERO)
@@ -514,7 +514,7 @@ impl RichText {
         } else if self.weak {
             Some(visuals.weak_text_color())
         } else if self.code {
-            visuals.code_text_color.or(visuals.override_text_color)
+            visuals.code.text_color.or(visuals.override_text_color)
         } else {
             visuals.override_text_color
         }
