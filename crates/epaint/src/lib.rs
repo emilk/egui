@@ -70,7 +70,7 @@ pub use self::{
     stroke::{PathStroke, Stroke, StrokeKind},
     tessellator::{TessellationOptions, Tessellator},
     text::{FontFamily, FontId, Fonts, FontsView, Galley, TextOptions},
-    texture_atlas::TextureAtlas,
+    texture_atlas::{PreparedDisc, TextureAtlas},
     texture_handle::TextureHandle,
     textures::TextureManager,
     viewport::ViewportInPixels,

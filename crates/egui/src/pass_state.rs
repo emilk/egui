@@ -1,3 +1,5 @@
+//! Per-pass state, which is reset at the start of each pass.
+
 use ahash::HashMap;
 
 use crate::{Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects, id::IdSet, style};
