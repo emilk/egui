@@ -1,5 +1,4 @@
 use egui::ScreenshotCallback;
-use egui_glow::glow;
 use std::sync::Arc;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
