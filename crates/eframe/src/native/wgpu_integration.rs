@@ -1306,10 +1306,7 @@ fn render_immediate_viewport(
     }
 
     let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
-    // Honor `ViewportCommand::Screenshot` on an immediate viewport as the
-    // root / deferred path does: hand the callbacks to the painter, which
-    // completes them once the readback lands. Before this they were silently
-    // dropped (`vec![]`).
+
     let mut screenshot_commands = vec![];
     viewport.actions_requested.retain(|cmd| {
         if let ActionRequested::Screenshot(callback) = cmd {
