@@ -4,7 +4,7 @@
 //! will get you up and running quickly with its reasonable default implementations of the traits described below.
 //!
 //! 1. Add [`egui_extras`](https://crates.io/crates/egui_extras/) as a dependency with the `all_loaders` feature (`cargo add egui_extras -F all_loaders`).
-//! 2. Add a call to [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/fn.install_image_loaders.html)
+//! 2. Add a call to [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install_image_loaders.html)
 //!    in your app's setup code.
 //! 3. Use [`Ui::image`][`crate::ui::Ui::image`] with some [`ImageSource`][`crate::ImageSource`].
 //!
@@ -55,11 +55,11 @@
 mod bytes_loader;
 mod texture_loader;
 
+use alloc::{borrow::Cow, sync::Arc};
 use core::{
     fmt::{Debug, Display},
     ops::Deref,
 };
-use std::{borrow::Cow, sync::Arc};
 
 use ahash::HashMap;
 
@@ -471,10 +471,9 @@ impl SizedTexture {
 
     /// Fetch the [id][`SizedTexture::id`] and [size][`SizedTexture::size`] from a [`TextureHandle`].
     pub fn from_handle(handle: &TextureHandle) -> Self {
-        let size = handle.size();
         Self {
             id: handle.id(),
-            size: Vec2::new(size[0] as f32, size[1] as f32),
+            size: handle.resolution_vec2(),
         }
     }
 }

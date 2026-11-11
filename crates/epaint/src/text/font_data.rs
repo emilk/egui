@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use emath::Rangef;
 
@@ -135,7 +135,7 @@ impl core::fmt::Debug for FontData {
 
 #[cfg(feature = "serde")]
 mod blob_serde {
-    use super::Blob;
+    use super::{Arc, Blob};
 
     pub fn serialize<S: serde::Serializer>(blob: &Blob, serializer: S) -> Result<S::Ok, S::Error> {
         serde::Serialize::serialize((**blob).as_ref(), serializer)
@@ -145,6 +145,6 @@ mod blob_serde {
         deserializer: D,
     ) -> Result<Blob, D::Error> {
         let bytes: Vec<u8> = serde::Deserialize::deserialize(deserializer)?;
-        Ok(std::sync::Arc::new(bytes))
+        Ok(Arc::new(bytes))
     }
 }

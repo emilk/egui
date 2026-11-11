@@ -1,6 +1,6 @@
 use crate::{Atom, AtomKind, IdSalt, Image, TextureId, WidgetText};
+use alloc::borrow::Cow;
 use core::ops::{Deref, DerefMut};
-use std::borrow::Cow;
 
 /// A list of [`Atom`]s.
 ///
@@ -227,7 +227,7 @@ impl<'a> Atoms<'a> {
 
 impl<'a> IntoIterator for Atoms<'a> {
     type Item = Atom<'a>;
-    type IntoIter = std::vec::IntoIter<Atom<'a>>;
+    type IntoIter = alloc::vec::IntoIter<Atom<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()

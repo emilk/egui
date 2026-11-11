@@ -22,6 +22,9 @@
 
 #![expect(clippy::float_cmp)]
 #![expect(clippy::manual_range_contains)]
+#![warn(clippy::std_instead_of_alloc)]
+
+extern crate alloc;
 
 mod brush;
 pub mod color;
@@ -185,11 +188,16 @@ pub struct ClippedPrimitive {
     pub primitive: Primitive,
 }
 
-/// A rendering primitive - either a [`Mesh`] or a [`PaintCallback`].
+/// A rendering primitive: a [`Mesh`], a [`PaintCallback`], or a rect to clear.
 #[derive(Clone, Debug)]
 pub enum Primitive {
     Mesh(Mesh),
     Callback(PaintCallback),
+
+    /// Sets the pixels of this rect (in points) to transparent black, without blending.
+    ///
+    /// Only the part inside [`ClippedPrimitive::clip_rect`] is cleared. See [`Shape::Clear`].
+    Clear(emath::Rect),
 }
 
 // ---------------------------------------------------------------------------

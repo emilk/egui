@@ -1,4 +1,5 @@
-use std::{path::Path, sync::Arc};
+use alloc::sync::Arc;
+use std::path::Path;
 
 #[cfg(target_arch = "wasm32")]
 use core::{future::Future, pin::Pin};
@@ -33,19 +34,16 @@ pub trait DroppedFile: core::fmt::Debug {
     fn bytes(&self) -> Result<Vec<u8>, String>;
 
     /// The browser file handle, if this file was dropped on the web.
-    #[cfg(target_arch = "wasm32")]
+    ///
+    /// Requires the `web_file` feature.
+    #[cfg(all(target_arch = "wasm32", feature = "web_file"))]
     fn web_file(&self) -> Option<&web_sys::File> {
         None
     }
 }
 
 /// A shared reference to a dropped file.
-#[cfg(not(all(target_arch = "wasm32", target_feature = "atomics")))]
-pub type DroppedFileHandle = Arc<dyn DroppedFile + Send + Sync>;
-
-/// A shared reference to a dropped file.
 ///
-/// This is not necessarily `Send + Sync` when wasm threads are enabled, because
-/// [`web_sys::File`] is not thread-safe in that configuration.
-#[cfg(all(target_arch = "wasm32", target_feature = "atomics"))]
-pub type DroppedFileHandle = Arc<dyn DroppedFile>;
+/// With wasm threads, a `web_sys::File` isn't `Send + Sync`,
+/// so an integration has to wrap it, for instance with `send_wrapper::SendWrapper`.
+pub type DroppedFileHandle = Arc<dyn DroppedFile + Send + Sync>;

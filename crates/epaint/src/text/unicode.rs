@@ -45,6 +45,20 @@ pub(super) fn invisible_char(c: char) -> bool {
     )
 }
 
+/// Whitespace where a line may be broken.
+///
+/// Excludes the no-break spaces, which are used e.g. as thousands separators (`1\u{202F}234`).
+#[inline]
+pub(super) fn is_breaking_space(c: char) -> bool {
+    c.is_whitespace()
+        && !matches!(
+            c,
+            '\u{00A0}' // NO-BREAK SPACE
+            | '\u{2007}' // FIGURE SPACE
+            | '\u{202F}' // NARROW NO-BREAK SPACE
+        )
+}
+
 #[inline]
 pub(super) fn is_cjk_ideograph(c: char) -> bool {
     ('\u{4E00}' <= c && c <= '\u{9FFF}')
@@ -67,7 +81,7 @@ pub(super) fn is_cjk(c: char) -> bool {
 #[inline]
 pub(super) fn is_cjk_break_allowed(c: char) -> bool {
     // See: https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages#Characters_not_permitted_on_the_start_of_a_line.
-    !")]｝〕〉》」』】〙〗〟'\"｠»ヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻‐゠–〜?!‼⁇⁈⁉・、:;,。.".contains(c)
+    !")]｝〕〉》」』】〙〗〟'\"｠»ヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻‐゠–〜?!‼⁇⁈⁉・、:;,。.！％），．：；？］”’…".contains(c)
 }
 
 /// Returns `true` if the character is a Unicode combining mark (categories Mn, Mc, Me).

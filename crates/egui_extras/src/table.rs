@@ -482,7 +482,7 @@ impl<'a> TableBuilder<'a> {
         let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
-        let mut ui_builder = egui::UiBuilder::new();
+        let mut ui_builder = egui::UiBuilder::new().scope_id(state_id.with("__header"));
         if is_sizing_pass {
             ui_builder = ui_builder.sizing_pass();
         }
@@ -614,10 +614,10 @@ impl TableState {
             }
         });
 
-        if !is_sizing_pass && state.max_used_widths.len() == columns.len() {
+        if state.max_used_widths.len() == columns.len() {
             // Make sure any non-resizable `remainder` columns are updated
             // to take up the remainder of the current available width.
-            // Also handles changing item spacing.
+            // Also handles changing item spacing and the narrower available width of a sizing pass.
             let mut sizing = crate::sizing::Sizing::default();
             for (prev_width, max_used, column) in
                 itertools::izip!(&state.column_widths, &state.max_used_widths, columns)
@@ -634,7 +634,7 @@ impl TableState {
                         InitialColumnSize::Automatic(_) => Size::exact(*prev_width),
                         InitialColumnSize::Remainder => Size::remainder(),
                     }
-                    .at_least(if column.clip {
+                    .at_least(if column.clip || is_sizing_pass {
                         column.width_range.min
                     } else {
                         column.width_range.min.max(*max_used)
@@ -762,7 +762,7 @@ impl Table<'_> {
 
             let clip_rect = ui.clip_rect();
 
-            let mut ui_builder = egui::UiBuilder::new();
+            let mut ui_builder = egui::UiBuilder::new().scope_id(self.state_id.with("__body"));
             if is_sizing_pass {
                 ui_builder = ui_builder.sizing_pass();
             }

@@ -419,6 +419,19 @@ impl Painter {
                 Primitive::Mesh(mesh) => {
                     self.paint_mesh(mesh);
                 }
+                Primitive::Clear(rect) => {
+                    // `glClear` has no rect arg, so we need to use the clip_rect
+                    set_clip_rect(
+                        &self.gl,
+                        screen_size_px,
+                        pixels_per_point,
+                        clip_rect.intersect(*rect),
+                    );
+                    unsafe {
+                        self.gl.clear_color(0.0, 0.0, 0.0, 0.0);
+                        self.gl.clear(glow::COLOR_BUFFER_BIT);
+                    }
+                }
                 Primitive::Callback(callback) => {
                     if callback.rect.is_positive() {
                         profiling::scope!("callback");
@@ -522,15 +535,8 @@ impl Painter {
 
         match &delta.image {
             egui::ImageData::Color(image) => {
-                assert_eq!(
-                    image.width() * image.height(),
-                    image.pixels.len(),
-                    "Mismatch between texture size and texel count"
-                );
-
-                let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
-
-                self.upload_texture_srgb(delta.pos, image.size, delta.options, data);
+                let data: &[u8] = bytemuck::cast_slice(image.pixels());
+                self.upload_texture_srgb(delta.pos, image.resolution(), delta.options, data);
             }
         }
     }

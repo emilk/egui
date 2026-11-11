@@ -154,6 +154,16 @@ impl WidgetRects {
         self.by_layer.get(&layer_id).into_iter().flatten()
     }
 
+    /// Enabled widgets in this layer that can take keyboard focus, in the order they were added.
+    pub(crate) fn focusable_widgets_in_layer(
+        &self,
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = Id> + '_ {
+        self.get_layer(layer_id)
+            .filter(|widget| widget.enabled && widget.sense.is_focusable())
+            .map(|widget| widget.id)
+    }
+
     /// Clear the contents while retaining allocated memory.
     pub fn clear(&mut self) {
         let Self {

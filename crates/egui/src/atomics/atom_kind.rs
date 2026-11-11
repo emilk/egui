@@ -1,11 +1,11 @@
 use crate::{
     ContainerAtom, FontSelection, Image, ImageSource, SizedAtomKind, Ui, WidgetAtom, WidgetText,
 };
+use alloc::sync::Arc;
 use core::fmt::Debug;
 use emath::{Rect, Vec2};
 use epaint::Color32;
 use epaint::text::TextWrapMode;
-use std::sync::Arc;
 
 /// Args passed when sizing an [`super::Atom`]
 pub struct IntoSizedArgs {

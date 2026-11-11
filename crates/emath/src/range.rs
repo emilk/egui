@@ -1,4 +1,4 @@
-use core::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
+use core::ops::{Div, Mul, RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 
 use crate::fast_midpoint;
 
@@ -253,5 +253,41 @@ impl PartialEq<Rangef> for RangeInclusive<f32> {
     #[inline]
     fn eq(&self, other: &Rangef) -> bool {
         *self.start() == other.min && *self.end() == other.max
+    }
+}
+
+impl Mul<f32> for Rangef {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, factor: f32) -> Self {
+        Self {
+            min: self.min * factor,
+            max: self.max * factor,
+        }
+    }
+}
+
+impl Mul<Rangef> for f32 {
+    type Output = Rangef;
+
+    #[inline]
+    fn mul(self, range: Rangef) -> Rangef {
+        Rangef {
+            min: self * range.min,
+            max: self * range.max,
+        }
+    }
+}
+
+impl Div<f32> for Rangef {
+    type Output = Self;
+
+    #[inline]
+    fn div(self, factor: f32) -> Self {
+        Self {
+            min: self.min / factor,
+            max: self.max / factor,
+        }
     }
 }

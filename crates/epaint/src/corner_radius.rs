@@ -95,7 +95,7 @@ impl CornerRadius {
 
     /// Average rounding of the corners.
     pub fn average(&self) -> f32 {
-        (self.nw as f32 + self.ne as f32 + self.sw as f32 + self.se as f32) / 4.0
+        (self.nw as f32 + self.ne as f32 + self.sw as f32 + self.se as f32) * 0.25
     }
 }
 

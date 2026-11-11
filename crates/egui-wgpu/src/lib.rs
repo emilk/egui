@@ -65,8 +65,6 @@ pub enum WgpuError {
 }
 
 /// Runtime-mutable subset of [`WgpuConfiguration`].
-///
-/// Edit any field to have the surface reconfigured on the next paint.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SurfaceConfig {
     /// Present mode used for the primary surface.
@@ -129,11 +127,6 @@ pub struct RenderState {
 
     /// Egui renderer responsible for drawing the UI.
     pub renderer: Arc<RwLock<Renderer>>,
-
-    /// Runtime-mutable subset of the wgpu configuration.
-    ///
-    /// Update this to have the surface reconfigured on the next paint.
-    pub surface_config: SurfaceConfig,
 }
 
 async fn request_adapter(
@@ -291,7 +284,6 @@ impl RenderState {
             queue,
             target_format,
             renderer: Arc::new(RwLock::new(renderer)),
-            surface_config: config.surface,
         })
     }
 }
@@ -333,9 +325,6 @@ pub enum SurfaceErrorAction {
 #[derive(Clone)]
 pub struct WgpuConfiguration {
     /// Runtime-mutable configuration for the surface (present mode, frame latency).
-    ///
-    /// These are the fields exposed via [`RenderState::surface_config`] for live
-    /// reconfiguration at runtime.
     pub surface: SurfaceConfig,
 
     /// How to create the wgpu adapter & device
@@ -352,11 +341,21 @@ pub struct WgpuConfiguration {
         Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
 }
 
-#[test]
-fn wgpu_config_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `WgpuConfiguration` is `Send + Sync`.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+// On wasm this only holds with `fragile-send-sync-non-atomic-wasm` and without threads;
+// look at the feature flag for an explanation.
+#[cfg(any(
+    not(target_arch = "wasm32"),
+    all(
+        feature = "fragile-send-sync-non-atomic-wasm",
+        not(target_feature = "atomics")
+    ),
+))]
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<WgpuConfiguration>();
-}
+};
 
 impl core::fmt::Debug for WgpuConfiguration {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

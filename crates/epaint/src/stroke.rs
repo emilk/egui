@@ -1,5 +1,5 @@
+use alloc::sync::Arc;
 use core::fmt::Debug;
-use std::sync::Arc;
 
 use emath::GuiRounding as _;
 

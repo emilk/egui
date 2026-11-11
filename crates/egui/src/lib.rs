@@ -387,6 +387,9 @@
 
 #![expect(clippy::float_cmp)]
 #![expect(clippy::manual_range_contains)]
+#![warn(clippy::std_instead_of_alloc)]
+
+extern crate alloc;
 
 pub mod accessibility;
 mod animation_manager;
@@ -397,6 +400,7 @@ mod context;
 mod data;
 pub mod debug_text;
 mod drag_and_drop;
+mod embedded_view;
 pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
@@ -490,9 +494,9 @@ pub use self::{
         Key, ScreenshotCallback,
         input::{
             DroppedFile, DroppedFileHandle, Event, EventFilter, HoveredFile, ImeEvent,
-            KeyboardShortcut, ModifierNames, Modifiers, MouseWheelUnit, NUM_POINTER_BUTTONS,
-            PointerButton, RawInput, SafeAreaInsets, TouchDeviceId, TouchId, TouchPhase,
-            ViewportEvent, ViewportInfo,
+            KeyboardShortcut, ModifierNames, Modifiers, MouseWheelSource, MouseWheelUnit,
+            NUM_POINTER_BUTTONS, PointerButton, RawInput, SafeAreaInsets, TouchDeviceId, TouchId,
+            TouchPhase, ViewportEvent, ViewportInfo,
         },
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
@@ -500,6 +504,7 @@ pub use self::{
         },
     },
     drag_and_drop::DragAndDrop,
+    embedded_view::{EmbeddedView, EmbeddedViewOutput, EmbeddedViewPlacement},
     epaint::text::TextWrapMode,
     grid::Grid,
     id::{Id, IdMap, IdSet},

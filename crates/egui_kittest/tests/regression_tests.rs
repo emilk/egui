@@ -35,6 +35,67 @@ pub fn focus_should_skip_over_disabled_buttons() {
 }
 
 #[test]
+pub fn arrow_navigation_should_skip_over_previously_disabled_buttons() {
+    let mut harness = Harness::new_ui_state(
+        |ui, enabled| {
+            ui.checkbox(enabled, "Enable Button");
+            ui.add_enabled(*enabled, Button::new("Button"));
+            let _ = ui.button("Other Button");
+        },
+        false,
+    );
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    harness.key_press(egui::Key::Space);
+    harness.run();
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    let button = harness.get_by_label("Button");
+    assert!(button.is_focused());
+
+    harness.key_press_modifiers(Modifiers::SHIFT, egui::Key::Tab);
+    harness.run();
+
+    harness.key_press(egui::Key::Space);
+    harness.run();
+
+    assert!(!*harness.state());
+
+    let checkbox = harness.get_by_label("Enable Button");
+    assert!(checkbox.is_focused());
+
+    // Down should skip over the disabled button.
+    harness.key_press(egui::Key::ArrowDown);
+    harness.run();
+
+    let other_button = harness.get_by_label("Other Button");
+    assert!(other_button.is_focused());
+
+    // Up should also skip over the disabled button.
+    harness.key_press(egui::Key::ArrowUp);
+    harness.run();
+
+    let checkbox = harness.get_by_label("Enable Button");
+    assert!(checkbox.is_focused());
+
+    // Re-enabling the button should make it focusable again.
+    harness.key_press(egui::Key::Space);
+    harness.run();
+
+    assert!(*harness.state());
+
+    harness.key_press(egui::Key::ArrowDown);
+    harness.run();
+
+    let button = harness.get_by_label("Button");
+    assert!(button.is_focused());
+}
+
+#[test]
 pub fn focus_should_skip_over_disabled_drag_values() {
     let mut value_1: u16 = 1;
     let mut value_2: u16 = 2;
@@ -312,7 +373,7 @@ pub fn keyboard_should_open_nested_submenu() {
 }
 
 #[test]
-pub fn keyboard_should_close_nested_submenu_with_second_enter() {
+pub fn keyboard_should_close_nested_submenu_with_left() {
     let mut harness = keyboard_submenu_harness();
 
     harness.get_by_label("X").focus();
@@ -328,20 +389,18 @@ pub fn keyboard_should_close_nested_submenu_with_second_enter() {
     harness.run();
 
     assert!(
-        harness.query_by_label("Goal").is_some(),
-        "Expected nested submenu to open before close attempt"
+        harness.get_by_label("Goal").is_focused(),
+        "Expected Enter to open the nested submenu and focus its first entry"
     );
 
-    harness.get_by_label_contains("Y").focus();
-    harness.run();
-
-    harness.key_press(egui::Key::Enter);
+    harness.key_press(egui::Key::ArrowLeft);
     harness.run();
 
     assert!(
         harness.query_by_label("Goal").is_none(),
-        "Expected nested submenu to close when pressing Enter again"
+        "Expected nested submenu to close when pressing Left"
     );
+    assert!(harness.get_by_label_contains("Y").is_focused());
 }
 
 /// Regression test for a bug in `horizontal_wrapped` layouts where text wraps but does not
@@ -809,7 +868,7 @@ pub fn textedit_hint_text_should_follow_text_alignment() {
         })
         .expect("hint text shape should be painted");
 
-    let hint_center_x = hint_shape.pos.x + hint_shape.galley.size().x / 2.0;
+    let hint_center_x = hint_shape.pos.x + hint_shape.galley.size().x * 0.5;
     let edit_center_x = edit_rect.center().x;
 
     assert!(

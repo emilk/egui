@@ -342,7 +342,7 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
     let rect = rect.expand(visuals.expansion);
     use core::f32::consts::TAU;
-    let rotation = remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0);
+    let rotation = remap(openness, 0.0..=1.0, -TAU * 0.25..=0.0);
 
     ui.painter().add(epaint::Shape::rotated_triangle(
         rect,
@@ -403,6 +403,46 @@ impl CollapsingHeader {
             show_background: false,
             icon: None,
         }
+    }
+
+    /// Show a collapsing header where you draw the header contents yourself.
+    ///
+    /// Unlike [`Self::new`], which only takes a text label, the header here is an
+    /// arbitrary closure, so you can put e.g. checkboxes, buttons or several widgets
+    /// next to the expand/collapse arrow. Only the arrow toggles the open state.
+    ///
+    /// `id_salt` must be unique within the parent [`Ui`].
+    /// The header starts out collapsed.
+    ///
+    /// This is a convenience wrapper around [`CollapsingState::show_header`].
+    /// Use [`CollapsingState`] directly if you need more control,
+    /// e.g. to make it open by default or to get the responses back.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut enabled = true;
+    /// egui::CollapsingHeader::custom(
+    ///     ui,
+    ///     "my_custom_header",
+    ///     |ui| {
+    ///         ui.checkbox(&mut enabled, "Enabled");
+    ///     },
+    ///     |ui| {
+    ///         ui.label("Body");
+    ///     },
+    /// );
+    /// # });
+    /// ```
+    pub fn custom(
+        ui: &mut Ui,
+        id_salt: impl AsIdSalt,
+        ui_header: impl FnOnce(&mut Ui),
+        ui_body: impl FnOnce(&mut Ui),
+    ) {
+        let id = ui.make_persistent_id(id_salt);
+        CollapsingState::load_with_default_open(ui.ctx(), id, false)
+            .show_header(ui, ui_header)
+            .body(ui_body);
     }
 
     /// By default, the [`CollapsingHeader`] is collapsed.

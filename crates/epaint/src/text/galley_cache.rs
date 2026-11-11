@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use emath::OrderedFloat;
 use nohash_hasher::IntMap;

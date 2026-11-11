@@ -1,6 +1,6 @@
 //! The different shapes that can be painted.
 
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use emath::{Align2, Pos2, Rangef, Rect, Rot2, TSTransform, Vec2, pos2};
 
@@ -75,6 +75,13 @@ pub enum Shape {
 
     /// Backend-specific painting.
     Callback(PaintCallback),
+
+    /// Sets the pixels of a rect to transparent black, replacing whatever was painted there
+    /// before.
+    ///
+    /// Shapes painted after it blend over the transparent pixels as usual. Only the part inside
+    /// the clip rect is cleared.
+    Clear(Rect),
 }
 
 #[test]
@@ -90,11 +97,12 @@ fn shape_size() {
     );
 }
 
-#[test]
-fn shape_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Shape` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Shape>();
-}
+};
 
 impl From<Vec<Self>> for Shape {
     #[inline(always)]
@@ -415,7 +423,7 @@ impl Shape {
                 if stroke.is_empty() {
                     Rect::NOTHING
                 } else {
-                    Rect::from_two_pos(points[0], points[1]).expand(stroke.width / 2.0)
+                    Rect::from_two_pos(points[0], points[1]).expand(stroke.width * 0.5)
                 }
             }
             Self::Path(path_shape) => path_shape.visual_bounding_rect(),
@@ -426,6 +434,7 @@ impl Shape {
             Self::QuadraticBezier(bezier) => bezier.visual_bounding_rect(),
             Self::CubicBezier(bezier) => bezier.visual_bounding_rect(),
             Self::Callback(custom) => custom.rect,
+            Self::Clear(rect) => *rect,
         }
     }
 }
@@ -520,6 +529,9 @@ impl Shape {
             }
             Self::Callback(shape) => {
                 shape.rect = transform * shape.rect;
+            }
+            Self::Clear(rect) => {
+                *rect = transform * *rect;
             }
         }
     }

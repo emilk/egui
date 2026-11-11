@@ -404,15 +404,15 @@ impl Path {
                     n1 = n0;
                 }
 
-                let normal = (n0 + n1) / 2.0;
+                let normal = (n0 + n1) * 0.5;
                 let length_sq = normal.length_sq();
                 let right_angle_length_sq = 0.5;
                 let sharper_than_a_right_angle = length_sq < right_angle_length_sq;
                 if sharper_than_a_right_angle {
                     // cut off the sharp corner
                     let center_normal = normal.normalized();
-                    let n0c = (n0 + center_normal) / 2.0;
-                    let n1c = (n1 + center_normal) / 2.0;
+                    let n0c = (n0 + center_normal) * 0.5;
+                    let n1c = (n1 + center_normal) * 0.5;
                     self.add_point(points[i], n0c / n0c.length_sq());
                     self.add_point(points[i], n1c / n1c.length_sq());
                 } else {
@@ -447,7 +447,7 @@ impl Path {
                 n1 = n0;
             }
 
-            let normal = (n0 + n1) / 2.0;
+            let normal = (n0 + n1) * 0.5;
             let length_sq = normal.length_sq();
 
             // We can't just cut off corners for filled shapes like this,
@@ -465,8 +465,8 @@ impl Path {
             if CUT_OFF_SHARP_CORNERS && sharper_than_a_right_angle {
                 // cut off the sharp corner
                 let center_normal = normal.normalized();
-                let n0c = (n0 + center_normal) / 2.0;
-                let n1c = (n1 + center_normal) / 2.0;
+                let n0c = (n0 + center_normal) * 0.5;
+                let n1c = (n1 + center_normal) * 0.5;
                 self.add_point(points[i], n0c / n0c.length_sq());
                 self.add_point(points[i], n1c / n1c.length_sq());
             } else {
@@ -1111,7 +1111,7 @@ fn stroke_and_fill_path(
     // Expand the bounding box to include the thickness of the path
     let uv_bbox = if matches!(stroke.color, ColorMode::UV(_)) {
         Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
-            .expand((stroke.width / 2.0) + feathering)
+            .expand((stroke.width * 0.5) + feathering)
     } else {
         Rect::NAN
     };
@@ -1366,7 +1366,7 @@ fn stroke_and_fill_path(
         if thin_line {
             // Fade out thin lines rather than making them thinner
             let opacity = stroke.width / feathering;
-            let radius = feathering / 2.0;
+            let radius = feathering * 0.5;
             for p in path.iter_mut() {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
@@ -1378,7 +1378,7 @@ fn stroke_and_fill_path(
                 );
             }
         } else {
-            let radius = stroke.width / 2.0;
+            let radius = stroke.width * 0.5;
             for p in path.iter_mut() {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
@@ -1515,6 +1515,14 @@ impl Tessellator {
             return;
         }
 
+        if let Shape::Clear(rect) = shape {
+            out_primitives.push(ClippedPrimitive {
+                clip_rect,
+                primitive: Primitive::Clear(transform * rect),
+            });
+            return;
+        }
+
         let start_new_mesh = match out_primitives.last() {
             None => true,
             Some(output_clipped_primitive) => {
@@ -1523,7 +1531,7 @@ impl Tessellator {
                         Primitive::Mesh(output_mesh) => {
                             output_mesh.texture_id != shape.texture_id()
                         }
-                        Primitive::Callback(_) => true,
+                        Primitive::Callback(_) | Primitive::Clear(_) => true,
                     }
             }
         };
@@ -1561,7 +1569,8 @@ impl Tessellator {
 
     /// Tessellate a single [`Shape`] into a [`Mesh`].
     ///
-    /// This call can panic the given shape is of [`Shape::Vec`] or [`Shape::Callback`].
+    /// This call panics if the given shape is a [`Shape::Vec`], [`Shape::Callback`] or
+    /// [`Shape::Clear`].
     /// For that, use [`Self::tessellate_clipped_shape`] instead.
     /// * `shape`: the shape to tessellate.
     /// * `out`: triangles are appended to this.
@@ -1624,6 +1633,9 @@ impl Tessellator {
             Shape::CubicBezier(cubic_shape) => self.tessellate_cubic_bezier(&cubic_shape, out),
             Shape::Callback(_) => {
                 panic!("Shape::Callback passed to Tessellator");
+            }
+            Shape::Clear(_) => {
+                panic!("Shape::Clear passed to Tessellator");
             }
         }
     }
@@ -1717,7 +1729,7 @@ impl Tessellator {
         let num_points = u32::max(8, max_radius / 16);
 
         // Create an ease ratio based the ellipses a and b
-        let ratio = ((radius.y / radius.x) / 2.0).clamp(0.0, 1.0);
+        let ratio = ((radius.y / radius.x) * 0.5).clamp(0.0, 1.0);
 
         // Generate points between the 0 to pi/2
         let quarter: Vec<Vec2> = (1..num_points)
@@ -2022,7 +2034,7 @@ impl Tessellator {
             // Check if the stroke covers the whole rectangle
             let rect_with_stroke = match stroke_kind {
                 StrokeKind::Inside => rect,
-                StrokeKind::Middle => rect.expand(stroke.width / 2.0),
+                StrokeKind::Middle => rect.expand(stroke.width * 0.5),
                 StrokeKind::Outside => rect.expand(stroke.width),
             };
 
@@ -2120,8 +2132,8 @@ impl Tessellator {
             match stroke_kind {
                 StrokeKind::Inside => {}
                 StrokeKind::Middle => {
-                    rect = rect.expand(stroke.width / 2.0);
-                    corner_radius += stroke.width / 2.0;
+                    rect = rect.expand(stroke.width * 0.5);
+                    corner_radius += stroke.width * 0.5;
                 }
                 StrokeKind::Outside => {
                     rect = rect.expand(stroke.width);
@@ -2193,7 +2205,7 @@ impl Tessellator {
 
             let fill_rect = match stroke_kind {
                 StrokeKind::Inside => rect.shrink(stroke.width),
-                StrokeKind::Middle => rect.shrink(stroke.width / 2.0),
+                StrokeKind::Middle => rect.shrink(stroke.width * 0.5),
                 StrokeKind::Outside => rect,
             };
 
@@ -2509,6 +2521,7 @@ impl Tessellator {
                 && match &p.primitive {
                     Primitive::Mesh(mesh) => !mesh.is_empty(),
                     Primitive::Callback(_) => true,
+                    Primitive::Clear(rect) => rect.intersects(p.clip_rect),
                 }
         });
 
@@ -2548,7 +2561,8 @@ impl Tessellator {
                 | Shape::Mesh(_)
                 | Shape::LineSegment { .. }
                 | Shape::Rect(_)
-                | Shape::Callback(_) => false,
+                | Shape::Callback(_)
+                | Shape::Clear(_) => false,
             }
         }
 
@@ -2682,7 +2696,7 @@ fn path_bounding_box() {
         let width = i as f32;
 
         let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(10.0, 10.0));
-        let expected_rect = rect.expand((width / 2.0) + 1.5);
+        let expected_rect = rect.expand((width * 0.5) + 1.5);
 
         let mut mesh = Mesh::default();
 

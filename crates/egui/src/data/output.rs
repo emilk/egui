@@ -42,7 +42,7 @@ pub struct FullOutput {
 impl FullOutput {
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
-        use std::collections::btree_map::Entry;
+        use alloc::collections::btree_map::Entry;
 
         let Self {
             platform_output,
@@ -124,6 +124,15 @@ pub enum OutputCommand {
     /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
     CopyText(String),
 
+    /// The user has finished changing the text selection, and this is what is now selected.
+    ///
+    /// Sent once the selection settles (e.g. when the mouse button is released after a drag),
+    /// and only if it changed, so not on every frame of a drag.
+    ///
+    /// On X11 and Wayland, `egui-winit` puts this in the PRIMARY selection,
+    /// so that it can be pasted with the middle mouse button.
+    TextSelectionSettled(String),
+
     /// Put this image to the system clipboard.
     CopyImage(crate::ColorImage),
 
@@ -190,6 +199,11 @@ pub struct PlatformOutput {
     /// If empty, there was never any calls.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub request_discard_reasons: Vec<RepaintCause>,
+
+    /// Where the embedded views that are on screen this pass go. See [`crate::EmbeddedView`].
+    ///
+    /// The integration should hide every embedded view that is missing from this list.
+    pub embedded_views: Vec<crate::EmbeddedViewOutput>,
 }
 
 impl PlatformOutput {
@@ -223,6 +237,7 @@ impl PlatformOutput {
             accesskit_update,
             num_completed_passes,
             mut request_discard_reasons,
+            embedded_views,
         } = newer;
 
         self.commands.append(&mut commands);
@@ -237,6 +252,9 @@ impl PlatformOutput {
 
         // egui produces a complete AccessKit tree for each frame, so overwrite rather than append:
         self.accesskit_update = accesskit_update;
+
+        // Only the latest pass says where the views go.
+        self.embedded_views = embedded_views;
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` and
@@ -322,7 +340,7 @@ pub enum UserAttentionType {
 /// the OS every frame.
 #[derive(Clone, PartialEq, Eq)]
 pub struct CustomCursorImage {
-    pub rgba: std::sync::Arc<[u8]>,
+    pub rgba: alloc::sync::Arc<[u8]>,
     pub size: [u16; 2],
     pub hotspot: [u16; 2],
 }

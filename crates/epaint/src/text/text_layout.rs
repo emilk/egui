@@ -1,7 +1,7 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
+use alloc::sync::Arc;
 use core::{iter, ops::Range};
-use std::sync::Arc;
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
@@ -13,7 +13,7 @@ use crate::{
         face_store::FontFaceKey,
         fonts::FontsImpl,
         styled_metrics::StyledMetrics,
-        unicode::{is_cjk, is_cjk_break_allowed, is_combining_mark},
+        unicode::{is_breaking_space, is_cjk, is_cjk_break_allowed, is_combining_mark},
     },
 };
 
@@ -1027,7 +1027,7 @@ fn halign_and_justify_row(
 
     let (target_min_x, target_max_x) = match halign {
         Align::LEFT => (0.0, target_width),
-        Align::Center => (-target_width / 2.0, target_width / 2.0),
+        Align::Center => (-target_width * 0.5, target_width * 0.5),
         Align::RIGHT => (-target_width, 0.0),
     };
 
@@ -1099,8 +1099,14 @@ fn galley_from_rows(
 
             glyph.pos.y = glyph.font_face_ascent
 
-                // Apply valign to the different in height of the entire row, and the height of this `Font`:
+                // Apply valign to the difference in height of the entire row,
+                // and the line height of this glyph (which is the font height, unless explicitly set):
                 + format.valign.to_factor() * (max_row_height - glyph.line_height)
+
+                // If the line height was set explicitly (e.g. taller than the font),
+                // we always center the text within that line height, like CSS does.
+                // When `line_height` is not set, this is zero.
+                + 0.5 * (glyph.line_height - glyph.font_height)
 
                 // When mixing different `FontImpl` (e.g. latin and emojis),
                 // we always center the difference:
@@ -1406,8 +1412,7 @@ struct RowBreakCandidates {
 impl RowBreakCandidates {
     fn add(&mut self, index: usize, glyphs: &[Glyph]) {
         let chr = glyphs[0].chr;
-        const NON_BREAKING_SPACE: char = '\u{A0}';
-        if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
+        if is_breaking_space(chr) {
             self.space = Some(index);
         } else if is_cjk(chr) && (glyphs.len() == 1 || is_cjk_break_allowed(glyphs[1].chr)) {
             self.cjk = Some(index);
@@ -1603,8 +1608,8 @@ fn shape_text(
 
 #[cfg(test)]
 mod tests {
+    use alloc::sync::Arc;
     use core::iter;
-    use std::sync::Arc;
 
     use super::{super::*, *};
     use crate::{ColorImage, text::cursor::CCursor};
@@ -1621,6 +1626,33 @@ mod tests {
             FontId::proportional(14.0),
             Color32::WHITE,
         )
+    }
+
+    /// Chinese closes a clause with full-width marks (，：；？！）), and those must never start a row:
+    /// <https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages>
+    #[test]
+    fn cjk_row_never_starts_with_full_width_closing_punctuation() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Tofu);
+        let mut fonts = fonts.with_pixels_per_point(2.0);
+        let font_id = FontId::proportional(14.0);
+        let text = "一二三，四五六：七八九？十一二！三四五）六七八";
+        let one = fonts
+            .layout_no_wrap("一".to_owned(), font_id.clone(), Color32::WHITE)
+            .size()
+            .x;
+        // Every width that fits a few glyphs, so some row would end just before each mark.
+        for glyphs in 2..12 {
+            let width = one * glyphs as f32 + 0.5 * one;
+            let galley = fonts.layout(text.to_owned(), font_id.clone(), Color32::WHITE, width);
+            for placed in galley.rows.iter().skip(1) {
+                let first = placed.row.glyphs.first().map(|g| g.chr);
+                assert!(
+                    !matches!(first, Some('，' | '：' | '？' | '！' | '）')),
+                    "a row starts with {first:?} at {glyphs} glyphs wide"
+                );
+            }
+        }
     }
 
     /// With no font at all we still need one glyph per character and rows with height,
@@ -1846,7 +1878,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "default_fonts")]
     /// Each test rasterizer needs its own [`GlyphRasterizer::key`], or they would replace each other.
     fn unique_test_key() -> String {
         static COUNTER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
@@ -2156,6 +2187,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     // No bundled font has CJK glyphs, so the line breaks depend on
     // the width of the `.notdef` glyph of the primary font.
     fn test_cjk() {
@@ -2174,6 +2206,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     // No bundled font has CJK glyphs, so the line breaks depend on
     // the width of the `.notdef` glyph of the primary font.
     fn test_pre_cjk() {
@@ -2189,6 +2222,30 @@ mod tests {
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
             vec!["日本語とEnglishの混在した", "文章"]
         );
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn test_no_break_spaces() {
+        let row_texts = |text: &str| {
+            let mut fonts = test_fonts();
+            let mut layout_job = LayoutJob::single_section(text.into(), TextFormat::default());
+            layout_job.wrap.max_width = 90.0;
+            let galley = layout(&mut fonts, 1.0, layout_job.into());
+            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            row_texts("Sum: 123\u{2009}456\u{2009}789"),
+            vec!["Sum: 123\u{2009}456\u{2009}", "789"]
+        );
+        for no_break_space in ['\u{00A0}', '\u{2007}', '\u{202F}'] {
+            let number = format!("123{no_break_space}456{no_break_space}789");
+            assert_eq!(
+                row_texts(&format!("Sum: {number}")),
+                vec!["Sum: ".to_owned(), number]
+            );
+        }
     }
 
     #[test]
@@ -2287,6 +2344,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_end_with_newline() {
         let pixels_per_point = 1.0;
         let mut fonts = test_fonts();
@@ -2321,6 +2379,85 @@ mod tests {
             galley.intrinsic_size().round(),
             Vec2::new(17.0, font_height.round() * 2.0),
             "Unexpected intrinsic size"
+        );
+    }
+
+    #[test]
+    fn test_valign_with_custom_line_height() {
+        let pixels_per_point = 1.0;
+        let mut fonts = test_fonts();
+
+        let font_id = FontId::default();
+        let family = fonts.family_key(&font_id.family);
+        let font_height = fonts
+            .family_metrics(
+                family,
+                pixels_per_point,
+                font_id.size,
+                &VariationCoords::default(),
+            )
+            .row_height;
+        let extra_height = 20.0;
+        let line_height = (font_height + extra_height).round();
+        let free_space = line_height - font_height;
+
+        // Row height, and y-position of the last glyph (in the last section):
+        let mut glyph_y = |sections: &[(Option<f32>, Align)]| {
+            let mut job = LayoutJob::default();
+            for &(line_height, valign) in sections {
+                job.append(
+                    "Hello",
+                    0.0,
+                    TextFormat {
+                        font_id: font_id.clone(),
+                        line_height,
+                        valign,
+                        ..Default::default()
+                    },
+                );
+            }
+            let galley = layout(&mut fonts, pixels_per_point, job.into());
+            assert_eq!(galley.rows.len(), 1);
+            let glyph = galley.rows[0].row.glyphs.last().unwrap();
+            (galley.size().y, glyph.pos.y)
+        };
+
+        let (default_height, baseline_y) = glyph_y(&[(None, Align::default())]);
+        assert_eq!(default_height, font_height.round());
+
+        // A custom line height always centers the text, regardless of `valign`
+        // (including the default `valign`):
+        for valign in [
+            TextFormat::default().valign,
+            Align::TOP,
+            Align::Center,
+            Align::BOTTOM,
+        ] {
+            let (height, y) = glyph_y(&[(Some(line_height), valign)]);
+            assert_eq!(
+                height, line_height,
+                "Row should have the custom line height"
+            );
+            assert!(
+                (y - baseline_y - 0.5 * free_space).abs() <= 1.0,
+                "{valign:?}: text should be centered in the line: baseline_y={baseline_y}, y={y}, free_space={free_space}"
+            );
+        }
+
+        // `valign` still governs how a section without a custom line height
+        // is placed within a taller row:
+        let tall = (Some(line_height), Align::Center);
+        let (_, top) = glyph_y(&[tall, (None, Align::TOP)]);
+        let (_, center) = glyph_y(&[tall, (None, Align::Center)]);
+        let (_, bottom) = glyph_y(&[tall, (None, Align::BOTTOM)]);
+        assert!((top - baseline_y).abs() <= 1.0, "top={top}");
+        assert!(
+            (center - top - 0.5 * free_space).abs() <= 1.0,
+            "top={top}, center={center}, free_space={free_space}"
+        );
+        assert!(
+            (bottom - top - free_space).abs() <= 1.0,
+            "top={top}, bottom={bottom}, free_space={free_space}"
         );
     }
 
@@ -2443,6 +2580,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_gpos_kerning() {
         // GPOS kerning: pairs like "AV", "VA", "AT" should be tighter than
         // the sum of individual character widths. Without text shaping, egui
@@ -2586,6 +2724,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "default_fonts")]
     fn measure_text(
         fonts: &mut FontsImpl,
         text: &str,

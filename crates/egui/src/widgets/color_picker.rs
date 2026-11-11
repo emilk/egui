@@ -61,7 +61,7 @@ fn background_checkers(painter: &Painter, bounds: RoundedRect) {
 /// Paint a gradient image over the given rounded rect, with an outline.
 fn paint_gradient(ui: &Ui, id: Id, bounds: RoundedRect, outline: Stroke, image: ColorImage) {
     let (rect, corner_radius) = bounds.into_parts();
-    let [width, height] = image.size;
+    let [width, height] = image.resolution();
     let texture = ui
         .ctx()
         .load_texture_cached("color_gradient", id, image, TextureOptions::LINEAR);

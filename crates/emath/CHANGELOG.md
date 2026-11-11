@@ -6,6 +6,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.37.0 - 2026-10-15
+* Add `Align2` helpers [#8485](https://github.com/emilk/egui/pull/8485) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `Rangef::union` [#8603](https://github.com/emilk/egui/pull/8603) by [@emilk](https://github.com/emilk)
+* Feat: add utils methods to Rect (floor, round, ceil) [#8654](https://github.com/emilk/egui/pull/8654) by [@Its-Just-Nans](https://github.com/Its-Just-Nans)
+
+
 ## 0.36.2 - 2026-09-08
 Nothing new
 

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use emath::GuiRounding as _;
 use epaint::{
@@ -417,7 +417,7 @@ impl Painter {
     pub fn arrow(&self, origin: Pos2, vec: Vec2, stroke: impl Into<Stroke>) {
         use crate::emath::Rot2;
         let rot = Rot2::from_angle(core::f32::consts::TAU / 10.0);
-        let tip_length = vec.length() / 4.0;
+        let tip_length = vec.length() * 0.25;
         let tip = origin + vec;
         let dir = vec.normalized();
         let stroke = stroke.into();
