@@ -523,11 +523,6 @@ pub struct TextFormat {
     /// Default: [`CornerRadius::ZERO`]
     pub background_corner_radius: CornerRadius,
 
-    /// Outline around the [`Self::background`], painted inside its edges.
-    ///
-    /// Default: [`Stroke::NONE`]
-    pub background_stroke: Stroke,
-
     pub coords: VariationCoords,
 
     pub italics: bool,
@@ -567,7 +562,6 @@ impl Default for TextFormat {
             expand_bg: Vec2::splat(1.0),
             background_padding_x: 0.0,
             background_corner_radius: CornerRadius::ZERO,
-            background_stroke: Stroke::NONE,
             coords: VariationCoords::default(),
             italics: false,
             underline: Stroke::NONE,
@@ -589,7 +583,6 @@ impl core::hash::Hash for TextFormat {
             expand_bg,
             background_padding_x,
             background_corner_radius,
-            background_stroke,
             coords,
             italics,
             underline,
@@ -607,7 +600,6 @@ impl core::hash::Hash for TextFormat {
         emath::OrderedFloat(expand_bg.y).hash(state);
         emath::OrderedFloat(*background_padding_x).hash(state);
         background_corner_radius.hash(state);
-        background_stroke.hash(state);
         coords.hash(state);
         italics.hash(state);
         underline.hash(state);

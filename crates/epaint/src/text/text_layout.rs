@@ -1262,17 +1262,6 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
                 fill_path.add_line_loop(&path);
                 fill_path.fill(feathering, format.background, mesh);
             }
-            if !format.background_stroke.is_empty() {
-                // Keep the stroke inside the background:
-                let stroke_rect = rect.shrink(format.background_stroke.width / 2.0);
-                crate::tessellator::path::rounded_rectangle(
-                    &mut path,
-                    RoundedRect::new(stroke_rect, format.background_corner_radius),
-                );
-                let mut stroke_path = Path::default();
-                stroke_path.add_line_loop(&path);
-                stroke_path.stroke_closed(feathering, &format.background_stroke.into(), mesh);
-            }
         }
     };
 
@@ -1283,7 +1272,7 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
         let format = &job.sections[glyph.section_index as usize].format;
         let rect = glyph.logical_rect();
 
-        if format.background == Color32::TRANSPARENT && format.background_stroke.is_empty() {
+        if format.background == Color32::TRANSPARENT {
             end_run(run_start.take(), last_rect.right());
         } else if let Some((start_format, start_rect)) = run_start {
             if start_format.background == format.background
@@ -1292,7 +1281,6 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
                 && start_format.expand_bg == format.expand_bg
                 && start_format.background_padding_x == format.background_padding_x
                 && start_format.background_corner_radius == format.background_corner_radius
-                && start_format.background_stroke == format.background_stroke
             {
                 // continue the same background rectangle
             } else {

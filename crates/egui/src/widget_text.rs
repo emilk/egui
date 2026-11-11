@@ -458,28 +458,15 @@ impl RichText {
             font_id
         };
 
-        let (
-            background,
-            expand_bg,
-            background_padding_x,
-            background_corner_radius,
-            background_stroke,
-        ) = if code {
+        let (background, expand_bg, background_padding_x, background_corner_radius) = if code {
             (
                 style.visuals.code_bg_color,
                 style.visuals.code_bg_expand,
                 style.visuals.code_bg_padding_x,
                 style.visuals.code_bg_corner_radius,
-                style.visuals.code_bg_stroke,
             )
         } else {
-            (
-                background_color,
-                expand_bg,
-                0.0,
-                epaint::CornerRadius::ZERO,
-                crate::Stroke::NONE,
-            )
+            (background_color, expand_bg, 0.0, epaint::CornerRadius::ZERO)
         };
 
         let underline = if underline {
@@ -510,7 +497,6 @@ impl RichText {
                 expand_bg,
                 background_padding_x,
                 background_corner_radius,
-                background_stroke,
                 coords,
                 italics,
                 underline,

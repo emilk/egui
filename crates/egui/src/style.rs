@@ -1180,9 +1180,6 @@ pub struct Visuals {
     /// A negative `y` keeps the code backgrounds on adjacent rows apart.
     pub code_bg_expand: Vec2,
 
-    /// Outline around the background of code-styled monospaced labels.
-    pub code_bg_stroke: Stroke,
-
     /// A good color for warning text (e.g. orange).
     pub warn_fg_color: Color32,
 
@@ -1648,7 +1645,6 @@ impl Visuals {
             code_bg_corner_radius: CornerRadius::same(1),
             code_bg_padding_x: 2.0,
             code_bg_expand: vec2(0.0, -1.0),
-            code_bg_stroke: Stroke::NONE,
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
@@ -2432,7 +2428,6 @@ impl Visuals {
             code_bg_corner_radius,
             code_bg_padding_x,
             code_bg_expand,
-            code_bg_stroke,
             warn_fg_color,
             error_fg_color,
 
@@ -2591,10 +2586,6 @@ impl Visuals {
                             .prefix("y: "),
                     );
                 });
-                ui.end_row();
-
-                ui.label("Code background stroke");
-                ui.add(code_bg_stroke);
                 ui.end_row();
 
                 ui.label("Weak text alpha");
