@@ -20,7 +20,7 @@ const INFINITY: f64 = f64::INFINITY;
 const INF_RANGE_MAGNITUDE: f64 = 10.0;
 
 /// How values are spread along a slider's rail.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct SliderSpec {
     /// Give the small values as much of the rail as the large ones.
     pub logarithmic: bool,
@@ -278,7 +278,7 @@ impl SliderCore<'_> {
                 .handle_shape
                 .unwrap_or_else(|| ui.style().visuals.handle_shape),
             range: self.range.clone(),
-            spec: self.spec.clone(),
+            spec: self.spec,
             rect,
         }
     }

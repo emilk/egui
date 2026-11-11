@@ -121,6 +121,7 @@ pub trait CallbackTrait: Send + Sync {
 }
 
 /// Information about the screen used for rendering.
+#[derive(Clone, Copy)]
 pub struct ScreenDescriptor {
     /// Size of the window in physical pixels.
     pub size_in_pixels: [u32; 2],

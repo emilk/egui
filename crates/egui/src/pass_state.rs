@@ -43,7 +43,7 @@ pub struct PerLayerState {
     pub widget_with_tooltip: Option<Id>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct ScrollTarget {
     // The range that the scroll area should scroll to.
     pub range: Rangef,
