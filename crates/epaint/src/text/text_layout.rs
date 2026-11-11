@@ -1133,11 +1133,13 @@ fn galley_from_rows(
     let mut num_vertices = 0;
     let mut num_indices = 0;
 
+    let mut scratch = BackgroundScratch::default();
+
     for placed_row in &mut rows {
         rect |= placed_row.rect();
 
         let row = Arc::make_mut(&mut placed_row.row);
-        row.visuals = tessellate_row(point_scale, &job, &format_summary, row);
+        row.visuals = tessellate_row(point_scale, &job, &format_summary, &mut scratch, row);
 
         mesh_bounds |= row.visuals.mesh_bounds.translate(placed_row.pos.to_vec2());
         num_vertices += row.visuals.mesh.vertices.len();
@@ -1185,10 +1187,18 @@ fn format_summary(job: &LayoutJob) -> FormatSummary {
     format_summary
 }
 
+/// Reused between rows, to avoid allocations when painting rounded backgrounds.
+#[derive(Default)]
+struct BackgroundScratch {
+    points: Vec<Pos2>,
+    path: Path,
+}
+
 fn tessellate_row(
     point_scale: PointScale,
     job: &LayoutJob,
     format_summary: &FormatSummary,
+    scratch: &mut BackgroundScratch,
     row: &mut Row,
 ) -> RowVisuals {
     if row.glyphs.is_empty() {
@@ -1201,7 +1211,7 @@ fn tessellate_row(
     mesh.reserve_vertices(row.glyphs.len() * 4);
 
     if format_summary.any_background {
-        add_row_backgrounds(point_scale, job, row, &mut mesh);
+        add_row_backgrounds(point_scale, job, scratch, row, &mut mesh);
     }
 
     let glyph_index_start = mesh.indices.len();
@@ -1239,12 +1249,18 @@ fn tessellate_row(
 
 /// Create background for glyphs that have them.
 /// Creates as few rectangular regions as possible.
-fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
+fn add_row_backgrounds(
+    point_scale: PointScale,
+    job: &LayoutJob,
+    scratch: &mut BackgroundScratch,
+    row: &Row,
+    mesh: &mut Mesh,
+) {
     if row.glyphs.is_empty() {
         return;
     }
 
-    let mut path = vec![];
+    let BackgroundScratch { points, path } = scratch;
     let mut end_run = |start: Option<(&TextFormat, Rect)>, stop_x: f32| {
         if let Some((format, start_rect)) = start {
             let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
@@ -1256,12 +1272,12 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
                 mesh.add_colored_rect(rect, format.background);
             } else {
                 crate::tessellator::path::rounded_rectangle(
-                    &mut path,
+                    points,
                     RoundedRect::new(rect, format.background_corner_radius),
                 );
-                let mut fill_path = Path::default();
-                fill_path.add_line_loop(&path);
-                fill_path.fill(feathering, format.background, mesh);
+                path.clear();
+                path.add_line_loop(points);
+                path.fill(feathering, format.background, mesh);
             }
         }
     };
