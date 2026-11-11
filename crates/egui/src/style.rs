@@ -1637,7 +1637,7 @@ impl Visuals {
             text_edit_bg_color: None, // use `extreme_bg_color` by default
             code_bg_color: Color32::from_gray(48),
             code_text_color: None,
-            code_bg_corner_radius: CornerRadius::same(3),
+            code_bg_corner_radius: CornerRadius::same(1),
             code_bg_padding_x: 2.0,
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
