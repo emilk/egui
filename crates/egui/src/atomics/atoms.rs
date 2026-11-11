@@ -164,7 +164,7 @@ impl<'a> Atoms<'a> {
         })
     }
 
-    pub fn iter_texts(&self) -> impl Iterator<Item = &WidgetText> + use<'_, 'a> {
+    pub fn iter_texts(&self) -> impl Iterator<Item = &WidgetText> {
         self.iter_kinds().filter_map(|kind| {
             if let AtomKind::Text(text) = kind {
                 Some(text)
@@ -174,7 +174,7 @@ impl<'a> Atoms<'a> {
         })
     }
 
-    pub fn iter_texts_mut(&mut self) -> impl Iterator<Item = &mut WidgetText> + use<'a, '_> {
+    pub fn iter_texts_mut(&mut self) -> impl Iterator<Item = &mut WidgetText> {
         self.iter_kinds_mut().filter_map(|kind| {
             if let AtomKind::Text(text) = kind {
                 Some(text)

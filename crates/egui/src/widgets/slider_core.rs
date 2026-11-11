@@ -6,8 +6,7 @@ use core::ops::RangeInclusive;
 
 use crate::{
     DragValue, EventFilter, Id, Key, NumExt as _, Pos2, Rangef, Rect, Response, TextStyle, Ui,
-    Vec2, WidgetText, emath, epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape,
-    vec2,
+    Vec2, WidgetText, lerp, pos2, remap, remap_clamp, style, style::HandleShape, vec2,
 };
 
 use super::drag_value::clamp_value_to_range;

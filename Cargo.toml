@@ -178,9 +178,18 @@ unsafe_code = "deny"
 future_incompatible = { level = "warn", priority = -1 }
 nonstandard_style = { level = "warn", priority = -1 }
 rust_2018_idioms = { level = "warn", priority = -1 }
+ambiguous_negative_literals = "warn"
+deprecated_in_future = "warn"
+impl_trait_redundant_captures = "warn"
+macro_use_extern_crate = "warn"
+meta_variable_misuse = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
 trivial_numeric_casts = "warn"
+unit_bindings = "warn"
 unused_import_braces = "warn"
 unused_lifetimes = "warn"
+unused_macro_rules = "warn"
 
 trivial_casts = "allow"
 unused_qualifications = "allow"
