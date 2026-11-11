@@ -511,6 +511,8 @@ impl RichText {
             Some(visuals.strong_text_color())
         } else if self.weak {
             Some(visuals.weak_text_color())
+        } else if self.code {
+            visuals.code_text_color.or(visuals.override_text_color)
         } else {
             visuals.override_text_color
         }

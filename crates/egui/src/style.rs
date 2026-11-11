@@ -1162,6 +1162,11 @@ pub struct Visuals {
     /// Background color behind code-styled monospaced labels.
     pub code_bg_color: Color32,
 
+    /// Text color of code-styled monospaced labels.
+    ///
+    /// If `None` (the default), code uses the same color as other text.
+    pub code_text_color: Option<Color32>,
+
     /// Corner radius of the background behind code-styled monospaced labels.
     pub code_bg_corner_radius: CornerRadius,
 
@@ -1631,6 +1636,7 @@ impl Visuals {
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
             text_edit_bg_color: None, // use `extreme_bg_color` by default
             code_bg_color: Color32::from_gray(64),
+            code_text_color: None,
             code_bg_corner_radius: CornerRadius::ZERO,
             code_bg_padding_x: 0.0,
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
@@ -2412,6 +2418,7 @@ impl Visuals {
             extreme_bg_color,
             text_edit_bg_color,
             code_bg_color,
+            code_text_color,
             code_bg_corner_radius,
             code_bg_padding_x,
             warn_fg_color,
@@ -2537,6 +2544,13 @@ impl Visuals {
                     });
                 ui.color_edit_button_srgba(code_bg_color);
                 ui.end_row();
+
+                ui_optional_color(
+                    ui,
+                    code_text_color,
+                    widgets.noninteractive.text_color(),
+                    "Code text color",
+                );
 
                 ui.label("Code background corner radius");
                 ui.add(code_bg_corner_radius);
