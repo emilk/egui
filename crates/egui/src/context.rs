@@ -7,7 +7,7 @@ use emath::GuiRounding as _;
 use epaint::{
     ClippedPrimitive, ClippedShape, Color32, ImageData, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureId, Vec2,
-    emath::{self, TSTransform},
+    emath::TSTransform,
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
@@ -26,7 +26,6 @@ use crate::{
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
-    epaint,
     hit_test::WidgetHits,
     input_state::{InputState, MultiTouchInfo, PointerEvent, SurrenderFocusOn},
     interaction::InteractionSnapshot,

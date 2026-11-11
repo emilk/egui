@@ -95,7 +95,6 @@ impl AllocInfo {
     }
 
     pub fn from_slice<T>(slice: &[T]) -> Self {
-        use core::mem::size_of;
         let element_size = size_of::<T>();
         Self {
             element_size: ElementSize::Homogeneous(element_size),

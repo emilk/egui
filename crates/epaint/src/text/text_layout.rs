@@ -1608,8 +1608,6 @@ fn shape_text(
 
 #[cfg(test)]
 mod tests {
-    use alloc::sync::Arc;
-    use core::iter;
 
     use super::{super::*, *};
     use crate::{ColorImage, text::cursor::CCursor};
