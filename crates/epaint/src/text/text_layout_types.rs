@@ -616,7 +616,7 @@ pub enum TextWrapMode {
 }
 
 /// Controls the text wrapping and elision of a [`LayoutJob`].
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextWrapping {
     /// Wrap text so that no row is wider than this.

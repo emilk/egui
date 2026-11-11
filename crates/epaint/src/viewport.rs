@@ -1,6 +1,7 @@
 use crate::Rect;
 
 /// Size of the viewport in whole, physical pixels.
+#[derive(Clone, Copy)]
 pub struct ViewportInPixels {
     /// Physical pixel offset for left side of the viewport.
     pub left_px: i32,

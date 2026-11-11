@@ -1,7 +1,7 @@
 //! Handles paint layers, i.e. how things
 //! are sometimes painted behind or in front of other things.
 
-use crate::{Id, IdMap, Rect, epaint};
+use crate::{Id, IdMap, Rect};
 use epaint::{ClippedShape, Shape, emath::TSTransform};
 
 /// Different layer categories
@@ -231,6 +231,16 @@ impl GraphicLayers {
     /// Get the [`PaintList`] for the given [`LayerId`].
     pub fn get_mut(&mut self, layer_id: LayerId) -> Option<&mut PaintList> {
         self.0[layer_id.order as usize].get_mut(&layer_id.id)
+    }
+
+    /// The layers that something was painted to.
+    pub(crate) fn painted_layer_ids(&self) -> impl Iterator<Item = LayerId> + '_ {
+        Order::ALL.iter().flat_map(|&order| {
+            self.0[order as usize]
+                .iter()
+                .filter(|(_, list)| !list.is_empty())
+                .map(move |(&id, _)| LayerId::new(order, id))
+        })
     }
 
     pub fn drain(

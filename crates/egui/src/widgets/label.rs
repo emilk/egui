@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 
 use crate::{
     Align, Direction, FontSelection, Galley, Pos2, Response, Role, Sense, Stroke, TextWrapMode, Ui,
-    Widget, WidgetInfo, WidgetText, epaint, pos2, text_selection::LabelSelectionState,
+    Widget, WidgetInfo, WidgetText, pos2, text_selection::LabelSelectionState,
 };
 
 /// Static text.

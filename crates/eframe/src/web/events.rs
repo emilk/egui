@@ -63,7 +63,13 @@ fn paint_if_needed(runner: &mut AppRunner) {
 pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
-    let canvas = runner_ref.try_lock().unwrap().canvas().clone();
+    let (canvas, input_element) = {
+        let runner = runner_ref.try_lock().unwrap();
+        (
+            runner.canvas().clone(),
+            runner.web_embedded_views.input_element().cloned(),
+        )
+    };
 
     install_blur_focus(runner_ref, &document)?;
     install_blur_focus(runner_ref, &canvas)?;
@@ -104,6 +110,11 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     install_wheel(runner_ref, &canvas)?;
     install_gesture(runner_ref, &canvas)?;
     install_drag_and_drop(runner_ref, &canvas)?;
+
+    if let Some(input_element) = &input_element {
+        install_input_element(runner_ref, input_element)?;
+    }
+
     install_window_events(runner_ref, &window)?;
     install_color_scheme_change_event(runner_ref, &window)?;
     Ok(())
@@ -335,10 +346,13 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     }
 }
 
+/// The clipboard events of the document go to egui only while the canvas or the text agent has
+/// the focus, not `raw.focused`: that counts an embedded view with the focus too, and the view's
+/// own clipboard events bubble up to the document.
 fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "paste", |event: web_sys::ClipboardEvent, runner| {
-        if !runner.input.raw.focused {
-            return; // The eframe app is not interested
+        if !runner.egui_has_focus() {
+            return; // egui is not interested
         }
 
         if let Some(data) = event.clipboard_data()
@@ -368,8 +382,8 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
     })?;
 
     runner_ref.add_event_listener(target, "cut", |event: web_sys::ClipboardEvent, runner| {
-        if !runner.input.raw.focused {
-            return; // The eframe app is not interested
+        if !runner.egui_has_focus() {
+            return; // egui is not interested
         }
 
         runner.input.raw.events.push(egui::Event::Cut);
@@ -392,8 +406,8 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
     })?;
 
     runner_ref.add_event_listener(target, "copy", |event: web_sys::ClipboardEvent, runner| {
-        if !runner.input.raw.focused {
-            return; // The eframe app is not interested
+        if !runner.egui_has_focus() {
+            return; // egui is not interested
         }
 
         runner.input.raw.events.push(egui::Event::Copy);
@@ -420,7 +434,7 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
 
 fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result<(), JsValue> {
     // Save-on-close
-    runner_ref.add_event_listener(window, "onbeforeunload", |_: web_sys::Event, runner| {
+    runner_ref.add_event_listener(window, "beforeunload", |_: web_sys::Event, runner| {
         runner.egui_ctx().on_exit();
         runner.save();
     })?;
@@ -531,6 +545,33 @@ fn prevent_default_and_stop_propagation(
     Ok(())
 }
 
+/// Installs the pointer listeners on the input element, which takes the canvas's pointer input
+/// while embedded views are shown below the canvas. See [`super::embedded_views`].
+fn install_input_element(
+    runner_ref: &WebRunner,
+    input_element: &EventTarget,
+) -> Result<(), JsValue> {
+    prevent_default_and_stop_propagation(runner_ref, input_element, &["contextmenu"])?;
+    // Cancel the default action of `mousedown`, which would move the keyboard focus off the
+    // canvas. The `pointerup` listener on the document focuses the canvas instead. While an
+    // embedded view has the focus, it does so only once egui's own focus moved off the view.
+    runner_ref.add_event_listener(
+        input_element,
+        "mousedown",
+        |event: web_sys::MouseEvent, _| {
+            event.prevent_default();
+        },
+    )?;
+    install_pointerdown(runner_ref, input_element)?;
+    install_mouseleave(runner_ref, input_element)?;
+    install_touchstart(runner_ref, input_element)?;
+    install_touchcancel(runner_ref, input_element)?;
+    install_wheel(runner_ref, input_element)?;
+    install_gesture(runner_ref, input_element)?;
+    install_drag_and_drop(runner_ref, input_element)?;
+    Ok(())
+}
+
 fn install_pointerdown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(
         target,
@@ -601,13 +642,30 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 // not working when focusing on a text field in an egui app.
                 // This attempts to fix that by forcing the focus on any
                 // click on the canvas.
-                super::focus_without_scroll(runner.canvas()).ok();
+                //
+                // Only if the app doesn't have the focus already. Taking it
+                // from the text agent would cut an IME composition short,
+                // only for the logic below to give it back. Whether to take
+                // it from an embedded view depends on that logic, see below.
+                if !runner.has_focus() {
+                    super::focus_without_scroll(runner.canvas()).ok();
+                }
 
                 // In Safari we are only allowed to do certain things
                 // (like playing audio, start a download, etc)
                 // on user action, such as a click.
                 // So we need to run the app logic here and now:
                 runner.logic();
+
+                // The release moved egui's keyboard focus off the embedded view
+                // that has the browser's focus, for example to a text edit:
+                // the keys have to reach egui again. As long as egui's focus
+                // stays on the view's widget, the view keeps the browser's
+                // too, so that a drag to scroll doesn't close its keyboard.
+                if runner.web_embedded_views.has_focus() && !runner.egui_focus_is_on_embedded_view()
+                {
+                    super::focus_without_scroll(runner.canvas()).ok();
+                }
 
                 // Make sure we paint the output of the above logic call asap:
                 runner.needs_repaint.repaint_asap();
@@ -625,7 +683,8 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
     )
 }
 
-/// Returns true if the cursor is above the canvas, or if we're dragging something.
+/// Returns true if the cursor is above the canvas (or above the input element that takes its
+/// pointer input), or if we're dragging something.
 /// Pass in the position in browser viewport coordinates (usually event.clientX/Y).
 fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
     let root_node = runner.canvas().get_root_node();
@@ -638,7 +697,12 @@ fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
         None
     };
 
-    let is_hovering_canvas = element_at_point.is_some_and(|element| element.eq(runner.canvas()));
+    let input_element = runner.web_embedded_views.input_element();
+    let is_hovering_canvas = element_at_point.is_some_and(|element| {
+        element.eq(runner.canvas())
+            // The input element takes the input through its children.
+            || input_element.is_some_and(|input_element| input_element.contains(Some(&element)))
+    });
     let is_pointer_down = runner
         .egui_ctx()
         .input(|i| i.pointer.any_down() || i.any_touches());

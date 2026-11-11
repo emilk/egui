@@ -1,7 +1,7 @@
 use crate::{
     AsIdSalt, Atom, AtomExt as _, Atoms, Context, Frame, Id, IdSalt, InnerResponse, IntoAtoms,
     Margin, NumExt as _, Rect, Response, Role, Sense, TextStyle, TextWrapMode, Ui, UiBuilder,
-    UiKind, UiStackInfo, WidgetAtom, WidgetInfo, emath, epaint, pos2, remap, remap_clamp, vec2,
+    UiKind, UiStackInfo, WidgetAtom, WidgetInfo, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
 use epaint::StrokeKind;

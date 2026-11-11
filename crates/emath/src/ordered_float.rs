@@ -110,6 +110,7 @@ impl Float for f64 {
 mod private {
     use super::{Hash as _, Hasher};
 
+    #[expect(unnameable_types, reason = "Sealed trait")]
     pub trait FloatImpl {
         fn is_nan(&self) -> bool;
 

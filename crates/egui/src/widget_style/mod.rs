@@ -175,7 +175,7 @@ pub struct CheckboxStyle {
 impl WidgetStyle for CheckboxStyle {}
 
 /// Dedicated separator style
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SeparatorStyle {
     /// How much space is allocated in the layout direction
     pub spacing: f32,

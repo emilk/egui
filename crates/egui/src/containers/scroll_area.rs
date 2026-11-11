@@ -9,8 +9,8 @@ use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
     AsIdSalt, Context, CursorIcon, Id, IdSalt, MouseWheelSource, NumExt as _, Pos2, Rangef, Rect,
-    Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath,
-    epaint, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
+    Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, lerp,
+    pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
 };
 
 use super::scroll_physics::{AxisPhysics, WheelScroll, scroll_bounds};
@@ -1278,7 +1278,7 @@ impl Prepared {
         ui.ctx().pass_state_mut(|state| {
             for d in 0..2 {
                 if saved_scroll_target[d].is_some() {
-                    state.scroll_target[d] = saved_scroll_target[d].clone();
+                    state.scroll_target[d] = saved_scroll_target[d];
                 }
             }
         });

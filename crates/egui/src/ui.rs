@@ -4,9 +4,8 @@
 use alloc::sync::Arc;
 use core::{any::Any, ops::Deref};
 
-use crate::containers::menu;
-use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
-use crate::{class, class::HasClasses as _};
+use crate::class::HasClasses as _;
+use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 use emath::GuiRounding as _;
 
 // ----------------------------------------------------------------------------
@@ -3035,7 +3034,7 @@ impl Drop for Ui {
 /// Show this rectangle to the user if certain debug options are set.
 #[cfg(debug_assertions)]
 fn register_rect(ui: &Ui, rect: Rect) {
-    use emath::{Align2, GuiRounding as _};
+    use emath::GuiRounding as _;
 
     let debug = ui.style().debug;
 
