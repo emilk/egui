@@ -457,10 +457,14 @@ impl RichText {
             font_id
         };
 
-        let background_color = if code {
-            style.visuals.code_bg_color
+        let (background, background_padding_x, background_corner_radius) = if code {
+            (
+                style.visuals.code_bg_color,
+                style.visuals.code_bg_padding_x,
+                style.visuals.code_bg_corner_radius,
+            )
         } else {
-            background_color
+            (background_color, 0.0, epaint::CornerRadius::ZERO)
         };
 
         let underline = if underline {
@@ -482,18 +486,20 @@ impl RichText {
 
         (
             text,
-            crate::text::TextFormat {
+            TextFormat {
                 font_id,
                 extra_letter_spacing,
                 line_height,
                 color: text_color,
-                background: background_color,
+                background,
+                expand_bg,
+                background_padding_x,
+                background_corner_radius,
                 coords,
                 italics,
                 underline,
                 strikethrough,
                 valign,
-                expand_bg,
             },
         )
     }

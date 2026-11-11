@@ -6,7 +6,7 @@ use super::{
     glyph_atlas::UvRect,
     index::{ByteIndex, ByteRange, ByteRangeExt as _, CharIndex},
 };
-use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
+use crate::{Color32, CornerRadius, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 pub use font_types::Tag;
 use smallvec::SmallVec;
@@ -503,8 +503,24 @@ pub struct TextFormat {
 
     /// Amount to expand background fill by.
     ///
+    /// This does not affect the layout, so the background may overlap neighboring text.
+    ///
     /// Default: 1.0
     pub expand_bg: f32,
+
+    /// Horizontal space between the edges of the [`Self::background`] and the text.
+    ///
+    /// Unlike [`Self::expand_bg`], this takes up space in the layout,
+    /// on both the left and right side of the section,
+    /// so the background never overlaps neighboring text.
+    ///
+    /// Default: 0.0
+    pub background_padding_x: f32,
+
+    /// Corner radius of the [`Self::background`].
+    ///
+    /// Default: [`CornerRadius::ZERO`]
+    pub background_corner_radius: CornerRadius,
 
     pub coords: VariationCoords,
 
@@ -543,6 +559,8 @@ impl Default for TextFormat {
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
             expand_bg: 1.0,
+            background_padding_x: 0.0,
+            background_corner_radius: CornerRadius::ZERO,
             coords: VariationCoords::default(),
             italics: false,
             underline: Stroke::NONE,
@@ -562,6 +580,8 @@ impl core::hash::Hash for TextFormat {
             color,
             background,
             expand_bg,
+            background_padding_x,
+            background_corner_radius,
             coords,
             italics,
             underline,
@@ -576,6 +596,8 @@ impl core::hash::Hash for TextFormat {
         color.hash(state);
         background.hash(state);
         emath::OrderedFloat(*expand_bg).hash(state);
+        emath::OrderedFloat(*background_padding_x).hash(state);
+        background_corner_radius.hash(state);
         coords.hash(state);
         italics.hash(state);
         underline.hash(state);

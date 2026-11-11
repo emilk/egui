@@ -1162,6 +1162,14 @@ pub struct Visuals {
     /// Background color behind code-styled monospaced labels.
     pub code_bg_color: Color32,
 
+    /// Corner radius of the background behind code-styled monospaced labels.
+    pub code_bg_corner_radius: CornerRadius,
+
+    /// Horizontal space between the edges of the code background and the code text.
+    ///
+    /// This takes up space in the layout.
+    pub code_bg_padding_x: f32,
+
     /// A good color for warning text (e.g. orange).
     pub warn_fg_color: Color32,
 
@@ -1623,6 +1631,8 @@ impl Visuals {
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
             text_edit_bg_color: None, // use `extreme_bg_color` by default
             code_bg_color: Color32::from_gray(64),
+            code_bg_corner_radius: CornerRadius::ZERO,
+            code_bg_padding_x: 0.0,
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
@@ -2402,6 +2412,8 @@ impl Visuals {
             extreme_bg_color,
             text_edit_bg_color,
             code_bg_color,
+            code_bg_corner_radius,
+            code_bg_padding_x,
             warn_fg_color,
             error_fg_color,
 
@@ -2524,6 +2536,18 @@ impl Visuals {
                         });
                     });
                 ui.color_edit_button_srgba(code_bg_color);
+                ui.end_row();
+
+                ui.label("Code background corner radius");
+                ui.add(code_bg_corner_radius);
+                ui.end_row();
+
+                ui.label("Code background padding x");
+                ui.add(
+                    DragValue::new(code_bg_padding_x)
+                        .range(0.0..=8.0)
+                        .speed(0.1),
+                );
                 ui.end_row();
 
                 ui.label("Weak text alpha");

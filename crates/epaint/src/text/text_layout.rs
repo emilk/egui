@@ -6,8 +6,9 @@ use core::{iter, ops::Range};
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
 use crate::{
-    Color32, Mesh, Stroke, Vertex,
+    Color32, CornerRadius, Mesh, RoundedRect, Stroke, Vertex,
     stroke::PathStroke,
+    tessellator::Path,
     text::{
         ByteIndex, ByteRange, FontPriority,
         face_store::FontFaceKey,
@@ -19,7 +20,7 @@ use crate::{
 
 use super::{
     ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
-    VariationCoords,
+    TextFormat, VariationCoords,
     family::FamilyKey,
     font_face::{FontFace, GlyphInfo, ShapedGlyph},
     glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
@@ -541,7 +542,7 @@ fn layout_section(
     if paragraph.glyphs.is_empty() {
         paragraph.empty_paragraph_height = line_height;
     }
-    paragraph.cursor_x_px += leading_space * pixels_per_point;
+    paragraph.cursor_x_px += (leading_space + format.background_padding_x) * pixels_per_point;
 
     let section_text = &job.text[byte_range.as_usize()];
     let mut ctx = ShapingContext {
@@ -613,6 +614,8 @@ fn layout_section(
             shape_buffer = glyph_buffer.clear();
         }
     }
+
+    paragraph.cursor_x_px += format.background_padding_x * pixels_per_point;
 
     shape_buffer
 }
@@ -1240,38 +1243,53 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
         return;
     }
 
-    let mut end_run = |start: Option<(Color32, Rect, f32)>, stop_x: f32| {
-        if let Some((color, start_rect, expand)) = start {
+    let mut path = vec![];
+    let mut end_run = |start: Option<(&TextFormat, Rect)>, stop_x: f32| {
+        if let Some((format, start_rect)) = start {
             let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
-            let rect = rect.expand(expand);
-            let rect = rect.round_to_pixels(point_scale.pixels_per_point());
-            mesh.add_colored_rect(rect, color);
+            let rect = rect
+                .expand2(vec2(format.background_padding_x, 0.0))
+                .expand(format.expand_bg)
+                .round_to_pixels(point_scale.pixels_per_point());
+            if format.background_corner_radius == CornerRadius::ZERO {
+                mesh.add_colored_rect(rect, format.background);
+            } else {
+                crate::tessellator::path::rounded_rectangle(
+                    &mut path,
+                    RoundedRect::new(rect, format.background_corner_radius),
+                );
+                let mut fill_path = Path::default();
+                fill_path.add_line_loop(&path);
+                let feathering = 1.0 / point_scale.pixels_per_point();
+                fill_path.fill(feathering, format.background, mesh);
+            }
         }
     };
 
-    let mut run_start = None;
+    let mut run_start: Option<(&TextFormat, Rect)> = None;
     let mut last_rect = Rect::NAN;
 
     for glyph in &row.glyphs {
         let format = &job.sections[glyph.section_index as usize].format;
-        let color = format.background;
         let rect = glyph.logical_rect();
 
-        if color == Color32::TRANSPARENT {
+        if format.background == Color32::TRANSPARENT {
             end_run(run_start.take(), last_rect.right());
-        } else if let Some((existing_color, start, expand)) = run_start {
-            if existing_color == color
-                && start.top() == rect.top()
-                && start.bottom() == rect.bottom()
-                && format.expand_bg == expand
+        } else if let Some((start_format, start_rect)) = run_start {
+            if start_format.background == format.background
+                && start_rect.top() == rect.top()
+                && start_rect.bottom() == rect.bottom()
+                && start_format.expand_bg == format.expand_bg
+                && start_format.background_padding_x == format.background_padding_x
+                && start_format.background_corner_radius == format.background_corner_radius
             {
                 // continue the same background rectangle
             } else {
                 end_run(run_start.take(), last_rect.right());
-                run_start = Some((color, rect, format.expand_bg));
+                run_start = Some((format, rect));
             }
         } else {
-            run_start = Some((color, rect, format.expand_bg));
+            run_start = Some((format, rect));
         }
 
         last_rect = rect;
