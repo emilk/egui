@@ -601,13 +601,7 @@ impl core::hash::Hash for TextFormat {
         color.hash(state);
         background.hash(state);
         emath::OrderedFloat(*expand_bg).hash(state);
-        let Margin {
-            left,
-            right,
-            top,
-            bottom,
-        } = background_margin;
-        (left, right, top, bottom).hash(state);
+        background_margin.hash(state);
         background_corner_radius.hash(state);
         coords.hash(state);
         italics.hash(state);
