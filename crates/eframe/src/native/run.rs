@@ -631,6 +631,7 @@ impl<'a> EframeWinitApplication<'a> {
 ///
 /// The result of [`EframeWinitApplication::pump_eframe_app`].
 #[cfg(not(target_os = "ios"))]
+#[derive(Clone, Copy)]
 pub enum EframePumpStatus {
     /// The final state of the [`ControlFlow`] after all events have been dispatched
     ///

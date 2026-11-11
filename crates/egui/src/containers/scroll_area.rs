@@ -1278,7 +1278,7 @@ impl Prepared {
         ui.ctx().pass_state_mut(|state| {
             for d in 0..2 {
                 if saved_scroll_target[d].is_some() {
-                    state.scroll_target[d] = saved_scroll_target[d].clone();
+                    state.scroll_target[d] = saved_scroll_target[d];
                 }
             }
         });
