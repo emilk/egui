@@ -1160,6 +1160,8 @@ pub struct Visuals {
     pub text_edit_bg_color: Option<Color32>,
 
     /// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
+    ///
+    /// Also known as `pre` or `code` blocks, after the HTML tags.
     pub code: CodeVisuals,
 
     /// A good color for warning text (e.g. orange).
@@ -1310,6 +1312,8 @@ pub struct Selection {
 }
 
 /// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
+///
+/// Also known as `pre` or `code` blocks, after the HTML tags.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
