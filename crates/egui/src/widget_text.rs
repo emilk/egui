@@ -1,5 +1,6 @@
 use alloc::{borrow::Cow, sync::Arc};
 use core::fmt::Formatter;
+use emath::Vec2;
 use epaint::text::{IntoTag, TextFormat, VariationCoords};
 
 use crate::{
@@ -31,7 +32,7 @@ pub struct RichText {
     family: Option<FontFamily>,
     text_style: Option<TextStyle>,
     background_color: Color32,
-    expand_bg: f32,
+    expand_bg: Vec2,
     text_color: Option<Color32>,
     coords: VariationCoords,
     code: bool,
@@ -53,7 +54,7 @@ impl Default for RichText {
             family: Default::default(),
             text_style: Default::default(),
             background_color: Default::default(),
-            expand_bg: 1.0,
+            expand_bg: Vec2::splat(1.0),
             text_color: Default::default(),
             coords: Default::default(),
             code: Default::default(),
@@ -457,14 +458,28 @@ impl RichText {
             font_id
         };
 
-        let (background, background_padding_x, background_corner_radius) = if code {
+        let (
+            background,
+            expand_bg,
+            background_padding_x,
+            background_corner_radius,
+            background_stroke,
+        ) = if code {
             (
                 style.visuals.code_bg_color,
+                style.visuals.code_bg_expand,
                 style.visuals.code_bg_padding_x,
                 style.visuals.code_bg_corner_radius,
+                style.visuals.code_bg_stroke,
             )
         } else {
-            (background_color, 0.0, epaint::CornerRadius::ZERO)
+            (
+                background_color,
+                expand_bg,
+                0.0,
+                epaint::CornerRadius::ZERO,
+                crate::Stroke::NONE,
+            )
         };
 
         let underline = if underline {
@@ -495,6 +510,7 @@ impl RichText {
                 expand_bg,
                 background_padding_x,
                 background_corner_radius,
+                background_stroke,
                 coords,
                 italics,
                 underline,

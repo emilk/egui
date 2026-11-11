@@ -1,6 +1,6 @@
 //! Snapshot test for the background of inline code, see [`egui::Visuals::code_bg_color`].
 
-use egui::{Color32, CornerRadius, Visuals, vec2};
+use egui::{Color32, CornerRadius, Stroke, Visuals, vec2};
 use egui_kittest::{Harness, SnapshotResults};
 
 #[test]
@@ -11,6 +11,8 @@ fn code_background() {
         code_bg_corner_radius: CornerRadius::ZERO,
         code_bg_padding_x: 0.0,
         code_text_color: Some(Color32::LIGHT_BLUE),
+        code_bg_stroke: Stroke::new(1.0, Color32::GRAY),
+        code_bg_expand: vec2(1.0, 1.0),
         ..Visuals::dark()
     };
 
@@ -20,7 +22,7 @@ fn code_background() {
         ("custom", custom),
     ] {
         let mut harness = Harness::builder()
-            .with_size(vec2(240.0, 80.0))
+            .with_size(vec2(240.0, 120.0))
             .build_ui(|ui| {
                 *ui.visuals_mut() = visuals.clone();
                 egui::CentralPanel::default().show(ui, |ui| {
@@ -32,6 +34,7 @@ fn code_background() {
                         ui.code("bar");
                         ui.label(", then wrap some very long text with ");
                         ui.code("more_code_at_the_end");
+                        ui.code("code_on_the_row_below");
                     });
                 });
             });

@@ -1248,9 +1248,9 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
         if let Some((format, start_rect)) = start {
             let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
             let rect = rect
-                .expand2(vec2(format.background_padding_x, 0.0))
-                .expand(format.expand_bg)
+                .expand2(format.expand_bg + vec2(format.background_padding_x, 0.0))
                 .round_to_pixels(point_scale.pixels_per_point());
+            let feathering = 1.0 / point_scale.pixels_per_point();
             if format.background_corner_radius == CornerRadius::ZERO {
                 mesh.add_colored_rect(rect, format.background);
             } else {
@@ -1260,8 +1260,18 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
                 );
                 let mut fill_path = Path::default();
                 fill_path.add_line_loop(&path);
-                let feathering = 1.0 / point_scale.pixels_per_point();
                 fill_path.fill(feathering, format.background, mesh);
+            }
+            if !format.background_stroke.is_empty() {
+                // Keep the stroke inside the background:
+                let stroke_rect = rect.shrink(format.background_stroke.width / 2.0);
+                crate::tessellator::path::rounded_rectangle(
+                    &mut path,
+                    RoundedRect::new(stroke_rect, format.background_corner_radius),
+                );
+                let mut stroke_path = Path::default();
+                stroke_path.add_line_loop(&path);
+                stroke_path.stroke_closed(feathering, &format.background_stroke.into(), mesh);
             }
         }
     };
@@ -1273,7 +1283,7 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
         let format = &job.sections[glyph.section_index as usize].format;
         let rect = glyph.logical_rect();
 
-        if format.background == Color32::TRANSPARENT {
+        if format.background == Color32::TRANSPARENT && format.background_stroke.is_empty() {
             end_run(run_start.take(), last_rect.right());
         } else if let Some((start_format, start_rect)) = run_start {
             if start_format.background == format.background
@@ -1282,6 +1292,7 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
                 && start_format.expand_bg == format.expand_bg
                 && start_format.background_padding_x == format.background_padding_x
                 && start_format.background_corner_radius == format.background_corner_radius
+                && start_format.background_stroke == format.background_stroke
             {
                 // continue the same background rectangle
             } else {

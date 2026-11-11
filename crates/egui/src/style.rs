@@ -1175,6 +1175,14 @@ pub struct Visuals {
     /// This takes up space in the layout.
     pub code_bg_padding_x: f32,
 
+    /// How much to expand the code background beyond the text row, without affecting the layout.
+    ///
+    /// A negative `y` keeps the code backgrounds on adjacent rows apart.
+    pub code_bg_expand: Vec2,
+
+    /// Outline around the background of code-styled monospaced labels.
+    pub code_bg_stroke: Stroke,
+
     /// A good color for warning text (e.g. orange).
     pub warn_fg_color: Color32,
 
@@ -1639,6 +1647,8 @@ impl Visuals {
             code_text_color: None,
             code_bg_corner_radius: CornerRadius::same(1),
             code_bg_padding_x: 2.0,
+            code_bg_expand: vec2(0.0, -1.0),
+            code_bg_stroke: Stroke::NONE,
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
@@ -2421,6 +2431,8 @@ impl Visuals {
             code_text_color,
             code_bg_corner_radius,
             code_bg_padding_x,
+            code_bg_expand,
+            code_bg_stroke,
             warn_fg_color,
             error_fg_color,
 
@@ -2562,6 +2574,27 @@ impl Visuals {
                         .range(0.0..=8.0)
                         .speed(0.1),
                 );
+                ui.end_row();
+
+                ui.label("Code background expand");
+                ui.horizontal(|ui| {
+                    ui.add(
+                        DragValue::new(&mut code_bg_expand.x)
+                            .range(-4.0..=4.0)
+                            .speed(0.1)
+                            .prefix("x: "),
+                    );
+                    ui.add(
+                        DragValue::new(&mut code_bg_expand.y)
+                            .range(-4.0..=4.0)
+                            .speed(0.1)
+                            .prefix("y: "),
+                    );
+                });
+                ui.end_row();
+
+                ui.label("Code background stroke");
+                ui.add(code_bg_stroke);
                 ui.end_row();
 
                 ui.label("Weak text alpha");

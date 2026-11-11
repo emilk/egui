@@ -504,9 +504,10 @@ pub struct TextFormat {
     /// Amount to expand background fill by.
     ///
     /// This does not affect the layout, so the background may overlap neighboring text.
+    /// Use a negative `y` to keep the backgrounds of adjacent rows apart.
     ///
-    /// Default: 1.0
-    pub expand_bg: f32,
+    /// Default: `Vec2::splat(1.0)`
+    pub expand_bg: Vec2,
 
     /// Horizontal space between the edges of the [`Self::background`] and the text.
     ///
@@ -521,6 +522,11 @@ pub struct TextFormat {
     ///
     /// Default: [`CornerRadius::ZERO`]
     pub background_corner_radius: CornerRadius,
+
+    /// Outline around the [`Self::background`], painted inside its edges.
+    ///
+    /// Default: [`Stroke::NONE`]
+    pub background_stroke: Stroke,
 
     pub coords: VariationCoords,
 
@@ -558,9 +564,10 @@ impl Default for TextFormat {
             line_height: None,
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
-            expand_bg: 1.0,
+            expand_bg: Vec2::splat(1.0),
             background_padding_x: 0.0,
             background_corner_radius: CornerRadius::ZERO,
+            background_stroke: Stroke::NONE,
             coords: VariationCoords::default(),
             italics: false,
             underline: Stroke::NONE,
@@ -582,6 +589,7 @@ impl core::hash::Hash for TextFormat {
             expand_bg,
             background_padding_x,
             background_corner_radius,
+            background_stroke,
             coords,
             italics,
             underline,
@@ -595,9 +603,11 @@ impl core::hash::Hash for TextFormat {
         }
         color.hash(state);
         background.hash(state);
-        emath::OrderedFloat(*expand_bg).hash(state);
+        emath::OrderedFloat(expand_bg.x).hash(state);
+        emath::OrderedFloat(expand_bg.y).hash(state);
         emath::OrderedFloat(*background_padding_x).hash(state);
         background_corner_radius.hash(state);
+        background_stroke.hash(state);
         coords.hash(state);
         italics.hash(state);
         underline.hash(state);
