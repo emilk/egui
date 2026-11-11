@@ -6,7 +6,7 @@ use super::{
     glyph_atlas::UvRect,
     index::{ByteIndex, ByteRange, ByteRangeExt as _, CharIndex},
 };
-use crate::{Color32, CornerRadius, FontId, Mesh, Stroke, text::FontsView};
+use crate::{Color32, CornerRadius, FontId, Margin, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 pub use font_types::Tag;
 use smallvec::SmallVec;
@@ -504,19 +504,23 @@ pub struct TextFormat {
     /// Amount to expand background fill by.
     ///
     /// This does not affect the layout, so the background may overlap neighboring text.
-    /// Use a negative `y` to keep the backgrounds of adjacent rows apart.
     ///
-    /// Default: `Vec2::splat(1.0)`
-    pub expand_bg: Vec2,
+    /// Default: 1.0
+    pub expand_bg: f32,
 
-    /// Horizontal space between the edges of the [`Self::background`] and the text.
+    /// Inner margin of the [`Self::background`]: the space between the text and the edges of
+    /// the background. A positive margin makes the background bigger than the text.
     ///
-    /// Unlike [`Self::expand_bg`], this takes up space in the layout,
-    /// on both the left and right side of the section,
-    /// so the background never overlaps neighboring text.
+    /// The left and right margins take up space in the layout, so the background never
+    /// overlaps neighboring text.
+    /// The top and bottom margins are only visual: they do not affect the layout,
+    /// since that would change the row height.
+    /// Use negative top and bottom margins to keep the backgrounds of adjacent rows apart.
     ///
-    /// Default: 0.0
-    pub background_padding_x: f32,
+    /// This is applied in addition to [`Self::expand_bg`].
+    ///
+    /// Default: [`Margin::ZERO`]
+    pub background_margin: Margin,
 
     /// Corner radius of the [`Self::background`].
     ///
@@ -559,8 +563,8 @@ impl Default for TextFormat {
             line_height: None,
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
-            expand_bg: Vec2::splat(1.0),
-            background_padding_x: 0.0,
+            expand_bg: 1.0,
+            background_margin: Margin::ZERO,
             background_corner_radius: CornerRadius::ZERO,
             coords: VariationCoords::default(),
             italics: false,
@@ -581,7 +585,7 @@ impl core::hash::Hash for TextFormat {
             color,
             background,
             expand_bg,
-            background_padding_x,
+            background_margin,
             background_corner_radius,
             coords,
             italics,
@@ -596,9 +600,14 @@ impl core::hash::Hash for TextFormat {
         }
         color.hash(state);
         background.hash(state);
-        emath::OrderedFloat(expand_bg.x).hash(state);
-        emath::OrderedFloat(expand_bg.y).hash(state);
-        emath::OrderedFloat(*background_padding_x).hash(state);
+        emath::OrderedFloat(*expand_bg).hash(state);
+        let Margin {
+            left,
+            right,
+            top,
+            bottom,
+        } = background_margin;
+        (left, right, top, bottom).hash(state);
         background_corner_radius.hash(state);
         coords.hash(state);
         italics.hash(state);

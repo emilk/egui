@@ -1314,7 +1314,7 @@ pub struct Selection {
 /// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
 ///
 /// Also known as `pre` or `code` blocks, after the HTML tags.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct CodeVisuals {
@@ -1329,15 +1329,14 @@ pub struct CodeVisuals {
     /// Corner radius of the background.
     pub corner_radius: CornerRadius,
 
-    /// Horizontal space between the edges of the background and the code text.
+    /// Inner margin: the space between the code text and the edges of the background.
+    /// A positive margin makes the background bigger than the text.
     ///
-    /// This takes up space in the layout.
-    pub padding_x: f32,
-
-    /// How much to expand the background beyond the text row, without affecting the layout.
-    ///
-    /// A negative `y` keeps the code backgrounds on adjacent rows apart.
-    pub expand: Vec2,
+    /// The left and right margins take up space in the layout,
+    /// so the background never overlaps neighboring text.
+    /// The top and bottom margins are only visual: they do not affect the layout.
+    /// Negative top and bottom margins keep the code backgrounds on adjacent rows apart.
+    pub margin: Margin,
 }
 
 /// Visual style for IME composition.
@@ -1783,8 +1782,12 @@ impl CodeVisuals {
             bg_color: Color32::from_gray(48),
             text_color: None,
             corner_radius: CornerRadius::same(1),
-            padding_x: 2.0,
-            expand: vec2(0.0, -1.0),
+            margin: Margin {
+                left: 2,
+                right: 2,
+                top: -1,
+                bottom: -1,
+            },
         }
     }
 
@@ -2358,8 +2361,7 @@ impl CodeVisuals {
             bg_color,
             text_color,
             corner_radius,
-            padding_x,
-            expand,
+            margin,
         } = self;
 
         ui.horizontal(|ui| {
@@ -2391,25 +2393,8 @@ impl CodeVisuals {
             ui.add(corner_radius);
             ui.end_row();
 
-            ui.label("Padding x");
-            ui.add(DragValue::new(padding_x).range(0.0..=8.0).speed(0.1));
-            ui.end_row();
-
-            ui.label("Expand");
-            ui.horizontal(|ui| {
-                ui.add(
-                    DragValue::new(&mut expand.x)
-                        .range(-4.0..=4.0)
-                        .speed(0.1)
-                        .prefix("x: "),
-                );
-                ui.add(
-                    DragValue::new(&mut expand.y)
-                        .range(-4.0..=4.0)
-                        .speed(0.1)
-                        .prefix("y: "),
-                );
-            });
+            ui.label("Margin");
+            ui.add(margin);
             ui.end_row();
         });
     }

@@ -6,7 +6,7 @@ use core::{iter, ops::Range};
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
 use crate::{
-    Color32, CornerRadius, Mesh, RoundedRect, Stroke, Vertex,
+    Color32, CornerRadius, MarginF32, Mesh, RoundedRect, Stroke, Vertex,
     stroke::PathStroke,
     tessellator::Path,
     text::{
@@ -542,7 +542,8 @@ fn layout_section(
     if paragraph.glyphs.is_empty() {
         paragraph.empty_paragraph_height = line_height;
     }
-    paragraph.cursor_x_px += (leading_space + format.background_padding_x) * pixels_per_point;
+    paragraph.cursor_x_px +=
+        (leading_space + format.background_margin.left as f32) * pixels_per_point;
 
     let section_text = &job.text[byte_range.as_usize()];
     let mut ctx = ShapingContext {
@@ -615,7 +616,7 @@ fn layout_section(
         }
     }
 
-    paragraph.cursor_x_px += format.background_padding_x * pixels_per_point;
+    paragraph.cursor_x_px += format.background_margin.right as f32 * pixels_per_point;
 
     shape_buffer
 }
@@ -1247,8 +1248,8 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
     let mut end_run = |start: Option<(&TextFormat, Rect)>, stop_x: f32| {
         if let Some((format, start_rect)) = start {
             let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
-            let rect = rect
-                .expand2(format.expand_bg + vec2(format.background_padding_x, 0.0))
+            let rect = (rect + MarginF32::from(format.background_margin))
+                .expand(format.expand_bg)
                 .round_to_pixels(point_scale.pixels_per_point());
             let feathering = 1.0 / point_scale.pixels_per_point();
             if format.background_corner_radius == CornerRadius::ZERO {
@@ -1279,7 +1280,7 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
                 && start_rect.top() == rect.top()
                 && start_rect.bottom() == rect.bottom()
                 && start_format.expand_bg == format.expand_bg
-                && start_format.background_padding_x == format.background_padding_x
+                && start_format.background_margin == format.background_margin
                 && start_format.background_corner_radius == format.background_corner_radius
             {
                 // continue the same background rectangle

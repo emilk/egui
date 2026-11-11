@@ -1,6 +1,6 @@
 //! Snapshot test for the background of inline code, see [`egui::CodeVisuals`].
 
-use egui::{CodeVisuals, Color32, CornerRadius, Visuals, vec2};
+use egui::{CodeVisuals, Color32, CornerRadius, Margin, Visuals, vec2};
 use egui_kittest::{Harness, SnapshotResults};
 
 #[test]
@@ -10,9 +10,8 @@ fn code_background() {
     let custom = Visuals {
         code: CodeVisuals {
             corner_radius: CornerRadius::ZERO,
-            padding_x: 0.0,
             text_color: Some(Color32::LIGHT_BLUE),
-            expand: vec2(1.0, 1.0),
+            margin: Margin::same(1),
             ..CodeVisuals::dark()
         },
         ..Visuals::dark()
