@@ -1306,15 +1306,18 @@ impl Areas {
         None
     }
 
+    /// Was this layer visible last frame?
     pub fn visible_last_frame(&self, layer_id: &LayerId) -> bool {
         self.visible_areas_last_frame.contains(layer_id)
     }
 
+    /// Was this layer visible last frame, or is it visible this frame?
     pub fn is_visible(&self, layer_id: &LayerId) -> bool {
         self.visible_areas_last_frame.contains(layer_id)
             || self.visible_areas_current_frame.contains(layer_id)
     }
 
+    /// All layers that were visible last frame, or are visible this frame.
     pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
         core::iter::chain(
             &self.visible_areas_last_frame,
@@ -1332,6 +1335,7 @@ impl Areas {
             .filter_map(|layer| Some((layer, self.get(layer.id)?)))
     }
 
+    /// Move this layer to the top of its [`Order`], and mark it as visible.
     pub fn move_to_top(&mut self, layer_id: LayerId) {
         self.visible_areas_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
@@ -1368,6 +1372,7 @@ impl Areas {
         }
     }
 
+    /// The top-most layer of the given [`Order`], ignoring sublayers.
     pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
         self.order
             .iter()

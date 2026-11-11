@@ -83,6 +83,9 @@ pub struct CreationContext<'s> {
     #[cfg(feature = "wgpu_no_default_features")]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
+    /// See [`Self::embedded_views`].
+    pub(crate) embedded_views: crate::EmbeddedViews,
+
     /// The root [`winit::window::Window`].
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) window: Option<std::sync::Arc<winit::window::Window>>,
@@ -94,6 +97,14 @@ pub struct CreationContext<'s> {
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
+}
+
+impl CreationContext<'_> {
+    /// The [`EmbeddedViews`](crate::EmbeddedViews) of the root window, which report where egui
+    /// placed the views that the platform draws, such as web views.
+    pub fn embedded_views(&self) -> &crate::EmbeddedViews {
+        &self.embedded_views
+    }
 }
 
 #[expect(unsafe_code)]
@@ -134,6 +145,7 @@ impl CreationContext<'_> {
             raw_window_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
             raw_display_handle: Err(HandleError::NotSupported),
+            embedded_views: crate::EmbeddedViews::detached(),
         }
     }
 
@@ -280,6 +292,20 @@ pub trait App {
     ///
     /// This function does not return a value. Any changes to the input should be made directly to `_raw_input`.
     fn raw_input_hook(&mut self, _ctx: &egui::Context, _raw_input: &mut egui::RawInput) {}
+
+    /// A hook for inspecting or changing the output of each pass of the root viewport, before
+    /// eframe acts on it and paints the frame.
+    ///
+    /// It is the counterpart of [`Self::raw_input_hook`]. eframe calls it right after the pass,
+    /// before it handles the output's commands and before it paints
+    /// [`egui::FullOutput::shapes`]. It isn't called while the window is hidden, because then
+    /// no pass runs.
+    ///
+    /// Use it to act on output that must be handled before the frame is painted, such as placing
+    /// the embedded views ([`egui::PlatformOutput::embedded_views`]) that the pass reserved rects
+    /// for with [`egui::EmbeddedView`]: the code that shows a view moves it there, or hides it
+    /// when its view is missing from the output.
+    fn output_hook(&mut self, _ctx: &egui::Context, _output: &mut egui::FullOutput) {}
 }
 
 /// Options controlling the behavior of a native window.
@@ -739,6 +765,9 @@ pub struct Frame {
     /// taken by the app. See [`Frame::request_activation_token`].
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) activation_token: Option<String>,
+
+    /// See [`Self::embedded_views`].
+    pub(crate) embedded_views: crate::EmbeddedViews,
 }
 
 // Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
@@ -786,7 +815,14 @@ impl Frame {
             wgpu_render_state: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_surface_config: None,
+            embedded_views: crate::EmbeddedViews::detached(),
         }
+    }
+
+    /// The [`EmbeddedViews`](crate::EmbeddedViews) of the root window, which report where egui
+    /// placed the views that the platform draws, such as web views.
+    pub fn embedded_views(&self) -> &crate::EmbeddedViews {
+        &self.embedded_views
     }
 
     /// True if you are in a web environment.

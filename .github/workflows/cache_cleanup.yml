@@ -7,7 +7,9 @@
 name: Cache Cleanup
 
 on:
-  pull_request:
+  # `pull_request_target` so fork PRs also get a writable token.
+  # Safe: this job does not check out PR code.
+  pull_request_target:
     types: [closed]
 
 permissions:

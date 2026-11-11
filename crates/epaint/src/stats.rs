@@ -95,7 +95,6 @@ impl AllocInfo {
     }
 
     pub fn from_slice<T>(slice: &[T]) -> Self {
-        use core::mem::size_of;
         let element_size = size_of::<T>();
         Self {
             element_size: ElementSize::Homogeneous(element_size),
@@ -205,7 +204,8 @@ impl PaintStats {
             | Shape::LineSegment { .. }
             | Shape::Rect { .. }
             | Shape::CubicBezier(_)
-            | Shape::QuadraticBezier(_) => {}
+            | Shape::QuadraticBezier(_)
+            | Shape::Clear(_) => {}
             Shape::Path(path_shape) => {
                 self.shape_path += AllocInfo::from_slice(&path_shape.points);
             }

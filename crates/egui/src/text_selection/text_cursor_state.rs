@@ -3,7 +3,7 @@
 use epaint::text::{ByteIndex, ByteRangeExt as _, CharIndex, Galley, cursor::CCursor};
 use unicode_segmentation::UnicodeSegmentation as _;
 
-use crate::{NumExt as _, Rect, Response, Ui, epaint};
+use crate::{NumExt as _, Rect, Response, Ui};
 
 use super::CCursorRange;
 

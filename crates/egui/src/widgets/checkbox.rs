@@ -4,7 +4,7 @@ use crate::{
     Atom, Atoms, IdSalt, IntoAtoms, NumExt as _, Response, Role, Sense, Shape, Ui, Vec2, Widget,
     WidgetAtom, WidgetInfo,
     class::{Classes, HasClasses},
-    epaint, pos2,
+    pos2,
     widget_style::CheckboxStyle,
 };
 

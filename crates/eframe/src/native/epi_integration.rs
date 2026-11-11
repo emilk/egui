@@ -240,6 +240,7 @@ impl EpiIntegration {
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
             activation_token: None,
+            embedded_views: crate::EmbeddedViews::new(window.window_handle().map(|h| h.as_raw())),
         };
 
         let icon = native_options
@@ -346,7 +347,7 @@ impl EpiIntegration {
 
         let is_root_viewport = viewport_ui_cb.is_none();
 
-        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
+        let mut full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
                 profiling::scope!("viewport_callback");
@@ -362,6 +363,11 @@ impl EpiIntegration {
                 }
             }
         });
+
+        if is_root_viewport {
+            profiling::scope!("App::output_hook");
+            app.output_hook(&self.egui_ctx, &mut full_output);
+        }
 
         if is_root_viewport && close_requested {
             let canceled = full_output.viewport_output[&ViewportId::ROOT]

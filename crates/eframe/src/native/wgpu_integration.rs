@@ -339,6 +339,7 @@ impl<'app> WgpuWinitApp<'app> {
             window: Some(Arc::clone(&window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
+            embedded_views: integration.frame.embedded_views().clone(),
         };
         let app = {
             profiling::scope!("user_app_creator");
@@ -1308,13 +1309,23 @@ fn render_immediate_viewport(
     }
 
     let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+
+    let mut screenshot_commands = vec![];
+    viewport.actions_requested.retain(|cmd| {
+        if let ActionRequested::Screenshot(callback) = cmd {
+            screenshot_commands.push(callback.clone());
+            false
+        } else {
+            true
+        }
+    });
     painter.paint_and_update_textures(
         ids.this,
         pixels_per_point,
         [0.0, 0.0, 0.0, 0.0],
         &clipped_primitives,
         &mut viewport.pending_delta,
-        vec![],
+        screenshot_commands,
         window,
     );
 
