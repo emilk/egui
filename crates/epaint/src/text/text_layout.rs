@@ -1260,17 +1260,17 @@ fn add_row_backgrounds(
         return;
     }
 
-    let BackgroundScratch { points, path } = scratch;
     let mut end_run = |start: Option<(&TextFormat, Rect)>, stop_x: f32| {
         if let Some((format, start_rect)) = start {
             let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
             let rect = (rect + MarginF32::from(format.background_margin))
                 .expand(format.expand_bg)
                 .round_to_pixels(point_scale.pixels_per_point());
-            let feathering = 1.0 / point_scale.pixels_per_point();
             if format.background_corner_radius == CornerRadius::ZERO {
                 mesh.add_colored_rect(rect, format.background);
             } else {
+                let BackgroundScratch { points, path } = scratch;
+                let feathering = 1.0 / point_scale.pixels_per_point();
                 crate::tessellator::path::rounded_rectangle(
                     points,
                     RoundedRect::new(rect, format.background_corner_radius),
