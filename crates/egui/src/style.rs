@@ -1055,7 +1055,7 @@ pub struct Interaction {
 }
 
 /// Look and feel of the text cursor.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextCursorStyle {

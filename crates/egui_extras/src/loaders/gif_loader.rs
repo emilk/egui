@@ -1,6 +1,6 @@
 use ahash::HashMap;
 use alloc::sync::Arc;
-use core::{mem::size_of, time::Duration};
+use core::time::Duration;
 use egui::{
     ColorImage, FrameDurations, Id, decode_animated_image_uri, has_gif_magic_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},

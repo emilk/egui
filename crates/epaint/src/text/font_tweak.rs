@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 use crate::text::VariationCoords;
 
 /// Extra scale and vertical tweak to apply to all text of a certain font.
