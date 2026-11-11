@@ -1,4 +1,4 @@
-use core::{future::Future, pin::Pin};
+use core::pin::Pin;
 use std::path::{Path, PathBuf};
 
 use send_wrapper::SendWrapper;

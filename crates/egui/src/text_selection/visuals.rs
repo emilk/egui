@@ -15,7 +15,7 @@ use crate::{
 
 use super::CCursorRange;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct RowVertexIndices {
     pub row: usize,
     pub vertex_indices: [u32; 6],

@@ -7,7 +7,6 @@ use crate::collapsing_header::CollapsingState;
 use crate::*;
 
 use super::scroll_area::{DragScroll, ScrollBarVisibility, ScrollSource};
-use super::{Area, Frame, Resize, ScrollArea, area, resize};
 
 /// Where the user can drag to move a [`Window`].
 ///

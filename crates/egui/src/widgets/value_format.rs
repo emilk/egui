@@ -5,7 +5,7 @@
 use alloc::sync::Arc;
 use core::ops::RangeInclusive;
 
-use crate::{Atoms, IntoAtoms, MINUS_CHAR_STR, emath};
+use crate::{Atoms, IntoAtoms, MINUS_CHAR_STR};
 
 /// Formats a value for display, given the range of decimals it may show.
 pub type NumFormatter<'a> = Arc<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
