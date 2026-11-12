@@ -546,22 +546,26 @@ struct FocusWidget {
     /// Which way the focus moved to get to this widget. Tab is [`FocusDirection::Next`].
     ///
     /// [`FocusDirection::None`] if it got the focus some other way, such as a click.
-    pub focused_via: FocusDirection,
+    pub via: FocusDirection,
 }
 
 impl FocusWidget {
     pub fn new(id: Id) -> Self {
-        Self::moved_to(id, FocusDirection::None)
-    }
-
-    /// Use this when Tab, Shift-Tab or an arrow key moved the focus to the widget.
-    /// Use [`Self::new`] for anything else, such as a click.
-    pub fn moved_to(id: Id, direction: FocusDirection) -> Self {
         Self {
             id,
             filter: Default::default(),
-            focused_via: direction,
+            via: FocusDirection::None,
         }
+    }
+
+    /// Sets which way the focus moved to get to the widget.
+    ///
+    /// Add this when Tab, Shift-Tab or an arrow key moved the focus.
+    /// Leave it out for anything else, such as a click.
+    #[inline]
+    pub fn via(mut self, direction: FocusDirection) -> Self {
+        self.via = direction;
+        self
     }
 }
 
@@ -648,7 +652,7 @@ impl Focus {
         if self.focus_direction.is_cardinal()
             && let Some(found_widget) = self.find_widget_in_direction(used_ids)
         {
-            self.focused_widget = Some(FocusWidget::moved_to(found_widget, self.focus_direction));
+            self.focused_widget = Some(FocusWidget::new(found_widget).via(self.focus_direction));
         }
 
         if let Some(focused_widget) = self.focused_widget {
@@ -675,7 +679,7 @@ impl Focus {
             .or_insert(Rect::EVERYTHING);
 
         if self.give_to_next && !self.had_focus_last_frame(id) {
-            self.focused_widget = Some(FocusWidget::moved_to(id, FocusDirection::Next));
+            self.focused_widget = Some(FocusWidget::new(id).via(FocusDirection::Next));
             self.give_to_next = false;
         } else if self.focused() == Some(id) {
             if self.focus_direction == FocusDirection::Next {
@@ -686,7 +690,7 @@ impl Focus {
                 // frame-delay so gained_focus works
                 self.widget_next_frame = self
                     .last_interested
-                    .map(|id| FocusWidget::moved_to(id, FocusDirection::Previous));
+                    .map(|id| FocusWidget::new(id).via(FocusDirection::Previous));
                 self.reset_focus();
             }
         } else if self.focus_direction == FocusDirection::Next
@@ -694,7 +698,7 @@ impl Focus {
             && !self.give_to_next
         {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
-            self.focused_widget = Some(FocusWidget::moved_to(id, FocusDirection::Next));
+            self.focused_widget = Some(FocusWidget::new(id).via(FocusDirection::Next));
             self.reset_focus();
         } else if self.focus_direction == FocusDirection::Previous
             && self.focused_widget.is_none()
@@ -703,7 +707,7 @@ impl Focus {
             // nothing has focus and the user pressed Shift+Tab - give focus to the last widgets that wants it:
             self.focused_widget = self
                 .last_interested
-                .map(|id| FocusWidget::moved_to(id, FocusDirection::Previous));
+                .map(|id| FocusWidget::new(id).via(FocusDirection::Previous));
             self.reset_focus();
         }
 
@@ -963,7 +967,7 @@ impl Memory {
     pub fn focused_via(&self) -> FocusDirection {
         self.focus()
             .and_then(|focus| focus.focused_widget)
-            .map_or(FocusDirection::None, |widget| widget.focused_via)
+            .map_or(FocusDirection::None, |widget| widget.via)
     }
 
     /// Surrender keyboard focus for a specific widget.
