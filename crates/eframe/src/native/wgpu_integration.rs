@@ -700,8 +700,17 @@ impl WgpuWinitRunning<'_> {
             };
             let mut raw_input = egui_winit.take_egui_input(window);
 
-            let show_ui = mode == PassMode::Full
-                && (is_visible || is_viewport_or_descendant_visible(viewports, viewport_id));
+            let show_ui = match mode {
+                PassMode::Full => {
+                    is_visible || is_viewport_or_descendant_visible(viewports, viewport_id)
+                }
+                // This window isn't let to redraw, but an immediate viewport inside it has input
+                // waiting, and only this window's ui pass can run it (e.g. a hidden main window
+                // on Wayland, with a visible child window being clicked in).
+                PassMode::LogicOnly => immediate_descendant_has_input(viewports, viewport_id),
+            };
+            // A window that wasn't let to redraw isn't painted: presenting could block.
+            let is_visible = is_visible && mode == PassMode::Full;
 
             integration.pre_update();
 
@@ -1200,6 +1209,22 @@ fn is_viewport_or_descendant_visible(viewports: &Viewports, viewport_id: Viewpor
         child.ids.parent == viewport_id
             && child.ids.this != viewport_id
             && is_viewport_or_descendant_visible(viewports, child.ids.this)
+    })
+}
+
+/// Has an immediate viewport inside this one (or inside one of those) input waiting?
+///
+/// Immediate viewports only run while their parent's ui does, so their input waits for it.
+fn immediate_descendant_has_input(viewports: &Viewports, viewport_id: ViewportId) -> bool {
+    viewports.values().any(|child| {
+        child.ids.parent == viewport_id
+            && child.ids.this != viewport_id
+            && child.viewport_ui_cb.is_none()
+            && (child
+                .egui_winit
+                .as_ref()
+                .is_some_and(|state| !state.egui_input().events.is_empty())
+                || immediate_descendant_has_input(viewports, child.ids.this))
     })
 }
 
