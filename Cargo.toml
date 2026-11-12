@@ -104,7 +104,7 @@ glutin-winit = { version = "0.5.0", default-features = false }
 harfrust = "0.15.0" # Can't update to 0.16+: it needs read-fonts 0.47, but fontique 0.13, skrifa 0.49, and usvg 0.50 pin read-fonts 0.46
 image = { version = "0.25.10", default-features = false } # `flate2` is held at 1.1.9 in `Cargo.lock`: 1.1.10 moved to miniz_oxide 0.9, duplicating the 0.8 that png needs
 itertools = "0.15.0"
-jiff = { version = "0.2.38", default-features = false }
+jiff = { version = "0.2.39", default-features = false }
 js-sys = "0.3.103"
 kittest = { version = "0.5.0" }
 log = { version = "0.4.34", features = ["std"] }
