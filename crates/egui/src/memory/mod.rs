@@ -952,22 +952,23 @@ impl Memory {
         self.interrupt_ime();
     }
 
-    /// Which way the keyboard focus moved to get to the focused widget.
+    /// How the keyboard focus got to the focused widget.
+    ///
+    /// Returns `None` if no widget has the focus.
     ///
     /// This is [`FocusDirection::Next`] after Tab and [`FocusDirection::Previous`] after
     /// Shift-Tab. A move started with [`Self::move_focus`] counts too.
     ///
-    /// Returns [`FocusDirection::None`] if the widget got the focus some other way, such as a
-    /// click or [`Self::request_focus`]. It is also `None` when no widget has the focus.
+    /// It is [`FocusDirection::None`] if the widget got the focus without a direction, such as
+    /// by a click or [`Self::request_focus`].
     ///
     /// Use it together with [`crate::Response::gained_focus`] in a widget that has focusable
     /// parts of its own. It tells you whether to start at the first or the last part.
     ///
     /// See also [`crate::Response::focused_via`].
-    pub fn focused_via(&self) -> FocusDirection {
-        self.focus()
-            .and_then(|focus| focus.focused_widget)
-            .map_or(FocusDirection::None, |widget| widget.via)
+    pub fn focused_via(&self) -> Option<FocusDirection> {
+        let widget = self.focus()?.focused_widget?;
+        Some(widget.via)
     }
 
     /// Surrender keyboard focus for a specific widget.
