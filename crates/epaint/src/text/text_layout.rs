@@ -68,6 +68,11 @@ struct Paragraph {
 
     pub glyphs: Vec<Glyph>,
 
+    /// Unrounded trailing edge of each glyph, in physical pixels.
+    /// Parallel to `glyphs`. Wrap width uses this so pixel-rounding of `pos.x`
+    /// cannot make rows overflow `wrap.max_width` or vary in glyph count.
+    pub glyph_end_x_px: Vec<f32>,
+
     /// In case of an empty paragraph ("\n"), use this as height.
     pub empty_paragraph_height: f32,
 }
@@ -78,8 +83,14 @@ impl Paragraph {
             cursor_x_px: 0.0,
             section_index_at_start,
             glyphs: vec![],
+            glyph_end_x_px: vec![],
             empty_paragraph_height: 0.0,
         }
+    }
+
+    fn push_glyph(&mut self, glyph: Glyph) {
+        self.glyphs.push(glyph);
+        self.glyph_end_x_px.push(self.cursor_x_px);
     }
 }
 
@@ -382,7 +393,7 @@ fn layout_shaped_run(
 
             ctx.glyph(chr, x_px, advance_width_px, face_metrics, glyph_alloc)
         };
-        paragraph.glyphs.push(glyph);
+        paragraph.push_glyph(glyph);
         cluster_glyph_count += 1;
     }
 
@@ -465,7 +476,7 @@ fn layout_raster_run(
 
     let face_metrics = ctx.font_metrics.clone();
     let glyph = raster_glyph(ctx, paragraph, chr, raster, &face_metrics);
-    paragraph.glyphs.push(glyph);
+    paragraph.push_glyph(glyph);
     emit_continuation_glyphs(
         ctx,
         paragraph,
@@ -501,7 +512,7 @@ fn emit_continuation_glyphs(
     let physical_x = paragraph.cursor_x_px.round() as i32;
 
     for chr in cluster_text.chars().skip(cluster_glyph_count) {
-        paragraph.glyphs.push(ctx.glyph(
+        paragraph.push_glyph(ctx.glyph(
             chr,
             physical_x,
             0.0,
@@ -726,7 +737,7 @@ fn rows_from_paragraphs(
                     ends_with_newline: !is_last_paragraph,
                 });
             } else {
-                line_break(&paragraph, job, &mut rows, elided);
+                line_break(&paragraph, job, pixels_per_point, &mut rows, elided);
                 let placed_row = rows.last_mut().unwrap();
                 placed_row.ends_with_newline = !is_last_paragraph;
             }
@@ -739,6 +750,7 @@ fn rows_from_paragraphs(
 fn line_break(
     paragraph: &Paragraph,
     job: &LayoutJob,
+    pixels_per_point: f32,
     out_rows: &mut Vec<PlacedRow>,
     elided: &mut bool,
 ) {
@@ -748,7 +760,7 @@ fn line_break(
     let mut row_break_candidates = RowBreakCandidates::default();
 
     let mut first_row_indentation = paragraph.glyphs[0].pos.x;
-    let mut row_start_x = 0.0;
+    let mut row_start_px = 0.0;
     let mut row_start_idx = 0;
 
     for i in 0..paragraph.glyphs.len() {
@@ -757,7 +769,13 @@ fn line_break(
             break;
         }
 
-        let potential_row_width = paragraph.glyphs[i].max_x() - row_start_x;
+        // Use the unrounded cursor, not `max_x() - row_start_x`. Each glyph is
+        // placed at a rounded `pos.x` while its advance stays fractional, so a
+        // row's rounded remainder would otherwise change how many glyphs fit
+        // and could make `size.x` exceed `wrap.max_width`.
+        // Subtract in pixels first so large galleys do not lose precision
+        // after converting each cursor to points.
+        let potential_row_width = (paragraph.glyph_end_x_px[i] - row_start_px) / pixels_per_point;
 
         if wrap_width < potential_row_width {
             // Row break:
@@ -777,21 +795,23 @@ fn line_break(
                     }),
                     ends_with_newline: false,
                 });
-                row_start_x += first_row_indentation;
+                row_start_px += first_row_indentation * pixels_per_point;
                 first_row_indentation = 0.0;
             } else if let Some(last_kept_index) = row_break_candidates.get(job.wrap.break_anywhere)
             {
+                let origin_x = paragraph.glyphs[row_start_idx].pos.x;
                 let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..=last_kept_index]
                     .iter()
                     .copied()
                     .map(|mut glyph| {
-                        glyph.pos.x -= row_start_x;
+                        glyph.pos.x -= origin_x;
                         glyph
                     })
                     .collect();
 
                 let section_index_at_start = glyphs[0].section_index;
-                let paragraph_max_x = glyphs.last().unwrap().max_x();
+                let paragraph_max_x =
+                    (paragraph.glyph_end_x_px[last_kept_index] - row_start_px) / pixels_per_point;
 
                 out_rows.push(PlacedRow {
                     pos: pos2(0.0, f32::NAN),
@@ -806,7 +826,9 @@ fn line_break(
 
                 // Start a new row:
                 row_start_idx = last_kept_index + 1;
-                row_start_x = paragraph.glyphs[row_start_idx].pos.x;
+                let first = &paragraph.glyphs[row_start_idx];
+                row_start_px = paragraph.glyph_end_x_px[row_start_idx]
+                    - first.advance_width * pixels_per_point;
                 row_break_candidates.forget_before_idx(row_start_idx);
             } else {
                 // Found no place to break, so we have to overrun wrap_width.
@@ -822,14 +844,17 @@ fn line_break(
         if job.wrap.max_rows <= out_rows.len() {
             *elided = true; // can't fit another row
         } else {
-            let paragraph_min_x = paragraph.glyphs[row_start_idx].pos.x - row_start_x;
-            let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x() - row_start_x;
+            let row_start_pts = row_start_px / pixels_per_point;
+            let paragraph_min_x = paragraph.glyphs[row_start_idx].pos.x - row_start_pts;
+            let paragraph_max_x = (paragraph.glyph_end_x_px.last().copied().unwrap()
+                - row_start_px)
+                / pixels_per_point;
 
             let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..]
                 .iter()
                 .copied()
                 .map(|mut glyph| {
-                    glyph.pos.x -= row_start_x + paragraph_min_x;
+                    glyph.pos.x -= row_start_pts + paragraph_min_x;
                     glyph
                 })
                 .collect();
@@ -2300,6 +2325,42 @@ mod tests {
                 assert!(elided_galley.size().x <= target_width);
                 assert!(test_galley.size().x > target_width);
             }
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn test_monospace_wrap_rows_respect_max_width() {
+        // A long run without break opportunities must produce equal-length full
+        // rows, none wider than wrap.max_width. Wrapping from rounded glyph
+        // positions used to make some rows overshoot and hold one extra glyph.
+        let mut fonts = test_fonts();
+        let text = "x".repeat(5000);
+        for w in [100, 108, 115, 200, 400, 800] {
+            let job = LayoutJob::simple(
+                text.clone(),
+                FontId::monospace(12.0),
+                Color32::WHITE,
+                w as f32,
+            );
+            let galley = layout(&mut fonts, 1.0, job.into());
+            let rows = &galley.rows[..galley.rows.len() - 1];
+            assert!(!rows.is_empty(), "wrap width {w} produced no full rows");
+            let lens: Vec<usize> = rows.iter().map(|r| r.glyphs.len()).collect();
+            let min = *lens.iter().min().unwrap();
+            let max = *lens.iter().max().unwrap();
+            let widest = rows.iter().map(|r| r.size.x).fold(0.0f32, f32::max);
+            assert_eq!(
+                min, max,
+                "wrap width {w}: full rows held {min} or {max} glyphs"
+            );
+            // `effective_wrap_width` is `max_width + 0.5` when output is rounded
+            // to the GUI, so a full row may be slightly wider than `max_width`
+            // without holding an extra glyph.
+            assert!(
+                widest <= w as f32 + 0.5,
+                "wrap width {w}: a row was {widest} wide"
+            );
         }
     }
 
