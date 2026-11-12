@@ -483,9 +483,10 @@ pub use self::{
     },
     containers::{
         AdaptiveLayout, Aligned, Area, AreaState, CentralPanel, ClosableTag, CollapsingHeader,
-        CollapsingResponse, ComboBox, DragPanButtons, Frame, IconPainter, Modal, ModalResponse,
-        Panel, PanelState, Popup, PopupAnchor, PopupCloseBehavior, PopupKind, Resize, Scene,
-        ScrollArea, SetOpenCommand, Sides, Tooltip, Window, WindowDrag, collapsing_header, frame,
+        CollapsingResponse, ComboBox, DragPanButtons, Drawer, DrawerEdge, Frame, IconPainter,
+        Modal, ModalResponse, Panel, PanelState, Popup, PopupAnchor, PopupCloseBehavior, PopupKind,
+        Resize, Scene, ScrollArea, SetOpenCommand, Sides, Tooltip, Window, WindowDrag,
+        collapsing_header, frame,
         menu::{self, MenuBar},
         modal, panel, scroll_area,
     },

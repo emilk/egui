@@ -13,6 +13,7 @@ pub mod completion;
 pub mod dancing_strings;
 pub mod demo_app_windows;
 pub mod drag_and_drop;
+pub mod drawer;
 pub mod extra_viewport;
 pub mod font_book;
 pub mod frame_demo;

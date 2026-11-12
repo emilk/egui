@@ -8,6 +8,7 @@ pub(crate) mod area;
 mod close_tag;
 pub mod collapsing_header;
 mod combo_box;
+mod drawer;
 pub mod frame;
 pub mod menu;
 pub mod modal;
@@ -28,6 +29,7 @@ pub use {
     close_tag::ClosableTag,
     collapsing_header::{CollapsingHeader, CollapsingResponse},
     combo_box::*,
+    drawer::{Drawer, DrawerEdge},
     frame::Frame,
     modal::{Modal, ModalResponse},
     panel::*,
