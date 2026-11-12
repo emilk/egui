@@ -2,6 +2,7 @@
 //!
 //! For instance, a [`Frame`] adds a frame and background to some contained UI.
 
+mod adaptive_layout;
 mod aligned;
 pub(crate) mod area;
 mod close_tag;
@@ -21,6 +22,7 @@ mod tooltip;
 pub(crate) mod window;
 
 pub use {
+    adaptive_layout::AdaptiveLayout,
     aligned::Aligned,
     area::{Area, AreaState},
     close_tag::ClosableTag,

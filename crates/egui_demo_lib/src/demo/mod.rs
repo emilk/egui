@@ -5,6 +5,7 @@
 // ----------------------------------------------------------------------------
 
 pub mod about;
+pub mod adaptive_layout;
 pub mod band;
 pub mod code_editor;
 pub mod code_example;
