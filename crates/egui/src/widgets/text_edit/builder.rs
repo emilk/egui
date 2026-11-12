@@ -877,7 +877,12 @@ impl<'t> TextEdit<'t> {
             );
 
             if did_interact || response.clicked() {
-                ui.memory_mut(|mem| mem.request_focus(response.id));
+                // The caret moves, so a composition in progress must end even
+                // when this field already has focus.
+                ui.memory_mut(|mem| {
+                    mem.request_focus(response.id);
+                    mem.interrupt_ime();
+                });
                 state.cursor_purpose = TextEditCursorPurpose::Selection;
 
                 state.last_interaction_time = ui.input(|i| i.time);
@@ -917,7 +922,10 @@ impl<'t> TextEdit<'t> {
                 .set_char_range(Some(CCursorRange::one(ccursor)));
             state.cursor_purpose = TextEditCursorPurpose::Selection;
             state.last_interaction_time = ui.input(|i| i.time);
-            ui.memory_mut(|mem| mem.request_focus(id));
+            ui.memory_mut(|mem| {
+                mem.request_focus(id);
+                mem.interrupt_ime();
+            });
 
             text_changed = true;
             ui.ctx().request_repaint(); // The galley is now stale

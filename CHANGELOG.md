@@ -14,6 +14,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+
+### Fixed
+
+- `Memory::request_focus` no longer interrupts IME composition when the widget already has focus, so apps can request focus every frame without breaking an in-progress composition. `TextEdit` still interrupts when the caret moves (click / middle-click paste) [0abfabcf]
+
 ## 0.37.0 - Colored emojis! 🚀
 
 ### Highlights ✨
