@@ -60,6 +60,19 @@ pub struct TextEditState {
     /// The selection last sent with [`crate::OutputCommand::TextSelectionSettled`].
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) reported_selection: Option<CCursorRange>,
+
+    /// The cursor at the end of the last pass in which the [`crate::TextEdit`] had focus.
+    ///
+    /// Lets us scroll to a cursor that was moved from outside the [`crate::TextEdit`],
+    /// e.g. with [`TextEditState::store`].
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) last_focused_cursor: Option<CCursorRange>,
+
+    /// The [`crate::Context::cumulative_frame_nr`] in which we last scrolled to the cursor.
+    ///
+    /// Lets us redo the scroll if the pass that requested it was discarded.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) scrolled_to_cursor_in_frame: Option<u64>,
 }
 
 impl TextEditState {
