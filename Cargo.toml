@@ -107,7 +107,7 @@ itertools = "0.15.0"
 jiff = { version = "0.2.39", default-features = false }
 js-sys = "0.3.103"
 kittest = { version = "0.5.0" }
-log = { version = "0.4.34", features = ["std"] }
+log = { version = "0.4.35", features = ["std"] }
 mimalloc = "0.1.52"
 mime_guess2 = { version = "2.3", default-features = false }
 mint = "0.5.9"
