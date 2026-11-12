@@ -78,6 +78,8 @@ impl Default for DemoGroups {
         Self {
             about: About::default(),
             demos: DemoGroup::new(vec![
+                Box::<super::adaptive_layout::AdaptiveLayoutDemo>::default(),
+                Box::<super::drawer::DrawerDemo>::default(),
                 Box::<super::band::BandDemo>::default(),
                 Box::<super::paint_bezier::PaintBezier>::default(),
                 Box::<super::code_editor::CodeEditor>::default(),
