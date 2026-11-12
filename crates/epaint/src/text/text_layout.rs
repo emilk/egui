@@ -113,9 +113,9 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
     {
         let mut shape_buffer = fonts.take_shape_buffer();
         for (section_index, section) in job.sections.iter().enumerate() {
-            shape_buffer = layout_section(
+            layout_section(
                 fonts,
-                shape_buffer,
+                &mut shape_buffer,
                 pixels_per_point,
                 &job,
                 section_index as u32,
@@ -220,7 +220,7 @@ struct TextRun {
     raster: Option<RasterGlyphAllocation>,
 }
 
-/// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
+/// Emit shaped glyphs from a [`harfrust::Buffer`] into a [`Paragraph`].
 ///
 /// When a cluster maps multiple characters to fewer glyphs (e.g. flag emojis,
 /// ligatures), zero-width "continuation" glyphs are emitted for the extra
@@ -230,7 +230,7 @@ fn layout_shaped_run(
     fonts: &mut FontsImpl,
     run: &TextRun,
     run_text: &str,
-    glyph_buffer: &harfrust::GlyphBuffer,
+    glyph_buffer: &harfrust::Buffer,
     face_metrics: &StyledMetrics,
     ctx: &mut ShapingContext,
     paragraph: &mut Paragraph,
@@ -512,16 +512,15 @@ fn emit_continuation_glyphs(
 }
 
 // Ignores the Y coordinate.
-#[must_use]
 fn layout_section(
     fonts: &mut FontsImpl,
-    mut shape_buffer: harfrust::UnicodeBuffer,
+    shape_buffer: &mut harfrust::Buffer,
     pixels_per_point: f32,
     job: &LayoutJob,
     section_index: u32,
     section: &LayoutSection,
     out_paragraphs: &mut Vec<Paragraph>,
-) -> harfrust::UnicodeBuffer {
+) {
     let LayoutSection {
         leading_space,
         byte_range,
@@ -598,23 +597,21 @@ fn layout_section(
                 flags |= harfrust::BufferFlags::END_OF_TEXT;
             }
 
-            let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
+            shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
 
             layout_shaped_run(
                 fonts,
                 run,
                 run_text,
-                &glyph_buffer,
+                shape_buffer,
                 &face_metrics,
                 &mut ctx,
                 paragraph,
             );
 
-            shape_buffer = glyph_buffer.clear();
+            shape_buffer.clear();
         }
     }
-
-    shape_buffer
 }
 
 /// Iterator that either splits on `'\n'` or yields the whole string once.
@@ -1563,45 +1560,39 @@ fn segment_into_runs(
     }
 }
 
-/// Shape a text run and return the raw [`harfrust::GlyphBuffer`].
+/// Shape a text run into `buffer`, replacing its (empty) contents with positioned glyphs.
 ///
 /// The caller should iterate `glyph_infos()` / `glyph_positions()` (both
 /// `Copy` slices) and convert font units to pixels using `metrics.px_scale_factor`.
-/// After iteration, recycle the buffer via `glyph_buffer.clear()`.
+/// After iteration, recycle the buffer via `buffer.clear()`.
 fn shape_text(
     font_face: &FontFace,
     text: &str,
     coords: &VariationCoords,
-    mut buffer: harfrust::UnicodeBuffer,
+    buffer: &mut harfrust::Buffer,
     flags: harfrust::BufferFlags,
-) -> harfrust::GlyphBuffer {
-    let font_ref = font_face.skrifa_font_ref();
+) {
+    let base_font = font_face.shaper_font();
     let tweak = font_face.tweak();
 
-    // Build shaper with variable font instance if variation coordinates are set.
-    let variations: Vec<harfrust::Variation> = iter::chain(tweak.coords.as_ref(), coords.as_ref())
-        .map(|&(tag, value)| harfrust::Variation { tag, value })
-        .collect();
-
-    let instance = if variations.is_empty() {
-        None
-    } else {
-        Some(harfrust::ShaperInstance::from_variations(
-            font_ref, variations,
-        ))
-    };
-
-    let shaper = font_face
-        .shaper_data()
-        .shaper(font_ref)
-        .instance(instance.as_ref())
-        .build();
+    // Use a variable font instance if variation coordinates are set.
+    let variations = iter::chain(tweak.coords.as_ref(), coords.as_ref());
+    let instance = variations
+        .clone()
+        .next()
+        .is_some()
+        .then(|| base_font.instance_builder().variations(variations).build());
+    let font = instance.as_ref().unwrap_or(base_font);
 
     buffer.set_flags(flags);
     buffer.push_str(text);
     buffer.guess_segment_properties();
 
-    shaper.shape(buffer, harfrust::ShapeOptions::new())
+    let shaper_font = harfrust::ShaperFont::new(font);
+    if let Err(err) = harfrust::shape(&shaper_font, buffer, harfrust::ShapeOptions::new()) {
+        debug_assert!(false, "harfrust failed to shape {text:?}: {err}");
+        buffer.clear();
+    }
 }
 
 // ----------------------------------------------------------------------------
