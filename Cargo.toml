@@ -90,7 +90,7 @@ criterion = { version = "0.8.2", default-features = false }
 dify = { version = "0.8.0", default-features = false }
 directories = "6.0"
 document-features = "0.2.12"
-ehttp = { version = "0.7.1", default-features = false }
+ehttp = { version = "0.7.3", default-features = false }
 enum-map = "3.1"
 env_logger = { version = "0.11.11", default-features = false }
 font-types = { version = "0.12.7", default-features = false, features = ["std"] }
