@@ -148,7 +148,7 @@ syntect = { version = "5.3", default-features = false }
 sys-locale = "0.3.2"
 tempfile = "3.27"
 thiserror = "2.0"
-tokio = "1.53"
+tokio = "1.54"
 toml = { version = "1.1", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "4.0", default-features = false }
