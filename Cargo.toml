@@ -149,7 +149,7 @@ sys-locale = "0.3.2"
 tempfile = "3.27"
 thiserror = "2.0"
 tokio = "1.54"
-toml = { version = "1.1", default-features = false }
+toml = { version = "1.2", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "4.0", default-features = false }
 unicode-general-category = "1.1"
