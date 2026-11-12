@@ -1,6 +1,5 @@
 #![expect(clippy::mem_forget)]
 
-#[cfg(feature = "color_fonts")]
 use alloc::sync::Arc;
 
 use ahash::HashMap;
@@ -344,9 +343,8 @@ pub struct FontFace {
     tweak: FontTweak,
     subpixel_binning: bool,
 
-    /// Cached `harfrust` shaper data (parsed GSUB/GPOS tables).
-    /// `ShaperData` is `Copy` — lives outside the `self_cell`.
-    shaper_data: harfrust::ShaperData,
+    /// The font as seen by `harfrust`, which caches its parsed GSUB/GPOS tables.
+    shaper_font: harfrust::Font,
 
     /// Location-independent: `char → GlyphId | Invisible`.
     ///
@@ -369,6 +367,10 @@ impl FontFace {
         index: u32,
         tweak: FontTweak,
     ) -> Result<Self, Box<dyn core::error::Error>> {
+        let shaper_font =
+            harfrust::Font::new(harfrust::font::Blob::from(Arc::clone(&font_data)), index)
+                .ok_or_else(|| format!("harfrust failed to parse font {name:?}"))?;
+
         let font = FontCell::try_new(font_data, |font_data| {
             let skrifa_font =
                 skrifa::FontRef::from_index(AsRef::<[u8]>::as_ref(font_data.as_ref()), index)?;
@@ -422,8 +424,6 @@ impl FontFace {
             })
         })?;
 
-        let shaper_data = harfrust::ShaperData::new(&font.borrow_dependent().skrifa);
-
         let subpixel_binning = tweak.subpixel_binning.unwrap_or(options.subpixel_binning);
 
         Ok(Self {
@@ -431,7 +431,7 @@ impl FontFace {
             font,
             tweak,
             subpixel_binning,
-            shaper_data,
+            shaper_font,
             glyph_id_cache: Default::default(),
             advance_width_cache: Default::default(),
         })
@@ -642,16 +642,12 @@ impl FontFace {
         }
     }
 
-    pub(crate) fn skrifa_font_ref(&self) -> &skrifa::FontRef<'_> {
-        &self.font.borrow_dependent().skrifa
-    }
-
     pub(crate) fn tweak(&self) -> &FontTweak {
         &self.tweak
     }
 
-    pub(crate) fn shaper_data(&self) -> &harfrust::ShaperData {
-        &self.shaper_data
+    pub(crate) fn shaper_font(&self) -> &harfrust::Font {
+        &self.shaper_font
     }
 
     /// Whether to render this face at up to four sub-pixel offsets.
