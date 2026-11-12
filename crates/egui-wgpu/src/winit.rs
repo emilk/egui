@@ -107,6 +107,58 @@ impl Painter {
         }
     }
 
+    /// Makes the surfaces keep their alpha, or makes them opaque again.
+    ///
+    /// A surface that keeps its alpha shows what is behind it where egui paints nothing or
+    /// clears it. That is the window's background, or a view below egui's surface.
+    ///
+    /// This starts out as the `support_transparent_backbuffer` passed to [`Self::new`].
+    ///
+    /// All surfaces are reconfigured before the next paint.
+    ///
+    /// This is cheap to call every frame.
+    pub fn set_transparent(&mut self, transparent: bool) {
+        if self.support_transparent_backbuffer == transparent {
+            return;
+        }
+
+        self.support_transparent_backbuffer = transparent;
+
+        let Some(render_state) = &self.render_state else {
+            // No surface exists yet. New ones pick their alpha mode when they are installed.
+            return;
+        };
+        #[expect(clippy::iter_over_hash_type)]
+        for surface in self.surfaces.values_mut() {
+            surface.alpha_mode = Self::alpha_mode(&surface.surface, render_state, transparent);
+            surface.needs_reconfigure = true;
+        }
+    }
+
+    /// The alpha mode for `surface`. If `transparent`, it is one that keeps the alpha, if the
+    /// surface supports one.
+    fn alpha_mode(
+        surface: &wgpu::Surface<'static>,
+        render_state: &RenderState,
+        transparent: bool,
+    ) -> wgpu::CompositeAlphaMode {
+        if !transparent {
+            return wgpu::CompositeAlphaMode::Auto;
+        }
+        let supported_alpha_modes = surface.get_capabilities(&render_state.adapter).alpha_modes;
+        // Prefer pre multiplied over post multiplied!
+        if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+            wgpu::CompositeAlphaMode::PreMultiplied
+        } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
+            wgpu::CompositeAlphaMode::PostMultiplied
+        } else {
+            log::warn!(
+                "A transparent surface was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
+            );
+            wgpu::CompositeAlphaMode::Auto
+        }
+    }
+
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
@@ -287,24 +339,7 @@ impl Painter {
                 .render_state
                 .as_ref()
                 .expect("install_surface called before render_state initialization");
-            if self.support_transparent_backbuffer {
-                let supported_alpha_modes =
-                    surface.get_capabilities(&render_state.adapter).alpha_modes;
-                // Prefer pre multiplied over post multiplied!
-                if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
-                    wgpu::CompositeAlphaMode::PreMultiplied
-                } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied)
-                {
-                    wgpu::CompositeAlphaMode::PostMultiplied
-                } else {
-                    log::warn!(
-                        "Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
-                    );
-                    wgpu::CompositeAlphaMode::Auto
-                }
-            } else {
-                wgpu::CompositeAlphaMode::Auto
-            }
+            Self::alpha_mode(&surface, render_state, self.support_transparent_backbuffer)
         };
         self.surfaces.insert(
             viewport_id,

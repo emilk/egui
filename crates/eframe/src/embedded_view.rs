@@ -17,6 +17,11 @@
 //! are below egui's surface, so on its own it would take every click. eframe lets the pointer
 //! through to a view wherever the view takes the input
 //! ([`egui::EmbeddedViewOutput::view_input_areas`]).
+//!
+//! A view below egui's surface only shows if the surface keeps its alpha. eframe takes care of
+//! that when such a view is shown, on the web and natively with the wgpu renderer. With glow
+//! natively it can't change that later, so create the window with
+//! [`egui::ViewportBuilder::with_transparent`].
 
 /// Access to the app's root window, for the code that creates embedded views in it.
 ///
