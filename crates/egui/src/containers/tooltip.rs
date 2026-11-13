@@ -320,31 +320,39 @@ impl Tooltip<'_> {
 
         let is_our_tooltip_open = response.is_tooltip_open();
 
-        if is_our_tooltip_open {
+        if is_our_tooltip_open && allow_interactive_tooltip {
             // Check if we should automatically stay open:
 
-            let tooltip_id = Self::next_tooltip_id(&response.ctx, response.id);
+            // A widget can have several tooltips stacked below each other.
+            // We look at all of them as they were last pass, not just the one we are about to show:
+            // if an earlier one closes first, the count this pass no longer matches last pass,
+            // and the pointer has to cross the earlier ones to reach a later interactive one.
+            let last_pass = response
+                .ctx
+                .prev_pass_state(|fs| fs.tooltips.widget_tooltips.get(&response.id).copied());
 
-            let tooltip_has_interactive_widget = allow_interactive_tooltip
-                && Self::had_interactive_widgets(&response.ctx, tooltip_id);
+            if let Some(last_pass) = last_pass
+                && let Some(pos) = pointer_pos
+            {
+                let interactive_tooltips: Vec<Id> = (0..last_pass.tooltip_count)
+                    .map(|i| Self::tooltip_id(response.id, i))
+                    .filter(|&id| Self::had_interactive_widgets(&response.ctx, id))
+                    .collect();
 
-            if tooltip_has_interactive_widget {
-                // We keep the tooltip open if hovered,
-                // or if the pointer is on its way to it,
+                // We keep the tooltips open while the pointer is anywhere between the widget
+                // and its tooltips (over a tooltip, or the gaps between them),
+                // or on its way to an interactive tooltip,
                 // so that the user can interact with the tooltip
                 // (i.e. click links that are in it).
-                if let Some(area) = AreaState::load(&response.ctx, tooltip_id) {
-                    let rect = area.rect();
-
-                    if let Some(pos) = pointer_pos {
-                        if rect.contains(pos) {
-                            return true; // hovering interactive tooltip
-                        }
-                        if pointer_dir != Vec2::ZERO
-                            && rect.intersects_ray(pos, pointer_dir.normalized())
-                        {
-                            return true; // on the way to interactive tooltip
-                        }
+                if !interactive_tooltips.is_empty() && last_pass.bounding_rect.contains(pos) {
+                    return true; // between the widget and an interactive tooltip
+                }
+                for tooltip_id in interactive_tooltips {
+                    if let Some(area) = AreaState::load(&response.ctx, tooltip_id)
+                        && pointer_dir != Vec2::ZERO
+                        && area.rect().intersects_ray(pos, pointer_dir.normalized())
+                    {
+                        return true; // on the way to interactive tooltip
                     }
                 }
             }
