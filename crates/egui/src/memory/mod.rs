@@ -939,11 +939,17 @@ impl Memory {
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
     ///
-    /// Calling this will interrupt IME composition.
+    /// Calling this will interrupt IME composition, unless the widget already has focus.
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
+        // Re-requesting focus for the already-focused widget must not interrupt composition:
+        // callers do that every frame (e.g. `TextEdit` while dragging), and on Android an
+        // interrupt means hiding and re-showing the soft keyboard.
+        let focus_changed = !self.has_focus(id);
         self.focus_mut().focused_widget = Some(FocusWidget::new(id));
-        self.interrupt_ime();
+        if focus_changed {
+            self.interrupt_ime();
+        }
     }
 
     /// Defer focus until the next pass so an already rendered widget sees `gained_focus`.
