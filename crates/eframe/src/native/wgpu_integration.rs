@@ -450,11 +450,22 @@ impl WinitApp for WgpuWinitApp<'_> {
     ) -> Result<EventResult> {
         self.initialized_all_windows(event_loop);
 
-        if let Some(running) = &mut self.running {
+        let result = if let Some(running) = &mut self.running {
             running.run_ui_and_paint(window_id, event_loop, mode)
         } else {
             Ok(EventResult::Wait)
+        };
+
+        // The pass may have added viewports (e.g. a new deferred viewport). Create their windows
+        // now, not on the next event, which an idle app may not get (glow does this too).
+        if !matches!(
+            result,
+            Ok(EventResult::CloseRequested | EventResult::Exit) | Err(_)
+        ) {
+            self.initialized_all_windows(event_loop);
         }
+
+        result
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult> {
