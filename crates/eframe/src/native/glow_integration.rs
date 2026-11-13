@@ -28,7 +28,7 @@ use winit::{
 use ahash::HashMap;
 use egui::{
     DeferredViewportUiCallback, ImmediateViewport, OrderedViewportIdMap, ViewportBuilder,
-    ViewportClass, ViewportId, ViewportIdPair, ViewportInfo, ViewportOutput,
+    ViewportClass, ViewportId, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -36,6 +36,7 @@ use log::warn;
 
 use super::{
     epi_integration, event_loop_context,
+    modal_viewports::{self, ModalView},
     winit_integration::{EventResult, PassMode, UserEvent, WinitApp, create_egui_context},
 };
 use crate::epaint::textures::TexturesDelta;
@@ -129,6 +130,9 @@ struct GlutinWindowContext {
     window_from_viewport: OrderedViewportIdMap<WindowId>,
 
     focused_viewport: Option<ViewportId>,
+
+    /// Owners of modal viewports that we have disabled. See [`modal_viewports::sync_modal_owners`].
+    modal_owners: ViewportIdSet,
 }
 
 struct Viewport {
@@ -151,6 +155,13 @@ struct Viewport {
     gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
     window: Option<Arc<Window>>,
     egui_winit: Option<egui_winit::State>,
+
+    /// The window was shown cloaked (Windows, owned dialogs):
+    /// uncloak it after the first paint, so it never shows an unpainted frame.
+    uncloak_after_paint: bool,
+
+    /// The viewport whose window this window was created as an owned window of, if any.
+    owned_by: Option<ViewportId>,
 }
 
 impl Viewport {
@@ -163,6 +174,20 @@ impl Viewport {
         egui_winit.on_mouse_motion(delta).then(|| window.id())
     }
 
+    /// Take the window and drop the state that belongs to it (the surface too), so that a new
+    /// window is created on the next window-creation pass.
+    fn take_window(&mut self, current_viewport: &mut Option<ViewportId>) -> Option<Arc<Window>> {
+        self.egui_winit = None;
+        self.gl_surface = None;
+        self.uncloak_after_paint = false;
+        self.owned_by = None;
+        if *current_viewport == Some(self.ids.this) {
+            // The context is still current, but on the surface we just dropped.
+            *current_viewport = None;
+        }
+        self.window.take()
+    }
+
     /// Apply the commands, or defer them until we have a window.
     fn process_commands(
         &mut self,
@@ -172,6 +197,7 @@ impl Viewport {
         self.deferred_commands.append(&mut commands);
 
         if let Some(window) = &self.window {
+            let changed = !self.deferred_commands.is_empty();
             egui_winit::process_viewport_commands(
                 egui_ctx,
                 &mut self.info,
@@ -179,6 +205,9 @@ impl Viewport {
                 window,
                 &mut self.actions_requested,
             );
+            if changed {
+                modal_viewports::refresh_dialog_chrome(&self.builder, window);
+            }
         }
     }
 }
@@ -197,12 +226,21 @@ fn create_window_for_viewport(
     gl_config: &glutin::config::Config,
     builder: &ViewportBuilder,
     event_loop: &ActiveEventLoop,
-) -> Result<(Arc<Window>, ViewportInfo)> {
-    let window_attributes = egui_winit::apply_monitor_to_window_attributes(
+    owner: Option<&Window>,
+) -> Result<(Arc<Window>, ViewportInfo, bool)> {
+    let mut window_attributes = egui_winit::apply_monitor_to_window_attributes(
         egui_winit::create_winit_window_attributes(egui_ctx, builder.clone()),
         builder,
         event_loop,
     );
+    if let Some(owner) = owner {
+        window_attributes = egui_winit::apply_owner_to_window_attributes(
+            egui_ctx,
+            window_attributes,
+            builder,
+            owner,
+        );
+    }
     if window_attributes.transparent()
         && gl_config.supports_transparency() == Some(false)
         && !cfg!(target_os = "windows")
@@ -227,9 +265,11 @@ fn create_window_for_viewport(
     };
     egui_winit::apply_viewport_builder_to_window(egui_ctx, &window, builder);
 
+    let cloaked = modal_viewports::show_new_window(&window, builder, owner);
+
     let mut viewport_info = ViewportInfo::default();
     egui_winit::update_viewport_info(&mut viewport_info, egui_ctx, &window, true);
-    Ok((Arc::new(window), viewport_info))
+    Ok((Arc::new(window), viewport_info, cloaked))
 }
 
 // ----------------------------------------------------------------------------
@@ -516,6 +556,16 @@ impl WinitApp for GlowWinitApp<'_> {
                 Some(&running.glutin.borrow().window(ViewportId::ROOT)),
             );
             running.app.on_exit(Some(running.painter.borrow().gl()));
+            {
+                // Enable the owners of modal dialogs before any window is destroyed:
+                let mut glutin = running.glutin.borrow_mut();
+                let glutin = &mut *glutin;
+                modal_viewports::enable_all_modal_owners(
+                    &glutin.viewports,
+                    modal_view,
+                    &mut glutin.modal_owners,
+                );
+            }
             running.painter.borrow_mut().destroy();
         }
     }
@@ -852,9 +902,17 @@ impl GlowWinitRunning<'_> {
         };
 
         viewport.info.events.clear(); // they should have been processed
-        let window = viewport.window.clone().unwrap();
-        let gl_surface = viewport.gl_surface.as_ref().unwrap();
-        let egui_winit = viewport.egui_winit.as_mut().unwrap();
+        let (Some(window), Some(gl_surface), Some(egui_winit)) = (
+            viewport.window.clone(),
+            viewport.gl_surface.as_ref(),
+            viewport.egui_winit.as_mut(),
+        ) else {
+            // `remove_viewports_not_in` took its window, because the window that owned it went
+            // away. Create its new window now, and paint it (and this pass's output) next time:
+            glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);
+            integration.egui_ctx.request_repaint_of(viewport_id);
+            return Ok(EventResult::Wait);
+        };
 
         egui_winit.handle_platform_output_with_event_loop(&window, event_loop, platform_output);
 
@@ -936,18 +994,30 @@ impl GlowWinitRunning<'_> {
                 // vsync - don't count as frame-time:
                 frame_timer.pause();
                 profiling::scope!("swap_buffers");
-                let context = current_gl_context.as_ref().ok_or_else(|| {
-                    egui_glow::PainterError::from(
+                let Some(context) = current_gl_context.as_ref() else {
+                    // Never leave the window cloaked (it would be invisible):
+                    modal_viewports::uncloak_after_first_paint(
+                        &mut viewport.uncloak_after_paint,
+                        &window,
+                    );
+                    return Err(egui_glow::PainterError::from(
                         "failed to get current context to swap buffers".to_owned(),
                     )
-                })?;
+                    .into());
+                };
 
                 // On Wayland this makes winit hold back the next `RedrawRequested` until the
                 // compositor sends a frame callback. That is our frame pacing there, since we
                 // swap with interval 0 on Wayland (see `GlutinWindowContext::new`).
                 // egui-wgpu does the same. A no-op on other platforms.
                 window.pre_present_notify();
-                gl_surface.swap_buffers(context)?;
+                let swap_result = gl_surface.swap_buffers(context);
+                // The first frame has been presented (or failed): never leave the window cloaked.
+                modal_viewports::uncloak_after_first_paint(
+                    &mut viewport.uncloak_after_paint,
+                    &window,
+                );
+                swap_result?;
                 frame_timer.resume();
             }
 
@@ -1323,6 +1393,8 @@ impl GlutinWindowContext {
                 gl_surface: None,
                 window: window.map(Arc::new),
                 egui_winit: None,
+                uncloak_after_paint: false,
+                owned_by: None,
             },
         );
 
@@ -1344,6 +1416,7 @@ impl GlutinWindowContext {
             clipboard_shortcuts: native_options.clipboard_shortcuts,
             window_from_viewport,
             focused_viewport: Some(ViewportId::ROOT),
+            modal_owners: ViewportIdSet::default(),
         };
 
         slf.initialize_window(ViewportId::ROOT, event_loop)?;
@@ -1357,23 +1430,70 @@ impl GlutinWindowContext {
     fn initialize_all_windows(&mut self, event_loop: &ActiveEventLoop) {
         profiling::function_scope!();
 
-        let viewports: Vec<ViewportId> = self.viewports.keys().copied().collect();
+        let missing: Vec<ViewportId> = self
+            .viewports
+            .iter()
+            .filter(|(_, viewport)| {
+                viewport.window.is_none()
+                    || viewport.gl_surface.is_none()
+                    || viewport.egui_winit.is_none()
+            })
+            .map(|(id, _)| *id)
+            .collect();
 
-        for viewport_id in viewports {
+        // Owners first, an owned window needs its owner's window:
+        let order = modal_viewports::in_creation_order(missing, |id| {
+            let viewport = self.viewports.get(&id)?;
+            modal_viewports::resolve_owner(&viewport.builder, id, viewport.ids.parent)
+        });
+
+        for viewport_id in order {
             if let Err(err) = self.initialize_window(viewport_id, event_loop) {
                 log::error!("Failed to initialize a window for viewport {viewport_id:?}: {err}");
             }
         }
+
+        self.sync_modal_owners();
+    }
+
+    /// A new modal dialog disables its owner.
+    fn sync_modal_owners(&mut self) {
+        modal_viewports::sync_modal_owners(
+            &self.viewports,
+            modal_view,
+            None,
+            &mut self.modal_owners,
+        );
     }
 
     /// Create a surface, window, and winit integration for the viewport, if missing.
-    #[expect(unsafe_code)]
     pub(crate) fn initialize_window(
         &mut self,
         viewport_id: ViewportId,
         event_loop: &ActiveEventLoop,
     ) -> Result {
+        let result = self.initialize_window_impl(viewport_id, event_loop);
+        if result.is_err()
+            && let Some(viewport) = self.viewports.get_mut(&viewport_id)
+            && let Some(window) = &viewport.window
+        {
+            // Never leave a cloaked window cloaked: the user could not see or close it.
+            modal_viewports::uncloak_after_first_paint(&mut viewport.uncloak_after_paint, window);
+        }
+        result
+    }
+
+    /// The work of [`Self::initialize_window`], without its uncloak-on-error handling.
+    #[expect(unsafe_code)]
+    fn initialize_window_impl(
+        &mut self,
+        viewport_id: ViewportId,
+        event_loop: &ActiveEventLoop,
+    ) -> Result {
         profiling::function_scope!();
+
+        // Look up the owner before we borrow the viewport mutably:
+        let owner = self.owner_window(viewport_id);
 
         let viewport = self
             .viewports
@@ -1384,13 +1504,16 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
-            let (window, viewport_info) = create_window_for_viewport(
+            let (window, viewport_info, cloaked) = create_window_for_viewport(
                 &self.egui_ctx,
                 &self.gl_config,
                 &viewport.builder,
                 event_loop,
+                owner.as_ref().map(|(_, window)| &**window),
             )?;
             viewport.info = viewport_info;
+            viewport.uncloak_after_paint = cloaked;
+            viewport.owned_by = owner.as_ref().map(|(id, _)| *id);
             viewport.window.insert(window)
         };
 
@@ -1471,12 +1594,28 @@ impl GlutinWindowContext {
         Ok(())
     }
 
+    /// The window of the owner of this viewport, if it has an owner with a window.
+    fn owner_window(&self, viewport_id: ViewportId) -> Option<(ViewportId, Arc<Window>)> {
+        let viewport = self.viewports.get(&viewport_id)?;
+        let owner =
+            modal_viewports::resolve_owner(&viewport.builder, viewport_id, viewport.ids.parent)?;
+        let window = self.viewports.get(&owner)?.window.clone();
+        if window.is_none() {
+            log::debug!(
+                "The owner of viewport {viewport_id:?} has no window yet, so the dialog is unowned"
+            );
+        }
+        window.map(|window| (owner, window))
+    }
+
     /// only applies for android. but we basically drop surface + window and make context not current
     fn on_suspend(&mut self) -> Result {
         log::debug!("received suspend event. dropping window and surface");
         for viewport in self.viewports.values_mut() {
             viewport.gl_surface = None;
             viewport.window = None;
+            viewport.uncloak_after_paint = false;
+            viewport.owned_by = None;
         }
         self.current_viewport = None;
         if let Some(current) = self.current_gl_context.take() {
@@ -1535,12 +1674,41 @@ impl GlutinWindowContext {
         &mut self,
         viewport_output: &OrderedViewportIdMap<ViewportOutput>,
     ) {
+        // Windows destroys the windows owned by the windows that go, and the ones they own: take
+        // them from the viewports that stay, so they are recreated on the next window-creation pass.
+        let removed: Vec<ViewportId> = self
+            .viewports
+            .keys()
+            .copied()
+            .filter(|id| !viewport_output.contains_key(id))
+            .collect();
+        let owned_windows = modal_viewports::take_owned_windows(
+            &mut self.viewports,
+            &removed,
+            modal_view,
+            |viewport| viewport.take_window(&mut self.current_viewport),
+        );
+
+        // Re-enable the owners whose modal dialogs go away, before any dialog window is dropped,
+        // and disable the owners whose dialog already has a window (e.g. when `modal` was turned
+        // on later). This creates no dialogs.
+        modal_viewports::sync_modal_owners(
+            &self.viewports,
+            modal_view,
+            Some(&|id| viewport_output.contains_key(&id)),
+            &mut self.modal_owners,
+        );
+
         if let Some(current_viewport) = self.current_viewport
             && !viewport_output.contains_key(&current_viewport)
         {
             // The context is still current, but on a surface we are about to drop.
             self.current_viewport = None;
         }
+
+        // Drop the owned windows deepest first (breadth-first order reversed),
+        // then (below) the other windows of removed viewports:
+        owned_windows.into_iter().rev().for_each(drop);
 
         // GC old viewports
         self.viewports
@@ -1573,14 +1741,18 @@ impl GlutinWindowContext {
         {
             let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
-            let viewport = initialize_or_update_viewport(
+            let Some(viewport) = initialize_or_update_viewport(
                 &mut self.viewports,
                 &mut self.current_viewport,
+                &mut self.modal_owners,
                 ids,
                 class,
                 builder,
                 viewport_ui_cb,
-            );
+            ) else {
+                log::debug!("Viewport {viewport_id:?} is missing after it was patched or inserted");
+                continue;
+            };
 
             let old_inner_size = viewport.window.as_ref().map(|window| window.inner_size());
 
@@ -1608,14 +1780,13 @@ impl GlutinWindowContext {
 fn initialize_or_update_viewport<'a>(
     viewports: &'a mut OrderedViewportIdMap<Viewport>,
     current_viewport: &mut Option<ViewportId>,
+    modal_owners: &mut ViewportIdSet,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
-) -> &'a mut Viewport {
+) -> Option<&'a mut Viewport> {
     profiling::function_scope!();
-
-    use std::collections::btree_map::Entry;
 
     if builder.icon.is_none() {
         // Inherit icon from parent
@@ -1628,15 +1799,49 @@ fn initialize_or_update_viewport<'a>(
         .get(&ViewportId::ROOT)
         .and_then(|viewport| viewport.builder.transparent);
 
-    match viewports.entry(ids.this) {
-        Entry::Vacant(entry) => {
-            // New viewport:
-            if ids.this != ViewportId::ROOT && builder.transparent.is_none() {
-                // Child viewports inherit the root setting unless they explicitly override it.
-                builder.transparent = root_transparent;
-            }
-            log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
-            entry.insert(Viewport {
+    if let Some(viewport) = viewports.get_mut(&ids.this) {
+        // Patch an existing viewport:
+        viewport.ids.parent = ids.parent;
+        viewport.class = class;
+        viewport.viewport_ui_cb = viewport_ui_cb;
+
+        let (mut delta_commands, recreate) = viewport.builder.patch(builder);
+        viewport.deferred_commands.append(&mut delta_commands);
+
+        if recreate {
+            log::debug!(
+                "Recreating window for viewport {:?} ({:?})",
+                ids.this,
+                viewport.builder.title
+            );
+            let old_window = viewport.take_window(current_viewport);
+
+            // Windows destroys the windows this window owns, and the ones they own:
+            // they are recreated, owned by the new window, on the next window-creation pass.
+            let old_owned_windows = modal_viewports::take_owned_windows(
+                viewports,
+                &[ids.this],
+                modal_view,
+                |viewport| viewport.take_window(current_viewport),
+            );
+
+            // If this was a modal dialog, enable its owner before its window is destroyed:
+            modal_viewports::sync_modal_owners(viewports, modal_view, None, modal_owners);
+
+            // Drop the owned windows deepest first (breadth-first order reversed), then this one:
+            old_owned_windows.into_iter().rev().for_each(drop);
+            drop(old_window);
+        }
+    } else {
+        // New viewport:
+        if ids.this != ViewportId::ROOT && builder.transparent.is_none() {
+            // Child viewports inherit the root setting unless they explicitly override it.
+            builder.transparent = root_transparent;
+        }
+        log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
+        viewports.insert(
+            ids.this,
+            Viewport {
                 ids,
                 class,
                 builder,
@@ -1648,37 +1853,22 @@ fn initialize_or_update_viewport<'a>(
                 window: None,
                 egui_winit: None,
                 gl_surface: None,
-            })
-        }
+                uncloak_after_paint: false,
+                owned_by: None,
+            },
+        );
+    }
 
-        Entry::Occupied(mut entry) => {
-            // Patch an existing viewport:
-            let viewport = entry.get_mut();
+    viewports.get_mut(&ids.this)
+}
 
-            viewport.ids.parent = ids.parent;
-            viewport.class = class;
-            viewport.viewport_ui_cb = viewport_ui_cb;
-
-            let (mut delta_commands, recreate) = viewport.builder.patch(builder);
-
-            if recreate {
-                log::debug!(
-                    "Recreating window for viewport {:?} ({:?})",
-                    ids.this,
-                    viewport.builder.title
-                );
-                viewport.window = None;
-                viewport.egui_winit = None;
-                viewport.gl_surface = None;
-                if *current_viewport == Some(ids.this) {
-                    *current_viewport = None;
-                }
-            }
-
-            viewport.deferred_commands.append(&mut delta_commands);
-
-            entry.into_mut()
-        }
+fn modal_view(viewport: &Viewport) -> ModalView<'_> {
+    ModalView {
+        id: viewport.ids.this,
+        parent: viewport.ids.parent,
+        builder: &viewport.builder,
+        window: viewport.window.as_deref(),
+        owned_by: viewport.owned_by,
     }
 }
 
@@ -1730,12 +1920,17 @@ fn render_immediate_viewport(
         initialize_or_update_viewport(
             &mut glutin.viewports,
             &mut glutin.current_viewport,
+            &mut glutin.modal_owners,
             ids,
             ViewportClass::Immediate,
             builder,
             None,
         );
 
+        let created = glutin
+            .viewports
+            .get(&viewport_id)
+            .is_some_and(|viewport| viewport.window.is_none());
         let ret = event_loop_context::with_current_event_loop(|event_loop| {
             glutin.initialize_window(viewport_id, event_loop)
         });
@@ -1745,6 +1940,10 @@ fn render_immediate_viewport(
                 "Failed to initialize a window for immediate viewport {viewport_id:?}: {err}"
             );
             return;
+        }
+
+        if created {
+            glutin.sync_modal_owners();
         }
     }
 
@@ -1851,6 +2050,8 @@ fn render_immediate_viewport(
         if let Err(err) = gl_surface.swap_buffers(current_gl_context) {
             log::error!("swap_buffers failed: {err}");
         }
+        // The first frame has been presented (or failed): never leave the window cloaked.
+        modal_viewports::uncloak_after_first_paint(&mut viewport.uncloak_after_paint, window);
     }
 
     egui_winit.handle_platform_output(window, platform_output);
