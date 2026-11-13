@@ -179,6 +179,72 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
     sizing
 }
 
+/// What each column would like to be wide, before any shrinking.
+///
+/// This mirrors what [`Table::body`] would assign to a column
+/// if [`TableBuilder::shrink_to_fit`] was off.
+fn natural_column_widths(
+    columns: &[Column],
+    resizable: bool,
+    column_widths: &[f32],
+    max_used_widths: &[f32],
+) -> Vec<f32> {
+    itertools::izip!(columns, column_widths, max_used_widths)
+        .map(|(column, &column_width, &max_used)| {
+            if column.is_auto() && !column.resizable.unwrap_or(resizable) {
+                column.width_range.clamp(max_used)
+            } else if column.clip {
+                column.width_range.clamp(column_width)
+            } else {
+                // Unless we clip, a column is never narrower than its contents:
+                column.width_range.clamp(column_width.at_least(max_used))
+            }
+        })
+        .collect()
+}
+
+/// Shrink the columns so that the table fits in `available_width`.
+///
+/// [`Column::remainder`] columns are left out of the distribution:
+/// only their minimum is reserved, and the usual remainder handling in
+/// [`Table::body`] then gives them whatever is left over.
+fn shrink_columns_to_fit(
+    columns: &[Column],
+    natural_widths: &[f32],
+    max_used_widths: &[f32],
+    available_width: f32,
+    spacing_x: f32,
+) -> Vec<f32> {
+    // One spacing per column, which errs on the side of a slightly too narrow table:
+    let mut budget = available_width - spacing_x * columns.len() as f32;
+
+    let mut shrinkable = Vec::new();
+    let mut natural = Vec::new();
+    let mut minimums = Vec::new();
+
+    for (i, column) in columns.iter().enumerate() {
+        if column.initial_width == InitialColumnSize::Remainder {
+            budget -= if column.clip {
+                column.width_range.min
+            } else {
+                column.width_range.min.max(max_used_widths[i])
+            };
+        } else {
+            shrinkable.push(i);
+            natural.push(natural_widths[i]);
+            minimums.push(column.width_range.min);
+        }
+    }
+
+    let shrunk = crate::sizing::shrink_to_fit(&natural, &minimums, budget);
+
+    let mut widths = natural_widths.to_vec();
+    for (&i, width) in core::iter::zip(&shrinkable, shrunk) {
+        widths[i] = columns[i].width_range.clamp(width);
+    }
+    widths
+}
+
 // -----------------------------------------------------------------=----------
 
 struct TableScrollOptions {
@@ -253,6 +319,7 @@ pub struct TableBuilder<'a> {
     columns: Vec<Column>,
     striped: Option<bool>,
     resizable: bool,
+    shrink_to_fit: bool,
     cell_layout: egui::Layout,
     scroll_options: TableScrollOptions,
     sense: egui::Sense,
@@ -267,6 +334,7 @@ impl<'a> TableBuilder<'a> {
             columns: Default::default(),
             striped: None,
             resizable: false,
+            shrink_to_fit: false,
             cell_layout,
             scroll_options: Default::default(),
             sense: egui::Sense::hover(),
@@ -279,6 +347,35 @@ impl<'a> TableBuilder<'a> {
     #[inline]
     pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
         self.id_salt = IdSalt::new(id_salt);
+        self
+    }
+
+    /// Shrink the columns so that the table fits the available width.
+    ///
+    /// Without this, a column is never narrower than its contents, so a table with
+    /// wide contents overflows the space it was given. With it, the wide columns
+    /// share the available width in proportion to how wide they would like to be,
+    /// while the narrow columns keep their natural width. No column is shrunk below
+    /// its [`Column::at_least`], so a table can still overflow if the minimums do not fit.
+    ///
+    /// This is meant for tables of wrapping text, such as a markdown table:
+    /// combine it with [`TableBody::row`] so that the rows grow to fit the wrapped text.
+    ///
+    /// Notes:
+    /// * The natural widths are measured in an extra pass, which is then discarded,
+    ///   so that the first pass a user sees already has the correct widths.
+    ///   This costs one extra pass per table.
+    /// * Only text is measured unwrapped. A cell whose contents wrap by some other
+    ///   means (e.g. [`egui::Ui::horizontal_wrapped`]) still reports its wrapped width.
+    /// * [`Column::remainder`] columns are not shrunk; they keep absorbing what is
+    ///   left over after the other columns have been sized.
+    /// * A width the user dragged to is treated as that column's natural width,
+    ///   so it is shrunk like any other.
+    ///
+    /// Default: `false`.
+    #[inline]
+    pub fn shrink_to_fit(mut self, shrink_to_fit: bool) -> Self {
+        self.shrink_to_fit = shrink_to_fit;
         self
     }
 
@@ -461,6 +558,7 @@ impl<'a> TableBuilder<'a> {
             mut columns,
             striped,
             resizable,
+            shrink_to_fit,
             cell_layout,
             scroll_options,
             sense,
@@ -504,6 +602,7 @@ impl<'a> TableBuilder<'a> {
                 hovered: false,
                 selected: false,
                 overline: false,
+                shrink_to_fit,
                 response: &mut response,
             });
             layout.allocate_rect();
@@ -519,6 +618,7 @@ impl<'a> TableBuilder<'a> {
             max_used_widths,
             is_sizing_pass,
             resizable,
+            shrink_to_fit,
             striped,
             cell_layout,
             scroll_options,
@@ -539,6 +639,7 @@ impl<'a> TableBuilder<'a> {
             columns,
             striped,
             resizable,
+            shrink_to_fit,
             cell_layout,
             scroll_options,
             sense,
@@ -564,6 +665,7 @@ impl<'a> TableBuilder<'a> {
             max_used_widths,
             is_sizing_pass,
             resizable,
+            shrink_to_fit,
             striped,
             cell_layout,
             scroll_options,
@@ -687,6 +789,7 @@ pub struct Table<'a> {
     /// During the sizing pass we calculate the width of columns with [`Column::auto`].
     is_sizing_pass: bool,
     resizable: bool,
+    shrink_to_fit: bool,
     striped: bool,
     cell_layout: egui::Layout,
 
@@ -718,6 +821,7 @@ impl Table<'_> {
             mut state,
             mut max_used_widths,
             is_sizing_pass,
+            shrink_to_fit,
             striped,
             cell_layout,
             scroll_options,
@@ -736,6 +840,13 @@ impl Table<'_> {
             scroll_bar_visibility,
             animated,
         } = scroll_options;
+
+        if shrink_to_fit && is_sizing_pass {
+            // The sizing pass measures the natural widths, and is not fit to be shown.
+            // Unlike the rest of `egui_extras`, throw it away and show the next one instead.
+            ui.ctx()
+                .request_discard("egui_extras::TableBuilder::shrink_to_fit");
+        }
 
         let cursor_position = ui.cursor().min;
 
@@ -782,6 +893,7 @@ impl Table<'_> {
                     widths: widths_ref,
                     max_used_widths: max_used_widths_ref,
                     striped,
+                    shrink_to_fit,
                     row_index: 0,
                     y_range: clip_rect.y_range(),
                     scroll_to_row: scroll_to_row.map(|(r, _)| r),
@@ -807,6 +919,21 @@ impl Table<'_> {
         let bottom = ui.min_rect().bottom();
 
         let spacing_x = ui.spacing().item_spacing.x;
+
+        // Shrink-to-fit needs to look at all the columns at once, so it happens
+        // before the per-column loop below, which then just consumes the result.
+        let shrunk_widths = (shrink_to_fit && !ui.is_sizing_pass()).then(|| {
+            let natural =
+                natural_column_widths(&columns, resizable, &state.column_widths, &max_used_widths);
+            shrink_columns_to_fit(
+                &columns,
+                &natural,
+                &max_used_widths,
+                available_width,
+                spacing_x,
+            )
+        });
+
         let mut x = cursor_position.x - spacing_x * 0.5;
         for (i, column_width) in state.column_widths.iter_mut().enumerate() {
             let column = &columns[i];
@@ -828,7 +955,9 @@ impl Table<'_> {
                 break;
             }
 
-            if ui.is_sizing_pass() {
+            if let Some(shrunk_widths) = &shrunk_widths {
+                *column_width = shrunk_widths[i];
+            } else if ui.is_sizing_pass() {
                 if column.clip {
                     // If we clip, we don't need to be as wide as the max used width
                     *column_width = column_width.min(max_used_widths[i]);
@@ -844,7 +973,10 @@ impl Table<'_> {
 
             x += *column_width + spacing_x;
 
-            if column.is_auto() && (is_sizing_pass || !column_is_resizable) {
+            if shrunk_widths.is_none()
+                && column.is_auto()
+                && (is_sizing_pass || !column_is_resizable)
+            {
                 *column_width = width_range.clamp(max_used_widths[i]);
             } else if column_is_resizable {
                 let column_resize_id = state_id.with("resize_column").with(i);
@@ -928,6 +1060,7 @@ pub struct TableBody<'a> {
     max_used_widths: &'a mut [f32],
 
     striped: bool,
+    shrink_to_fit: bool,
     row_index: usize,
     y_range: Rangef,
 
@@ -999,6 +1132,7 @@ impl<'a> TableBody<'a> {
             hovered: self.hovered_row_index == Some(self.row_index),
             selected: false,
             overline: false,
+            shrink_to_fit: self.shrink_to_fit,
             response: &mut response,
         });
         self.capture_hover_state(response.as_ref(), self.row_index);
@@ -1084,6 +1218,7 @@ impl<'a> TableBody<'a> {
                 hovered: self.hovered_row_index == Some(row_index),
                 selected: false,
                 overline: false,
+                shrink_to_fit: self.shrink_to_fit,
                 response: &mut response,
             });
             self.capture_hover_state(response.as_ref(), row_index);
@@ -1168,6 +1303,7 @@ impl<'a> TableBody<'a> {
                     hovered: self.hovered_row_index == Some(row_index),
                     selected: false,
                     overline: false,
+                    shrink_to_fit: self.shrink_to_fit,
                     response: &mut response,
                 });
                 self.capture_hover_state(response.as_ref(), row_index);
@@ -1191,6 +1327,7 @@ impl<'a> TableBody<'a> {
                 hovered: self.hovered_row_index == Some(row_index),
                 overline: false,
                 selected: false,
+                shrink_to_fit: self.shrink_to_fit,
                 response: &mut response,
             });
             self.capture_hover_state(response.as_ref(), row_index);
@@ -1279,6 +1416,9 @@ pub struct TableRow<'a, 'b> {
     selected: bool,
     overline: bool,
 
+    /// Measure the natural width of the cells during the sizing pass.
+    shrink_to_fit: bool,
+
     response: &'b mut Option<Response>,
 }
 
@@ -1310,11 +1450,14 @@ impl TableRow<'_, '_> {
         let width = CellSize::Absolute(width);
         let height = CellSize::Absolute(self.height);
 
+        let sizing_pass = auto_size_this_frame || self.layout.ui.is_sizing_pass();
+
         let flags = StripLayoutFlags {
             clip,
             selected: self.selected,
             overline: self.overline,
-            sizing_pass: auto_size_this_frame || self.layout.ui.is_sizing_pass(),
+            sizing_pass,
+            measure_natural_width: sizing_pass && self.shrink_to_fit,
         };
 
         let (used_rect, response) = self.layout.add(

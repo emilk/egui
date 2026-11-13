@@ -1,5 +1,7 @@
 use egui::Rangef;
 
+use core::iter::zip;
+
 /// Size hint for table column/strip cell.
 #[derive(Clone, Debug, Copy)]
 pub enum Size {
@@ -195,4 +197,143 @@ fn test_sizing() {
     assert_eq!(sizing.to_lengths(30.0, 0.0), vec![15.0, 10.0]);
     assert_eq!(sizing.to_lengths(20.0, 0.0), vec![10.0, 10.0]);
     assert_eq!(sizing.to_lengths(10.0, 0.0), vec![10.0, 10.0]);
+}
+
+/// Shrink the given natural (unwrapped) widths so that they fit in `available`.
+///
+/// If everything fits, each column keeps its natural width.
+/// Otherwise the wide columns shrink, sharing the available width in proportion to
+/// their natural widths, while the narrow columns keep their natural width.
+/// No column is shrunk below its minimum, so the result can be wider than `available`.
+///
+/// `natural` and `minimums` must be the same length.
+pub(crate) fn shrink_to_fit(natural: &[f32], minimums: &[f32], available: f32) -> Vec<f32> {
+    debug_assert_eq!(
+        natural.len(),
+        minimums.len(),
+        "There must be one minimum per column"
+    );
+
+    let available = available.max(0.0);
+    let natural: Vec<f32> = natural.iter().map(|w| w.max(0.0)).collect();
+    let mut widths = natural.clone();
+    let mut is_fixed = vec![false; widths.len()];
+
+    loop {
+        let fixed_sum: f32 = zip(&widths, &is_fixed)
+            .filter(|(_, fixed)| **fixed)
+            .map(|(width, _)| width)
+            .sum();
+        let remaining = (available - fixed_sum).max(0.0);
+
+        let flexible: Vec<usize> = (0..widths.len()).filter(|&i| !is_fixed[i]).collect();
+        let flexible_natural: f32 = flexible.iter().map(|&i| natural[i]).sum();
+
+        if flexible_natural <= remaining || flexible_natural <= 0.0 {
+            for i in flexible {
+                widths[i] = natural[i];
+            }
+            return widths;
+        }
+
+        // Columns narrower than their fair share keep their natural width:
+        let fair = remaining / flexible.len() as f32;
+        let mut changed = false;
+        for &i in &flexible {
+            if natural[i] <= fair {
+                widths[i] = natural[i];
+                is_fixed[i] = true;
+                changed = true;
+            }
+        }
+        if changed {
+            continue;
+        }
+
+        // The rest share the remaining width in proportion to their natural width:
+        for i in flexible {
+            let target = remaining * natural[i] / flexible_natural;
+            let minimum = minimums[i].max(0.0);
+            if target < minimum {
+                widths[i] = minimum.min(natural[i]);
+                is_fixed[i] = true;
+                changed = true;
+            } else {
+                widths[i] = target;
+            }
+        }
+
+        if !changed {
+            return widths;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests_shrink_to_fit {
+    use super::shrink_to_fit;
+
+    fn shrink(natural: &[f32], available: f32) -> Vec<f32> {
+        shrink_to_fit(natural, &vec![0.0; natural.len()], available)
+    }
+
+    #[test]
+    fn empty() {
+        assert_eq!(shrink(&[], 100.0), Vec::<f32>::new());
+    }
+
+    #[test]
+    fn everything_fits() {
+        assert_eq!(shrink(&[10.0, 20.0], 100.0), vec![10.0, 20.0]);
+        // Exactly fitting is still fitting:
+        assert_eq!(shrink(&[10.0, 20.0], 30.0), vec![10.0, 20.0]);
+    }
+
+    #[test]
+    fn narrow_columns_keep_their_width() {
+        // 10 is below the fair share of 50, so only the long column shrinks:
+        assert_eq!(shrink(&[10.0, 200.0], 100.0), vec![10.0, 90.0]);
+    }
+
+    #[test]
+    fn wide_columns_shrink_in_proportion() {
+        assert_eq!(shrink(&[100.0, 300.0], 100.0), vec![25.0, 75.0]);
+    }
+
+    #[test]
+    fn nothing_is_shrunk_below_its_minimum() {
+        // The first column would get 25 of 100, but may not go below 40,
+        // so it is pinned there and the other column takes what is left:
+        assert_eq!(
+            shrink_to_fit(&[100.0, 300.0], &[40.0, 0.0], 100.0),
+            vec![40.0, 60.0]
+        );
+
+        // A minimum wider than the natural width does not widen a column:
+        assert_eq!(
+            shrink_to_fit(&[10.0, 300.0], &[50.0, 0.0], 20.0),
+            vec![10.0, 10.0]
+        );
+    }
+
+    #[test]
+    fn the_result_may_be_wider_than_available() {
+        // Both minimums together already exceed the 10 px available:
+        assert_eq!(
+            shrink_to_fit(&[100.0, 100.0], &[30.0, 30.0], 10.0),
+            vec![30.0, 30.0]
+        );
+    }
+
+    #[test]
+    fn zero_and_negative_available_width() {
+        assert_eq!(shrink(&[100.0, 100.0], 0.0), vec![0.0, 0.0]);
+        assert_eq!(shrink(&[100.0, 100.0], -50.0), vec![0.0, 0.0]);
+    }
+
+    #[test]
+    fn zero_width_columns() {
+        assert_eq!(shrink(&[0.0, 0.0], 100.0), vec![0.0, 0.0]);
+        assert_eq!(shrink(&[0.0, 200.0], 100.0), vec![0.0, 100.0]);
+    }
 }
