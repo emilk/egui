@@ -357,6 +357,10 @@ pub struct FontFace {
     /// Variable fonts can vary advance widths per axis (HVAR table), so this
     /// must be re-keyed per resolved [`skrifa::instance::Location`].
     advance_width_cache: HashMap<(char, LocationHash), OrderedFloat<f32>>,
+
+    /// Single-character shaped advances in font units, at this face's fixed tweak coordinates.
+    /// Features and coordinates are immutable; replacing the face discards this cache.
+    shaped_advance_width_cache: HashMap<char, i32>,
 }
 
 impl FontFace {
@@ -434,6 +438,7 @@ impl FontFace {
             shaper_font,
             glyph_id_cache: Default::default(),
             advance_width_cache: Default::default(),
+            shaped_advance_width_cache: Default::default(),
         })
     }
 
@@ -537,6 +542,29 @@ impl FontFace {
 
         self.glyph_id_cache.insert(c, resolution);
         Some(resolution)
+    }
+
+    /// Shapes a single character using this face's features and variation coordinates.
+    ///
+    /// Returns the summed horizontal advance in font units, caching it for this face's lifetime.
+    /// No size or per-run variation overrides are applied, so callers can reuse it across sizes.
+    /// Callers must handle egui's custom control and thin-space widths separately.
+    pub(super) fn shaped_advance_width_unscaled(&mut self, c: char) -> i32 {
+        if let Some(&advance) = self.shaped_advance_width_cache.get(&c) {
+            return advance;
+        }
+        let mut utf8 = [0; 4];
+        let mut buffer = harfrust::Buffer::new();
+        super::text_layout::shape_text(
+            self,
+            c.encode_utf8(&mut utf8),
+            &VariationCoords::default(),
+            &mut buffer,
+            harfrust::BufferFlags::empty(),
+        );
+        let advance = buffer.glyph_positions().iter().map(|p| p.x_advance).sum();
+        self.shaped_advance_width_cache.insert(c, advance);
+        advance
     }
 
     /// Unscaled advance width for `c` at the given variation location.
