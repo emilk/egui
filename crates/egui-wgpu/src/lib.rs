@@ -106,12 +106,16 @@ pub struct RenderState {
     /// Wgpu adapter used for rendering.
     pub adapter: wgpu::Adapter,
 
-    /// All the available adapters.
+    /// Information about all the adapters found at start-up.
+    ///
+    /// Only their [`wgpu::AdapterInfo`] is kept: on some backends (DX12) every
+    /// [`wgpu::Adapter`] holds an open device, so keeping them all would keep
+    /// every GPU awake for the app's lifetime.
     ///
     /// This is not available on web.
     /// On web, we always select WebGPU is available, then fall back to WebGL if not.
     #[cfg(not(target_arch = "wasm32"))]
-    pub available_adapters: Vec<wgpu::Adapter>,
+    pub available_adapters: Vec<wgpu::AdapterInfo>,
 
     /// Wgpu instance used for creating surfaces and adapters.
     pub instance: wgpu::Instance,
@@ -278,8 +282,9 @@ impl RenderState {
         Ok(Self {
             instance,
             adapter,
+            // The adapters themselves are dropped here.
             #[cfg(not(target_arch = "wasm32"))]
-            available_adapters,
+            available_adapters: available_adapters.iter().map(|a| a.get_info()).collect(),
             device,
             queue,
             target_format,
