@@ -1862,18 +1862,37 @@ fn render_immediate_viewport(
 
 /// The OpenGL contexts to ask for, in order of preference.
 ///
-/// 1. glutin's default, which is OpenGL 3.3 core.
-/// 2. OpenGL ES 2.0, for drivers that have no desktop OpenGL 3.3.
-/// 3. A compatibility profile without a minimum version. Drivers answer it with the newest
+/// 1. OpenGL 4.6 core, then each older 4.x core version down to 4.0. WGL, GLX and EGL ask the
+///    driver for the version given, and a driver may answer with exactly that version: NVIDIA
+///    on Windows, asked for 3.3, gives 3.3 (GLSL 3.30) on a GPU that supports 4.6. Asking for
+///    the newest first gets the newest the driver has, which matters to anything drawn through
+///    [`egui::PaintCallback`] that needs more than 3.3. A driver without a version rejects it
+///    and the next is tried. CGL ignores the version and gives the newest core profile anyway.
+/// 2. glutin's default, which is OpenGL 3.3 core.
+/// 3. OpenGL ES 2.0, for drivers that have no desktop OpenGL 3.3.
+/// 4. A compatibility profile without a minimum version. Drivers answer it with the newest
 ///    version they support (e.g. OpenGL 3.1 on Intel HD Graphics 3000 under Windows), which
 ///    `egui_glow` can use. This saves drivers that reject 3.3 core and cannot make ES contexts
 ///    through WGL either.
 fn context_attributes_to_try(
     raw_window_handle: Option<raw_window_handle::RawWindowHandle>,
-) -> [glutin::context::ContextAttributes; 3] {
-    use glutin::context::{ContextApi, ContextAttributesBuilder, GlProfile};
+) -> [glutin::context::ContextAttributes; 10] {
+    use glutin::context::{ContextApi, ContextAttributesBuilder, GlProfile, Version};
 
+    let core = |major, minor| {
+        ContextAttributesBuilder::new()
+            .with_profile(GlProfile::Core)
+            .with_context_api(ContextApi::OpenGl(Some(Version::new(major, minor))))
+            .build(raw_window_handle)
+    };
     [
+        core(4, 6),
+        core(4, 5),
+        core(4, 4),
+        core(4, 3),
+        core(4, 2),
+        core(4, 1),
+        core(4, 0),
         ContextAttributesBuilder::new().build(raw_window_handle),
         ContextAttributesBuilder::new()
             .with_context_api(ContextApi::Gles(None))
@@ -1940,15 +1959,29 @@ mod tests {
     use super::{context_attributes_to_try, create_first_context};
 
     #[test]
+    fn context_attributes_start_with_the_newest_core_profile() {
+        let attempts = context_attributes_to_try(None).map(|attributes| format!("{attributes:?}"));
+        for (attempt, minor) in attempts[..7].iter().zip((0..=6).rev()) {
+            assert!(
+                attempt.contains("profile: Some(Core)")
+                    && attempt.contains(&format!(
+                        "api: Some(OpenGl(Some(Version {{ major: 4, minor: {minor} }})))"
+                    )),
+                "4.{minor} core comes before the older versions: {attempt}"
+            );
+        }
+    }
+
+    #[test]
     fn context_attributes_end_with_compatibility_profile() {
         let attempts = context_attributes_to_try(None).map(|attributes| format!("{attributes:?}"));
-        assert!(attempts[0].contains("profile: None") && attempts[0].contains("api: None"));
-        assert!(attempts[1].contains("api: Some(Gles(None))"));
+        let [.., default, es, compatibility] = &attempts;
+        assert!(default.contains("profile: None") && default.contains("api: None"));
+        assert!(es.contains("api: Some(Gles(None))"));
         assert!(
-            attempts[2].contains("profile: Some(Compatibility)")
-                && attempts[2].contains("api: None"),
-            "the last resort asks for a compatibility profile of any version: {}",
-            attempts[2]
+            compatibility.contains("profile: Some(Compatibility)")
+                && compatibility.contains("api: None"),
+            "the last resort asks for a compatibility profile of any version: {compatibility}"
         );
     }
 
