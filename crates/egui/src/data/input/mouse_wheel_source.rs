@@ -17,6 +17,10 @@ pub enum MouseWheelSource {
     Unknown,
 
     /// A physical wheel, usually on a mouse.
+    ///
+    /// Usually in [`crate::MouseWheelUnit::Line`]s, but a mouse with smooth scrolling in its
+    /// driver (e.g. Logitech Options+ on macOS) sends [`crate::MouseWheelUnit::Point`]s,
+    /// already eased by the driver.
     Wheel,
 
     /// Fingers moving on a trackpad (or similar touch surface, like a Magic Mouse).

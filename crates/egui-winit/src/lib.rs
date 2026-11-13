@@ -138,7 +138,7 @@ pub struct State {
 
     // TODO(emilk): remove once we are on a winit with https://github.com/rust-windowing/winit/pull/4732
     #[cfg(target_os = "macos")]
-    scroll_momentum_monitor: Option<macos_scroll_momentum::ScrollMomentumMonitor>,
+    scroll_source_monitor: Option<macos_scroll_momentum::ScrollSourceMonitor>,
 
     /// Used by [`State::try_on_ime_processed_keyboard_input`] to track key
     /// release events that should be filtered out. See comments in that method
@@ -198,7 +198,7 @@ impl State {
             ime_cursor_rect_px: None,
             old_ime_purpose: egui::IMEPurpose::Normal,
             #[cfg(target_os = "macos")]
-            scroll_momentum_monitor: macos_scroll_momentum::ScrollMomentumMonitor::install(),
+            scroll_source_monitor: macos_scroll_momentum::ScrollSourceMonitor::install(),
             #[cfg(target_os = "windows")]
             pressed_processed_physical_keys: HashSet::new(),
         };
@@ -1041,26 +1041,28 @@ impl State {
             let phase = to_egui_touch_phase(phase);
             let modifiers = self.modifiers;
 
-            // winit doesn't tell us what is driving the scroll, and collapses the macOS
-            // momentum phase into the regular `TouchPhase`, so we detect that ourselves.
+            // winit doesn't tell us what is driving the scroll, collapses the macOS
+            // momentum phase into the regular `TouchPhase`, and reports a phase-less wheel
+            // event as `TouchPhase::Moved`, so we detect that ourselves from the `NSEvent`.
+            // Precise deltas alone don't mean a trackpad: a mouse with smooth scrolling
+            // (e.g. Logitech Options+) sends them too, but without a gesture phase.
             // TODO(emilk): use `WindowEvent::MouseWheel::source` once we are on a winit
             // with https://github.com/rust-windowing/winit/pull/4732
             let source = cfg_select! {
                 target_os = "macos" => {
-                    if self
-                        .scroll_momentum_monitor
+                    match self
+                        .scroll_source_monitor
                         .as_ref()
-                        .is_some_and(|monitor| monitor.latest_scroll_event_is_momentum())
+                        .map(|monitor| monitor.latest_scroll_source())
                     {
-                        egui::MouseWheelSource::Momentum
-                    } else {
-                        // On macOS, only trackpads (and the Magic Mouse) report precise deltas:
-                        match unit {
+                        Some(source) if source != egui::MouseWheelSource::Unknown => source,
+                        // No monitor (not on the main thread): guess from the unit.
+                        _ => match unit {
                             egui::MouseWheelUnit::Point => egui::MouseWheelSource::Trackpad,
                             egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => {
                                 egui::MouseWheelSource::Wheel
                             }
-                        }
+                        },
                     }
                 }
                 _ => egui::MouseWheelSource::Unknown,
