@@ -51,7 +51,6 @@ pub struct FontTweak {
     ///
     /// For example, `FontFeatures::new([("tnum", 1)])` enables tabular figures.
     /// Empty uses the font's default shaping.
-    #[cfg_attr(feature = "serde", serde(default))]
     pub features: FontFeatures,
 
     /// Width of a thin space (`\u{2009}`) and narrow no-break space (`\u{202F}`),
