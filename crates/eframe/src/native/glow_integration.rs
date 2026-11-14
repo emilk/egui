@@ -11,7 +11,6 @@
 use core::{cell::RefCell, num::NonZeroU32};
 use std::{rc::Rc, sync::Arc, time::Instant};
 
-use egui_winit::ActionRequested;
 use glutin::{
     config::GlConfig as _,
     context::NotCurrentGlContext as _,
@@ -36,7 +35,9 @@ use log::warn;
 
 use super::{
     epi_integration, event_loop_context,
-    winit_integration::{EventResult, PassMode, UserEvent, WinitApp, create_egui_context},
+    winit_integration::{
+        EventResult, PassMode, UserEvent, WinitApp, create_egui_context, process_actions_requested,
+    },
 };
 use crate::epaint::textures::TexturesDelta;
 use crate::{
@@ -888,39 +889,8 @@ impl GlowWinitRunning<'_> {
             );
 
             {
-                let mut screenshot_callbacks = Vec::new();
-                for action in viewport.actions_requested.drain(..) {
-                    match action {
-                        ActionRequested::Screenshot(callback) => {
-                            screenshot_callbacks.push(callback);
-                        }
-                        ActionRequested::PaintWhileHidden => {
-                            // Painting this frame is all it asked for.
-                        }
-                        ActionRequested::Cut => {
-                            egui_winit.egui_input_mut().events.push(egui::Event::Cut);
-                        }
-                        ActionRequested::Copy => {
-                            egui_winit.egui_input_mut().events.push(egui::Event::Copy);
-                        }
-                        ActionRequested::Paste => {
-                            if let Some(contents) = egui_winit.clipboard_text() {
-                                let contents = contents.replace("\r\n", "\n");
-                                if !contents.is_empty() {
-                                    egui_winit
-                                        .egui_input_mut()
-                                        .events
-                                        .push(egui::Event::Paste(contents));
-                                }
-                            } else if let Some(image) = egui_winit.clipboard_image() {
-                                egui_winit
-                                    .egui_input_mut()
-                                    .events
-                                    .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
-                            }
-                        }
-                    }
-                }
+                let screenshot_callbacks =
+                    process_actions_requested(egui_winit, &mut viewport.actions_requested);
 
                 if !screenshot_callbacks.is_empty() {
                     let screenshot = Arc::new(painter.read_screen_rgba(screen_size_in_pixels));
@@ -1845,6 +1815,15 @@ fn render_immediate_viewport(
         &clipped_primitives,
         &mut viewport.pending_delta,
     );
+
+    let screenshot_callbacks =
+        process_actions_requested(egui_winit, &mut viewport.actions_requested);
+    if !screenshot_callbacks.is_empty() {
+        let screenshot = Arc::new(painter.borrow().read_screen_rgba(screen_size_in_pixels));
+        for callback in screenshot_callbacks {
+            callback.complete(Arc::clone(&screenshot));
+        }
+    }
 
     {
         profiling::scope!("swap_buffers");

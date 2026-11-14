@@ -822,15 +822,10 @@ impl WgpuWinitRunning<'_> {
         let vsync_secs = if is_visible {
             let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
-            let mut screenshot_commands = vec![];
-            viewport.actions_requested.retain(|cmd| {
-                if let ActionRequested::Screenshot(callback) = cmd {
-                    screenshot_commands.push(callback.clone());
-                    false
-                } else {
-                    true
-                }
-            });
+            let screenshot_commands = winit_integration::process_actions_requested(
+                egui_winit,
+                &mut viewport.actions_requested,
+            );
             let vsync_secs = painter.paint_and_update_textures(
                 viewport_id,
                 pixels_per_point,
@@ -840,37 +835,6 @@ impl WgpuWinitRunning<'_> {
                 screenshot_commands,
                 window,
             );
-
-            for action in viewport.actions_requested.drain(..) {
-                match action {
-                    ActionRequested::Screenshot { .. } | ActionRequested::PaintWhileHidden => {
-                        // Screenshots were handled above, and painting this frame is all that
-                        // `PaintWhileHidden` asked for.
-                    }
-                    ActionRequested::Cut => {
-                        egui_winit.egui_input_mut().events.push(egui::Event::Cut);
-                    }
-                    ActionRequested::Copy => {
-                        egui_winit.egui_input_mut().events.push(egui::Event::Copy);
-                    }
-                    ActionRequested::Paste => {
-                        if let Some(contents) = egui_winit.clipboard_text() {
-                            let contents = contents.replace("\r\n", "\n");
-                            if !contents.is_empty() {
-                                egui_winit
-                                    .egui_input_mut()
-                                    .events
-                                    .push(egui::Event::Paste(contents));
-                            }
-                        } else if let Some(image) = egui_winit.clipboard_image() {
-                            egui_winit
-                                .egui_input_mut()
-                                .events
-                                .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
-                        }
-                    }
-                }
-            }
 
             integration.post_rendering(window);
 
@@ -1310,15 +1274,8 @@ fn render_immediate_viewport(
 
     let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
-    let mut screenshot_commands = vec![];
-    viewport.actions_requested.retain(|cmd| {
-        if let ActionRequested::Screenshot(callback) = cmd {
-            screenshot_commands.push(callback.clone());
-            false
-        } else {
-            true
-        }
-    });
+    let screenshot_commands =
+        winit_integration::process_actions_requested(egui_winit, &mut viewport.actions_requested);
     painter.paint_and_update_textures(
         ids.this,
         pixels_per_point,
