@@ -1624,8 +1624,9 @@ pub(super) fn shape_text(
 
     let features: Vec<_> = tweak
         .features
+        .as_ref()
         .iter()
-        .map(|(tag, value)| harfrust::Feature::new(crate::text::Tag::new(tag), *value, ..))
+        .map(|&(tag, value)| harfrust::Feature::new(tag, value, ..))
         .collect();
     let options = harfrust::ShapeOptions::new().features(&features);
     let shaper_font = harfrust::ShaperFont::new(font);
@@ -2618,7 +2619,7 @@ mod tests {
         let (kerned, _, _) = measure_text(&mut defaults, "AV", &font_id, 1.0);
         Arc::make_mut(definitions.font_data.get_mut(&primary).unwrap())
             .tweak
-            .features = vec![(*b"kern", 0)];
+            .features = FontFeatures::new([("kern", 0)]);
         let mut unkerned = FontsImpl::new(TextOptions::default(), definitions);
         let (pair, _, _) = measure_text(&mut unkerned, "AV", &font_id, 1.0);
         let a = unkerned.glyph_width(&FontFamily::Proportional, 'A', 14.0);
@@ -2632,7 +2633,7 @@ mod tests {
     fn configured_features_select_digit_widths() {
         // Ubuntu-Light has tabular digits by default, and proportional ones behind `pnum`.
         let font_id = FontId::proportional(14.0);
-        let measure = |features: Vec<([u8; 4], u32)>| {
+        let measure = |features: FontFeatures| {
             let mut definitions = FontDefinitions::default();
             let primary = definitions.families[&FontFamily::Proportional][0].clone();
             Arc::make_mut(definitions.font_data.get_mut(&primary).unwrap())
@@ -2658,9 +2659,9 @@ mod tests {
                 .collect::<Vec<_>>()
         };
 
-        let defaults = measure(vec![]);
-        let proportional = measure(vec![(*b"pnum", 1)]);
-        let tabular = measure(vec![(*b"pnum", 1), (*b"tnum", 1)]);
+        let defaults = measure(FontFeatures::default());
+        let proportional = measure(FontFeatures::new([("pnum", 1)]));
+        let tabular = measure(FontFeatures::new([("pnum", 1), ("tnum", 1)]));
 
         assert!(defaults.iter().all(|&advance| advance == defaults[0]));
         assert!(
@@ -2669,7 +2670,7 @@ mod tests {
         );
         assert_eq!(tabular, defaults, "`tnum` must restore equal digit widths");
         assert_eq!(
-            measure(vec![(*b"ZZZZ", 1)]),
+            measure(FontFeatures::new([("ZZZZ", 1)])),
             defaults,
             "unsupported features must have no effect"
         );

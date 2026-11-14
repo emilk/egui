@@ -1,4 +1,4 @@
-use crate::text::VariationCoords;
+use crate::text::{FontFeatures, VariationCoords};
 
 /// Extra scale and vertical tweak to apply to all text of a certain font.
 #[derive(Clone, Debug, PartialEq)]
@@ -47,12 +47,12 @@ pub struct FontTweak {
     /// Override the font's default variation coordinates for its axes ("wght", etc.).
     pub coords: VariationCoords,
 
-    /// OpenType features applied to every run as four-byte tags and numeric values.
+    /// OpenType features applied to every run of text shaped with this font.
     ///
-    /// For example, `(*b"tnum", 1)` enables tabular figures. Zero disables a feature.
-    /// Empty uses shaping defaults. Later duplicate tags take precedence.
+    /// For example, `FontFeatures::new([("tnum", 1)])` enables tabular figures.
+    /// Empty uses the font's default shaping.
     #[cfg_attr(feature = "serde", serde(default))]
-    pub features: Vec<([u8; 4], u32)>,
+    pub features: FontFeatures,
 
     /// Width of a thin space (`\u{2009}`) and narrow no-break space (`\u{202F}`),
     /// as a fraction of the normal space width.
@@ -78,7 +78,7 @@ impl Default for FontTweak {
             hinting_target: HintingTarget::default(),
             subpixel_binning: None,
             coords: VariationCoords::default(),
-            features: Vec::new(),
+            features: FontFeatures::default(),
             thin_space_width: 0.5,
             tab_size: 4.0,
         }
