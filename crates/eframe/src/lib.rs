@@ -166,6 +166,10 @@ mod epi;
 // Re-export everything in `epi` so `eframe` users don't have to care about what `epi` is:
 pub use epi::*;
 
+mod embedded_view;
+
+pub use embedded_view::EmbeddedViews;
+
 pub(crate) mod stopwatch;
 
 // ----------------------------------------------------------------------------
@@ -191,6 +195,7 @@ pub use web::{WebLogger, WebRunner};
 mod native;
 
 #[cfg(target_os = "macos")]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use native::macos::WindowChromeMetrics;
 
 #[cfg(not(target_arch = "wasm32"))]

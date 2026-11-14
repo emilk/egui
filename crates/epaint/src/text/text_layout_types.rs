@@ -6,7 +6,7 @@ use super::{
     glyph_atlas::UvRect,
     index::{ByteIndex, ByteRange, ByteRangeExt as _, CharIndex},
 };
-use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
+use crate::{Color32, CornerRadius, FontId, Margin, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 pub use font_types::Tag;
 use smallvec::SmallVec;
@@ -503,8 +503,29 @@ pub struct TextFormat {
 
     /// Amount to expand background fill by.
     ///
+    /// This does not affect the layout, so the background may overlap neighboring text.
+    ///
     /// Default: 1.0
     pub expand_bg: f32,
+
+    /// Inner margin of the [`Self::background`]: the space between the text and the edges of
+    /// the background. A positive margin makes the background bigger than the text.
+    ///
+    /// The left and right margins take up space in the layout, so the background never
+    /// overlaps neighboring text.
+    /// The top and bottom margins are only visual: they do not affect the layout,
+    /// since that would change the row height.
+    /// Use negative top and bottom margins to keep the backgrounds of adjacent rows apart.
+    ///
+    /// This is applied in addition to [`Self::expand_bg`].
+    ///
+    /// Default: [`Margin::ZERO`]
+    pub background_margin: Margin,
+
+    /// Corner radius of the [`Self::background`].
+    ///
+    /// Default: [`CornerRadius::ZERO`]
+    pub background_corner_radius: CornerRadius,
 
     pub coords: VariationCoords,
 
@@ -543,6 +564,8 @@ impl Default for TextFormat {
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
             expand_bg: 1.0,
+            background_margin: Margin::ZERO,
+            background_corner_radius: CornerRadius::ZERO,
             coords: VariationCoords::default(),
             italics: false,
             underline: Stroke::NONE,
@@ -562,6 +585,8 @@ impl core::hash::Hash for TextFormat {
             color,
             background,
             expand_bg,
+            background_margin,
+            background_corner_radius,
             coords,
             italics,
             underline,
@@ -576,6 +601,8 @@ impl core::hash::Hash for TextFormat {
         color.hash(state);
         background.hash(state);
         emath::OrderedFloat(*expand_bg).hash(state);
+        background_margin.hash(state);
+        background_corner_radius.hash(state);
         coords.hash(state);
         italics.hash(state);
         underline.hash(state);
@@ -616,7 +643,7 @@ pub enum TextWrapMode {
 }
 
 /// Controls the text wrapping and elision of a [`LayoutJob`].
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextWrapping {
     /// Wrap text so that no row is wider than this.

@@ -1,4 +1,4 @@
-use eframe::wasm_bindgen::{self, prelude::*};
+use eframe::wasm_bindgen::prelude::*;
 
 use crate::WrapApp;
 

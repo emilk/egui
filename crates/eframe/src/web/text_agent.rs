@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 
 use super::{AppRunner, WebRunner};
 
-pub struct TextAgent {
+pub(crate) struct TextAgent {
     input: web_sys::HtmlInputElement,
     input_state: Rc<RefCell<InputState>>,
 }
