@@ -2629,6 +2629,54 @@ mod tests {
 
     #[test]
     #[cfg(feature = "default_fonts")]
+    fn configured_features_select_digit_widths() {
+        // Ubuntu-Light has tabular digits by default, and proportional ones behind `pnum`.
+        let font_id = FontId::proportional(14.0);
+        let measure = |features: Vec<([u8; 4], u32)>| {
+            let mut definitions = FontDefinitions::default();
+            let primary = definitions.families[&FontFamily::Proportional][0].clone();
+            Arc::make_mut(definitions.font_data.get_mut(&primary).unwrap())
+                .tweak
+                .features = features;
+            let mut fonts = FontsImpl::new(TextOptions::default(), definitions);
+            let (_, _, glyphs) = measure_text(&mut fonts, "0123456789", &font_id, 1.0);
+            for &(chr, advance) in &glyphs {
+                let width = fonts.glyph_width(&FontFamily::Proportional, chr, 14.0);
+                assert!(
+                    (width - advance).abs() < 0.0625,
+                    "glyph_width of {chr:?} must match its laid out advance"
+                );
+            }
+            // A character that no font has measures the same with and without features.
+            assert_eq!(
+                fonts.glyph_width(&FontFamily::Proportional, '\u{10ffff}', 14.0),
+                0.0
+            );
+            glyphs
+                .into_iter()
+                .map(|(_, advance)| advance)
+                .collect::<Vec<_>>()
+        };
+
+        let defaults = measure(vec![]);
+        let proportional = measure(vec![(*b"pnum", 1)]);
+        let tabular = measure(vec![(*b"pnum", 1), (*b"tnum", 1)]);
+
+        assert!(defaults.iter().all(|&advance| advance == defaults[0]));
+        assert!(
+            proportional[1] < proportional[0],
+            "`pnum` must narrow the digit one"
+        );
+        assert_eq!(tabular, defaults, "`tnum` must restore equal digit widths");
+        assert_eq!(
+            measure(vec![(*b"ZZZZ", 1)]),
+            defaults,
+            "unsupported features must have no effect"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_gpos_kerning() {
         // GPOS kerning: pairs like "AV", "VA", "AT" should be tighter than
         // the sum of individual character widths. Without text shaping, egui

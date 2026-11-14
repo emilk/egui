@@ -8,7 +8,7 @@ use crate::{
         TextOptions, VariationCoords,
         face_store::{FaceStore, FontFaceKey},
         family::{Family, FamilyKey},
-        font_face::{FontFace, GlyphInfo, ShapedGlyph},
+        font_face::{FontFace, GlyphIdResolution, GlyphInfo, ShapedGlyph},
         font_provider::FontProviders,
         galley_cache::GalleyCache,
         glyph_atlas::{GlyphAllocation, GlyphAtlas, OutlineGlyph, RasterGlyphAllocation},
@@ -699,9 +699,14 @@ impl FontsImpl {
         };
         let metrics = face.styled_metrics(1.0, font_size, &VariationCoords::default());
         // Preserve egui's custom tab and thin-space widths, matching text layout.
+        // Shape only characters the face has, so a missing glyph still measures zero.
         if !face.tweak().features.is_empty()
             && !c.is_control()
             && !matches!(c, '\u{2009}' | '\u{202F}')
+            && matches!(
+                face.glyph_id_resolution(c),
+                Some(GlyphIdResolution::Glyph(_))
+            )
         {
             let advance = face.shaped_advance_width_unscaled(c);
             return advance as f32 * metrics.px_scale_factor;
