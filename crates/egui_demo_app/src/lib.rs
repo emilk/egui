@@ -5,7 +5,7 @@ mod backend_panel;
 mod frame_history;
 mod wrap_app;
 
-pub use wrap_app::{Anchor, WrapApp};
+pub use wrap_app::{Anchor, FractalClockApp, State, WrapApp};
 
 /// Time of day as seconds since midnight. Used for clock in demo app.
 pub(crate) fn seconds_since_midnight() -> f64 {

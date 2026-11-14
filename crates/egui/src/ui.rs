@@ -4,9 +4,8 @@
 use alloc::sync::Arc;
 use core::{any::Any, ops::Deref};
 
-use crate::containers::menu;
-use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
-use crate::{class, class::HasClasses as _};
+use crate::class::HasClasses as _;
+use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 use emath::GuiRounding as _;
 
 // ----------------------------------------------------------------------------
@@ -2343,9 +2342,9 @@ impl Ui {
     ///
     /// The name must be unique within the current parent,
     /// or you need to use [`CollapsingHeader::id_salt`].
-    pub fn collapsing<R>(
+    pub fn collapsing<'a, R>(
         &mut self,
-        heading: impl Into<WidgetText>,
+        heading: impl IntoAtoms<'a>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
         CollapsingHeader::new(heading).show(self, add_contents)
@@ -3035,7 +3034,7 @@ impl Drop for Ui {
 /// Show this rectangle to the user if certain debug options are set.
 #[cfg(debug_assertions)]
 fn register_rect(ui: &Ui, rect: Rect) {
-    use emath::{Align2, GuiRounding as _};
+    use emath::GuiRounding as _;
 
     let debug = ui.style().debug;
 

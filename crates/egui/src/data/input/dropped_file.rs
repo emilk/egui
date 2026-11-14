@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use std::path::Path;
 
 #[cfg(target_arch = "wasm32")]
-use core::{future::Future, pin::Pin};
+use core::pin::Pin;
 
 /// A file dropped into egui.
 ///

@@ -1,6 +1,5 @@
 #![expect(clippy::mem_forget)]
 
-#[cfg(feature = "color_fonts")]
 use alloc::sync::Arc;
 
 use ahash::HashMap;
@@ -125,7 +124,7 @@ impl FontCell {
             if let Some(hinting_instance) = &mut font_data.hinting_instance {
                 let size = skrifa::instance::Size::new(metrics.scale);
                 if hinting_instance.size() != size
-                    || hinting_instance.location().coords() != location.coords()
+                    || !same_location(hinting_instance.location(), location)
                     || hinting_instance.target() != hinting_target
                 {
                     hinting_instance
@@ -158,6 +157,7 @@ impl FontCell {
         ctx.fill_path(&path);
         let mut dest = vello_cpu::Pixmap::new(width, height);
         let mut resources = vello_cpu::Resources::new();
+        ctx.flush();
         ctx.render(&mut dest, &mut resources);
 
         let pixels = dest
@@ -239,6 +239,7 @@ impl FontCell {
             }))
             .ok()?;
         let mut pixmap = vello_cpu::Pixmap::new(canvas_size, canvas_size);
+        ctx.flush();
         ctx.render(&mut pixmap, &mut resources);
 
         let canvas_size = canvas_size as usize;
@@ -287,6 +288,18 @@ impl FontCell {
     }
 }
 
+/// Do `a` and `b` describe the same point in variation space?
+///
+/// [`skrifa::outline::HintingInstance::location`] returns the default location as no
+/// coordinates at all, while `axes().location(..)` gives one zero per axis, so `[]` and `[0, 0]`
+/// must compare equal.
+fn same_location(
+    a: skrifa::instance::LocationRef<'_>,
+    b: skrifa::instance::LocationRef<'_>,
+) -> bool {
+    a.coords() == b.coords() || (a.is_default() && b.is_default())
+}
+
 /// Collects a `skrifa` glyph outline into a `kurbo` path, flipping Y to point down.
 struct VelloPen<'a> {
     path: &'a mut kurbo::BezPath,
@@ -330,9 +343,8 @@ pub struct FontFace {
     tweak: FontTweak,
     subpixel_binning: bool,
 
-    /// Cached `harfrust` shaper data (parsed GSUB/GPOS tables).
-    /// `ShaperData` is `Copy` — lives outside the `self_cell`.
-    shaper_data: harfrust::ShaperData,
+    /// The font as seen by `harfrust`, which caches its parsed GSUB/GPOS tables.
+    shaper_font: harfrust::Font,
 
     /// Location-independent: `char → GlyphId | Invisible`.
     ///
@@ -355,6 +367,10 @@ impl FontFace {
         index: u32,
         tweak: FontTweak,
     ) -> Result<Self, Box<dyn core::error::Error>> {
+        let shaper_font =
+            harfrust::Font::new(harfrust::font::Blob::from(Arc::clone(&font_data)), index)
+                .ok_or_else(|| format!("harfrust failed to parse font {name:?}"))?;
+
         let font = FontCell::try_new(font_data, |font_data| {
             let skrifa_font =
                 skrifa::FontRef::from_index(AsRef::<[u8]>::as_ref(font_data.as_ref()), index)?;
@@ -408,8 +424,6 @@ impl FontFace {
             })
         })?;
 
-        let shaper_data = harfrust::ShaperData::new(&font.borrow_dependent().skrifa);
-
         let subpixel_binning = tweak.subpixel_binning.unwrap_or(options.subpixel_binning);
 
         Ok(Self {
@@ -417,7 +431,7 @@ impl FontFace {
             font,
             tweak,
             subpixel_binning,
-            shaper_data,
+            shaper_font,
             glyph_id_cache: Default::default(),
             advance_width_cache: Default::default(),
         })
@@ -628,16 +642,12 @@ impl FontFace {
         }
     }
 
-    pub(crate) fn skrifa_font_ref(&self) -> &skrifa::FontRef<'_> {
-        &self.font.borrow_dependent().skrifa
-    }
-
     pub(crate) fn tweak(&self) -> &FontTweak {
         &self.tweak
     }
 
-    pub(crate) fn shaper_data(&self) -> &harfrust::ShaperData {
-        &self.shaper_data
+    pub(crate) fn shaper_font(&self) -> &harfrust::Font {
+        &self.shaper_font
     }
 
     /// Whether to render this face at up to four sub-pixel offsets.
@@ -685,4 +695,29 @@ pub(crate) struct ShapedGlyph {
 
     /// CJK glyphs skip subpixel positioning to save atlas space.
     pub is_cjk: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use skrifa::instance::{LocationRef, NormalizedCoord};
+
+    use super::same_location;
+
+    #[test]
+    fn default_location_with_and_without_coordinates_is_the_same() {
+        let zero = [NormalizedCoord::ZERO, NormalizedCoord::ZERO];
+        let bold = [NormalizedCoord::from_f32(0.5), NormalizedCoord::ZERO];
+        assert!(same_location(
+            LocationRef::new(&[]),
+            LocationRef::new(&zero)
+        ));
+        assert!(same_location(
+            LocationRef::new(&bold),
+            LocationRef::new(&bold)
+        ));
+        assert!(!same_location(
+            LocationRef::new(&[]),
+            LocationRef::new(&bold)
+        ));
+    }
 }

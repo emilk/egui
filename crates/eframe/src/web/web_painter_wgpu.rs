@@ -390,6 +390,31 @@ impl WebPainter for WebPainterWgpu {
         Ok(())
     }
 
+    fn set_transparent(&mut self, transparent: bool) {
+        // A WebGPU canvas is opaque unless its alpha mode is premultiplied. The default mode,
+        // `Auto`, makes it opaque. wgpu's WebGPU backend takes `PreMultiplied` although its
+        // capabilities only list `Opaque`, so there is no capability to check here.
+        //
+        // TODO(gfx-rs/wgpu#7690): check the surface's capabilities for `PreMultiplied` once
+        // eframe uses a wgpu that lists it, which is any release after wgpu 30.
+        //
+        // Its WebGL backend needs nothing: a WebGL canvas composites with premultiplied alpha
+        // whatever the mode.
+        let is_webgpu = self
+            .render_state
+            .as_ref()
+            .is_some_and(|state| state.adapter.get_info().backend == wgpu::Backend::BrowserWebGpu);
+        let alpha_mode = if transparent {
+            wgpu::CompositeAlphaMode::PreMultiplied
+        } else {
+            wgpu::CompositeAlphaMode::Auto
+        };
+        if is_webgpu && self.surface_configuration.alpha_mode != alpha_mode {
+            self.surface_configuration.alpha_mode = alpha_mode;
+            self.needs_reconfigure = true;
+        }
+    }
+
     fn destroy(&mut self) {
         self.render_state = None;
     }

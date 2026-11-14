@@ -514,8 +514,8 @@ pub(crate) struct Focus {
     /// the UI later than the currently focused one).
     id_two_frames_ago: Option<Id>,
 
-    /// The ID of a widget to give the focus to in the next frame.
-    id_next_frame: Option<Id>,
+    /// The widget to give the focus to in the next frame.
+    widget_next_frame: Option<FocusWidget>,
 
     /// If set, the next widget that is interested in focus will automatically get it.
     /// Probably because the user pressed Tab.
@@ -542,6 +542,11 @@ pub(crate) struct Focus {
 struct FocusWidget {
     pub id: Id,
     pub filter: EventFilter,
+
+    /// Which way the focus moved to get to this widget. Tab is [`FocusDirection::Next`].
+    ///
+    /// [`FocusDirection::None`] if it got the focus some other way, such as a click.
+    pub via: FocusDirection,
 }
 
 impl FocusWidget {
@@ -549,7 +554,18 @@ impl FocusWidget {
         Self {
             id,
             filter: Default::default(),
+            via: FocusDirection::None,
         }
+    }
+
+    /// Sets which way the focus moved to get to the widget.
+    ///
+    /// Add this when Tab, Shift-Tab or an arrow key moved the focus.
+    /// Leave it out for anything else, such as a click.
+    #[inline]
+    pub fn via(mut self, direction: FocusDirection) -> Self {
+        self.via = direction;
+        self
     }
 }
 
@@ -569,8 +585,8 @@ impl Focus {
     fn begin_pass(&mut self, new_input: &crate::data::input::RawInput) {
         self.id_two_frames_ago = self.id_previous_frame;
         self.id_previous_frame = self.focused();
-        if let Some(id) = self.id_next_frame.take() {
-            self.focused_widget = Some(FocusWidget::new(id));
+        if let Some(widget) = self.widget_next_frame.take() {
+            self.focused_widget = Some(widget);
         }
         let event_filter = self.focused_widget.map(|w| w.filter).unwrap_or_default();
 
@@ -636,7 +652,7 @@ impl Focus {
         if self.focus_direction.is_cardinal()
             && let Some(found_widget) = self.find_widget_in_direction(used_ids)
         {
-            self.focused_widget = Some(FocusWidget::new(found_widget));
+            self.focused_widget = Some(FocusWidget::new(found_widget).via(self.focus_direction));
         }
 
         if let Some(focused_widget) = self.focused_widget {
@@ -663,7 +679,7 @@ impl Focus {
             .or_insert(Rect::EVERYTHING);
 
         if self.give_to_next && !self.had_focus_last_frame(id) {
-            self.focused_widget = Some(FocusWidget::new(id));
+            self.focused_widget = Some(FocusWidget::new(id).via(FocusDirection::Next));
             self.give_to_next = false;
         } else if self.focused() == Some(id) {
             if self.focus_direction == FocusDirection::Next {
@@ -671,7 +687,10 @@ impl Focus {
                 self.give_to_next = true;
                 self.reset_focus();
             } else if self.focus_direction == FocusDirection::Previous {
-                self.id_next_frame = self.last_interested; // frame-delay so gained_focus works
+                // frame-delay so gained_focus works
+                self.widget_next_frame = self
+                    .last_interested
+                    .map(|id| FocusWidget::new(id).via(FocusDirection::Previous));
                 self.reset_focus();
             }
         } else if self.focus_direction == FocusDirection::Next
@@ -679,14 +698,16 @@ impl Focus {
             && !self.give_to_next
         {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
-            self.focused_widget = Some(FocusWidget::new(id));
+            self.focused_widget = Some(FocusWidget::new(id).via(FocusDirection::Next));
             self.reset_focus();
         } else if self.focus_direction == FocusDirection::Previous
             && self.focused_widget.is_none()
             && !self.give_to_next
         {
             // nothing has focus and the user pressed Shift+Tab - give focus to the last widgets that wants it:
-            self.focused_widget = self.last_interested.map(FocusWidget::new);
+            self.focused_widget = self
+                .last_interested
+                .map(|id| FocusWidget::new(id).via(FocusDirection::Previous));
             self.reset_focus();
         }
 
@@ -927,8 +948,27 @@ impl Memory {
 
     /// Defer focus until the next pass so an already rendered widget sees `gained_focus`.
     pub(crate) fn request_focus_next_frame(&mut self, id: Id) {
-        self.focus_mut().id_next_frame = Some(id);
+        self.focus_mut().widget_next_frame = Some(FocusWidget::new(id));
         self.interrupt_ime();
+    }
+
+    /// How the keyboard focus got to the focused widget.
+    ///
+    /// Returns `None` if no widget has the focus.
+    ///
+    /// This is [`FocusDirection::Next`] after Tab and [`FocusDirection::Previous`] after
+    /// Shift-Tab. A move started with [`Self::move_focus`] counts too.
+    ///
+    /// It is [`FocusDirection::None`] if the widget got the focus without a direction, such as
+    /// by a click or [`Self::request_focus`].
+    ///
+    /// Use it together with [`crate::Response::gained_focus`] in a widget that has focusable
+    /// parts of its own. It tells you whether to start at the first or the last part.
+    ///
+    /// See also [`crate::Response::focused_via`].
+    pub fn focused_via(&self) -> Option<FocusDirection> {
+        let widget = self.focus()?.focused_widget?;
+        Some(widget.via)
     }
 
     /// Surrender keyboard focus for a specific widget.
@@ -1306,15 +1346,18 @@ impl Areas {
         None
     }
 
+    /// Was this layer visible last frame?
     pub fn visible_last_frame(&self, layer_id: &LayerId) -> bool {
         self.visible_areas_last_frame.contains(layer_id)
     }
 
+    /// Was this layer visible last frame, or is it visible this frame?
     pub fn is_visible(&self, layer_id: &LayerId) -> bool {
         self.visible_areas_last_frame.contains(layer_id)
             || self.visible_areas_current_frame.contains(layer_id)
     }
 
+    /// All layers that were visible last frame, or are visible this frame.
     pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
         core::iter::chain(
             &self.visible_areas_last_frame,
@@ -1332,6 +1375,7 @@ impl Areas {
             .filter_map(|layer| Some((layer, self.get(layer.id)?)))
     }
 
+    /// Move this layer to the top of its [`Order`], and mark it as visible.
     pub fn move_to_top(&mut self, layer_id: LayerId) {
         self.visible_areas_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
@@ -1368,6 +1412,7 @@ impl Areas {
         }
     }
 
+    /// The top-most layer of the given [`Order`], ignoring sublayers.
     pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
         self.order
             .iter()

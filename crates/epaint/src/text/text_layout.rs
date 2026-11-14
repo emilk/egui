@@ -6,20 +6,21 @@ use core::{iter, ops::Range};
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
 use crate::{
-    Color32, Mesh, Stroke, Vertex,
+    Color32, CornerRadius, MarginF32, Mesh, RoundedRect, Stroke, Vertex,
     stroke::PathStroke,
+    tessellator::Path,
     text::{
         ByteIndex, ByteRange, FontPriority,
         face_store::FontFaceKey,
         fonts::FontsImpl,
         styled_metrics::StyledMetrics,
-        unicode::{is_cjk, is_cjk_break_allowed, is_combining_mark},
+        unicode::{is_breaking_space, is_cjk, is_cjk_break_allowed, is_combining_mark},
     },
 };
 
 use super::{
     ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
-    VariationCoords,
+    TextFormat, VariationCoords,
     family::FamilyKey,
     font_face::{FontFace, GlyphInfo, ShapedGlyph},
     glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
@@ -113,9 +114,9 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
     {
         let mut shape_buffer = fonts.take_shape_buffer();
         for (section_index, section) in job.sections.iter().enumerate() {
-            shape_buffer = layout_section(
+            layout_section(
                 fonts,
-                shape_buffer,
+                &mut shape_buffer,
                 pixels_per_point,
                 &job,
                 section_index as u32,
@@ -220,7 +221,7 @@ struct TextRun {
     raster: Option<RasterGlyphAllocation>,
 }
 
-/// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
+/// Emit shaped glyphs from a [`harfrust::Buffer`] into a [`Paragraph`].
 ///
 /// When a cluster maps multiple characters to fewer glyphs (e.g. flag emojis,
 /// ligatures), zero-width "continuation" glyphs are emitted for the extra
@@ -230,7 +231,7 @@ fn layout_shaped_run(
     fonts: &mut FontsImpl,
     run: &TextRun,
     run_text: &str,
-    glyph_buffer: &harfrust::GlyphBuffer,
+    glyph_buffer: &harfrust::Buffer,
     face_metrics: &StyledMetrics,
     ctx: &mut ShapingContext,
     paragraph: &mut Paragraph,
@@ -512,16 +513,15 @@ fn emit_continuation_glyphs(
 }
 
 // Ignores the Y coordinate.
-#[must_use]
 fn layout_section(
     fonts: &mut FontsImpl,
-    mut shape_buffer: harfrust::UnicodeBuffer,
+    shape_buffer: &mut harfrust::Buffer,
     pixels_per_point: f32,
     job: &LayoutJob,
     section_index: u32,
     section: &LayoutSection,
     out_paragraphs: &mut Vec<Paragraph>,
-) -> harfrust::UnicodeBuffer {
+) {
     let LayoutSection {
         leading_space,
         byte_range,
@@ -541,7 +541,8 @@ fn layout_section(
     if paragraph.glyphs.is_empty() {
         paragraph.empty_paragraph_height = line_height;
     }
-    paragraph.cursor_x_px += leading_space * pixels_per_point;
+    paragraph.cursor_x_px +=
+        (leading_space + format.background_margin.left as f32) * pixels_per_point;
 
     let section_text = &job.text[byte_range.as_usize()];
     let mut ctx = ShapingContext {
@@ -598,23 +599,23 @@ fn layout_section(
                 flags |= harfrust::BufferFlags::END_OF_TEXT;
             }
 
-            let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
+            shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
 
             layout_shaped_run(
                 fonts,
                 run,
                 run_text,
-                &glyph_buffer,
+                shape_buffer,
                 &face_metrics,
                 &mut ctx,
                 paragraph,
             );
 
-            shape_buffer = glyph_buffer.clear();
+            shape_buffer.clear();
         }
     }
 
-    shape_buffer
+    paragraph.cursor_x_px += format.background_margin.right as f32 * pixels_per_point;
 }
 
 /// Iterator that either splits on `'\n'` or yields the whole string once.
@@ -1129,11 +1130,13 @@ fn galley_from_rows(
     let mut num_vertices = 0;
     let mut num_indices = 0;
 
+    let mut scratch = BackgroundScratch::default();
+
     for placed_row in &mut rows {
         rect |= placed_row.rect();
 
         let row = Arc::make_mut(&mut placed_row.row);
-        row.visuals = tessellate_row(point_scale, &job, &format_summary, row);
+        row.visuals = tessellate_row(point_scale, &job, &format_summary, &mut scratch, row);
 
         mesh_bounds |= row.visuals.mesh_bounds.translate(placed_row.pos.to_vec2());
         num_vertices += row.visuals.mesh.vertices.len();
@@ -1181,10 +1184,18 @@ fn format_summary(job: &LayoutJob) -> FormatSummary {
     format_summary
 }
 
+/// Reused between rows, to avoid allocations when painting rounded backgrounds.
+#[derive(Default)]
+struct BackgroundScratch {
+    points: Vec<Pos2>,
+    path: Path,
+}
+
 fn tessellate_row(
     point_scale: PointScale,
     job: &LayoutJob,
     format_summary: &FormatSummary,
+    scratch: &mut BackgroundScratch,
     row: &mut Row,
 ) -> RowVisuals {
     if row.glyphs.is_empty() {
@@ -1197,7 +1208,7 @@ fn tessellate_row(
     mesh.reserve_vertices(row.glyphs.len() * 4);
 
     if format_summary.any_background {
-        add_row_backgrounds(point_scale, job, row, &mut mesh);
+        add_row_backgrounds(point_scale, job, scratch, row, &mut mesh);
     }
 
     let glyph_index_start = mesh.indices.len();
@@ -1235,43 +1246,63 @@ fn tessellate_row(
 
 /// Create background for glyphs that have them.
 /// Creates as few rectangular regions as possible.
-fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
+fn add_row_backgrounds(
+    point_scale: PointScale,
+    job: &LayoutJob,
+    scratch: &mut BackgroundScratch,
+    row: &Row,
+    mesh: &mut Mesh,
+) {
     if row.glyphs.is_empty() {
         return;
     }
 
-    let mut end_run = |start: Option<(Color32, Rect, f32)>, stop_x: f32| {
-        if let Some((color, start_rect, expand)) = start {
+    let mut end_run = |start: Option<(&TextFormat, Rect)>, stop_x: f32| {
+        if let Some((format, start_rect)) = start {
             let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
-            let rect = rect.expand(expand);
-            let rect = rect.round_to_pixels(point_scale.pixels_per_point());
-            mesh.add_colored_rect(rect, color);
+            let rect = (rect + MarginF32::from(format.background_margin))
+                .expand(format.expand_bg)
+                .round_to_pixels(point_scale.pixels_per_point());
+            if format.background_corner_radius == CornerRadius::ZERO {
+                mesh.add_colored_rect(rect, format.background);
+            } else {
+                let BackgroundScratch { points, path } = scratch;
+                let feathering = 1.0 / point_scale.pixels_per_point();
+                crate::tessellator::path::rounded_rectangle(
+                    points,
+                    RoundedRect::new(rect, format.background_corner_radius),
+                );
+                path.clear();
+                path.add_line_loop(points);
+                path.fill(feathering, format.background, mesh);
+            }
         }
     };
 
-    let mut run_start = None;
+    let mut run_start: Option<(&TextFormat, Rect)> = None;
     let mut last_rect = Rect::NAN;
 
     for glyph in &row.glyphs {
         let format = &job.sections[glyph.section_index as usize].format;
-        let color = format.background;
         let rect = glyph.logical_rect();
 
-        if color == Color32::TRANSPARENT {
+        if format.background == Color32::TRANSPARENT {
             end_run(run_start.take(), last_rect.right());
-        } else if let Some((existing_color, start, expand)) = run_start {
-            if existing_color == color
-                && start.top() == rect.top()
-                && start.bottom() == rect.bottom()
-                && format.expand_bg == expand
+        } else if let Some((start_format, start_rect)) = run_start {
+            if start_format.background == format.background
+                && start_rect.top() == rect.top()
+                && start_rect.bottom() == rect.bottom()
+                && start_format.expand_bg == format.expand_bg
+                && start_format.background_margin == format.background_margin
+                && start_format.background_corner_radius == format.background_corner_radius
             {
                 // continue the same background rectangle
             } else {
                 end_run(run_start.take(), last_rect.right());
-                run_start = Some((color, rect, format.expand_bg));
+                run_start = Some((format, rect));
             }
         } else {
-            run_start = Some((color, rect, format.expand_bg));
+            run_start = Some((format, rect));
         }
 
         last_rect = rect;
@@ -1412,8 +1443,7 @@ struct RowBreakCandidates {
 impl RowBreakCandidates {
     fn add(&mut self, index: usize, glyphs: &[Glyph]) {
         let chr = glyphs[0].chr;
-        const NON_BREAKING_SPACE: char = '\u{A0}';
-        if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
+        if is_breaking_space(chr) {
             self.space = Some(index);
         } else if is_cjk(chr) && (glyphs.len() == 1 || is_cjk_break_allowed(glyphs[1].chr)) {
             self.cjk = Some(index);
@@ -1564,53 +1594,45 @@ fn segment_into_runs(
     }
 }
 
-/// Shape a text run and return the raw [`harfrust::GlyphBuffer`].
+/// Shape a text run into `buffer`, replacing its (empty) contents with positioned glyphs.
 ///
 /// The caller should iterate `glyph_infos()` / `glyph_positions()` (both
 /// `Copy` slices) and convert font units to pixels using `metrics.px_scale_factor`.
-/// After iteration, recycle the buffer via `glyph_buffer.clear()`.
+/// After iteration, recycle the buffer via `buffer.clear()`.
 fn shape_text(
     font_face: &FontFace,
     text: &str,
     coords: &VariationCoords,
-    mut buffer: harfrust::UnicodeBuffer,
+    buffer: &mut harfrust::Buffer,
     flags: harfrust::BufferFlags,
-) -> harfrust::GlyphBuffer {
-    let font_ref = font_face.skrifa_font_ref();
+) {
+    let base_font = font_face.shaper_font();
     let tweak = font_face.tweak();
 
-    // Build shaper with variable font instance if variation coordinates are set.
-    let variations: Vec<harfrust::Variation> = iter::chain(tweak.coords.as_ref(), coords.as_ref())
-        .map(|&(tag, value)| harfrust::Variation { tag, value })
-        .collect();
-
-    let instance = if variations.is_empty() {
-        None
-    } else {
-        Some(harfrust::ShaperInstance::from_variations(
-            font_ref, variations,
-        ))
-    };
-
-    let shaper = font_face
-        .shaper_data()
-        .shaper(font_ref)
-        .instance(instance.as_ref())
-        .build();
+    // Use a variable font instance if variation coordinates are set.
+    let variations = iter::chain(tweak.coords.as_ref(), coords.as_ref());
+    let instance = variations
+        .clone()
+        .next()
+        .is_some()
+        .then(|| base_font.instance_builder().variations(variations).build());
+    let font = instance.as_ref().unwrap_or(base_font);
 
     buffer.set_flags(flags);
     buffer.push_str(text);
     buffer.guess_segment_properties();
 
-    shaper.shape(buffer, harfrust::ShapeOptions::new())
+    let shaper_font = harfrust::ShaperFont::new(font);
+    if let Err(err) = harfrust::shape(&shaper_font, buffer, harfrust::ShapeOptions::new()) {
+        debug_assert!(false, "harfrust failed to shape {text:?}: {err}");
+        buffer.clear();
+    }
 }
 
 // ----------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
-    use alloc::sync::Arc;
-    use core::iter;
 
     use super::{super::*, *};
     use crate::{ColorImage, text::cursor::CCursor};
@@ -1879,7 +1901,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "default_fonts")]
     /// Each test rasterizer needs its own [`GlyphRasterizer::key`], or they would replace each other.
     fn unique_test_key() -> String {
         static COUNTER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
@@ -2189,6 +2210,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     // No bundled font has CJK glyphs, so the line breaks depend on
     // the width of the `.notdef` glyph of the primary font.
     fn test_cjk() {
@@ -2207,6 +2229,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     // No bundled font has CJK glyphs, so the line breaks depend on
     // the width of the `.notdef` glyph of the primary font.
     fn test_pre_cjk() {
@@ -2222,6 +2245,30 @@ mod tests {
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
             vec!["日本語とEnglishの混在した", "文章"]
         );
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn test_no_break_spaces() {
+        let row_texts = |text: &str| {
+            let mut fonts = test_fonts();
+            let mut layout_job = LayoutJob::single_section(text.into(), TextFormat::default());
+            layout_job.wrap.max_width = 90.0;
+            let galley = layout(&mut fonts, 1.0, layout_job.into());
+            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            row_texts("Sum: 123\u{2009}456\u{2009}789"),
+            vec!["Sum: 123\u{2009}456\u{2009}", "789"]
+        );
+        for no_break_space in ['\u{00A0}', '\u{2007}', '\u{202F}'] {
+            let number = format!("123{no_break_space}456{no_break_space}789");
+            assert_eq!(
+                row_texts(&format!("Sum: {number}")),
+                vec!["Sum: ".to_owned(), number]
+            );
+        }
     }
 
     #[test]
@@ -2320,6 +2367,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_end_with_newline() {
         let pixels_per_point = 1.0;
         let mut fonts = test_fonts();
@@ -2555,6 +2603,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_gpos_kerning() {
         // GPOS kerning: pairs like "AV", "VA", "AT" should be tighter than
         // the sum of individual character widths. Without text shaping, egui
@@ -2698,6 +2747,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "default_fonts")]
     fn measure_text(
         fonts: &mut FontsImpl,
         text: &str,
