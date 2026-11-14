@@ -1055,7 +1055,7 @@ pub struct Interaction {
 }
 
 /// Look and feel of the text cursor.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextCursorStyle {
@@ -1159,8 +1159,10 @@ pub struct Visuals {
     /// Defaults to [`Self::extreme_bg_color`].
     pub text_edit_bg_color: Option<Color32>,
 
-    /// Background color behind code-styled monospaced labels.
-    pub code_bg_color: Color32,
+    /// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
+    ///
+    /// Also known as `pre` or `code` blocks, after the HTML tags.
+    pub code: CodeVisuals,
 
     /// A good color for warning text (e.g. orange).
     pub warn_fg_color: Color32,
@@ -1307,6 +1309,34 @@ pub struct Selection {
 
     /// Color of selected text.
     pub stroke: Stroke,
+}
+
+/// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
+///
+/// Also known as `pre` or `code` blocks, after the HTML tags.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct CodeVisuals {
+    /// Background color behind the code.
+    pub bg_color: Color32,
+
+    /// Text color of the code.
+    ///
+    /// If `None` (the default), code uses the same color as other text.
+    pub text_color: Option<Color32>,
+
+    /// Corner radius of the background.
+    pub corner_radius: CornerRadius,
+
+    /// Inner margin: the space between the code text and the edges of the background.
+    /// A positive margin makes the background bigger than the text.
+    ///
+    /// The left and right margins take up space in the layout,
+    /// so the background never overlaps neighboring text.
+    /// The top and bottom margins are only visual: they do not affect the layout.
+    /// Negative top and bottom margins keep the code backgrounds on adjacent rows apart.
+    pub margin: Margin,
 }
 
 /// Visual style for IME composition.
@@ -1622,7 +1652,7 @@ impl Visuals {
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
             text_edit_bg_color: None, // use `extreme_bg_color` by default
-            code_bg_color: Color32::from_gray(64),
+            code: CodeVisuals::dark(),
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
@@ -1685,7 +1715,7 @@ impl Visuals {
             hyperlink_color: Color32::from_rgb(0, 155, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(255),           // e.g. TextEdit background
-            code_bg_color: Color32::from_gray(230),
+            code: CodeVisuals::light(),
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
@@ -1740,6 +1770,37 @@ impl Selection {
 }
 
 impl Default for Selection {
+    fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl CodeVisuals {
+    /// The default for dark mode.
+    pub fn dark() -> Self {
+        Self {
+            bg_color: Color32::from_gray(48),
+            text_color: None,
+            corner_radius: CornerRadius::same(1),
+            margin: Margin {
+                left: 2,
+                right: 2,
+                top: -1,
+                bottom: -1,
+            },
+        }
+    }
+
+    /// The default for light mode.
+    pub fn light() -> Self {
+        Self {
+            bg_color: Color32::from_gray(230),
+            ..Self::dark()
+        }
+    }
+}
+
+impl Default for CodeVisuals {
     fn default() -> Self {
         Self::dark()
     }
@@ -2294,6 +2355,51 @@ impl Widgets {
     }
 }
 
+impl CodeVisuals {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            bg_color,
+            text_color,
+            corner_radius,
+            margin,
+        } = self;
+
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.label("For monospaced inlined text ");
+            ui.code("like this");
+            ui.label(".");
+        });
+
+        Grid::new("code_visuals").num_columns(2).show(ui, |ui| {
+            ui.label("Background color");
+            ui.color_edit_button_srgba(bg_color);
+            ui.end_row();
+
+            ui.label("Text color");
+            ui.horizontal(|ui| {
+                let mut set = text_color.is_some();
+                ui.checkbox(&mut set, "");
+                if set {
+                    let default_color = ui.visuals().text_color();
+                    ui.color_edit_button_srgba(text_color.get_or_insert(default_color));
+                } else {
+                    *text_color = None;
+                }
+            });
+            ui.end_row();
+
+            ui.label("Corner radius");
+            ui.add(corner_radius);
+            ui.end_row();
+
+            ui.label("Margin");
+            ui.add(margin);
+            ui.end_row();
+        });
+    }
+}
+
 impl Selection {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self { bg_fill, stroke } = self;
@@ -2401,7 +2507,7 @@ impl Visuals {
             faint_bg_color,
             extreme_bg_color,
             text_edit_bg_color,
-            code_bg_color,
+            code,
             warn_fg_color,
             error_fg_color,
 
@@ -2514,18 +2620,6 @@ impl Visuals {
 
                 ui_text_color(ui, hyperlink_color, "hyperlink_color");
 
-                ui.label(RichText::new("Code background").code())
-                    .on_hover_ui(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.spacing_mut().item_spacing.x = 0.0;
-                            ui.label("For monospaced inlined text ");
-                            ui.code("like this");
-                            ui.label(".");
-                        });
-                    });
-                ui.color_edit_button_srgba(code_bg_color);
-                ui.end_row();
-
                 ui.label("Weak text alpha");
                 ui.add_enabled(
                     weak_text_color.is_none(),
@@ -2604,6 +2698,7 @@ impl Visuals {
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
+        ui.collapsing("Code", |ui| code.ui(ui));
         ui.collapsing("IME composition", |ui| ime_composition.ui(ui));
 
         ui.collapsing("Misc", |ui| {

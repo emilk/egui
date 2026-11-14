@@ -2,7 +2,7 @@ use crate::{
     Atom, AtomExt as _, Atoms, Button, CursorIcon, Id, IdSalt, IntoAtoms, Key, Modifiers,
     NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget, WidgetInfo,
     class::{ClassName, Classes, HasClasses},
-    emath, text,
+    text,
 };
 use core::{cmp::Ordering, ops::RangeInclusive};
 use emath::Vec2;

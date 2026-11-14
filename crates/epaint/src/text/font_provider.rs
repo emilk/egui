@@ -157,7 +157,6 @@ impl FontProviders {
 #[cfg(feature = "default_fonts")]
 #[cfg(test)]
 mod tests {
-    use alloc::sync::Arc;
 
     use epaint_default_fonts::{HACK_REGULAR, UBUNTU_LIGHT};
 

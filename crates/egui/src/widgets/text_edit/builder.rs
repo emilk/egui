@@ -10,7 +10,6 @@ use crate::{
     SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom, WidgetInfo,
     WidgetWithState,
     class::{ClassName, Classes, HasClasses},
-    epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response,

@@ -13,7 +13,7 @@ use crate::{
 
 /// The default [`StyleProvider`], implementing the default egui look based on
 /// [`crate::style::WidgetVisuals`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct DefaultStyle;
 
 impl DefaultStyle {
