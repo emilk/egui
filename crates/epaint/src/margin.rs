@@ -10,7 +10,7 @@ use emath::{Rect, Vec2, vec2};
 ///
 /// All values are stored as [`i8`] to keep the size of [`Margin`] small.
 /// If you want floats, use [`crate::MarginF32`] instead.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Margin {
     pub left: i8,

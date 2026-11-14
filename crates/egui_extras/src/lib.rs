@@ -42,12 +42,11 @@ pub use loaders::install_image_loaders;
 
 /// Panic in debug builds, log otherwise.
 macro_rules! log_or_panic {
-    ($fmt: literal) => {$crate::log_or_panic!($fmt,)};
-    ($fmt: literal, $($arg: tt)*) => {{
+    ($fmt: literal $(, $arg: expr)* $(,)?) => {{
         if cfg!(debug_assertions) {
-            panic!($fmt, $($arg)*);
+            panic!($fmt $(, $arg)*);
         } else {
-            log::error!($fmt, $($arg)*);
+            log::error!($fmt $(, $arg)*);
         }
     }};
 }

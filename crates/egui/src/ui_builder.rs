@@ -35,7 +35,7 @@ pub struct UiBuilder {
 }
 
 /// Is this [`Ui`] a root or a child of another [`Ui`]?
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum IdSource {
     /// Explicitly use this [`Id`]
     Explicit(Id),

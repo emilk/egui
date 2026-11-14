@@ -250,6 +250,17 @@ impl Sides {
         let mut child_ui = ui.new_child(UiBuilder::new().max_rect(max_rect).layout(layout));
         if let Some(wrap_mode) = wrap_mode {
             child_ui.style_mut().wrap_mode = Some(wrap_mode);
+
+            // Even truncated, a widget never gets narrower than e.g. its ellipsis,
+            // so keep the shrinking side from painting over the other side.
+            // Only the edge facing the other side is clipped.
+            let mut clip_rect = child_ui.clip_rect();
+            if layout.main_dir() == crate::Direction::RightToLeft {
+                clip_rect.min.x = clip_rect.min.x.max(max_rect.min.x);
+            } else {
+                clip_rect.max.x = clip_rect.max.x.min(max_rect.max.x);
+            }
+            child_ui.set_clip_rect(clip_rect);
         }
         let result = add_content(&mut child_ui);
         (child_ui.min_rect(), result)
