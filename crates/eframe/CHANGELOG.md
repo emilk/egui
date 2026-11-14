@@ -7,6 +7,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+### ⭐ Added
+* Add `NativeOptions::viewport_hooks` (`ViewportHooks`): per-viewport callbacks for native window creation/removal and for each viewport's raw input before egui processes it, including immediate viewports
+
 ## 0.37.0 - 2026-10-15
 ### ⭐ Added
 * Add `system_fonts` feature (on by default) for rendering any glyph and colored emoji using the fonts installed on the system. Enable it if you use `default-features = false` [#8512](https://github.com/emilk/egui/pull/8512) by [@emilk](https://github.com/emilk)
