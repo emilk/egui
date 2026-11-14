@@ -301,6 +301,17 @@ pub struct Options {
     /// which is supported by `eframe`.
     pub screen_reader: bool,
 
+    /// The language of the user interface, as a BCP 47 tag (`"ar"`, `"pt-BR"`).
+    ///
+    /// egui puts it on the root of the AccessKit tree, so screen readers pick a voice for it.
+    /// Integrations and widgets can read it too.
+    /// Content in another language can say so with [`crate::UiBuilder::language`]
+    /// or [`crate::Response::accessible_language`].
+    ///
+    /// Set it with [`crate::Context::set_language`]. Default: `None` (unknown).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub language: Option<String>,
+
     /// Check reusing of [`Id`]s, and show a visual warning on screen when one is found.
     ///
     /// By default this is `true` in debug builds.
@@ -344,6 +355,7 @@ impl Default for Options {
             #[expect(clippy::unwrap_used)]
             max_passes: NonZeroUsize::new(2).unwrap(),
             screen_reader: false,
+            language: None,
             warn_on_id_clash: cfg!(debug_assertions),
 
             // Input:
@@ -403,6 +415,7 @@ impl Options {
             repaint_on_widget_change,
             max_passes,
             screen_reader: _, // needs to come from the integration
+            language: _,      // set by the app
             warn_on_id_clash,
             input_options,
             reduce_texture_memory,

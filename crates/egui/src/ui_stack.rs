@@ -250,6 +250,9 @@ pub struct UiStack {
     pub max_rect: Rect,
     pub parent: Option<Arc<Self>>,
     pub classes: Classes,
+
+    /// The language of this [`crate::Ui`]'s content, if set with [`crate::UiBuilder::language`].
+    pub language: Option<String>,
 }
 
 // these methods act on this specific node
@@ -320,6 +323,11 @@ impl UiStack {
     #[expect(clippy::iter_without_into_iter)]
     pub fn iter(&self) -> UiStackIterator<'_> {
         UiStackIterator { next: Some(self) }
+    }
+
+    /// The language set with [`crate::UiBuilder::language`] on this node or the nearest one up the stack.
+    pub fn language(&self) -> Option<&str> {
+        self.iter().find_map(|node| node.language.as_deref())
     }
 
     /// Check if this node is or is contained in a [`crate::Ui`] of a specific kind.
