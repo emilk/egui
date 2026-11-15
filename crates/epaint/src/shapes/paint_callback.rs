@@ -4,6 +4,7 @@ use core::any::Any;
 use crate::*;
 
 /// Information passed along with [`PaintCallback`] ([`Shape::Callback`]).
+#[derive(Clone, Copy)]
 pub struct PaintCallbackInfo {
     /// Viewport in points.
     ///

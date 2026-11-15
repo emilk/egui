@@ -269,8 +269,6 @@ fn should_cache_each_paragraph_individually(job: &LayoutJob) -> bool {
 #[cfg(feature = "default_fonts")]
 #[cfg(test)]
 mod tests {
-    use core::f32;
-
     use super::*;
     use crate::text::{FontDefinitions, FontFamily, FontId, TextOptions, TextWrapping};
     use crate::{Stroke, text::TextFormat};

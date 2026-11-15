@@ -303,6 +303,7 @@ fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
 }
 
 /// Specifies which action should be taken as consequence of a surface error.
+#[derive(Clone, Copy)]
 pub enum SurfaceErrorAction {
     /// Do nothing and skip the current frame.
     SkipFrame,

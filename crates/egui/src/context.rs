@@ -7,7 +7,7 @@ use emath::GuiRounding as _;
 use epaint::{
     ClippedPrimitive, ClippedShape, Color32, ImageData, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureId, Vec2,
-    emath::{self, TSTransform},
+    emath::TSTransform,
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
@@ -26,7 +26,6 @@ use crate::{
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
-    epaint,
     hit_test::WidgetHits,
     input_state::{InputState, MultiTouchInfo, PointerEvent, SurrenderFocusOn},
     interaction::InteractionSnapshot,
@@ -229,6 +228,7 @@ pub struct ViewportState {
     /// `None` for immediate viewports.
     pub viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
+    /// The input for this viewport, for the current pass.
     pub input: InputState,
 
     /// State that is collected during a pass and then cleared.
@@ -259,13 +259,20 @@ pub struct ViewportState {
     // ----------------------
     // The output of a pass:
     //
+    /// The shapes painted this pass, per layer.
     pub graphics: GraphicLayers,
-    // Most of the things in `PlatformOutput` are not actually viewport dependent.
+
+    /// The platform output of this pass.
+    ///
+    /// Most of the things in `PlatformOutput` are not actually viewport dependent.
     pub output: PlatformOutput,
+
+    /// Commands sent to this viewport this pass.
     pub commands: Vec<ViewportCommand>,
 
     // ----------------------
     // Cross-frame statistics:
+    /// How many frames in a row used more than one pass.
     pub num_multipass_in_row: usize,
 
     /// The last theme we sent to the native window via [`ViewportCommand::SetTheme`],
@@ -3172,6 +3179,16 @@ impl ContextImpl {
         let textures_delta = self.tex_manager.0.write().take_delta();
 
         let mut platform_output: PlatformOutput = core::mem::take(&mut viewport.output);
+
+        // This has to come after `Memory::end_pass`, which sorts the layers into their paint
+        // order for this pass.
+        platform_output.embedded_views = crate::embedded_view::outputs(
+            &viewport.this_pass.embedded_views,
+            &self.memory,
+            &viewport.this_pass.widgets,
+            &viewport.graphics,
+            pixels_per_point,
+        );
 
         if self.memory.should_interrupt_ime()
             && let Some(ime) = &mut platform_output.ime

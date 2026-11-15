@@ -468,7 +468,7 @@ impl<'atom> SizedContainerAtom<'atom> {
         })
     }
 
-    pub fn iter_texts(&self) -> impl Iterator<Item = &Arc<Galley>> + use<'atom, '_> {
+    pub fn iter_texts(&self) -> impl Iterator<Item = &Arc<Galley>> {
         self.iter_kinds().filter_map(|kind| {
             if let SizedAtomKind::Text(text) = kind {
                 Some(text)
@@ -478,7 +478,7 @@ impl<'atom> SizedContainerAtom<'atom> {
         })
     }
 
-    pub fn iter_texts_mut(&mut self) -> impl Iterator<Item = &mut Arc<Galley>> + use<'atom, '_> {
+    pub fn iter_texts_mut(&mut self) -> impl Iterator<Item = &mut Arc<Galley>> {
         self.iter_kinds_mut().filter_map(|kind| {
             if let SizedAtomKind::Text(text) = kind {
                 Some(text)

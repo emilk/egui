@@ -3,7 +3,7 @@ use core::fmt::Debug;
 
 use emath::GuiRounding as _;
 
-use super::{Color32, ColorMode, Pos2, Rect, emath};
+use super::{Color32, ColorMode, Pos2, Rect};
 
 /// Describes the width and color of a line.
 ///

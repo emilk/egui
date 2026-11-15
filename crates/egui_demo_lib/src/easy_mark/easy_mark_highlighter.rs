@@ -157,7 +157,7 @@ fn format_from_style(
     };
 
     let background = if emark_style.code {
-        egui_style.visuals.code_bg_color
+        egui_style.visuals.code.bg_color
     } else {
         Color32::TRANSPARENT
     };

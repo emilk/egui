@@ -1,6 +1,4 @@
 use core::iter;
-use core::mem::size_of;
-use egui_wgpu::wgpu;
 use egui_wgpu::wgpu::{Device, Extent3d, Queue, Texture};
 use image::RgbaImage;
 use std::sync::mpsc::channel;
