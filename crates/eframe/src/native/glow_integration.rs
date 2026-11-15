@@ -1467,6 +1467,7 @@ impl GlutinWindowContext {
 
         self.viewport_from_window.insert(window.id(), viewport_id);
         self.window_from_viewport.insert(viewport_id, window.id());
+        super::viewport_windows::register(&self.egui_ctx, viewport_id, window);
 
         Ok(())
     }
@@ -1549,6 +1550,7 @@ impl GlutinWindowContext {
             .retain(|_, id| viewport_output.contains_key(id));
         self.window_from_viewport
             .retain(|id, _| viewport_output.contains_key(id));
+        super::viewport_windows::retain(&self.egui_ctx, |id| viewport_output.contains_key(id));
     }
 
     fn handle_viewport_output(
