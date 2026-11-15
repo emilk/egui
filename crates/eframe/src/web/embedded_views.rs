@@ -320,7 +320,7 @@ fn input_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> InputStyle {
     // element in front of the views. It takes no pointer input itself, only its rects do.
     let element = format!(
         "position: absolute; left: 0px; top: 0px; width: {}px; height: {}px; \
-         z-index: 2147483647; pointer-events: none;",
+         z-index: 2147483647; pointer-events: none; user-select: none;",
         rect.width(),
         rect.height(),
     );
