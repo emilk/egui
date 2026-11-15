@@ -487,9 +487,14 @@ impl ContextImpl {
             let ratio = self.memory.options.zoom_factor / new_zoom_factor;
             self.memory.options.zoom_factor = new_zoom_factor;
 
-            let input = &viewport.input;
-            // This is a bit hacky, but is required to avoid jitter:
-            let mut rect = input.content_rect();
+            // This is a bit hacky, but is required to avoid jitter.
+            // Before the first pass the previous input is only a placeholder,
+            // so scale the rect the backend measured at the old zoom factor instead.
+            let first_pass = viewport.repaint.cumulative_pass_nr == 0;
+            let mut rect = match new_raw_input.screen_rect {
+                Some(screen_rect) if first_pass => screen_rect,
+                _ => viewport.input.content_rect(),
+            };
             rect.min = (ratio * rect.min.to_vec2()).to_pos2();
             rect.max = (ratio * rect.max.to_vec2()).to_pos2();
             new_raw_input.screen_rect = Some(rect);
@@ -5424,5 +5429,42 @@ mod test {
             );
             output.drop_without_applying_deltas();
         }
+    }
+
+    fn content_rect_after_pass(ctx: &Context, screen_size: crate::Vec2) -> crate::Rect {
+        let input = crate::RawInput {
+            screen_rect: Some(crate::Rect::from_min_size(crate::Pos2::ZERO, screen_size)),
+            ..Default::default()
+        };
+        let mut content_rect = None;
+        let output = ctx.run_ui(input, |ui| content_rect = Some(ui.ctx().content_rect()));
+        output.drop_without_applying_deltas();
+        content_rect.expect("the ui closure runs")
+    }
+
+    #[test]
+    fn test_zoom_factor_set_before_the_first_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        ctx.set_zoom_factor(0.5);
+
+        // The backend measured the window at the old zoom factor of 1.
+        let content_rect = content_rect_after_pass(&ctx, crate::vec2(400.0, 300.0));
+
+        assert_eq!(content_rect.size(), crate::vec2(800.0, 600.0));
+    }
+
+    #[test]
+    fn test_zoom_factor_changed_after_the_first_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        content_rect_after_pass(&ctx, crate::vec2(400.0, 300.0));
+        ctx.set_zoom_factor(0.5);
+
+        // A later zoom change scales the previous pass's rect, whatever size the
+        // backend sends with it.
+        let content_rect = content_rect_after_pass(&ctx, crate::vec2(123.0, 45.0));
+
+        assert_eq!(content_rect.size(), crate::vec2(800.0, 600.0));
     }
 }
