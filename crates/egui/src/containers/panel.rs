@@ -65,6 +65,20 @@ impl PanelState {
     }
 }
 
+/// Transient per-panel state used during interactive resize.
+#[derive(Clone, Copy, Debug, Default)]
+struct ResizeState {
+    /// Minimum outer size along the panel's main axis, measured by a sizing pass at the
+    /// start of the current interactive resize. We clamp the user's drag against this for
+    /// the rest of the drag so the panel cannot be shrunk past what its contents need.
+    min_outer_size: Option<f32>,
+
+    /// Pass number ([`Context::cumulative_pass_nr`]) of the last pass in which this panel's
+    /// resize handle was actively dragged. Used to expire `min_outer_size` once the drag
+    /// ends.
+    last_dragged_pass: u64,
+}
+
 // ----------------------------------------------------------------------------
 
 /// Which side of a [`Ui`] or screen the panel is attached to.
@@ -619,10 +633,19 @@ impl Panel {
                     // meets the collapsed panel, whether opening or closing. Get it
                     // wrong and the panel jumps the gap between the two sizes in one
                     // frame.
+                    let min_outer_size = ui
+                        .data_mut(|d| d.get_temp::<ResizeState>(expanded_panel.id(ui)))
+                        .and_then(|s| {
+                            (s.last_dragged_pass + 1 == ui.ctx().cumulative_pass_nr())
+                                .then_some(s.min_outer_size)
+                                .flatten()
+                        })
+                        .unwrap_or(0.0);
                     expanded_panel
                         .outer_size_range
                         .min
                         .at_least(collapse_threshold)
+                        .at_least(min_outer_size)
                 } else {
                     expanded_panel.outer_size(ui)
                 };
@@ -735,8 +758,20 @@ impl Panel {
         // Check for duplicate id
         parent_ui.check_for_id_clash(id, outer_rect, "Panel");
 
+        let pass_nr = parent_ui.ctx().cumulative_pass_nr();
+        let mut resize_state = parent_ui
+            .data_mut(|d| d.get_temp::<ResizeState>(id))
+            .unwrap_or_default();
+        if resize_state.last_dragged_pass + 1 != pass_nr {
+            resize_state.min_outer_size = None;
+        }
+
+        let is_animating = 0.0 < self.slide_fraction && self.slide_fraction < 1.0;
+
         // True iff the user is currently dragging the resize handle (set in the block below).
         let mut resize_drag_in_progress = false;
+        let mut needs_sizing_pass = false;
+        let mut clip_outer_size = outer_size;
 
         if resizable {
             // Resolve the resize interaction first to avoid frame latency in the resize.
@@ -780,12 +815,34 @@ impl Panel {
             };
 
             if let Some(raw_outer_size) = raw_outer_size {
+                needs_sizing_pass = resize_drag_in_progress
+                    && !is_animating
+                    && resize_state.min_outer_size.is_none();
+
                 let prev_outer_size = outer_size;
-                outer_size =
-                    clamp_to_range(raw_outer_size, self.outer_size_range).at_most(available_size);
+                let min_outer_size = resize_state
+                    .min_outer_size
+                    .unwrap_or(0.0)
+                    .at_least(self.outer_size_range.min);
+                let size_range = Rangef::new(min_outer_size, self.outer_size_range.max);
+                outer_size = if needs_sizing_pass {
+                    parent_ui.ctx().request_discard("Panel resize sizing pass");
+                    self.outer_size_range.min.at_most(available_size)
+                } else {
+                    clamp_to_range(raw_outer_size, size_range).at_most(available_size)
+                };
                 side.set_rect_size(&mut outer_rect, outer_size);
 
-                if let Some(is_expanded) = is_expanded {
+                // If we don't yet have a measured `min_outer_size` (e.g. during the sizing pass
+                // when `max_passes == 1`, or on an AccessKit resize), keep the clip rect at least
+                // as large as `prev_outer_size` so unshrinkable contents aren't clipped.
+                clip_outer_size = if resize_state.min_outer_size.is_some() {
+                    outer_size
+                } else {
+                    outer_size.at_least(prev_outer_size)
+                };
+
+                if !needs_sizing_pass && let Some(is_expanded) = is_expanded {
                     // Drag-to-collapse: shrink past the threshold → close.
                     // The threshold defaults to `min_size`, but
                     // `show_switched` overrides it to the
@@ -829,19 +886,28 @@ impl Panel {
         // The portion of the panel actually visible inside the parent's available area.
         // The parent only allocates this much; neighbors follow the slide.
         let visible_outer_rect = shifted_outer_rect.intersect(max_rect);
+        let clip_rect = if slide_distance == 0.0 && outer_size < clip_outer_size {
+            let mut clip_rect = available_rect;
+            side.set_rect_size(&mut clip_rect, clip_outer_size);
+            clip_rect.round_ui().intersect(max_rect)
+        } else {
+            visible_outer_rect
+        };
 
-        let mut panel_ui = parent_ui.new_child(
-            UiBuilder::new()
-                .id_salt(id)
-                .ui_stack_info(UiStackInfo::new(side.ui_kind()))
-                .max_rect(shifted_outer_rect)
-                .layout(Layout::top_down(Align::Min)),
-        );
+        let mut ui_builder = UiBuilder::new()
+            .id_salt(id)
+            .ui_stack_info(UiStackInfo::new(side.ui_kind()))
+            .max_rect(shifted_outer_rect)
+            .layout(Layout::top_down(Align::Min));
+        if needs_sizing_pass {
+            ui_builder = ui_builder.sizing_pass();
+        }
+        let mut panel_ui = parent_ui.new_child(ui_builder);
         panel_ui.expand_to_include_rect(shifted_outer_rect);
         // Hides the off-screen part during a slide; also prevents overflow (#4475).
         // Intersected with the parent's clip rect so a tighter clip (for instance, from window
         // collapse) isn't overridden.
-        panel_ui.shrink_clip_rect(visible_outer_rect);
+        panel_ui.shrink_clip_rect(clip_rect);
 
         let axis = side.axis();
         let panel_axis_min =
@@ -899,11 +965,24 @@ impl Panel {
             (false, false)
         };
 
+        if needs_sizing_pass {
+            resize_state.min_outer_size = Some(shifted_outer_rect.size_along(axis));
+        }
+        if resize_drag_in_progress {
+            resize_state.last_dragged_pass = pass_nr;
+        } else {
+            resize_state.min_outer_size = None;
+        }
+        parent_ui.data_mut(|d| d.insert_temp(id, resize_state));
+
         if resize_hover || is_resizing {
-            parent_ui.set_cursor_icon(self.cursor_icon(outer_size));
+            let min_outer_size = resize_state
+                .min_outer_size
+                .unwrap_or(0.0)
+                .at_least(self.outer_size_range.min);
+            parent_ui.set_cursor_icon(self.cursor_icon(outer_size, min_outer_size));
         }
 
-        let is_animating = 0.0 < self.slide_fraction && self.slide_fraction < 1.0;
         if !resize_drag_in_progress && !is_animating || PanelState::load(parent_ui, id).is_none() {
             // We skip stoing state during a drag, so that the
             // stored size reflects the panel's pre-drag size.
@@ -1057,7 +1136,7 @@ impl Panel {
             // Advertise that the panel can be pulled out. Also keeps the resize
             // cursor for a drag that started before the panel closed, instead of
             // snapping back to the default mid-gesture.
-            ui.set_cursor_icon(self.cursor_icon(0.0));
+            ui.set_cursor_icon(self.cursor_icon(0.0, self.outer_size_range.min));
         }
 
         if response.dragged()
@@ -1257,7 +1336,7 @@ impl Panel {
         Some(base_size + steps * step_size)
     }
 
-    fn cursor_icon(&self, outer_size: f32) -> CursorIcon {
+    fn cursor_icon(&self, outer_size: f32, min_outer_size: f32) -> CursorIcon {
         // When this panel is the collapsed view of `show_switched`
         // (`resize_id_source` is set), dragging past `max_size` triggers
         // drag-to-expand — so the user can always grow further. Treat the cap
@@ -1270,7 +1349,7 @@ impl Panel {
             self.outer_size_range.max
         };
 
-        if outer_size <= self.outer_size_range.min {
+        if outer_size <= min_outer_size {
             // Can only grow (toward the resizable side):
             match self.side {
                 PanelSide::Left => CursorIcon::ResizeEast,

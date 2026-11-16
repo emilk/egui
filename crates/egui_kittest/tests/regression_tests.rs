@@ -781,6 +781,67 @@ fn panel_rect_clamped_when_content_overflows() {
     );
 }
 
+/// Regression test for <https://github.com/emilk/egui/issues/8797>:
+/// dragging a resizable `Panel` smaller than its unshrinkable content must not
+/// shrink the panel's `clip_rect` past the actual panel rect.
+#[test]
+fn panel_clip_rect_matches_panel_rect_when_dragged_below_content_size() {
+    struct State {
+        panel_rect: Rect,
+        inner_clip_rect: Rect,
+    }
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(600.0, 300.0))
+        .build_ui_state(
+            |ui, state: &mut State| {
+                let response = egui::Panel::left("left_panel").show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .auto_shrink(false)
+                        .show(ui, |ui| {
+                            state.inner_clip_rect = ui.clip_rect();
+                            ui.add(egui::Label::new("A long label in a side panel").extend());
+                        });
+                });
+                state.panel_rect = response.response.rect;
+                egui::CentralPanel::default().show(ui, |ui| {
+                    ui.label("Central panel");
+                });
+            },
+            State {
+                panel_rect: Rect::NOTHING,
+                inner_clip_rect: Rect::NOTHING,
+            },
+        );
+
+    harness.run();
+
+    let splitter_center = harness
+        .get_by_role_and_label(Role::Splitter, "Resize panel")
+        .rect()
+        .center();
+    let drag_target = Pos2::new(100.0, splitter_center.y);
+
+    harness.drag_at(splitter_center);
+    harness.run();
+    harness.hover_at(drag_target);
+    harness.run();
+
+    let state = harness.state();
+    assert!(
+        state.panel_rect.width() > drag_target.x + 20.0,
+        "panel should stop shrinking at its content width, got panel_rect={:?}",
+        state.panel_rect
+    );
+    assert_eq!(
+        state.inner_clip_rect.right(),
+        state.panel_rect.right(),
+        "panel inner clip_rect ({:?}) should not be narrower than panel_rect ({:?}) while dragging",
+        state.inner_clip_rect,
+        state.panel_rect
+    );
+}
+
 /// Regression test: when an animated panel slides off-screen (collapsing), the
 /// enclosing parent (e.g. a `Window`) must not be grown to include the slid-off
 /// portion of the panel.
