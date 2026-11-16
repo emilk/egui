@@ -213,6 +213,7 @@ objc2-app-kit = { workspace = true, default-features = false, features = [
 [target.'cfg(any(target_os = "windows"))'.dependencies]
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
+  "Win32_Graphics_Dwm",
   "Win32_System_Com",
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",
