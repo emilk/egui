@@ -50,15 +50,15 @@ fn resize_line_stroke(
     idle_stroke: Stroke,
 ) -> Stroke {
     let style = ui.style();
-    let strength = ui.ctx().delayed_highlight(
-        resize_id,
-        hovered || dragged,
-        style.interaction.resize_hover_highlight,
-    );
 
     if dragged {
+        // No delay or fade-in when dragging:
         return style.visuals.widgets.active.fg_stroke;
     }
+
+    let strength =
+        ui.ctx()
+            .delayed_highlight(resize_id, hovered, style.interaction.resize_hover_highlight);
     if strength <= 0.0 {
         return idle_stroke;
     }
