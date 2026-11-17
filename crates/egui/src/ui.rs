@@ -1036,6 +1036,33 @@ impl Ui {
 
         strength
     }
+
+    /// The stroke of a resize line, e.g. the splitter between two panels.
+    ///
+    /// While [`ResizeState::Hovered`], fades from `idle_stroke` to the hovered stroke of
+    /// [`Visuals::widgets`] using [`Self::delayed_highlight`], so the line doesn't flash every
+    /// time the pointer passes over it.
+    /// While [`ResizeState::Dragged`], shows the active stroke right away.
+    ///
+    /// Call this every frame, also when idle.
+    /// The `id` must be unique for the resize line.
+    #[track_caller] // To track repaint cause
+    pub fn resize_line_stroke(&self, id: Id, state: ResizeState, idle_stroke: Stroke) -> Stroke {
+        let strength = self.delayed_highlight(
+            id,
+            state == ResizeState::Hovered,
+            state == ResizeState::Dragged,
+            FadeOut::Instant,
+        );
+
+        let widgets = &self.visuals().widgets;
+        match state {
+            ResizeState::Dragged => widgets.active.fg_stroke,
+            ResizeState::Idle | ResizeState::Hovered => {
+                DelayedHighlight::fade_stroke(idle_stroke, widgets.hovered.fg_stroke, strength)
+            }
+        }
+    }
 }
 
 /// # Interaction

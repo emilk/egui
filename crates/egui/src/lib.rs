@@ -418,6 +418,7 @@ mod painter;
 pub mod pass_state;
 pub(crate) mod placer;
 pub mod plugin;
+mod resize_state;
 pub mod response;
 mod sense;
 pub mod style;
@@ -518,6 +519,7 @@ pub use self::{
     memory::{Areas, FocusDirection, Memory, Options, Theme, ThemePreference},
     painter::Painter,
     plugin::Plugin,
+    resize_state::ResizeState,
     response::{InnerResponse, Response},
     sense::Sense,
     style::{
