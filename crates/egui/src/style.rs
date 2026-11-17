@@ -1081,7 +1081,7 @@ pub struct DelayedHighlight {
 impl Default for DelayedHighlight {
     fn default() -> Self {
         Self {
-            delay: 0.2,
+            delay: 0.1,
             easing: Easing::QuadraticIn,
         }
     }
