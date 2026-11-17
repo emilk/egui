@@ -40,7 +40,7 @@ fn resize_widget_id(id_source: Id) -> Id {
 /// The stroke of a panel's resize line.
 ///
 /// Shown at full strength right away while dragging, but faded in after a delay on hover
-/// (see [`crate::style::Interaction::resize_hover_highlight`]), so the line doesn't flash
+/// (see [`crate::Style::hover_highlight`]), so the line doesn't flash
 /// every time the pointer passes over it.
 fn resize_line_stroke(
     ui: &Ui,
@@ -56,9 +56,9 @@ fn resize_line_stroke(
         return style.visuals.widgets.active.fg_stroke;
     }
 
-    let strength =
-        ui.ctx()
-            .delayed_highlight(resize_id, hovered, style.interaction.resize_hover_highlight);
+    let strength = ui
+        .ctx()
+        .delayed_highlight(resize_id, hovered, style.hover_highlight);
     if strength <= 0.0 {
         return idle_stroke;
     }

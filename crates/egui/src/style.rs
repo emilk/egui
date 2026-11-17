@@ -317,6 +317,11 @@ pub struct Style {
     /// How many seconds a typical animation should last.
     pub animation_time: f32,
 
+    /// How hover highlights appear, e.g. on the resize line between panels.
+    ///
+    /// Note that the cursor icon is still changed immediately.
+    pub hover_highlight: DelayedHighlight,
+
     /// Options to help debug why egui behaves strangely.
     ///
     /// Only available in debug builds.
@@ -1031,11 +1036,6 @@ pub struct Interaction {
     /// Radius of the interactive area of the corner of a window during drag-to-resize.
     pub resize_grab_radius_corner: f32,
 
-    /// How the highlight of a resize handle (e.g. the edge of a panel) appears on hover.
-    ///
-    /// The resize cursor icon is still shown immediately.
-    pub resize_hover_highlight: DelayedHighlight,
-
     /// If `false`, tooltips will show up anytime you hover anything, even if mouse is still moving
     pub show_tooltips_only_when_still: bool,
 
@@ -1656,6 +1656,7 @@ impl Default for Style {
             interaction: Interaction::default(),
             visuals: Visuals::default(),
             animation_time: 0.2,
+            hover_highlight: DelayedHighlight::default(),
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
@@ -1701,7 +1702,6 @@ impl Default for Interaction {
             interact_radius: 5.0,
             resize_grab_radius_side: 3.0,
             resize_grab_radius_corner: 10.0,
-            resize_hover_highlight: DelayedHighlight::default(),
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.5,
             tooltip_grace_time: 0.2,
@@ -2046,6 +2046,7 @@ impl Style {
             interaction,
             visuals,
             animation_time,
+            hover_highlight,
             #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
@@ -2146,6 +2147,11 @@ impl Style {
                     .speed(0.02)
                     .suffix(" s"),
             );
+            ui.end_row();
+
+            ui.label("Hover highlight")
+                .on_hover_text("Delay and fade-in time of hover highlights");
+            hover_highlight.ui(ui);
             ui.end_row();
         });
 
@@ -2332,7 +2338,6 @@ impl Interaction {
             interact_radius,
             resize_grab_radius_side,
             resize_grab_radius_corner,
-            resize_hover_highlight,
             show_tooltips_only_when_still,
             tooltip_delay,
             tooltip_grace_time,
@@ -2357,10 +2362,6 @@ impl Interaction {
 
                 ui.label("resize_grab_radius_corner").on_hover_text("Radius of the interactive area of the corner of a window during drag-to-resize.");
                 ui.add(DragValue::new(resize_grab_radius_corner).range(0.0..=20.0));
-                ui.end_row();
-
-                ui.label("resize_hover_highlight").on_hover_text("How the highlight of a resize handle appears on hover");
-                resize_hover_highlight.ui(ui);
                 ui.end_row();
 
                 ui.label("Tooltip delay").on_hover_text(
