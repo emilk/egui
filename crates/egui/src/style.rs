@@ -1031,6 +1031,11 @@ pub struct Interaction {
     /// Radius of the interactive area of the corner of a window during drag-to-resize.
     pub resize_grab_radius_corner: f32,
 
+    /// How the highlight of a resize handle (e.g. the edge of a panel) appears on hover.
+    ///
+    /// The resize cursor icon is still shown immediately.
+    pub resize_hover_highlight: DelayedHighlight,
+
     /// If `false`, tooltips will show up anytime you hover anything, even if mouse is still moving
     pub show_tooltips_only_when_still: bool,
 
@@ -1052,6 +1057,79 @@ pub struct Interaction {
     /// The default is `true`, but text selection can be slightly glitchy,
     /// so you may want to disable it.
     pub multi_widget_text_select: bool,
+}
+
+/// A hover highlight that appears after a delay and then fades in.
+///
+/// This avoids distracting flashes when the pointer merely passes over something,
+/// such as the resize line between two panels.
+///
+/// See [`crate::Context::delayed_highlight`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct DelayedHighlight {
+    /// How long the pointer must rest on the thing before the highlight starts to appear, in seconds.
+    pub delay: f32,
+
+    /// How long the highlight takes to fade in after [`Self::delay`], in seconds.
+    pub fade_in_time: f32,
+}
+
+impl Default for DelayedHighlight {
+    fn default() -> Self {
+        Self {
+            delay: 0.2,
+            fade_in_time: 0.1,
+        }
+    }
+}
+
+impl DelayedHighlight {
+    /// Show the highlight immediately, with no delay or fade-in.
+    pub const IMMEDIATE: Self = Self {
+        delay: 0.0,
+        fade_in_time: 0.0,
+    };
+
+    /// How visible the highlight is (0-1), given how long the thing has been hovered.
+    pub fn strength(&self, hover_duration: f32) -> f32 {
+        let Self {
+            delay,
+            fade_in_time,
+        } = *self;
+        let t = hover_duration - delay;
+        if t < 0.0 {
+            0.0
+        } else if fade_in_time <= 0.0 {
+            1.0
+        } else {
+            (t / fade_in_time).min(1.0)
+        }
+    }
+
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            delay,
+            fade_in_time,
+        } = self;
+        ui.horizontal(|ui| {
+            ui.label("delay");
+            ui.add(
+                DragValue::new(delay)
+                    .range(0.0..=2.0)
+                    .speed(0.01)
+                    .suffix(" s"),
+            );
+            ui.label("fade-in");
+            ui.add(
+                DragValue::new(fade_in_time)
+                    .range(0.0..=2.0)
+                    .speed(0.01)
+                    .suffix(" s"),
+            );
+        });
+    }
 }
 
 /// Look and feel of the text cursor.
@@ -1623,6 +1701,7 @@ impl Default for Interaction {
             interact_radius: 5.0,
             resize_grab_radius_side: 3.0,
             resize_grab_radius_corner: 10.0,
+            resize_hover_highlight: DelayedHighlight::default(),
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.5,
             tooltip_grace_time: 0.2,
@@ -2253,6 +2332,7 @@ impl Interaction {
             interact_radius,
             resize_grab_radius_side,
             resize_grab_radius_corner,
+            resize_hover_highlight,
             show_tooltips_only_when_still,
             tooltip_delay,
             tooltip_grace_time,
@@ -2277,6 +2357,10 @@ impl Interaction {
 
                 ui.label("resize_grab_radius_corner").on_hover_text("Radius of the interactive area of the corner of a window during drag-to-resize.");
                 ui.add(DragValue::new(resize_grab_radius_corner).range(0.0..=20.0));
+                ui.end_row();
+
+                ui.label("resize_hover_highlight").on_hover_text("How the highlight of a resize handle appears on hover");
+                resize_hover_highlight.ui(ui);
                 ui.end_row();
 
                 ui.label("Tooltip delay").on_hover_text(
@@ -3386,5 +3470,25 @@ pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAx
 impl Widget for &mut FontTweak {
     fn ui(self, ui: &mut Ui) -> Response {
         font_tweak_ui(ui, self, &[])
+    }
+}
+
+#[cfg(test)]
+mod delayed_highlight_tests {
+    use super::DelayedHighlight;
+
+    #[test]
+    fn strength() {
+        let highlight = DelayedHighlight {
+            delay: 0.2,
+            fade_in_time: 0.1,
+        };
+        assert_eq!(highlight.strength(0.0), 0.0);
+        assert_eq!(highlight.strength(0.2), 0.0);
+        assert!((highlight.strength(0.25) - 0.5).abs() < 1e-5);
+        assert_eq!(highlight.strength(0.3), 1.0);
+        assert_eq!(highlight.strength(10.0), 1.0);
+
+        assert_eq!(DelayedHighlight::IMMEDIATE.strength(0.0), 1.0);
     }
 }
