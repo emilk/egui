@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
 mod button;
+mod mask;
 mod popup;
 
 pub use button::DatePickerButton;
