@@ -1474,18 +1474,10 @@ impl Prepared {
 
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).
+            let hover_t = bar_hover_strength(ui, &response, state.scroll_bar_interaction[d]);
+
             let cross = if scroll_style.floating {
-                let is_hovering_bar_area = response.hovered() || state.scroll_bar_interaction[d];
-
-                let is_hovering_bar_area_t = ui
-                    .ctx()
-                    .animate_bool_responsive(id.with((d, "bar_hover")), is_hovering_bar_area);
-
-                let width = show_factor
-                    * lerp(
-                        scroll_style.floating_width..=full_width,
-                        is_hovering_bar_area_t,
-                    );
+                let width = show_factor * lerp(scroll_style.floating_width..=full_width, hover_t);
 
                 let min_cross = max_cross - width;
                 Rangef::new(min_cross, max_cross)
@@ -1583,7 +1575,16 @@ impl Prepared {
                 // Avoid frame-delay by calculating a new handle rect:
                 let handle_rect = calculate_handle_rect(d, &state.offset);
 
-                let visuals = if scroll_source.scroll_bar && ui.is_enabled() {
+                let handle_color_of = |visuals: &crate::style::WidgetVisuals| {
+                    if scroll_style.foreground_color {
+                        visuals.fg_stroke.color
+                    } else {
+                        visuals.bg_fill
+                    }
+                };
+
+                let widgets = &ui.visuals().widgets;
+                let (visuals, handle_color) = if scroll_source.scroll_bar && ui.is_enabled() {
                     // Pick visuals based on interaction with the handle.
                     // Remember that the response is for the whole scroll bar!
                     let is_hovering_handle = response.hovered()
@@ -1592,52 +1593,45 @@ impl Prepared {
                                 .latest_pos()
                                 .is_some_and(|p| handle_rect.contains(p))
                         });
-                    let visuals = ui.visuals();
                     if response.is_pointer_button_down_on() {
-                        &visuals.widgets.active
+                        (&widgets.active, handle_color_of(&widgets.active))
                     } else if is_hovering_handle {
-                        &visuals.widgets.hovered
+                        let color = handle_color_of(&widgets.inactive)
+                            .lerp_to_gamma(handle_color_of(&widgets.hovered), hover_t);
+                        (&widgets.hovered, color)
                     } else {
-                        &visuals.widgets.inactive
+                        (&widgets.inactive, handle_color_of(&widgets.inactive))
                     }
                 } else {
-                    &ui.visuals().widgets.inactive
+                    (&widgets.inactive, handle_color_of(&widgets.inactive))
                 };
 
                 let handle_opacity = if scroll_style.floating {
-                    if response.hovered() || response.dragged() {
-                        scroll_style.interact_handle_opacity
-                    } else {
-                        let is_hovering_outer_rect_t = ui.ctx().animate_bool_responsive(
-                            id.with((d, "is_hovering_outer_rect")),
-                            is_hovering_outer_rect,
-                        );
-                        lerp(
-                            scroll_style.dormant_handle_opacity
-                                ..=scroll_style.active_handle_opacity,
-                            is_hovering_outer_rect_t,
-                        )
-                    }
+                    let is_hovering_outer_rect_t = ui.ctx().animate_bool_responsive(
+                        id.with((d, "is_hovering_outer_rect")),
+                        is_hovering_outer_rect,
+                    );
+                    let idle_opacity = lerp(
+                        scroll_style.dormant_handle_opacity..=scroll_style.active_handle_opacity,
+                        is_hovering_outer_rect_t,
+                    );
+                    lerp(idle_opacity..=scroll_style.interact_handle_opacity, hover_t)
                 } else {
                     1.0
                 };
 
                 let background_opacity = if scroll_style.floating {
-                    if response.hovered() || response.dragged() {
-                        scroll_style.interact_background_opacity
-                    } else if is_hovering_outer_rect {
+                    let idle_opacity = if is_hovering_outer_rect {
                         scroll_style.active_background_opacity
                     } else {
                         scroll_style.dormant_background_opacity
-                    }
+                    };
+                    lerp(
+                        idle_opacity..=scroll_style.interact_background_opacity,
+                        hover_t,
+                    )
                 } else {
                     1.0
-                };
-
-                let handle_color = if scroll_style.foreground_color {
-                    visuals.fg_stroke.color
-                } else {
-                    visuals.bg_fill
                 };
 
                 // Background:
@@ -1780,6 +1774,38 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
             [bg_faded, Color32::TRANSPARENT],
         ));
     }
+}
+
+/// How highlighted a scroll bar is, in the range [0, 1].
+///
+/// Grows after the delay of [`crate::Style::hover_highlight`], so the bar doesn't flash
+/// when the pointer merely passes over it, and shrinks back smoothly when the pointer leaves.
+/// Pressing or dragging the bar gives full strength right away.
+fn bar_hover_strength(ui: &Ui, response: &Response, was_interacting: bool) -> f32 {
+    let ctx = ui.ctx();
+    let strength_id = response.id.with("hover_strength");
+    let previous = ctx
+        .data(|data| data.get_temp::<f32>(strength_id))
+        .unwrap_or(0.0);
+
+    let hovered = response.hovered() || was_interacting;
+    let delayed = ctx.delayed_highlight(response.id, hovered, ui.style().hover_highlight);
+
+    let strength = if response.is_pointer_button_down_on() || response.dragged() {
+        1.0
+    } else if hovered {
+        delayed.max(previous)
+    } else {
+        let dt = ui.input(|i| i.stable_dt);
+        let shrunk = (previous - dt / ui.style().animation_time).max(0.0);
+        if 0.0 < shrunk {
+            ctx.request_repaint();
+        }
+        shrunk
+    };
+
+    ctx.data_mut(|data| data.insert_temp(strength_id, strength));
+    strength
 }
 
 #[cfg(test)]
