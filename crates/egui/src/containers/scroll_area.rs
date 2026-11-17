@@ -8,9 +8,9 @@ use emath::GuiRounding as _;
 use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
-    AsIdSalt, Context, CursorIcon, Id, IdSalt, MouseWheelSource, NumExt as _, Pos2, Rangef, Rect,
-    Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, lerp,
-    pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
+    AsIdSalt, Context, CursorIcon, FadeOut, HighlightState, Id, IdSalt, MouseWheelSource,
+    NumExt as _, Pos2, Rangef, Rect, Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo,
+    Vec2, Vec2b, WidgetInfo, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
 };
 
 use super::scroll_physics::{AxisPhysics, WheelScroll, scroll_bounds};
@@ -1323,6 +1323,7 @@ impl Prepared {
             && ui.ctx().dragged_id().is_none()
             || is_dragging_background;
 
+        let mut is_wheel_scrolling = false;
         if scroll_source.mouse_wheel
             && ui.is_enabled()
             && (ui.rect_contains_pointer(outer_rect) || is_dragging_background)
@@ -1362,6 +1363,7 @@ impl Prepared {
                     );
 
                     if consumed {
+                        is_wheel_scrolling = true;
                         rubber_banding[d] = physics.is_rubber_banding(state.offset[d]);
 
                         // Clear scroll delta so no parent scroll will use it:
@@ -1400,6 +1402,20 @@ impl Prepared {
         ui.advance_cursor_after_rect(outer_rect);
 
         paint_fade_areas_impl(ui, inner_rect, content_size, state.offset);
+
+        // How visible the floating bars are when hovering the scroll area:
+        let outer_hover_t = if scroll_style.floating {
+            ui.delayed_highlight(
+                id.with("outer_hover"),
+                HighlightState::new(
+                    is_hovering_outer_rect,
+                    is_dragging_background || is_wheel_scrolling,
+                ),
+                FadeOut::Animated,
+            )
+        } else {
+            0.0
+        };
 
         // Paint the bars:
         let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
@@ -1474,18 +1490,17 @@ impl Prepared {
 
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).
+            let hover_t = ui.delayed_highlight(
+                response.id,
+                HighlightState::new(
+                    response.hovered() || state.scroll_bar_interaction[d],
+                    response.is_pointer_button_down_on() || response.dragged(),
+                ),
+                FadeOut::Animated,
+            );
+
             let cross = if scroll_style.floating {
-                let is_hovering_bar_area = response.hovered() || state.scroll_bar_interaction[d];
-
-                let is_hovering_bar_area_t = ui
-                    .ctx()
-                    .animate_bool_responsive(id.with((d, "bar_hover")), is_hovering_bar_area);
-
-                let width = show_factor
-                    * lerp(
-                        scroll_style.floating_width..=full_width,
-                        is_hovering_bar_area_t,
-                    );
+                let width = show_factor * lerp(scroll_style.floating_width..=full_width, hover_t);
 
                 let min_cross = max_cross - width;
                 Rangef::new(min_cross, max_cross)
@@ -1583,7 +1598,16 @@ impl Prepared {
                 // Avoid frame-delay by calculating a new handle rect:
                 let handle_rect = calculate_handle_rect(d, &state.offset);
 
-                let visuals = if scroll_source.scroll_bar && ui.is_enabled() {
+                let handle_color_of = |visuals: &crate::style::WidgetVisuals| {
+                    if scroll_style.foreground_color {
+                        visuals.fg_stroke.color
+                    } else {
+                        visuals.bg_fill
+                    }
+                };
+
+                let widgets = &ui.visuals().widgets;
+                let (visuals, handle_color) = if scroll_source.scroll_bar && ui.is_enabled() {
                     // Pick visuals based on interaction with the handle.
                     // Remember that the response is for the whole scroll bar!
                     let is_hovering_handle = response.hovered()
@@ -1592,52 +1616,41 @@ impl Prepared {
                                 .latest_pos()
                                 .is_some_and(|p| handle_rect.contains(p))
                         });
-                    let visuals = ui.visuals();
                     if response.is_pointer_button_down_on() {
-                        &visuals.widgets.active
+                        (&widgets.active, handle_color_of(&widgets.active))
                     } else if is_hovering_handle {
-                        &visuals.widgets.hovered
+                        let color = handle_color_of(&widgets.inactive)
+                            .lerp_to_gamma(handle_color_of(&widgets.hovered), hover_t);
+                        (&widgets.hovered, color)
                     } else {
-                        &visuals.widgets.inactive
+                        (&widgets.inactive, handle_color_of(&widgets.inactive))
                     }
                 } else {
-                    &ui.visuals().widgets.inactive
+                    (&widgets.inactive, handle_color_of(&widgets.inactive))
                 };
 
                 let handle_opacity = if scroll_style.floating {
-                    if response.hovered() || response.dragged() {
-                        scroll_style.interact_handle_opacity
-                    } else {
-                        let is_hovering_outer_rect_t = ui.ctx().animate_bool_responsive(
-                            id.with((d, "is_hovering_outer_rect")),
-                            is_hovering_outer_rect,
-                        );
-                        lerp(
-                            scroll_style.dormant_handle_opacity
-                                ..=scroll_style.active_handle_opacity,
-                            is_hovering_outer_rect_t,
-                        )
-                    }
+                    let idle_opacity = lerp(
+                        scroll_style.dormant_handle_opacity..=scroll_style.active_handle_opacity,
+                        outer_hover_t,
+                    );
+                    lerp(idle_opacity..=scroll_style.interact_handle_opacity, hover_t)
                 } else {
                     1.0
                 };
 
                 let background_opacity = if scroll_style.floating {
-                    if response.hovered() || response.dragged() {
-                        scroll_style.interact_background_opacity
-                    } else if is_hovering_outer_rect {
-                        scroll_style.active_background_opacity
-                    } else {
+                    let idle_opacity = lerp(
                         scroll_style.dormant_background_opacity
-                    }
+                            ..=scroll_style.active_background_opacity,
+                        outer_hover_t,
+                    );
+                    lerp(
+                        idle_opacity..=scroll_style.interact_background_opacity,
+                        hover_t,
+                    )
                 } else {
                     1.0
-                };
-
-                let handle_color = if scroll_style.foreground_color {
-                    visuals.fg_stroke.color
-                } else {
-                    visuals.bg_fill
                 };
 
                 // Background:
