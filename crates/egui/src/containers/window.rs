@@ -973,8 +973,8 @@ impl ResizeInteraction {
         self.left.drag || self.right.drag || self.top.drag || self.bottom.drag
     }
 
-    fn state(&self) -> ResizeState {
-        ResizeState::new(self.any_hovered(), self.any_dragged())
+    fn state(&self) -> HighlightState {
+        HighlightState::new(self.any_hovered(), self.any_dragged())
     }
 }
 
@@ -1242,7 +1242,7 @@ fn do_resize_interaction(
 fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction, stroke: Stroke) {
     use epaint::tessellator::path::add_circle_quadrant;
 
-    if interaction.state() == ResizeState::Idle || stroke == interaction.window_frame.stroke {
+    if interaction.state() == HighlightState::Idle || stroke == interaction.window_frame.stroke {
         return;
     }
 

@@ -403,6 +403,7 @@ mod drag_and_drop;
 mod embedded_view;
 pub(crate) mod grid;
 pub mod gui_zoom;
+mod highlight_state;
 mod hit_test;
 mod id;
 mod id_salt;
@@ -418,7 +419,6 @@ mod painter;
 pub mod pass_state;
 pub(crate) mod placer;
 pub mod plugin;
-mod resize_state;
 pub mod response;
 mod sense;
 pub mod style;
@@ -508,6 +508,7 @@ pub use self::{
     embedded_view::{EmbeddedView, EmbeddedViewOutput, EmbeddedViewPlacement},
     epaint::text::TextWrapMode,
     grid::Grid,
+    highlight_state::HighlightState,
     hit_test::WidgetHits,
     id::{Id, IdMap, IdSet},
     id_salt::{AsIdSalt, IdSalt, IdSaltMap, IdSaltSet},
@@ -519,7 +520,6 @@ pub use self::{
     memory::{Areas, FocusDirection, Memory, Options, Theme, ThemePreference},
     painter::Painter,
     plugin::Plugin,
-    resize_state::ResizeState,
     response::{InnerResponse, Response},
     sense::Sense,
     style::{

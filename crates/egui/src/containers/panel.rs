@@ -18,8 +18,8 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align, AsIdSalt, Context, CursorIcon, Frame, Id, IdSalt, InnerResponse, LayerId, Layout,
-    Margin, NumExt as _, Order, Rangef, Rect, ResizeState, Response, Role, Sense, Stroke, Ui,
+    Align, AsIdSalt, Context, CursorIcon, Frame, HighlightState, Id, IdSalt, InnerResponse,
+    LayerId, Layout, Margin, NumExt as _, Order, Rangef, Rect, Response, Role, Sense, Stroke, Ui,
     UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, lerp,
 };
 
@@ -894,12 +894,12 @@ impl Panel {
                 is_expanded_now,
                 parent_ui,
             );
-            ResizeState::from(&resize_response)
+            HighlightState::from(&resize_response)
         } else {
-            ResizeState::Idle
+            HighlightState::Idle
         };
 
-        if resize_state != ResizeState::Idle {
+        if resize_state != HighlightState::Idle {
             parent_ui.set_cursor_icon(self.cursor_icon(outer_size));
         }
 
@@ -1077,7 +1077,8 @@ impl Panel {
 
         // Invisible until hovered, so the handle doesn't read as a stray line at
         // the edge of the screen.
-        let stroke = ui.resize_line_stroke(resize_id, ResizeState::from(&response), Stroke::NONE);
+        let stroke =
+            ui.resize_line_stroke(resize_id, HighlightState::from(&response), Stroke::NONE);
         if 0.0 < stroke.width {
             // The collapsed panel occupies no space of its own, so the line has to
             // go _inside_ the area the following panels use — which means painting

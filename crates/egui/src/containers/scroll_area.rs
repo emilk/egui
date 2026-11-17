@@ -8,9 +8,9 @@ use emath::GuiRounding as _;
 use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
-    AsIdSalt, Context, CursorIcon, FadeOut, Id, IdSalt, MouseWheelSource, NumExt as _, Pos2,
-    Rangef, Rect, Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
-    WidgetInfo, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
+    AsIdSalt, Context, CursorIcon, FadeOut, HighlightState, Id, IdSalt, MouseWheelSource,
+    NumExt as _, Pos2, Rangef, Rect, Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo,
+    Vec2, Vec2b, WidgetInfo, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
 };
 
 use super::scroll_physics::{AxisPhysics, WheelScroll, scroll_bounds};
@@ -1407,8 +1407,10 @@ impl Prepared {
         let outer_hover_t = if scroll_style.floating {
             ui.delayed_highlight(
                 id.with("outer_hover"),
-                is_hovering_outer_rect,
-                is_dragging_background || is_wheel_scrolling,
+                HighlightState::new(
+                    is_hovering_outer_rect,
+                    is_dragging_background || is_wheel_scrolling,
+                ),
                 FadeOut::Animated,
             )
         } else {
@@ -1490,8 +1492,10 @@ impl Prepared {
             // left/rigth of a vertical scroll (d==1).
             let hover_t = ui.delayed_highlight(
                 response.id,
-                response.hovered() || state.scroll_bar_interaction[d],
-                response.is_pointer_button_down_on() || response.dragged(),
+                HighlightState::new(
+                    response.hovered() || state.scroll_bar_interaction[d],
+                    response.is_pointer_button_down_on() || response.dragged(),
+                ),
                 FadeOut::Animated,
             );
 
