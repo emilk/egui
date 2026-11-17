@@ -1064,6 +1064,8 @@ pub struct Interaction {
 /// This avoids distracting flashes when the pointer merely passes over something,
 /// such as the resize line between two panels.
 ///
+/// The fade-in takes [`Style::animation_time`].
+///
 /// See [`crate::Context::delayed_highlight`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -1071,9 +1073,6 @@ pub struct Interaction {
 pub struct DelayedHighlight {
     /// How long the pointer must rest on the thing before the highlight starts to appear, in seconds.
     pub delay: f32,
-
-    /// How long the highlight takes to fade in after [`Self::delay`], in seconds.
-    pub fade_in_time: f32,
 
     /// The easing curve of the fade-in.
     pub easing: Easing,
@@ -1083,27 +1082,15 @@ impl Default for DelayedHighlight {
     fn default() -> Self {
         Self {
             delay: 0.2,
-            fade_in_time: 0.1,
             easing: Easing::QuadraticIn,
         }
     }
 }
 
 impl DelayedHighlight {
-    /// Show the highlight immediately, with no delay or fade-in.
-    pub const IMMEDIATE: Self = Self {
-        delay: 0.0,
-        fade_in_time: 0.0,
-        easing: Easing::Linear,
-    };
-
     /// How visible the highlight is (0-1), given how long the thing has been hovered.
-    pub fn strength(&self, hover_duration: f32) -> f32 {
-        let Self {
-            delay,
-            fade_in_time,
-            easing,
-        } = *self;
+    pub fn strength(&self, fade_in_time: f32, hover_duration: f32) -> f32 {
+        let Self { delay, easing } = *self;
         let t = hover_duration - delay;
         if t < 0.0 {
             0.0
@@ -1128,22 +1115,11 @@ impl DelayedHighlight {
     }
 
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        let Self {
-            delay,
-            fade_in_time,
-            easing,
-        } = self;
+        let Self { delay, easing } = self;
         ui.horizontal(|ui| {
             ui.label("delay");
             ui.add(
                 DragValue::new(delay)
-                    .range(0.0..=2.0)
-                    .speed(0.01)
-                    .suffix(" s"),
-            );
-            ui.label("fade-in");
-            ui.add(
-                DragValue::new(fade_in_time)
                     .range(0.0..=2.0)
                     .speed(0.01)
                     .suffix(" s"),
@@ -2176,8 +2152,9 @@ impl Style {
             );
             ui.end_row();
 
-            ui.label("Hover highlight")
-                .on_hover_text("Delay and fade-in time of hover highlights");
+            ui.label("Hover highlight").on_hover_text(
+                "Delay and easing of hover highlights. They fade in over the animation duration.",
+            );
             hover_highlight.ui(ui);
             ui.end_row();
         });
@@ -3509,15 +3486,14 @@ mod delayed_highlight_tests {
     fn strength() {
         let highlight = DelayedHighlight {
             delay: 0.2,
-            fade_in_time: 0.1,
             easing: Easing::Linear,
         };
-        assert_eq!(highlight.strength(0.0), 0.0);
-        assert_eq!(highlight.strength(0.2), 0.0);
-        assert!((highlight.strength(0.25) - 0.5).abs() < 1e-5);
-        assert_eq!(highlight.strength(0.3), 1.0);
-        assert_eq!(highlight.strength(10.0), 1.0);
+        assert_eq!(highlight.strength(0.1, 0.0), 0.0);
+        assert_eq!(highlight.strength(0.1, 0.2), 0.0);
+        assert!((highlight.strength(0.1, 0.25) - 0.5).abs() < 1e-5);
+        assert_eq!(highlight.strength(0.1, 0.3), 1.0);
+        assert_eq!(highlight.strength(0.1, 10.0), 1.0);
 
-        assert_eq!(DelayedHighlight::IMMEDIATE.strength(0.0), 1.0);
+        assert_eq!(highlight.strength(0.0, 0.2), 1.0);
     }
 }

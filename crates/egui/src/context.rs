@@ -3719,7 +3719,7 @@ impl Context {
     /// How visible a delayed hover highlight should be, in the range [0, 1].
     ///
     /// Returns `0.0` until `hovered` has been `true` for [`DelayedHighlight::delay`] seconds,
-    /// then fades in (with easing) to `1.0` over [`DelayedHighlight::fade_in_time`] seconds.
+    /// then fades in (with [`DelayedHighlight::easing`]) to `1.0` over [`Style::animation_time`] seconds.
     /// Returns `0.0` immediately when `hovered` becomes `false`.
     ///
     /// Use this for highlights that would be distracting if they flashed every time
@@ -3739,7 +3739,8 @@ impl Context {
         let now = self.input(|i| i.time);
         let hover_start = self.data_mut(|data| *data.get_temp_mut_or(id, now));
         let hover_duration = (now - hover_start) as f32;
-        let strength = highlight.strength(hover_duration);
+        let fade_in_time = self.global_style().animation_time;
+        let strength = highlight.strength(fade_in_time, hover_duration);
 
         if hover_duration < highlight.delay {
             self.request_repaint_after_secs(highlight.delay - hover_duration);
