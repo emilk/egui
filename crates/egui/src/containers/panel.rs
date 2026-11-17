@@ -18,9 +18,9 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align, AsIdSalt, Context, CursorIcon, Frame, Id, IdSalt, InnerResponse, LayerId, Layout,
-    Margin, NumExt as _, Order, Rangef, Rect, Response, Role, Sense, Stroke, Ui, UiBuilder, UiKind,
-    UiStackInfo, Vec2, WidgetInfo, lerp,
+    Align, AsIdSalt, Color32, Context, CursorIcon, Frame, Id, IdSalt, InnerResponse, LayerId,
+    Layout, Margin, NumExt as _, Order, Rangef, Rect, Response, Role, Sense, Stroke, Ui, UiBuilder,
+    UiKind, UiStackInfo, Vec2, WidgetInfo, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -35,6 +35,47 @@ fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
 /// both of its panels at one shared handle the same way.
 fn resize_widget_id(id_source: Id) -> Id {
     id_source.with("__resize")
+}
+
+/// The stroke of a panel's resize line.
+///
+/// Shown at full strength right away while dragging, but faded in after a delay on hover
+/// (see [`crate::style::Interaction::resize_hover_highlight`]), so the line doesn't flash
+/// every time the pointer passes over it.
+fn resize_line_stroke(
+    ui: &Ui,
+    resize_id: Id,
+    hovered: bool,
+    dragged: bool,
+    idle_stroke: Stroke,
+) -> Stroke {
+    let style = ui.style();
+    let strength = ui.ctx().delayed_highlight(
+        resize_id,
+        hovered || dragged,
+        style.interaction.resize_hover_highlight,
+    );
+
+    if dragged {
+        return style.visuals.widgets.active.fg_stroke;
+    }
+    if strength <= 0.0 {
+        return idle_stroke;
+    }
+
+    let hovered_stroke = style.visuals.widgets.hovered.fg_stroke;
+    let idle_stroke = if idle_stroke.width <= 0.0 {
+        // Fade in the color, not the width:
+        Stroke::new(hovered_stroke.width, Color32::TRANSPARENT)
+    } else {
+        idle_stroke
+    };
+    Stroke::new(
+        lerp(idle_stroke.width..=hovered_stroke.width, strength),
+        idle_stroke
+            .color
+            .lerp_to_gamma(hovered_stroke.color, strength),
+    )
 }
 
 /// State regarding panels.
@@ -927,16 +968,19 @@ impl Panel {
         // loses sight of the edge they are dragging. The dim idle separator does
         // get hidden once the panel is mostly slid off, since there it would just
         // be a stray dash hovering near the parent edge.
-        let stroke = if is_resizing {
-            parent_ui.style().visuals.widgets.active.fg_stroke // highly visible
-        } else if resize_hover {
-            parent_ui.style().visuals.widgets.hovered.fg_stroke // highly visible
-        } else if show_separator_line && 0.01 < self.slide_fraction {
+        let idle_stroke = if show_separator_line && 0.01 < self.slide_fraction {
             // TODO(emilk): distinguish resizable from non-resizable
             parent_ui.style().visuals.widgets.noninteractive.bg_stroke // dim
         } else {
             Stroke::NONE
         };
+        let stroke = resize_line_stroke(
+            parent_ui,
+            self.resize_id(parent_ui),
+            resize_hover,
+            is_resizing,
+            idle_stroke,
+        );
         if 0.0 < stroke.width {
             // Nudged inward, to keep the line inside the panel's own (shifted)
             // rect: `parent_ui`'s painter sits below the panels that come after
@@ -1079,13 +1123,13 @@ impl Panel {
 
         // Invisible until hovered, so the handle doesn't read as a stray line at
         // the edge of the screen.
-        let stroke = if response.dragged() {
-            ui.style().visuals.widgets.active.fg_stroke
-        } else if response.hovered() {
-            ui.style().visuals.widgets.hovered.fg_stroke
-        } else {
-            Stroke::NONE
-        };
+        let stroke = resize_line_stroke(
+            ui,
+            resize_id,
+            response.hovered(),
+            response.dragged(),
+            Stroke::NONE,
+        );
         if 0.0 < stroke.width {
             // The collapsed panel occupies no space of its own, so the line has to
             // go _inside_ the area the following panels use — which means painting
