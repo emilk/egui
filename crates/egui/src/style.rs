@@ -1073,6 +1073,8 @@ pub struct DelayedHighlight {
     pub delay: f32,
 
     /// How long the highlight takes to fade in after [`Self::delay`], in seconds.
+    ///
+    /// The fade uses [`emath::easing::cubic_in_out`].
     pub fade_in_time: f32,
 }
 
@@ -1104,7 +1106,7 @@ impl DelayedHighlight {
         } else if fade_in_time <= 0.0 {
             1.0
         } else {
-            (t / fade_in_time).min(1.0)
+            emath::easing::cubic_in_out((t / fade_in_time).min(1.0))
         }
     }
 

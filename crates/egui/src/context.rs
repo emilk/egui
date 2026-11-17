@@ -3719,7 +3719,7 @@ impl Context {
     /// How visible a delayed hover highlight should be, in the range [0, 1].
     ///
     /// Returns `0.0` until `hovered` has been `true` for [`DelayedHighlight::delay`] seconds,
-    /// then fades in linearly to `1.0` over [`DelayedHighlight::fade_in_time`] seconds.
+    /// then fades in (with easing) to `1.0` over [`DelayedHighlight::fade_in_time`] seconds.
     /// Returns `0.0` immediately when `hovered` becomes `false`.
     ///
     /// Use this for highlights that would be distracting if they flashed every time
