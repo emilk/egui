@@ -8,9 +8,9 @@ use emath::GuiRounding as _;
 use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
-    AsIdSalt, Context, CursorIcon, Id, IdSalt, MouseWheelSource, NumExt as _, Pos2, Rangef, Rect,
-    Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, lerp,
-    pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
+    AsIdSalt, Context, CursorIcon, FadeOut, Id, IdSalt, MouseWheelSource, NumExt as _, Pos2,
+    Rangef, Rect, Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+    WidgetInfo, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
 };
 
 use super::scroll_physics::{AxisPhysics, WheelScroll, scroll_bounds};
@@ -1403,11 +1403,11 @@ impl Prepared {
 
         // How visible the floating bars are when hovering the scroll area:
         let outer_hover_t = if scroll_style.floating {
-            delayed_hover_strength(
-                ui,
+            ui.delayed_highlight(
                 id.with("outer_hover"),
                 is_hovering_outer_rect,
                 is_dragging_background,
+                FadeOut::Animated,
             )
         } else {
             0.0
@@ -1486,11 +1486,11 @@ impl Prepared {
 
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).
-            let hover_t = delayed_hover_strength(
-                ui,
+            let hover_t = ui.delayed_highlight(
                 response.id,
                 response.hovered() || state.scroll_bar_interaction[d],
                 response.is_pointer_button_down_on() || response.dragged(),
+                FadeOut::Animated,
             );
 
             let cross = if scroll_style.floating {
@@ -1787,37 +1787,6 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
             [bg_faded, Color32::TRANSPARENT],
         ));
     }
-}
-
-/// How strongly to highlight something on hover, in the range [0, 1].
-///
-/// Grows after the delay of [`crate::Style::hover_highlight`], so it doesn't flash
-/// when the pointer merely passes over, and shrinks back smoothly when no longer hovered.
-/// While `active` (e.g. pressed or dragged) it is at full strength right away.
-fn delayed_hover_strength(ui: &Ui, id: Id, hovered: bool, active: bool) -> f32 {
-    let ctx = ui.ctx();
-    let strength_id = id.with("hover_strength");
-    let previous = ctx
-        .data(|data| data.get_temp::<f32>(strength_id))
-        .unwrap_or(0.0);
-
-    let delayed = ctx.delayed_highlight(id, hovered, ui.style().hover_highlight);
-
-    let strength = if active {
-        1.0
-    } else if hovered {
-        delayed.max(previous)
-    } else {
-        let dt = ui.input(|i| i.stable_dt);
-        let shrunk = (previous - dt / ui.style().animation_time).max(0.0);
-        if 0.0 < shrunk {
-            ctx.request_repaint();
-        }
-        shrunk
-    };
-
-    ctx.data_mut(|data| data.insert_temp(strength_id, strength));
-    strength
 }
 
 #[cfg(test)]

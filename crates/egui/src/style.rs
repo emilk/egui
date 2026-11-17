@@ -317,9 +317,11 @@ pub struct Style {
     /// How many seconds a typical animation should last.
     pub animation_time: f32,
 
-    /// How hover highlights appear, e.g. on the resize line between panels.
+    /// How large hover highlights appear, e.g. on the resize line between panels.
     ///
     /// Note that the cursor icon is still changed immediately.
+    ///
+    /// See [`DelayedHighlight`].
     pub hover_highlight: DelayedHighlight,
 
     /// Options to help debug why egui behaves strangely.
@@ -1064,9 +1066,13 @@ pub struct Interaction {
 /// This avoids distracting flashes when the pointer merely passes over something,
 /// such as the resize line between two panels.
 ///
+/// The delay is primarily intended for large highlights, i.e. ones that cover a lot of
+/// the screen (like a resize line along a whole panel), where flashing is distracting.
+/// Small highlights, like on a button, should usually show right away.
+///
 /// The fade-in takes [`Style::animation_time`].
 ///
-/// See [`crate::Context::delayed_highlight`].
+/// See [`crate::Ui::delayed_highlight`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -1097,11 +1103,12 @@ impl DelayedHighlight {
         } else if fade_in_time <= 0.0 {
             1.0
         } else {
-            easing.apply((t / fade_in_time).min(1.0))
+            // Clamp, since some easing curves overshoot:
+            easing.apply((t / fade_in_time).min(1.0)).clamp(0.0, 1.0)
         }
     }
 
-    /// Fade from `idle` towards `highlighted`, by the strength from [`crate::Context::delayed_highlight`].
+    /// Fade from `idle` towards `highlighted`, by the strength from [`crate::Ui::delayed_highlight`].
     ///
     /// If `idle` is invisible, only the color fades in, so the line doesn't grow from zero width.
     pub fn fade_stroke(idle: Stroke, highlighted: Stroke, strength: f32) -> Stroke {
@@ -1114,6 +1121,7 @@ impl DelayedHighlight {
         }
     }
 
+    /// Show widgets for editing these settings.
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self { delay, easing } = self;
         ui.horizontal(|ui| {
@@ -1133,6 +1141,17 @@ impl DelayedHighlight {
                 });
         });
     }
+}
+
+/// How a highlight from [`crate::Ui::delayed_highlight`] disappears
+/// when the thing is no longer hovered.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FadeOut {
+    /// Disappear right away.
+    Instant,
+
+    /// Fade out over [`Style::animation_time`].
+    Animated,
 }
 
 /// Look and feel of the text cursor.

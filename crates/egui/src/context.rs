@@ -16,13 +16,13 @@ use epaint::{
 };
 
 use crate::{
-    Align2, CursorIcon, DeferredViewportUiCallback, DelayedHighlight, FontDefinitions,
-    FontProvider, GlyphRasterizer, Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback,
-    Key, KeyboardShortcut, Label, LayerId, Memory, MissingGlyphPolicy, ModifierNames, Modifiers,
-    NumExt as _, Order, Painter, RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense,
-    Style, TextStyle, TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder,
-    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
-    Visuals, Widget as _, WidgetRect, WidgetText,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, FontProvider, GlyphRasterizer,
+    Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label,
+    LayerId, Memory, MissingGlyphPolicy, ModifierNames, Modifiers, NumExt as _, Order, Painter,
+    RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle,
+    TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId,
+    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect,
+    WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -3716,41 +3716,6 @@ impl Context {
 
 /// ## Animation
 impl Context {
-    /// How visible a delayed hover highlight should be, in the range [0, 1].
-    ///
-    /// Returns `0.0` until `hovered` has been `true` for [`DelayedHighlight::delay`] seconds,
-    /// then fades in (with [`DelayedHighlight::easing`]) to `1.0` over [`Style::animation_time`] seconds.
-    /// Returns `0.0` immediately when `hovered` becomes `false`.
-    ///
-    /// Use this for highlights that would be distracting if they flashed every time
-    /// the pointer passed over them, e.g. the resize line between panels.
-    ///
-    /// The `id` must be unique for the thing being highlighted.
-    /// The function will request a repaint when needed.
-    #[track_caller] // To track repaint cause
-    pub fn delayed_highlight(&self, id: Id, hovered: bool, highlight: DelayedHighlight) -> f32 {
-        let id = id.with("delayed_highlight");
-
-        if !hovered {
-            self.data_mut(|data| data.remove_temp::<f64>(id));
-            return 0.0;
-        }
-
-        let now = self.input(|i| i.time);
-        let hover_start = self.data_mut(|data| *data.get_temp_mut_or(id, now));
-        let hover_duration = (now - hover_start) as f32;
-        let fade_in_time = self.global_style().animation_time;
-        let strength = highlight.strength(fade_in_time, hover_duration);
-
-        if hover_duration < highlight.delay {
-            self.request_repaint_after_secs(highlight.delay - hover_duration);
-        } else if strength < 1.0 {
-            self.request_repaint();
-        }
-
-        strength
-    }
-
     /// Returns a value in the range [0, 1], to indicate "how on" this thing is.
     ///
     /// The first time called it will return `if value { 1.0 } else { 0.0 }`

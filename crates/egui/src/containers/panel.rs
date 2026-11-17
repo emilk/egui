@@ -18,9 +18,9 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align, AsIdSalt, Context, CursorIcon, DelayedHighlight, Frame, Id, IdSalt, InnerResponse,
-    LayerId, Layout, Margin, NumExt as _, Order, Rangef, Rect, Response, Role, Sense, Stroke, Ui,
-    UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, lerp,
+    Align, AsIdSalt, Context, CursorIcon, DelayedHighlight, FadeOut, Frame, Id, IdSalt,
+    InnerResponse, LayerId, Layout, Margin, NumExt as _, Order, Rangef, Rect, Response, Role,
+    Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -49,16 +49,14 @@ fn resize_line_stroke(
     dragged: bool,
     idle_stroke: Stroke,
 ) -> Stroke {
-    let style = ui.style();
+    let strength = ui.delayed_highlight(resize_id, hovered, dragged, FadeOut::Instant);
 
+    let style = ui.style();
     if dragged {
         // No delay or fade-in when dragging:
         return style.visuals.widgets.active.fg_stroke;
     }
 
-    let strength = ui
-        .ctx()
-        .delayed_highlight(resize_id, hovered, style.hover_highlight);
     DelayedHighlight::fade_stroke(
         idle_stroke,
         style.visuals.widgets.hovered.fg_stroke,

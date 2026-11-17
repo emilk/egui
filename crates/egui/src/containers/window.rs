@@ -757,10 +757,11 @@ impl Window<'_> {
                 outer_rect,
                 window_frame,
             );
-            let hover_strength = ctx.delayed_highlight(
+            let hover_strength = area_content_ui.delayed_highlight(
                 area.id().with("resize"),
                 resize_interaction.any_hovered(),
-                area_content_ui.style().hover_highlight,
+                resize_interaction.any_dragged(),
+                FadeOut::Instant,
             );
 
             paint_resize_corner(
@@ -1239,7 +1240,9 @@ fn do_resize_interaction(
 }
 
 /// Fill in parts of the window frame when we resize by dragging that part
-/// `hover_strength` comes from [`Context::delayed_highlight`].
+/// Paint the highlighted window edges while resizing.
+///
+/// `hover_strength` comes from [`Ui::delayed_highlight`].
 fn paint_frame_interaction(
     ui: &Ui,
     rect: Rect,
