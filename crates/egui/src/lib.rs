@@ -520,7 +520,9 @@ pub use self::{
     plugin::Plugin,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{CodeVisuals, FontSelection, Spacing, Style, TextStyle, Visuals},
+    style::{
+        CodeVisuals, DelayedHighlight, FadeOut, FontSelection, Spacing, Style, TextStyle, Visuals,
+    },
     text::{Galley, TextFormat},
     ui::Ui,
     ui_builder::{IdSource, UiBuilder},
