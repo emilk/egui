@@ -18,9 +18,9 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align, AsIdSalt, Color32, Context, CursorIcon, Frame, Id, IdSalt, InnerResponse, LayerId,
-    Layout, Margin, NumExt as _, Order, Rangef, Rect, Response, Role, Sense, Stroke, Ui, UiBuilder,
-    UiKind, UiStackInfo, Vec2, WidgetInfo, lerp,
+    Align, AsIdSalt, Context, CursorIcon, DelayedHighlight, Frame, Id, IdSalt, InnerResponse,
+    LayerId, Layout, Margin, NumExt as _, Order, Rangef, Rect, Response, Role, Sense, Stroke, Ui,
+    UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -59,22 +59,10 @@ fn resize_line_stroke(
     let strength = ui
         .ctx()
         .delayed_highlight(resize_id, hovered, style.hover_highlight);
-    if strength <= 0.0 {
-        return idle_stroke;
-    }
-
-    let hovered_stroke = style.visuals.widgets.hovered.fg_stroke;
-    let idle_stroke = if idle_stroke.width <= 0.0 {
-        // Fade in the color, not the width:
-        Stroke::new(hovered_stroke.width, Color32::TRANSPARENT)
-    } else {
-        idle_stroke
-    };
-    Stroke::new(
-        lerp(idle_stroke.width..=hovered_stroke.width, strength),
-        idle_stroke
-            .color
-            .lerp_to_gamma(hovered_stroke.color, strength),
+    DelayedHighlight::fade_stroke(
+        idle_stroke,
+        style.visuals.widgets.hovered.fg_stroke,
+        strength,
     )
 }
 

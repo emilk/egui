@@ -36,6 +36,17 @@ impl Stroke {
         self.width <= 0.0 || self.color == Color32::TRANSPARENT
     }
 
+    /// Interpolate the width (linearly) and the color (in gamma space) towards `other`.
+    ///
+    /// `t = 0` gives `self`, and `t = 1` gives `other`.
+    #[inline]
+    pub fn lerp(self, other: Self, t: f32) -> Self {
+        Self {
+            width: emath::lerp(self.width..=other.width, t),
+            color: self.color.lerp_to_gamma(other.color, t),
+        }
+    }
+
     /// For vertical or horizontal lines:
     /// round the stroke center to produce a sharp, pixel-aligned line.
     pub fn round_center_to_pixel(&self, pixels_per_point: f32, coord: &mut f32) {

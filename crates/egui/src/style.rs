@@ -1114,6 +1114,19 @@ impl DelayedHighlight {
         }
     }
 
+    /// Fade from `idle` towards `highlighted`, by the strength from [`crate::Context::delayed_highlight`].
+    ///
+    /// If `idle` is invisible, only the color fades in, so the line doesn't grow from zero width.
+    pub fn fade_stroke(idle: Stroke, highlighted: Stroke, strength: f32) -> Stroke {
+        if strength <= 0.0 {
+            idle
+        } else if idle.is_empty() {
+            Stroke::new(highlighted.width, Color32::TRANSPARENT).lerp(highlighted, strength)
+        } else {
+            idle.lerp(highlighted, strength)
+        }
+    }
+
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             delay,
