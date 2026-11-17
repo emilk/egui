@@ -16,6 +16,10 @@ pub enum Key {
     Tab,
     Backspace,
     Enter,
+
+    /// The numeric keypad Enter key, reported as a physical key.
+    /// Its logical key remains [`Self::Enter`].
+    NumpadEnter,
     Space,
 
     Insert,
@@ -341,6 +345,7 @@ impl Key {
         Self::Tab,
         Self::Backspace,
         Self::Enter,
+        Self::NumpadEnter,
         Self::Insert,
         Self::Delete,
         Self::Home,
@@ -510,7 +515,8 @@ impl Key {
             "Escape" | "Esc" => Self::Escape,
             "Tab" => Self::Tab,
             "Backspace" => Self::Backspace,
-            "Enter" | "Return" | "NumpadEnter" => Self::Enter,
+            "Enter" | "Return" => Self::Enter,
+            "NumpadEnter" => Self::NumpadEnter,
 
             "Insert" => Self::Insert,
             "Delete" => Self::Delete,
@@ -712,6 +718,7 @@ impl Key {
             Self::Tab => "Tab",
             Self::Backspace => "Backspace",
             Self::Enter => "Enter",
+            Self::NumpadEnter => "NumpadEnter",
 
             Self::Insert => "Insert",
             Self::Delete => "Delete",
