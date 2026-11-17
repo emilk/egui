@@ -18,6 +18,10 @@ pub enum HighlightState {
 }
 
 impl HighlightState {
+    /// `active` means the user is interacting with the thing right now,
+    /// e.g. pressing or dragging it, or scrolling with the mouse wheel.
+    /// An active thing is highlighted right away, without the hover delay.
+    ///
     /// Being active takes precedence over being hovered.
     pub fn new(hovered: bool, active: bool) -> Self {
         if active {
