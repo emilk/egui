@@ -1323,6 +1323,7 @@ impl Prepared {
             && ui.ctx().dragged_id().is_none()
             || is_dragging_background;
 
+        let mut is_wheel_scrolling = false;
         if scroll_source.mouse_wheel
             && ui.is_enabled()
             && (ui.rect_contains_pointer(outer_rect) || is_dragging_background)
@@ -1362,6 +1363,7 @@ impl Prepared {
                     );
 
                     if consumed {
+                        is_wheel_scrolling = true;
                         rubber_banding[d] = physics.is_rubber_banding(state.offset[d]);
 
                         // Clear scroll delta so no parent scroll will use it:
@@ -1406,7 +1408,7 @@ impl Prepared {
             ui.delayed_highlight(
                 id.with("outer_hover"),
                 is_hovering_outer_rect,
-                is_dragging_background,
+                is_dragging_background || is_wheel_scrolling,
                 FadeOut::Animated,
             )
         } else {
