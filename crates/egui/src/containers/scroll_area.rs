@@ -1401,6 +1401,18 @@ impl Prepared {
 
         paint_fade_areas_impl(ui, inner_rect, content_size, state.offset);
 
+        // How visible the floating bars are when hovering the scroll area:
+        let outer_hover_t = if scroll_style.floating {
+            delayed_hover_strength(
+                ui,
+                id.with("outer_hover"),
+                is_hovering_outer_rect,
+                is_dragging_background,
+            )
+        } else {
+            0.0
+        };
+
         // Paint the bars:
         let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
         for d in 0..2 {
@@ -1474,7 +1486,12 @@ impl Prepared {
 
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).
-            let hover_t = bar_hover_strength(ui, &response, state.scroll_bar_interaction[d]);
+            let hover_t = delayed_hover_strength(
+                ui,
+                response.id,
+                response.hovered() || state.scroll_bar_interaction[d],
+                response.is_pointer_button_down_on() || response.dragged(),
+            );
 
             let cross = if scroll_style.floating {
                 let width = show_factor * lerp(scroll_style.floating_width..=full_width, hover_t);
@@ -1607,13 +1624,9 @@ impl Prepared {
                 };
 
                 let handle_opacity = if scroll_style.floating {
-                    let is_hovering_outer_rect_t = ui.ctx().animate_bool_responsive(
-                        id.with((d, "is_hovering_outer_rect")),
-                        is_hovering_outer_rect,
-                    );
                     let idle_opacity = lerp(
                         scroll_style.dormant_handle_opacity..=scroll_style.active_handle_opacity,
-                        is_hovering_outer_rect_t,
+                        outer_hover_t,
                     );
                     lerp(idle_opacity..=scroll_style.interact_handle_opacity, hover_t)
                 } else {
@@ -1621,11 +1634,11 @@ impl Prepared {
                 };
 
                 let background_opacity = if scroll_style.floating {
-                    let idle_opacity = if is_hovering_outer_rect {
-                        scroll_style.active_background_opacity
-                    } else {
+                    let idle_opacity = lerp(
                         scroll_style.dormant_background_opacity
-                    };
+                            ..=scroll_style.active_background_opacity,
+                        outer_hover_t,
+                    );
                     lerp(
                         idle_opacity..=scroll_style.interact_background_opacity,
                         hover_t,
@@ -1776,22 +1789,21 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
     }
 }
 
-/// How highlighted a scroll bar is, in the range [0, 1].
+/// How strongly to highlight something on hover, in the range [0, 1].
 ///
-/// Grows after the delay of [`crate::Style::hover_highlight`], so the bar doesn't flash
-/// when the pointer merely passes over it, and shrinks back smoothly when the pointer leaves.
-/// Pressing or dragging the bar gives full strength right away.
-fn bar_hover_strength(ui: &Ui, response: &Response, was_interacting: bool) -> f32 {
+/// Grows after the delay of [`crate::Style::hover_highlight`], so it doesn't flash
+/// when the pointer merely passes over, and shrinks back smoothly when no longer hovered.
+/// While `active` (e.g. pressed or dragged) it is at full strength right away.
+fn delayed_hover_strength(ui: &Ui, id: Id, hovered: bool, active: bool) -> f32 {
     let ctx = ui.ctx();
-    let strength_id = response.id.with("hover_strength");
+    let strength_id = id.with("hover_strength");
     let previous = ctx
         .data(|data| data.get_temp::<f32>(strength_id))
         .unwrap_or(0.0);
 
-    let hovered = response.hovered() || was_interacting;
-    let delayed = ctx.delayed_highlight(response.id, hovered, ui.style().hover_highlight);
+    let delayed = ctx.delayed_highlight(id, hovered, ui.style().hover_highlight);
 
-    let strength = if response.is_pointer_button_down_on() || response.dragged() {
+    let strength = if active {
         1.0
     } else if hovered {
         delayed.max(previous)
