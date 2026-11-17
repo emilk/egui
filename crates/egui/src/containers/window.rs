@@ -1250,11 +1250,11 @@ fn paint_frame_interaction(
 
     let stroke = if interaction.any_dragged() {
         // No delay or fade-in when dragging:
-        ui.style().visuals.widgets.active.bg_stroke
+        ui.style().visuals.widgets.active.fg_stroke
     } else if interaction.any_hovered() && 0.0 < hover_strength {
         DelayedHighlight::fade_stroke(
             interaction.window_frame.stroke,
-            ui.style().visuals.widgets.hovered.bg_stroke,
+            ui.style().visuals.widgets.hovered.fg_stroke,
             hover_strength,
         )
     } else {
