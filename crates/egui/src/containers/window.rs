@@ -757,6 +757,11 @@ impl Window<'_> {
                 outer_rect,
                 window_frame,
             );
+            let hover_strength = ctx.delayed_highlight(
+                area.id().with("resize"),
+                resize_interaction.any_hovered(),
+                area_content_ui.style().hover_highlight,
+            );
 
             paint_resize_corner(
                 &area_content_ui,
@@ -764,6 +769,7 @@ impl Window<'_> {
                 outer_rect,
                 &window_frame,
                 resize_interaction,
+                hover_strength,
             );
 
             {
@@ -782,7 +788,12 @@ impl Window<'_> {
 
             collapsing.store(ctx);
 
-            paint_frame_interaction(&area_content_ui, outer_rect, resize_interaction);
+            paint_frame_interaction(
+                &area_content_ui,
+                outer_rect,
+                resize_interaction,
+                hover_strength,
+            );
 
             outer_response.inner
         };
@@ -809,6 +820,7 @@ fn paint_resize_corner(
     outer_rect: Rect,
     window_frame: &Frame,
     i: ResizeInteraction,
+    hover_strength: f32,
 ) {
     let cr = window_frame.corner_radius;
 
@@ -845,7 +857,11 @@ fn paint_resize_corner(
     let stroke = if corner_response.drag {
         ui.visuals().widgets.active.fg_stroke
     } else if corner_response.hover {
-        ui.visuals().widgets.hovered.fg_stroke
+        DelayedHighlight::fade_stroke(
+            window_frame.stroke,
+            ui.visuals().widgets.hovered.fg_stroke,
+            hover_strength,
+        )
     } else {
         window_frame.stroke
     };
@@ -1223,13 +1239,24 @@ fn do_resize_interaction(
 }
 
 /// Fill in parts of the window frame when we resize by dragging that part
-fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) {
+/// `hover_strength` comes from [`Context::delayed_highlight`].
+fn paint_frame_interaction(
+    ui: &Ui,
+    rect: Rect,
+    interaction: ResizeInteraction,
+    hover_strength: f32,
+) {
     use epaint::tessellator::path::add_circle_quadrant;
 
-    let visuals = if interaction.any_dragged() {
-        ui.style().visuals.widgets.active
-    } else if interaction.any_hovered() {
-        ui.style().visuals.widgets.hovered
+    let stroke = if interaction.any_dragged() {
+        // No delay or fade-in when dragging:
+        ui.style().visuals.widgets.active.bg_stroke
+    } else if interaction.any_hovered() && 0.0 < hover_strength {
+        DelayedHighlight::fade_stroke(
+            interaction.window_frame.stroke,
+            ui.style().visuals.widgets.hovered.bg_stroke,
+            hover_strength,
+        )
     } else {
         return;
     };
@@ -1254,7 +1281,6 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
     let rect = rect.shrink(interaction.window_frame.stroke.width * 0.5);
 
     // Make sure the inner part of the stroke is at a pixel boundary:
-    let stroke = visuals.bg_stroke;
     let half_stroke = stroke.width * 0.5;
     let rect = rect
         .shrink(half_stroke)
