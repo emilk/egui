@@ -374,7 +374,7 @@ pub fn circular_in_out(t: f32) -> f32 {
     }
 }
 
-/// Ease in: almost no motion at first, then very fast at the end. Strongest of the power curves.
+/// Ease in: almost no motion at first, then very fast at the end.
 ///
 /// There is a small discontinuity at 0.
 ///
@@ -388,7 +388,7 @@ pub fn exponential_in(t: f32) -> f32 {
     }
 }
 
-/// Ease out: very fast at first, then almost no motion at the end. Strongest of the power curves.
+/// Ease out: very fast at first, then almost no motion at the end.
 ///
 /// There is a small discontinuity at 1.
 ///
@@ -410,7 +410,7 @@ pub fn exponential_in_out(t: f32) -> f32 {
     } else if t < 0.5 {
         0.5 * powf(2.0, 20. * t - 10.)
     } else {
-        0.5 * powf(2.0, -20. * t + 10.) + 1.
+        1. - 0.5 * powf(2.0, -20. * t + 10.)
     }
 }
 
@@ -513,6 +513,21 @@ mod tests {
         for easing in Easing::ALL {
             assert!(easing.apply(0.0).abs() < 1e-5, "{easing:?}");
             assert!((easing.apply(1.0) - 1.0).abs() < 1e-5, "{easing:?}");
+        }
+    }
+
+    #[test]
+    fn stays_in_unit_range() {
+        let overshooting = [Easing::BackIn, Easing::BackOut, Easing::BackInOut];
+        for easing in Easing::ALL {
+            if overshooting.contains(&easing) {
+                continue;
+            }
+            for i in 0..=100 {
+                let t = i as f32 / 100.0;
+                let y = easing.apply(t);
+                assert!((-1e-5..=1.0 + 1e-5).contains(&y), "{easing:?}({t}) = {y}");
+            }
         }
     }
 }
