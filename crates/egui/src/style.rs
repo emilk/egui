@@ -1084,7 +1084,7 @@ impl Default for DelayedHighlight {
         Self {
             delay: 0.2,
             fade_in_time: 0.1,
-            easing: Easing::CubicInOut,
+            easing: Easing::QuadraticIn,
         }
     }
 }
