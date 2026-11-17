@@ -2,7 +2,7 @@
 
 use alloc::{collections::BTreeMap, sync::Arc};
 use core::ops::RangeInclusive;
-use emath::Align;
+use emath::{Align, easing::Easing};
 use epaint::{
     CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
     text::{FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
@@ -1073,9 +1073,10 @@ pub struct DelayedHighlight {
     pub delay: f32,
 
     /// How long the highlight takes to fade in after [`Self::delay`], in seconds.
-    ///
-    /// The fade uses [`emath::easing::cubic_in_out`].
     pub fade_in_time: f32,
+
+    /// The easing curve of the fade-in.
+    pub easing: Easing,
 }
 
 impl Default for DelayedHighlight {
@@ -1083,6 +1084,7 @@ impl Default for DelayedHighlight {
         Self {
             delay: 0.2,
             fade_in_time: 0.1,
+            easing: Easing::CubicInOut,
         }
     }
 }
@@ -1092,6 +1094,7 @@ impl DelayedHighlight {
     pub const IMMEDIATE: Self = Self {
         delay: 0.0,
         fade_in_time: 0.0,
+        easing: Easing::Linear,
     };
 
     /// How visible the highlight is (0-1), given how long the thing has been hovered.
@@ -1099,6 +1102,7 @@ impl DelayedHighlight {
         let Self {
             delay,
             fade_in_time,
+            easing,
         } = *self;
         let t = hover_duration - delay;
         if t < 0.0 {
@@ -1106,7 +1110,7 @@ impl DelayedHighlight {
         } else if fade_in_time <= 0.0 {
             1.0
         } else {
-            emath::easing::cubic_in_out((t / fade_in_time).min(1.0))
+            easing.apply((t / fade_in_time).min(1.0))
         }
     }
 
@@ -1114,6 +1118,7 @@ impl DelayedHighlight {
         let Self {
             delay,
             fade_in_time,
+            easing,
         } = self;
         ui.horizontal(|ui| {
             ui.label("delay");
@@ -1130,6 +1135,13 @@ impl DelayedHighlight {
                     .speed(0.01)
                     .suffix(" s"),
             );
+            crate::ComboBox::from_id_salt("delayed_highlight_easing")
+                .selected_text(format!("{easing:?}"))
+                .show_ui(ui, |ui| {
+                    for option in Easing::ALL {
+                        ui.selectable_value(easing, option, format!("{option:?}"));
+                    }
+                });
         });
     }
 }
@@ -3478,13 +3490,14 @@ impl Widget for &mut FontTweak {
 
 #[cfg(test)]
 mod delayed_highlight_tests {
-    use super::DelayedHighlight;
+    use super::{DelayedHighlight, Easing};
 
     #[test]
     fn strength() {
         let highlight = DelayedHighlight {
             delay: 0.2,
             fade_in_time: 0.1,
+            easing: Easing::Linear,
         };
         assert_eq!(highlight.strength(0.0), 0.0);
         assert_eq!(highlight.strength(0.2), 0.0);

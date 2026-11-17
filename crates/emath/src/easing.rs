@@ -9,6 +9,165 @@ use core::f32::consts::{FRAC_PI_2, PI};
 
 use crate::fast_midpoint;
 
+/// One of the easing curves in this module.
+///
+/// Useful when you want to store the choice of easing, e.g. in a style.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum Easing {
+    /// No easing, just `y = x`
+    #[default]
+    Linear,
+
+    /// <https://easings.net/#easeInQuad>
+    ///
+    /// Modeled after the parabola `y = x^2`
+    QuadraticIn,
+
+    /// <https://easings.net/#easeOutQuad>
+    ///
+    /// Same as `1.0 - quadratic_in(1.0 - t)`.
+    QuadraticOut,
+
+    /// <https://easings.net/#easeInOutQuad>
+    QuadraticInOut,
+
+    /// <https://easings.net/#easeInCubic>
+    ///
+    /// Modeled after the parabola `y = x^3`
+    CubicIn,
+
+    /// <https://easings.net/#easeOutCubic>
+    CubicOut,
+
+    /// <https://easings.net/#easeInOutCubic>
+    CubicInOut,
+
+    /// <https://easings.net/#easeInSine>
+    ///
+    /// Modeled after quarter-cycle of sine wave
+    SinIn,
+
+    /// <https://easings.net/#easeOuSine>
+    ///
+    /// Modeled after quarter-cycle of sine wave (different phase)
+    SinOut,
+
+    /// <https://easings.net/#easeInOutSine>
+    ///
+    /// Modeled after half sine wave
+    SinInOut,
+
+    /// <https://easings.net/#easeInCirc>
+    ///
+    /// Modeled after shifted quadrant IV of unit circle
+    CircularIn,
+
+    /// <https://easings.net/#easeOutCirc>
+    ///
+    /// Modeled after shifted quadrant II of unit circle
+    CircularOut,
+
+    /// <https://easings.net/#easeInOutCirc>
+    CircularInOut,
+
+    /// <https://easings.net/#easeInExpo>
+    ///
+    /// There is a small discontinuity at 0.
+    ExponentialIn,
+
+    /// <https://easings.net/#easeOutExpo>
+    ///
+    /// There is a small discontinuity at 1.
+    ExponentialOut,
+
+    /// <https://easings.net/#easeInOutExpo>
+    ///
+    /// There is a small discontinuity at 0 and 1.
+    ExponentialInOut,
+
+    /// <https://easings.net/#easeInBack>
+    BackIn,
+
+    /// <https://easings.net/#easeOutBack>
+    BackOut,
+
+    /// <https://easings.net/#easeInOutBack>
+    BackInOut,
+
+    /// <https://easings.net/#easeInBounce>
+    ///
+    /// Each bounce is modelled as a parabola.
+    BounceIn,
+
+    /// <https://easings.net/#easeOutBounce>
+    ///
+    /// Each bounce is modelled as a parabola.
+    BounceOut,
+
+    /// <https://easings.net/#easeInOutBounce>
+    ///
+    /// Each bounce is modelled as a parabola.
+    BounceInOut,
+}
+
+impl Easing {
+    /// All easing curves, in the same order as the variants.
+    pub const ALL: [Self; 22] = [
+        Self::Linear,
+        Self::QuadraticIn,
+        Self::QuadraticOut,
+        Self::QuadraticInOut,
+        Self::CubicIn,
+        Self::CubicOut,
+        Self::CubicInOut,
+        Self::SinIn,
+        Self::SinOut,
+        Self::SinInOut,
+        Self::CircularIn,
+        Self::CircularOut,
+        Self::CircularInOut,
+        Self::ExponentialIn,
+        Self::ExponentialOut,
+        Self::ExponentialInOut,
+        Self::BackIn,
+        Self::BackOut,
+        Self::BackInOut,
+        Self::BounceIn,
+        Self::BounceOut,
+        Self::BounceInOut,
+    ];
+
+    /// Map `t` in `[0, 1]` through this easing curve.
+    #[inline]
+    pub fn apply(self, t: f32) -> f32 {
+        match self {
+            Self::Linear => linear(t),
+            Self::QuadraticIn => quadratic_in(t),
+            Self::QuadraticOut => quadratic_out(t),
+            Self::QuadraticInOut => quadratic_in_out(t),
+            Self::CubicIn => cubic_in(t),
+            Self::CubicOut => cubic_out(t),
+            Self::CubicInOut => cubic_in_out(t),
+            Self::SinIn => sin_in(t),
+            Self::SinOut => sin_out(t),
+            Self::SinInOut => sin_in_out(t),
+            Self::CircularIn => circular_in(t),
+            Self::CircularOut => circular_out(t),
+            Self::CircularInOut => circular_in_out(t),
+            Self::ExponentialIn => exponential_in(t),
+            Self::ExponentialOut => exponential_out(t),
+            Self::ExponentialInOut => exponential_in_out(t),
+            Self::BackIn => back_in(t),
+            Self::BackOut => back_out(t),
+            Self::BackInOut => back_in_out(t),
+            Self::BounceIn => bounce_in(t),
+            Self::BounceOut => bounce_out(t),
+            Self::BounceInOut => bounce_in_out(t),
+        }
+    }
+}
+
 #[inline]
 fn powf(base: f32, exp: f32) -> f32 {
     base.powf(exp)
@@ -224,5 +383,18 @@ pub fn bounce_in_out(t: f32) -> f32 {
         0.5 * bounce_in(t * 2.)
     } else {
         0.5 * bounce_out(t * 2. - 1.) + 0.5
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Easing;
+
+    #[test]
+    fn endpoints() {
+        for easing in Easing::ALL {
+            assert!(easing.apply(0.0).abs() < 1e-5, "{easing:?}");
+            assert!((easing.apply(1.0) - 1.0).abs() < 1e-5, "{easing:?}");
+        }
     }
 }
