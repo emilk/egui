@@ -954,7 +954,7 @@ impl Ui {
 impl Ui {
     /// How strongly to show a hover highlight, in the range [0, 1].
     ///
-    /// Returns `0.0` until `hovered` has been `true` for [`DelayedHighlight::delay`] seconds,
+    /// Returns `0.0` until `state` has been [`HighlightState::Hovered`] for [`DelayedHighlight::delay`] seconds,
     /// then fades in (with [`DelayedHighlight::easing`]) to `1.0` over [`Style::animation_time`].
     /// The settings come from [`Style::hover_highlight`].
     ///
@@ -965,13 +965,13 @@ impl Ui {
     /// the screen (like a resize line along a whole panel), where flashing is distracting.
     /// Small highlights, like on a button, should usually show right away.
     ///
-    /// While `active` (e.g. pressed or dragged), returns `1.0` right away.
-    /// When no longer hovered nor active, `fade_out` decides how the highlight disappears.
+    /// While [`HighlightState::Active`], returns `1.0` right away.
+    /// When [`HighlightState::Idle`], `fade_out` decides how the highlight disappears.
     ///
     /// The `id` must be unique for the thing being highlighted.
     /// Requests a repaint when needed.
     #[track_caller] // To track repaint cause
-    pub fn delayed_highlight(&self, id: Id, hovered: bool, active: bool, fade_out: FadeOut) -> f32 {
+    pub fn delayed_highlight(&self, id: Id, state: HighlightState, fade_out: FadeOut) -> f32 {
         let ctx = self.ctx();
         let style = self.style();
         let animation_time = style.animation_time;
@@ -988,9 +988,10 @@ impl Ui {
             .filter(|state| frame_nr <= state.frame_nr + 1)
             .unwrap_or_default();
 
-        let hover_start = (hovered || active).then(|| previous.hover_start.unwrap_or(now));
+        let hover_start =
+            (state != HighlightState::Idle).then(|| previous.hover_start.unwrap_or(now));
 
-        let strength = if active {
+        let strength = if state == HighlightState::Active {
             1.0
         } else if let Some(hover_start) = hover_start {
             let hover_duration = (now - hover_start) as f32;
@@ -1035,6 +1036,28 @@ impl Ui {
         });
 
         strength
+    }
+
+    /// The stroke of a resize line, e.g. the splitter between two panels.
+    ///
+    /// While [`HighlightState::Hovered`], fades from `idle_stroke` to the hovered stroke of
+    /// [`Visuals::widgets`] using [`Self::delayed_highlight`], so the line doesn't flash every
+    /// time the pointer passes over it.
+    /// While [`HighlightState::Active`], shows the active stroke right away.
+    ///
+    /// Call this every frame, also when idle.
+    /// The `id` must be unique for the resize line.
+    #[track_caller] // To track repaint cause
+    pub fn resize_line_stroke(&self, id: Id, state: HighlightState, idle_stroke: Stroke) -> Stroke {
+        let strength = self.delayed_highlight(id, state, FadeOut::Instant);
+
+        let widgets = &self.visuals().widgets;
+        match state {
+            HighlightState::Active => widgets.active.fg_stroke,
+            HighlightState::Idle | HighlightState::Hovered => {
+                DelayedHighlight::fade_stroke(idle_stroke, widgets.hovered.fg_stroke, strength)
+            }
+        }
     }
 }
 

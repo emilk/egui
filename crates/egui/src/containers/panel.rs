@@ -18,9 +18,9 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align, AsIdSalt, Context, CursorIcon, DelayedHighlight, FadeOut, Frame, Id, IdSalt,
-    InnerResponse, LayerId, Layout, Margin, NumExt as _, Order, Rangef, Rect, Response, Role,
-    Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, lerp,
+    Align, AsIdSalt, Context, CursorIcon, Frame, HighlightState, Id, IdSalt, InnerResponse,
+    LayerId, Layout, Margin, NumExt as _, Order, Rangef, Rect, Response, Role, Sense, Stroke, Ui,
+    UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -35,33 +35,6 @@ fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
 /// both of its panels at one shared handle the same way.
 fn resize_widget_id(id_source: Id) -> Id {
     id_source.with("__resize")
-}
-
-/// The stroke of a panel's resize line.
-///
-/// Shown at full strength right away while dragging, but faded in after a delay on hover
-/// (see [`crate::Style::hover_highlight`]), so the line doesn't flash
-/// every time the pointer passes over it.
-fn resize_line_stroke(
-    ui: &Ui,
-    resize_id: Id,
-    hovered: bool,
-    dragged: bool,
-    idle_stroke: Stroke,
-) -> Stroke {
-    let strength = ui.delayed_highlight(resize_id, hovered, dragged, FadeOut::Instant);
-
-    let style = ui.style();
-    if dragged {
-        // No delay or fade-in when dragging:
-        return style.visuals.widgets.active.fg_stroke;
-    }
-
-    DelayedHighlight::fade_stroke(
-        idle_stroke,
-        style.visuals.widgets.hovered.fg_stroke,
-        strength,
-    )
 }
 
 /// State regarding panels.
@@ -911,7 +884,7 @@ impl Panel {
 
         parent_ui.expand_to_include_rect(visible_outer_rect);
 
-        let (resize_hover, is_resizing) = if resizable {
+        let resize_state = if resizable {
             // Now we do the actual resize interaction, on top of all the contents,
             // otherwise its input could be eaten by the contents, e.g. a
             // `ScrollArea` on either side of the panel boundary.
@@ -921,12 +894,12 @@ impl Panel {
                 is_expanded_now,
                 parent_ui,
             );
-            (resize_response.hovered(), resize_response.dragged())
+            HighlightState::from(&resize_response)
         } else {
-            (false, false)
+            HighlightState::Idle
         };
 
-        if resize_hover || is_resizing {
+        if resize_state != HighlightState::Idle {
             parent_ui.set_cursor_icon(self.cursor_icon(outer_size));
         }
 
@@ -960,13 +933,8 @@ impl Panel {
         } else {
             Stroke::NONE
         };
-        let stroke = resize_line_stroke(
-            parent_ui,
-            self.resize_id(parent_ui),
-            resize_hover,
-            is_resizing,
-            idle_stroke,
-        );
+        let stroke =
+            parent_ui.resize_line_stroke(self.resize_id(parent_ui), resize_state, idle_stroke);
         if 0.0 < stroke.width {
             // Nudged inward, to keep the line inside the panel's own (shifted)
             // rect: `parent_ui`'s painter sits below the panels that come after
@@ -1109,13 +1077,8 @@ impl Panel {
 
         // Invisible until hovered, so the handle doesn't read as a stray line at
         // the edge of the screen.
-        let stroke = resize_line_stroke(
-            ui,
-            resize_id,
-            response.hovered(),
-            response.dragged(),
-            Stroke::NONE,
-        );
+        let stroke =
+            ui.resize_line_stroke(resize_id, HighlightState::from(&response), Stroke::NONE);
         if 0.0 < stroke.width {
             // The collapsed panel occupies no space of its own, so the line has to
             // go _inside_ the area the following panels use — which means painting

@@ -757,11 +757,10 @@ impl Window<'_> {
                 outer_rect,
                 window_frame,
             );
-            let hover_strength = area_content_ui.delayed_highlight(
+            let resize_stroke = area_content_ui.resize_line_stroke(
                 area.id().with("resize"),
-                resize_interaction.any_hovered(),
-                resize_interaction.any_dragged(),
-                FadeOut::Instant,
+                resize_interaction.state(),
+                window_frame.stroke,
             );
 
             paint_resize_corner(
@@ -770,7 +769,7 @@ impl Window<'_> {
                 outer_rect,
                 &window_frame,
                 resize_interaction,
-                hover_strength,
+                resize_stroke,
             );
 
             {
@@ -793,7 +792,7 @@ impl Window<'_> {
                 &area_content_ui,
                 outer_rect,
                 resize_interaction,
-                hover_strength,
+                resize_stroke,
             );
 
             outer_response.inner
@@ -821,7 +820,7 @@ fn paint_resize_corner(
     outer_rect: Rect,
     window_frame: &Frame,
     i: ResizeInteraction,
-    hover_strength: f32,
+    resize_stroke: Stroke,
 ) {
     let cr = window_frame.corner_radius;
 
@@ -855,14 +854,8 @@ fn paint_resize_corner(
     let offset =
         ((2.0_f32.sqrt() * (1.0 + radius) - radius) * 45.0_f32.to_radians().cos()).max(2.0);
 
-    let stroke = if corner_response.drag {
-        ui.visuals().widgets.active.fg_stroke
-    } else if corner_response.hover {
-        DelayedHighlight::fade_stroke(
-            window_frame.stroke,
-            ui.visuals().widgets.hovered.fg_stroke,
-            hover_strength,
-        )
+    let stroke = if corner_response.any() {
+        resize_stroke
     } else {
         window_frame.stroke
     };
@@ -978,6 +971,10 @@ impl ResizeInteraction {
 
     pub fn any_dragged(&self) -> bool {
         self.left.drag || self.right.drag || self.top.drag || self.bottom.drag
+    }
+
+    fn state(&self) -> HighlightState {
+        HighlightState::new(self.any_hovered(), self.any_dragged())
     }
 }
 
@@ -1239,30 +1236,15 @@ fn do_resize_interaction(
     interaction
 }
 
-/// Fill in parts of the window frame when we resize by dragging that part
-/// Paint the highlighted window edges while resizing.
+/// Paint the highlighted window edges while hovering or resizing.
 ///
-/// `hover_strength` comes from [`Ui::delayed_highlight`].
-fn paint_frame_interaction(
-    ui: &Ui,
-    rect: Rect,
-    interaction: ResizeInteraction,
-    hover_strength: f32,
-) {
+/// `stroke` comes from [`Ui::resize_line_stroke`].
+fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction, stroke: Stroke) {
     use epaint::tessellator::path::add_circle_quadrant;
 
-    let stroke = if interaction.any_dragged() {
-        // No delay or fade-in when dragging:
-        ui.style().visuals.widgets.active.fg_stroke
-    } else if interaction.any_hovered() && 0.0 < hover_strength {
-        DelayedHighlight::fade_stroke(
-            interaction.window_frame.stroke,
-            ui.style().visuals.widgets.hovered.fg_stroke,
-            hover_strength,
-        )
-    } else {
+    if interaction.state() == HighlightState::Idle || stroke == interaction.window_frame.stroke {
         return;
-    };
+    }
 
     let [left, right, top, bottom]: [bool; 4];
 
