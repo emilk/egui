@@ -2,7 +2,7 @@
 
 use alloc::{collections::BTreeMap, sync::Arc};
 use core::ops::RangeInclusive;
-use emath::{Align, easing::Easing};
+use emath::{Align, NumExt as _, easing::Easing};
 use epaint::{
     CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
     text::{FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
@@ -1103,8 +1103,7 @@ impl DelayedHighlight {
         } else if fade_in_time <= 0.0 {
             1.0
         } else {
-            // Clamp, since some easing curves overshoot:
-            easing.apply((t / fade_in_time).min(1.0)).clamp(0.0, 1.0)
+            easing.apply((t / fade_in_time).at_most(1.0))
         }
     }
 
