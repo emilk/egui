@@ -190,6 +190,12 @@ pub struct WgpuSetupCreateNew {
     pub display_handle: Option<Box<dyn EguiDisplayHandle>>,
 
     /// Power preference for the adapter if [`Self::native_adapter_selector`] is not set or targeting web.
+    ///
+    /// Defaults to [`wgpu::PowerPreference::None`], which means the OS and graphics drivers
+    /// pick the GPU. This avoids unnecessarily waking a dedicated GPU on hybrid laptops
+    /// (see [#8907](https://github.com/emilk/egui/issues/8907)).
+    /// Set it to [`wgpu::PowerPreference::HighPerformance`] if you need the fastest adapter,
+    /// or use the `WGPU_POWER_PREF` environment variable (`low`, `high` or `none`).
     pub power_preference: wgpu::PowerPreference,
 
     /// Optional selector for native adapters.
@@ -252,8 +258,9 @@ impl WgpuSetupCreateNew {
 
             display_handle: None,
 
+            // Don't force a dedicated GPU - let the OS and drivers choose instead (#8907).
             power_preference: wgpu::PowerPreference::from_env()
-                .unwrap_or(wgpu::PowerPreference::HighPerformance),
+                .unwrap_or(wgpu::PowerPreference::None),
 
             native_adapter_selector: None,
 
@@ -328,4 +335,34 @@ pub struct WgpuSetupExisting {
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::WgpuSetupCreateNew;
+
+    /// The default power preference must not ask for the highest-performance adapter,
+    /// since that wakes a dedicated GPU on hybrid laptops and wastes battery.
+    /// See <https://github.com/emilk/egui/issues/8907>.
+    ///
+    /// An explicit `WGPU_POWER_PREF` override must still be honored. The test reads the
+    /// ambient environment rather than modifying it, since env vars are shared by all
+    /// tests running in the same process.
+    #[test]
+    fn power_preference_defaults_to_none_or_env_override() {
+        let setup = WgpuSetupCreateNew::without_display_handle();
+
+        if let Some(power_pref_from_env) = wgpu::PowerPreference::from_env() {
+            assert_eq!(
+                setup.power_preference, power_pref_from_env,
+                "`WGPU_POWER_PREF` should override the default"
+            );
+        } else {
+            assert_eq!(
+                setup.power_preference,
+                wgpu::PowerPreference::None,
+                "the default should leave GPU selection to the OS and drivers"
+            );
+        }
+    }
 }
