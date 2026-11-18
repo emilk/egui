@@ -912,7 +912,7 @@ impl Frame {
     /// without an activation protocol, so give up after a deadline of your own
     /// rather than waiting forever.
     ///
-    /// This is a no-op off Linux, and when running headless.
+    /// This is a no-op off Linux and the BSDs, and when running headless.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn request_activation_token(&self) {
         let Some(window) = self.window.as_ref() else {
@@ -920,7 +920,16 @@ impl Frame {
         };
 
         cfg_select! {
-            all(any(feature = "wayland", feature = "x11"), target_os = "linux") => {
+            all(
+                any(feature = "wayland", feature = "x11"),
+                any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                )
+            ) => {
                 use winit::platform::startup_notify::WindowExtStartupNotify as _;
                 if let Err(err) = window.request_activation_token() {
                     log::debug!("request_activation_token failed: {err}");
