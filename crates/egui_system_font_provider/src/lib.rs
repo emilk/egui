@@ -42,6 +42,7 @@ pub struct SystemFontProvider {
     locale: Option<Language>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Default for SystemFontProvider {
     fn default() -> Self {
         Self::new()
@@ -52,6 +53,9 @@ impl SystemFontProvider {
     /// Start enumerating the system fonts on a background thread.
     ///
     /// Uses the system locale to pick between fonts (see [`Self::with_locale`]).
+    ///
+    /// Not available on wasm since `Promise::spawn_thread` is not available
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Self {
         Self {
             fonts: Mutex::new(Promise::spawn_thread(
