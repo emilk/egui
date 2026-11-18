@@ -72,6 +72,51 @@ pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Contex
     egui_ctx
 }
 
+/// Drain viewport actions, queuing clipboard input and returning screenshots to capture.
+///
+/// Call this when painting a frame, which also fulfills `PaintWhileHidden` requests.
+pub fn process_actions_requested(
+    egui_winit: &mut egui_winit::State,
+    actions_requested: &mut Vec<egui_winit::ActionRequested>,
+) -> Vec<egui::ScreenshotCallback> {
+    use egui_winit::ActionRequested;
+
+    let mut screenshot_callbacks = Vec::new();
+    for action in actions_requested.drain(..) {
+        match action {
+            ActionRequested::Screenshot(callback) => {
+                screenshot_callbacks.push(callback);
+            }
+            ActionRequested::PaintWhileHidden => {
+                // Painting this frame is all it asked for.
+            }
+            ActionRequested::Cut => {
+                egui_winit.egui_input_mut().events.push(egui::Event::Cut);
+            }
+            ActionRequested::Copy => {
+                egui_winit.egui_input_mut().events.push(egui::Event::Copy);
+            }
+            ActionRequested::Paste => {
+                if let Some(contents) = egui_winit.clipboard_text() {
+                    let contents = contents.replace("\r\n", "\n");
+                    if !contents.is_empty() {
+                        egui_winit
+                            .egui_input_mut()
+                            .events
+                            .push(egui::Event::Paste(contents));
+                    }
+                } else if let Some(image) = egui_winit.clipboard_image() {
+                    egui_winit
+                        .egui_input_mut()
+                        .events
+                        .push(egui::Event::PasteImage(Arc::new(image)));
+                }
+            }
+        }
+    }
+    screenshot_callbacks
+}
+
 /// The custom even `eframe` uses with the [`winit`] event loop.
 #[derive(Debug)]
 pub enum UserEvent {
