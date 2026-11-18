@@ -2193,17 +2193,356 @@ pub fn create_window(
     event_loop: &ActiveEventLoop,
     viewport_builder: &ViewportBuilder,
 ) -> Result<Window, winit::error::OsError> {
+    create_window_with_owner(egui_ctx, event_loop, viewport_builder, None)
+}
+
+/// Like [`create_window`], but the new window can be a dialog owned by another window.
+///
+/// With an `owner`:
+///
+/// * Windows: the new window is an owned window (above its owner, minimized with it,
+///   no taskbar button), see [`ViewportBuilder::with_owner`].
+///   Unless the builder asks for `visible(false)`, the window is created hidden and **must be
+///   shown by the caller** (eframe does this), without a flash:
+///   call [`set_window_cloaked`] with `true`, then `window.set_visible(true)`,
+///   paint the first frame, and call [`set_window_cloaked`] with `false`.
+/// * All platforms: the window is placed centered on its owner, clamped into the owner's
+///   monitor (its work area, without the taskbar, on Windows), before it is created
+///   (so it does not move afterwards). This needs a size ([`ViewportBuilder::with_inner_size`])
+///   and a platform where apps can place windows, and is skipped with
+///   [`ViewportBuilder::with_position`], [`ViewportBuilder::with_monitor`], fullscreen,
+///   or a minimized owner.
+///
+/// With `owner: None` this is identical to [`create_window`].
+///
+/// # Errors
+/// Possible causes of error include denied permission, incompatible system, and lack of memory.
+pub fn create_window_with_owner(
+    egui_ctx: &egui::Context,
+    event_loop: &ActiveEventLoop,
+    viewport_builder: &ViewportBuilder,
+    owner: Option<&Window>,
+) -> Result<Window, winit::error::OsError> {
     profiling::function_scope!();
 
-    let window_attributes = apply_monitor_to_window_attributes(
+    let mut window_attributes = apply_monitor_to_window_attributes(
         create_winit_window_attributes(egui_ctx, viewport_builder.clone()),
         viewport_builder,
         event_loop,
     );
 
+    if let Some(owner) = owner {
+        window_attributes =
+            apply_owner_to_window_attributes(egui_ctx, window_attributes, viewport_builder, owner);
+    }
+
     let window = event_loop.create_window(window_attributes)?;
     apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
     Ok(window)
+}
+
+/// Make the attributes describe a dialog owned by `owner`: owner, placement, hidden until cloaked.
+///
+/// This is what [`create_window_with_owner`] does with its `owner`.
+/// On Windows the window is then created hidden, and **must be shown by the caller**:
+/// see [`create_window_with_owner`] (eframe shows it cloaked and uncloaks it after the first paint).
+///
+/// Call it on the result of [`create_winit_window_attributes`]
+/// if you can't use [`create_window_with_owner`], e.g. because the window is finalized by another library.
+pub fn apply_owner_to_window_attributes(
+    egui_ctx: &egui::Context,
+    mut window_attributes: winit::window::WindowAttributes,
+    viewport_builder: &ViewportBuilder,
+    owner: &Window,
+) -> winit::window::WindowAttributes {
+    #[cfg(target_os = "windows")]
+    {
+        use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
+        use winit::platform::windows::WindowAttributesExtWindows as _;
+
+        if let Ok(RawWindowHandle::Win32(handle)) = owner.window_handle().map(|h| h.as_raw()) {
+            window_attributes = window_attributes.with_owner_window(handle.hwnd.get());
+            if viewport_builder.visible != Some(false) {
+                // The caller shows it cloaked, and uncloaks it after the first frame.
+                window_attributes = window_attributes.with_visible(false);
+            }
+        } else {
+            log::debug!("The owner window has no Win32 handle; creating the dialog unowned");
+        }
+    }
+
+    if viewport_builder.position.is_none()
+        && viewport_builder.monitor.is_none()
+        && viewport_builder.fullscreen != Some(true)
+        && let Some(position) = centered_on_owner(egui_ctx, viewport_builder, owner)
+    {
+        window_attributes = window_attributes.with_position(position);
+    }
+
+    window_attributes
+}
+
+/// Where to put a window of the builder's size so it is centered on `owner`,
+/// clamped into the owner's monitor (its work area on Windows). In physical pixels.
+fn centered_on_owner(
+    egui_ctx: &egui::Context,
+    viewport_builder: &ViewportBuilder,
+    owner: &Window,
+) -> Option<PhysicalPosition<i32>> {
+    if owner.is_minimized() == Some(true) {
+        return None;
+    }
+    let size = viewport_builder.inner_size?;
+    let owner_pos = owner.outer_position().ok()?;
+    let owner_outer = owner.outer_size();
+    let owner_inner = owner.inner_size();
+
+    // The size of the dialog, assuming it opens on the owner's monitor (with the owner's scale factor).
+    let pixels_per_point = pixels_per_point(egui_ctx, owner);
+    // Assume the same window frame as the owner has:
+    let frame_w = i64::from(owner_outer.width) - i64::from(owner_inner.width);
+    let frame_h = i64::from(owner_outer.height) - i64::from(owner_inner.height);
+    #[expect(clippy::cast_possible_truncation)]
+    let to_pixels = |points: f32| f64::from(points * pixels_per_point).round() as i64;
+    let width = to_pixels(size.x).saturating_add(frame_w.max(0));
+    let height = to_pixels(size.y).saturating_add(frame_h.max(0));
+
+    let mut x = i64::from(owner_pos.x) + (i64::from(owner_outer.width) - width) / 2;
+    let mut y = i64::from(owner_pos.y) + (i64::from(owner_outer.height) - height) / 2;
+
+    if let Some((left, top, right, bottom)) = work_area(owner) {
+        // Keep the top-left corner (title bar) visible even if the dialog is larger than the area.
+        x = x.min(right - width).max(left);
+        y = y.min(bottom - height).max(top);
+    }
+
+    Some(PhysicalPosition::new(
+        i32::try_from(x).ok()?,
+        i32::try_from(y).ok()?,
+    ))
+}
+
+/// The work area (left, top, right, bottom) of the monitor the owner is on, in physical pixels.
+#[cfg(target_os = "windows")]
+fn work_area(owner: &Window) -> Option<(i64, i64, i64, i64)> {
+    use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
+    use windows_sys::Win32::Foundation::RECT;
+    use windows_sys::Win32::Graphics::Gdi::{
+        GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow,
+    };
+
+    let RawWindowHandle::Win32(handle) = owner.window_handle().ok()?.as_raw() else {
+        return None;
+    };
+    let hwnd = handle.hwnd.get() as _;
+
+    let empty = RECT {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+    };
+    let mut info = MONITORINFO {
+        cbSize: size_of::<MONITORINFO>() as u32,
+        rcMonitor: empty,
+        rcWork: empty,
+        dwFlags: 0,
+    };
+    // SAFETY: `hwnd` is a valid window handle, and `info` is a properly initialized
+    // `MONITORINFO` with `cbSize` set, as `GetMonitorInfoW` expects.
+    #[expect(unsafe_code)]
+    let ok = unsafe {
+        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        !monitor.is_null() && GetMonitorInfoW(monitor, &raw mut info) != 0
+    };
+    ok.then(|| {
+        let r = info.rcWork;
+        (
+            i64::from(r.left),
+            i64::from(r.top),
+            i64::from(r.right),
+            i64::from(r.bottom),
+        )
+    })
+}
+
+/// The bounds (left, top, right, bottom) of the monitor the owner is on, in physical pixels.
+#[cfg(not(target_os = "windows"))]
+fn work_area(owner: &Window) -> Option<(i64, i64, i64, i64)> {
+    let monitor = owner.current_monitor()?;
+    let pos = monitor.position();
+    let size = monitor.size();
+    Some((
+        i64::from(pos.x),
+        i64::from(pos.y),
+        i64::from(pos.x) + i64::from(size.width),
+        i64::from(pos.y) + i64::from(size.height),
+    ))
+}
+
+/// Enable or disable input to a window (Windows only; does nothing elsewhere).
+///
+/// Used to make a dialog modal: disable its owner while the dialog exists,
+/// and enable the owner again **before** the dialog window is destroyed,
+/// or Windows activates a window of another application.
+///
+/// Must be called on the event loop thread.
+pub fn set_window_enabled(window: &Window, enabled: bool) {
+    #[cfg(target_os = "windows")]
+    {
+        use winit::platform::windows::WindowExtWindows as _;
+        window.set_enable(enabled);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        _ = (window, enabled);
+    }
+}
+
+/// Give a window the title bar and window menu of a native dialog (Windows only).
+///
+/// That is the dialog frame, with the title at the left edge and no icon, and a window menu
+/// (Alt+Space) without the entries for what the window does not allow (size, minimize, maximize).
+/// Does nothing on other platforms.
+///
+/// eframe calls this for a [modal](ViewportBuilder::with_modal) viewport (whose window
+/// [`create_winit_window_attributes`] gives no icon) before the window is first shown
+/// (Windows decides whether the title bar has an icon at the first show),
+/// again right after (winit rewrites the window's styles when it shows a window),
+/// and again after [`process_viewport_commands`] has changed the window.
+/// It is cheap to call again.
+pub fn set_dialog_chrome(window: &Window) {
+    #[cfg(target_os = "windows")]
+    {
+        use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            DeleteMenu, EnableMenuItem, GWL_EXSTYLE, GetMenuState, GetSystemMenu,
+            GetWindowLongPtrW, ICON_BIG, ICON_SMALL, MF_BYCOMMAND, MF_GRAYED, SC_CLOSE,
+            SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE, SC_SIZE, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+            SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, SWP_NOZORDER, SendMessageW,
+            SetWindowLongPtrW, SetWindowPos, WM_SETICON, WS_EX_DLGMODALFRAME,
+        };
+
+        let Ok(RawWindowHandle::Win32(handle)) = window.window_handle().map(|h| h.as_raw()) else {
+            log::debug!("set_dialog_chrome: no Win32 window handle");
+            return;
+        };
+        let hwnd = handle.hwnd.get() as _;
+
+        // The dialog frame and no icon: then the title bar has no space for an icon, and the
+        // title starts at its left edge. Windows keeps the space (and its double-click to close)
+        // until it is told there is no icon, even when none was ever set.
+        // SAFETY: `hwnd` is a valid window handle of this thread; `WM_SETICON` with no icon is
+        // the documented way to remove one, and the style is applied with the documented
+        // `SetWindowPos(SWP_FRAMECHANGED)`, keeping position, size, z-order and activation.
+        #[expect(unsafe_code)]
+        unsafe {
+            // The extended style is 32 bits. `GetWindowLongPtrW` returns `isize` on 64-bit
+            // Windows and `i32` on 32-bit Windows, so cast only at the calls:
+            let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
+            if ex_style & WS_EX_DLGMODALFRAME == 0 {
+                SetWindowLongPtrW(hwnd, GWL_EXSTYLE, (ex_style | WS_EX_DLGMODALFRAME) as _);
+                SendMessageW(hwnd, WM_SETICON, ICON_SMALL as usize, 0);
+                SendMessageW(hwnd, WM_SETICON, ICON_BIG as usize, 0);
+                SetWindowPos(
+                    hwnd,
+                    core::ptr::null_mut(),
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_FRAMECHANGED
+                        | SWP_NOACTIVATE
+                        | SWP_NOMOVE
+                        | SWP_NOOWNERZORDER
+                        | SWP_NOSIZE
+                        | SWP_NOZORDER,
+                );
+            }
+        }
+
+        // SAFETY: `hwnd` is a valid window handle. `GetSystemMenu` with `bRevert` false returns
+        // the window's own copy of its window menu (or null), which `DeleteMenu` may change.
+        #[expect(unsafe_code)]
+        unsafe {
+            let mut menu = GetSystemMenu(hwnd, 0);
+            if !menu.is_null() {
+                let buttons = window.enabled_buttons();
+                let can_minimize = buttons.contains(WindowButtons::MINIMIZE);
+                let can_maximize = buttons.contains(WindowButtons::MAXIMIZE);
+                let items = [
+                    (!window.is_resizable(), SC_SIZE),
+                    (!can_minimize, SC_MINIMIZE),
+                    (!can_maximize, SC_MAXIMIZE),
+                    (!can_minimize && !can_maximize, SC_RESTORE),
+                ];
+
+                // An item we deleted earlier that the window allows now (e.g. it became
+                // resizable) is missing: start again from the default window menu.
+                let missing_item = items.iter().any(|&(delete, item)| {
+                    !delete && GetMenuState(menu, item, MF_BYCOMMAND) == u32::MAX
+                });
+                if missing_item {
+                    GetSystemMenu(hwnd, 1); // revert to the default menu
+                    menu = GetSystemMenu(hwnd, 0);
+                    if !buttons.contains(WindowButtons::CLOSE) && !menu.is_null() {
+                        EnableMenuItem(menu, SC_CLOSE, MF_BYCOMMAND | MF_GRAYED);
+                    }
+                }
+
+                if !menu.is_null() {
+                    for (delete, item) in items {
+                        if delete {
+                            DeleteMenu(menu, item, MF_BYCOMMAND);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        _ = window;
+    }
+}
+
+/// Cloak or uncloak a window with DWM (Windows only; does nothing elsewhere).
+///
+/// A cloaked window is not shown on screen even if it is visible.
+/// This is used to show a new window only after its first frame has been painted.
+///
+/// Failures are logged. If cloaking fails, the window is shown as usual (possibly with a flash);
+/// if uncloaking fails, the window stays hidden.
+pub fn set_window_cloaked(window: &Window, cloaked: bool) {
+    #[cfg(target_os = "windows")]
+    {
+        use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
+        use windows_sys::Win32::Graphics::Dwm::{DWMWA_CLOAK, DwmSetWindowAttribute};
+
+        let Ok(RawWindowHandle::Win32(handle)) = window.window_handle().map(|h| h.as_raw()) else {
+            log::debug!("set_window_cloaked: no Win32 window handle");
+            return;
+        };
+        let hwnd = handle.hwnd.get() as _;
+        let value = i32::from(cloaked);
+        // SAFETY: `hwnd` is a valid window handle and `value` is a BOOL, as DWMWA_CLOAK expects.
+        #[expect(unsafe_code)]
+        let result = unsafe {
+            DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_CLOAK as u32,
+                (&raw const value).cast(),
+                size_of::<i32>() as u32,
+            )
+        };
+        if result < 0 {
+            log::warn!("DwmSetWindowAttribute(DWMWA_CLOAK, {cloaked}) failed: {result:#x}");
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        _ = (window, cloaked);
+    }
 }
 
 /// Apply [`ViewportBuilder::with_monitor`] to freshly-built [`winit::window::WindowAttributes`].
@@ -2272,6 +2611,8 @@ pub fn create_winit_window_attributes(
         // Windows:
         drag_and_drop: _drag_and_drop,
         taskbar: _taskbar,
+        owner: _, // Handled in `create_window_with_owner`
+        modal, // Blocking the owner is up to the backend (eframe); here it sets the default buttons
 
         // wayland:
         app_id: _app_id,
@@ -2309,11 +2650,14 @@ pub fn create_winit_window_attributes(
             fullscreen.and_then(|e| e.then_some(winit::window::Fullscreen::Borderless(None))),
         )
         .with_enabled_buttons({
+            // A modal dialog, like a native one, can't be minimized or maximized unless asked:
+            // a minimized modal dialog would leave its owner blocked with nothing to answer.
+            let default = modal != Some(true);
             let mut buttons = WindowButtons::empty();
-            if minimize_button.unwrap_or(true) {
+            if minimize_button.unwrap_or(default) {
                 buttons |= WindowButtons::MINIMIZE;
             }
-            if maximize_button.unwrap_or(true) {
+            if maximize_button.unwrap_or(default) {
                 buttons |= WindowButtons::MAXIMIZE;
             }
             if close_button.unwrap_or(true) {
@@ -2370,7 +2714,10 @@ pub fn create_winit_window_attributes(
         _ = max_inner_size;
     }
 
-    if let Some(icon) = icon {
+    // A native dialog on Windows has no icon: with one, its title bar keeps a space for it.
+    if let Some(icon) = icon
+        && !(cfg!(target_os = "windows") && modal == Some(true))
+    {
         let winit_icon = to_winit_icon(&icon);
         window_attributes = window_attributes.with_window_icon(winit_icon);
     }
@@ -2675,5 +3022,66 @@ pub fn short_window_event_description(event: &winit::event::WindowEvent) -> &'st
         WindowEvent::ThemeChanged { .. } => "WindowEvent::ThemeChanged",
         WindowEvent::Occluded { .. } => "WindowEvent::Occluded",
         WindowEvent::PanGesture { .. } => "WindowEvent::PanGesture",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_modal_viewport_has_no_minimize_or_maximize_button_unless_asked() {
+        let ctx = egui::Context::default();
+        let buttons = |builder: ViewportBuilder| {
+            create_winit_window_attributes(&ctx, builder).enabled_buttons
+        };
+
+        assert_eq!(buttons(ViewportBuilder::default()), WindowButtons::all());
+        assert_eq!(
+            buttons(ViewportBuilder::default().with_modal(false)),
+            WindowButtons::all()
+        );
+        assert_eq!(
+            buttons(ViewportBuilder::default().with_modal(true)),
+            WindowButtons::CLOSE
+        );
+        assert_eq!(
+            buttons(
+                ViewportBuilder::default()
+                    .with_modal(true)
+                    .with_minimize_button(true)
+            ),
+            WindowButtons::CLOSE | WindowButtons::MINIMIZE
+        );
+        assert_eq!(
+            buttons(
+                ViewportBuilder::default()
+                    .with_modal(true)
+                    .with_close_button(false)
+            ),
+            WindowButtons::empty()
+        );
+    }
+
+    #[test]
+    fn a_modal_viewport_has_no_icon_on_windows() {
+        let ctx = egui::Context::default();
+        let icon = std::sync::Arc::new(egui::IconData {
+            rgba: vec![255; 16 * 16 * 4],
+            width: 16,
+            height: 16,
+        });
+        let has_icon = |builder: ViewportBuilder| {
+            create_winit_window_attributes(&ctx, builder.with_icon(std::sync::Arc::clone(&icon)))
+                .window_icon
+                .is_some()
+        };
+
+        assert!(has_icon(ViewportBuilder::default()));
+        assert_eq!(
+            has_icon(ViewportBuilder::default().with_modal(true)),
+            !cfg!(target_os = "windows"),
+            "a native dialog on Windows has no icon"
+        );
     }
 }

@@ -327,6 +327,12 @@ pub struct ViewportBuilder {
     pub drag_and_drop: Option<bool>,
     pub taskbar: Option<bool>,
 
+    /// See [`Self::with_owner`].
+    pub owner: Option<ViewportId>,
+
+    /// See [`Self::with_modal`].
+    pub modal: Option<bool>,
+
     pub close_button: Option<bool>,
     pub minimize_button: Option<bool>,
     pub maximize_button: Option<bool>,
@@ -527,6 +533,67 @@ impl ViewportBuilder {
         self
     }
 
+    /// Make this viewport a dialog window owned by `owner`
+    /// (typically [`crate::Context::viewport_id`], the viewport that shows it).
+    ///
+    /// An owned window stays above its owner and is minimized together with it.
+    /// Unless [`Self::with_position`] is set, it opens centered on its owner,
+    /// clamped into the owner's monitor (its work area, without the taskbar, on Windows).
+    /// Centering needs [`Self::with_inner_size`], and is skipped with [`Self::with_monitor`],
+    /// fullscreen, or a minimized owner.
+    ///
+    /// The owner cannot be changed without recreating the native window.
+    ///
+    /// ### Platform-specific
+    ///
+    /// - Windows: an owned window is shown above its owner, is minimized with it,
+    ///   has no taskbar button of its own, and is shown without a flash
+    ///   (it becomes visible after its first frame has been painted).
+    /// - Other platforms: only the placement applies, where the platform lets apps place windows.
+    ///   The z-order and the taskbar are unchanged.
+    ///
+    /// See also [`Self::with_modal`].
+    #[inline]
+    pub fn with_owner(mut self, owner: ViewportId) -> Self {
+        self.owner = Some(owner);
+        self
+    }
+
+    /// While this viewport is open, its owner does not accept input.
+    ///
+    /// If no owner is set with [`Self::with_owner`],
+    /// the parent viewport (the one that shows this viewport) is the owner.
+    ///
+    /// The owner must be set (or `with_modal(true)` used) when the viewport is first shown:
+    /// turning `modal` on later only works for a window that was created with an owner.
+    /// Turning it off again works at any time, without recreating the window.
+    ///
+    /// Like a native modal dialog, a modal viewport has no minimize or maximize button,
+    /// unless asked for with [`Self::with_minimize_button`] or [`Self::with_maximize_button`]:
+    /// a minimized modal dialog would leave its owner blocked with nothing to answer.
+    /// The buttons are decided when the window is created.
+    ///
+    /// ### Platform-specific
+    ///
+    /// - Windows: the owner window is disabled while this viewport exists,
+    ///   and enabled again before this viewport's window closes.
+    ///   Like a native dialog, the window has no icon in its title bar,
+    ///   and its window menu (Alt+Space) leaves out what the window does not allow:
+    ///   Size when it is not resizable, Minimize and Maximize when those buttons are off,
+    ///   and Restore when neither is on.
+    ///   An icon set later with [`crate::ViewportCommand::Icon`] is shown, like a native dialog
+    ///   with an explicit icon, until a command that changes the window's style
+    ///   (e.g. [`crate::ViewportCommand::Resizable`]) removes it again.
+    /// - Other platforms: the owner stays enabled (block its input with [`crate::Modal`]),
+    ///   but the minimize and maximize defaults above apply everywhere.
+    ///
+    /// See also [`Self::with_owner`].
+    #[inline]
+    pub fn with_modal(mut self, modal: bool) -> Self {
+        self.modal = Some(modal);
+        self
+    }
+
     /// Requests the window to be of specific dimensions.
     ///
     /// If this is not set, some platform-specific dimensions will be used.
@@ -581,6 +648,8 @@ impl ViewportBuilder {
         self
     }
 
+    /// Default: `true`, except for a [modal](Self::with_modal) viewport.
+    ///
     /// Does not work on X11.
     #[inline]
     pub fn with_minimize_button(mut self, value: bool) -> Self {
@@ -588,6 +657,8 @@ impl ViewportBuilder {
         self
     }
 
+    /// Default: `true`, except for a [modal](Self::with_modal) viewport.
+    ///
     /// Does not work on X11.
     #[inline]
     pub fn with_maximize_button(mut self, value: bool) -> Self {
@@ -747,6 +818,8 @@ impl ViewportBuilder {
             window_level: new_window_level,
             mouse_passthrough: new_mouse_passthrough,
             taskbar: new_taskbar,
+            owner: new_owner,
+            modal: new_modal,
             window_type: new_window_type,
             override_redirect: new_override_redirect,
             monitor: new_monitor,
@@ -921,6 +994,17 @@ impl ViewportBuilder {
         if new_taskbar.is_some() && self.taskbar != new_taskbar {
             self.taskbar = new_taskbar;
             recreate_window = true;
+        }
+
+        if new_owner.is_some() && self.owner != new_owner {
+            // winit can't change the owner of an existing window.
+            self.owner = new_owner;
+            recreate_window = true;
+        }
+
+        if new_modal.is_some() && self.modal != new_modal {
+            // Read by the backend, no command needed.
+            self.modal = new_modal;
         }
 
         if new_fullsize_content_view.is_some()
@@ -1333,4 +1417,56 @@ pub struct ImmediateViewport<'a> {
 
     /// The user-code that shows the GUI.
     pub viewport_ui_cb: Box<dyn FnMut(&mut Ui) + 'a>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn owner_and_modal_builder_methods() {
+        let owner = ViewportId::from_hash_of("owner");
+        let builder = ViewportBuilder::default()
+            .with_owner(owner)
+            .with_modal(true);
+        assert_eq!(builder.owner, Some(owner));
+        assert_eq!(builder.modal, Some(true));
+
+        let default = ViewportBuilder::default();
+        assert_eq!(default.owner, None);
+        assert_eq!(default.modal, None);
+    }
+
+    #[test]
+    fn patch_with_changed_owner_recreates_window() {
+        let mut builder = ViewportBuilder::default().with_owner(ViewportId::ROOT);
+        let new = ViewportBuilder::default().with_owner(ViewportId::from_hash_of("other"));
+        let (commands, recreate) = builder.patch(new.clone());
+        assert!(commands.is_empty());
+        assert!(recreate);
+        assert_eq!(builder.owner, new.owner);
+    }
+
+    #[test]
+    fn patch_with_changed_modal_does_not_recreate_window() {
+        let mut builder = ViewportBuilder::default().with_modal(true);
+        let (commands, recreate) = builder.patch(ViewportBuilder::default().with_modal(false));
+        assert!(commands.is_empty());
+        assert!(!recreate);
+        assert_eq!(builder.modal, Some(false));
+    }
+
+    #[test]
+    fn patch_with_unchanged_builder_does_nothing() {
+        let make = || {
+            ViewportBuilder::default()
+                .with_owner(ViewportId::ROOT)
+                .with_modal(true)
+        };
+        let mut builder = make();
+        let (commands, recreate) = builder.patch(make());
+        assert!(commands.is_empty());
+        assert!(!recreate);
+        assert_eq!(builder, make());
+    }
 }
