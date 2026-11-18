@@ -195,13 +195,17 @@ impl DatePickerPopup<'_> {
         response
     }
 
-    /// A month spans at most this many weeks. The grid always reserves room for all of them,
-    /// so the popup keeps the same size (and doesn't jump) when switching months.
-    const MAX_WEEKS: usize = 6;
+    /// Number of calendar rows (weeks, Monday first) needed to show the given month.
+    fn weeks_in_month(year: i16, month: i8) -> usize {
+        let first = Date::new(year, month, 1).expect("Could not create Date");
+        let leading_days = first.weekday().to_monday_zero_offset() as usize;
+        (leading_days + first.days_in_month() as usize).div_ceil(7)
+    }
 
-    /// Total height needed by [`Self::calendar_grid`].
-    fn calendar_height() -> f32 {
-        Self::CELL_HEIGHT * (Self::MAX_WEEKS + 1) as f32 + Self::HEADER_GAP
+    /// Total height needed by [`Self::calendar_grid`] for the given month.
+    fn calendar_height(year: i16, month: i8) -> f32 {
+        let weeks = Self::weeks_in_month(year, month);
+        Self::CELL_HEIGHT * (weeks + 1) as f32 + Self::HEADER_GAP
     }
 
     /// Paints the month as a real calendar: weekday header, optional week numbers,
@@ -218,7 +222,10 @@ impl DatePickerPopup<'_> {
         let columns = if self.calendar_week { 8 } else { 7 };
         let first_day_column = columns - 7;
 
-        let size = vec2(ui.available_width(), Self::calendar_height());
+        let size = vec2(
+            ui.available_width(),
+            Self::calendar_height(popup_state.year, popup_state.month),
+        );
         let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
         let cell_width = rect.width() / columns as f32;
         let body_top = rect.top() + Self::CELL_HEIGHT + Self::HEADER_GAP;
@@ -390,7 +397,7 @@ impl DatePickerPopup<'_> {
                 usize::from(self.combo_boxes || self.arrows),
             )
             .sizes(
-                Size::exact(Self::calendar_height()),
+                Size::exact(Self::calendar_height(popup_state.year, popup_state.month)),
                 usize::from(self.calendar),
             )
             .vertical(|mut strip| {
