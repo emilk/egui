@@ -248,7 +248,14 @@ impl Resize {
             && let Some(pointer_pos) = corner_response.interact_pointer_pos()
         {
             // Respond to the interaction early to avoid frame delay.
-            user_requested_size = Some(pointer_pos - position + 0.5 * corner_response.rect.size());
+            let mut requested_size = pointer_pos - position + 0.5 * corner_response.rect.size();
+            // The corner only resizes the directions that are resizable.
+            for d in 0..2 {
+                if !self.resizable[d] {
+                    requested_size[d] = state.desired_size[d];
+                }
+            }
+            user_requested_size = Some(requested_size);
         }
 
         let is_actively_resizing = user_requested_size.is_some();
