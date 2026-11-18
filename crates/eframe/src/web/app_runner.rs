@@ -385,7 +385,9 @@ impl AppRunner {
                     // Web has no window decorations to theme, egui visuals follow the configured theme.
                 }
                 ViewportCommand::RequestUserAttention(_) => {
-                    log::info!("`ViewportCommand::RequestUserAttention` is not supported on web. The request will be ignored.");
+                    log::info!(
+                        "`ViewportCommand::RequestUserAttention` is not supported on web. The request will be ignored."
+                    );
                 }
                 _ => {
                     // TODO(emilk): handle some of the commands
