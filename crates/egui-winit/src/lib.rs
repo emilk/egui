@@ -1290,9 +1290,19 @@ impl State {
 
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
             let ime_cursor_rect_px = pixels_per_point * ime.cursor_rect;
-            if self.ime_cursor_rect_px != Some(ime_cursor_rect_px)
-                || self.egui_ctx.input(|i| !i.events.is_empty())
-            {
+            // On Wayland, winit 0.30 answers every `set_ime_cursor_area` with an empty preedit,
+            // so counting those as input would call it again in every frame.
+            // TODO(lucasmerlin): Count all events again once we update to winit 0.31, which no
+            // longer repeats empty preedits (https://github.com/rust-windowing/winit/pull/4356).
+            let had_input = self.egui_ctx.input(|i| {
+                i.events.iter().any(|event| {
+                    !matches!(
+                        event,
+                        egui::Event::Ime(egui::ImeEvent::Preedit { text, .. }) if text.is_empty()
+                    )
+                })
+            });
+            if self.ime_cursor_rect_px != Some(ime_cursor_rect_px) || had_input {
                 self.ime_cursor_rect_px = Some(ime_cursor_rect_px);
                 profiling::scope!("set_ime_cursor_area");
                 window.set_ime_cursor_area(
