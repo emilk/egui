@@ -173,6 +173,8 @@ impl DatePickerPopup<'_> {
         let font = TextStyle::Body.resolve(ui.style());
         let size = vec2(Self::NAV_BUTTON_WIDTH, Self::CELL_HEIGHT - 2.0);
         let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+        let enabled = ui.is_enabled();
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, tooltip));
         let response = response
             .on_hover_cursor(egui::CursorIcon::PointingHand)
             .on_hover_text(tooltip);
