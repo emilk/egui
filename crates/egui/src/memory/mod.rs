@@ -954,8 +954,11 @@ impl Memory {
 
     /// Defer focus until the next pass so an already rendered widget sees `gained_focus`.
     pub(crate) fn request_focus_next_frame(&mut self, id: Id) {
+        let focus_changed = !self.has_focus(id);
         self.focus_mut().widget_next_frame = Some(FocusWidget::new(id));
-        self.interrupt_ime();
+        if focus_changed {
+            self.interrupt_ime();
+        }
     }
 
     /// How the keyboard focus got to the focused widget.
