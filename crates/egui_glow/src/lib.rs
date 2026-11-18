@@ -135,6 +135,20 @@ pub struct GlowConfiguration {
     ///
     /// For OpenGL ES 2.0: set this to [`ShaderVersion::Es100`] to solve blank texture problem (by using the "fallback shader").
     pub shader_version: Option<ShaderVersion>,
+
+    /// Repaint only the part of the window that changed since the previous frame, as far as the shapes tell.
+    ///
+    /// Needs the `EGL_EXT_buffer_age` (or GLX) extension to know which frame a back buffer holds, falling back to
+    /// a full repaint without it. With `EGL_KHR_swap_buffers_with_damage` the compositor gets the changed area too.
+    /// Saves GPU time and power when a small part of the window animates, e.g. a spinner.
+    ///
+    /// The window is no longer cleared before the app's `ui` runs, so anything painted with raw OpenGL from there
+    /// is painted over. Paint callbacks are repainted every frame.
+    /// Only applies while there is a single viewport.
+    ///
+    /// The default is `false`.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub partial_repaint: bool,
 }
 
 #[cfg_attr(target_arch = "wasm32", expect(clippy::derivable_impls))]
@@ -146,6 +160,8 @@ impl Default for GlowConfiguration {
             #[cfg(not(target_arch = "wasm32"))]
             hardware_acceleration: HardwareAcceleration::Preferred,
             shader_version: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            partial_repaint: false,
         }
     }
 }
