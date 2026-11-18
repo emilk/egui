@@ -50,6 +50,7 @@ pub struct WgpuWinitApp<'app> {
 
     /// Set when we are actually up and running.
     running: Option<WgpuWinitRunning<'app>>,
+    exiting: bool,
 
     /// An optional pre-existing egui context. If `Some`, it is used instead of
     /// creating a new one via [`winit_integration::create_egui_context`]. Taken during initialization.
@@ -149,6 +150,7 @@ impl<'app> WgpuWinitApp<'app> {
             app_name: app_name.to_owned(),
             native_options,
             running: None,
+            exiting: false,
             app_creator: Some(app_creator),
             egui_ctx,
         }
@@ -437,6 +439,7 @@ impl WinitApp for WgpuWinitApp<'_> {
     }
 
     fn save_and_destroy(&mut self) {
+        self.exiting = true;
         if let Some(mut running) = self.running.take() {
             running.save_and_destroy();
         }
@@ -545,8 +548,9 @@ impl WinitApp for WgpuWinitApp<'_> {
 
         if let Some(running) = &mut self.running {
             Ok(running.on_window_event(window_id, &event))
+        } else if cfg!(target_os = "android") && !self.exiting {
+            Ok(EventResult::Wait)
         } else {
-            // running is removed to get ready for exiting
             Ok(EventResult::Exit)
         }
     }
