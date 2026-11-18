@@ -471,7 +471,13 @@ impl Painter {
     ) {
         profiling::function_scope!();
 
-        if self.surfaces.contains_key(&viewport_id) {
+        if let Some(state) = self.surfaces.get(&viewport_id) {
+            if state.width == width_in_pixels.get() && state.height == height_in_pixels.get() {
+                // Already configured at this size. Windows sends several resize events while a
+                // window is created and shown, and reconfiguring a swapchain takes milliseconds.
+                // A lost or outdated surface is recovered when painting, not here.
+                return;
+            }
             self.resize_and_generate_depth_texture_view_and_msaa_view(
                 viewport_id,
                 width_in_pixels,
