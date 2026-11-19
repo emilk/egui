@@ -2,7 +2,7 @@ use core::ops::RangeInclusive;
 
 use crate::{
     Color32, IntoAtoms, Label, NumExt as _, Pos2, Rangef, Rect, Response, Role, Sense,
-    TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, emath, style::HandleShape,
+    TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, style::HandleShape,
 };
 
 use super::drag_value::{GetSetValue, clamp_value_to_range, get, set};

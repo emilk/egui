@@ -3,7 +3,7 @@
 use crate::util::fixed_cache::FixedCache;
 use crate::{
     Context, DragValue, Id, Painter, Popup, PopupCloseBehavior, Response, Role, Sense, Ui,
-    Widget as _, WidgetInfo, epaint, lerp, remap_clamp,
+    Widget as _, WidgetInfo, lerp, remap_clamp,
 };
 use epaint::{
     ColorImage, Rect, RectShape, RoundedRect, Shape, Stroke, StrokeKind, Vec2,

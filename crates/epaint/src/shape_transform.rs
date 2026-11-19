@@ -126,6 +126,10 @@ pub fn adjust_colors(
         Shape::Callback(_) => {
             // Can't tint user callback code
         }
+
+        Shape::Clear(_) => {
+            // Transparent black has no color to adjust.
+        }
     }
 }
 

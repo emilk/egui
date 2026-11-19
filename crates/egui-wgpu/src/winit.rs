@@ -167,15 +167,19 @@ impl Painter {
         let Some(old_state) = self.surfaces.remove(&viewport_id) else {
             return Ok(());
         };
+        let SurfaceState {
+            width,
+            height,
+            resizing,
+            ..
+        } = old_state;
+        // Drop the old surface before creating the new one, because some backends allow only
+        // one surface per window. For example, DirectComposition allows only one target per
+        // window.
+        drop(old_state);
 
         let surface = self.instance.create_surface(Arc::clone(window))?;
-        self.install_surface(
-            surface,
-            viewport_id,
-            old_state.width,
-            old_state.height,
-            old_state.resizing,
-        );
+        self.install_surface(surface, viewport_id, width, height, resizing);
         Ok(())
     }
 
@@ -208,7 +212,7 @@ impl Painter {
         profiling::scope!("Painter::set_window"); // profile_function gives bad names for async functions
 
         if let Some(window) = window {
-            let size = window.inner_size();
+            let size = surface_size(&window);
             if !self.surfaces.contains_key(&viewport_id) {
                 let surface = self.instance.create_surface(window)?;
                 self.add_surface(surface, viewport_id, size).await?;
@@ -234,7 +238,7 @@ impl Painter {
         profiling::scope!("Painter::set_window_unsafe"); // profile_function gives bad names for async functions
 
         if let Some(window) = window {
-            let size = window.inner_size();
+            let size = surface_size(window);
             if !self.surfaces.contains_key(&viewport_id) {
                 let surface = unsafe {
                     self.instance
@@ -807,5 +811,19 @@ impl Painter {
     #[expect(clippy::needless_pass_by_ref_mut, clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
+    }
+}
+
+/// The size a window's surface should have: the area egui lays out over.
+///
+/// That is [`winit::window::Window::inner_size`], except on iOS where it is
+/// [`winit::window::Window::outer_size`]: there `inner_size` is only the safe area, while
+/// `egui_winit::screen_size_in_pixels` lays egui out over the whole screen. A surface sized
+/// to the safe area would be stretched over the screen by the OS.
+pub fn surface_size(window: &winit::window::Window) -> winit::dpi::PhysicalSize<u32> {
+    if cfg!(target_os = "ios") {
+        window.outer_size()
+    } else {
+        window.inner_size()
     }
 }

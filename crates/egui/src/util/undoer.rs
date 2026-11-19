@@ -1,6 +1,6 @@
 use alloc::collections::VecDeque;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Settings {
     /// Maximum number of undos.
