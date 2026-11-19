@@ -1,5 +1,5 @@
 use crate::{
-    CursorIcon, Label, Response, Role, Sense, Stroke, Ui, Widget, WidgetInfo, WidgetText, epaint,
+    CursorIcon, Label, Response, Role, Sense, Stroke, Ui, Widget, WidgetInfo, WidgetText,
     text_selection,
 };
 

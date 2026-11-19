@@ -2,7 +2,7 @@
 
 use alloc::{collections::BTreeMap, sync::Arc};
 use core::ops::RangeInclusive;
-use emath::Align;
+use emath::{Align, NumExt as _, easing::Easing};
 use epaint::{
     CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
     text::{FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
@@ -316,6 +316,13 @@ pub struct Style {
 
     /// How many seconds a typical animation should last.
     pub animation_time: f32,
+
+    /// How large hover highlights appear, e.g. on the resize line between panels.
+    ///
+    /// Note that the cursor icon is still changed immediately.
+    ///
+    /// See [`DelayedHighlight`].
+    pub hover_highlight: DelayedHighlight,
 
     /// Options to help debug why egui behaves strangely.
     ///
@@ -1054,8 +1061,100 @@ pub struct Interaction {
     pub multi_widget_text_select: bool,
 }
 
+/// A hover highlight that appears after a delay and then fades in.
+///
+/// This avoids distracting flashes when the pointer merely passes over something,
+/// such as the resize line between two panels.
+///
+/// The delay is primarily intended for large highlights, i.e. ones that cover a lot of
+/// the screen (like a resize line along a whole panel), where flashing is distracting.
+/// Small highlights, like on a button, should usually show right away.
+///
+/// The fade-in takes [`Style::animation_time`].
+///
+/// See [`crate::Ui::delayed_highlight`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct DelayedHighlight {
+    /// How long the pointer must rest on the thing before the highlight starts to appear, in seconds.
+    pub delay: f32,
+
+    /// The easing curve of the fade-in.
+    pub easing: Easing,
+}
+
+impl Default for DelayedHighlight {
+    fn default() -> Self {
+        Self {
+            delay: 0.1,
+            easing: Easing::QuadraticIn,
+        }
+    }
+}
+
+impl DelayedHighlight {
+    /// How visible the highlight is (0-1), given how long the thing has been hovered.
+    pub fn strength(&self, fade_in_time: f32, hover_duration: f32) -> f32 {
+        let Self { delay, easing } = *self;
+        let t = hover_duration - delay;
+        if t < 0.0 {
+            0.0
+        } else if fade_in_time <= 0.0 {
+            1.0
+        } else {
+            easing.apply((t / fade_in_time).at_most(1.0))
+        }
+    }
+
+    /// Fade from `idle` towards `highlighted`, by the strength from [`crate::Ui::delayed_highlight`].
+    ///
+    /// If `idle` is invisible, only the color fades in, so the line doesn't grow from zero width.
+    pub fn fade_stroke(idle: Stroke, highlighted: Stroke, strength: f32) -> Stroke {
+        if strength <= 0.0 {
+            idle
+        } else if idle.is_empty() {
+            Stroke::new(highlighted.width, Color32::TRANSPARENT).lerp(highlighted, strength)
+        } else {
+            idle.lerp(highlighted, strength)
+        }
+    }
+
+    /// Show widgets for editing these settings.
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self { delay, easing } = self;
+        ui.horizontal(|ui| {
+            ui.label("delay");
+            ui.add(
+                DragValue::new(delay)
+                    .range(0.0..=2.0)
+                    .speed(0.01)
+                    .suffix(" s"),
+            );
+            crate::ComboBox::from_id_salt("delayed_highlight_easing")
+                .selected_text(format!("{easing:?}"))
+                .show_ui(ui, |ui| {
+                    for option in Easing::ALL {
+                        ui.selectable_value(easing, option, format!("{option:?}"));
+                    }
+                });
+        });
+    }
+}
+
+/// How a highlight from [`crate::Ui::delayed_highlight`] disappears
+/// when the thing is no longer hovered.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FadeOut {
+    /// Disappear right away.
+    Instant,
+
+    /// Fade out over [`Style::animation_time`].
+    Animated,
+}
+
 /// Look and feel of the text cursor.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextCursorStyle {
@@ -1159,8 +1258,10 @@ pub struct Visuals {
     /// Defaults to [`Self::extreme_bg_color`].
     pub text_edit_bg_color: Option<Color32>,
 
-    /// Background color behind code-styled monospaced labels.
-    pub code_bg_color: Color32,
+    /// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
+    ///
+    /// Also known as `pre` or `code` blocks, after the HTML tags.
+    pub code: CodeVisuals,
 
     /// A good color for warning text (e.g. orange).
     pub warn_fg_color: Color32,
@@ -1307,6 +1408,34 @@ pub struct Selection {
 
     /// Color of selected text.
     pub stroke: Stroke,
+}
+
+/// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
+///
+/// Also known as `pre` or `code` blocks, after the HTML tags.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct CodeVisuals {
+    /// Background color behind the code.
+    pub bg_color: Color32,
+
+    /// Text color of the code.
+    ///
+    /// If `None` (the default), code uses the same color as other text.
+    pub text_color: Option<Color32>,
+
+    /// Corner radius of the background.
+    pub corner_radius: CornerRadius,
+
+    /// Inner margin: the space between the code text and the edges of the background.
+    /// A positive margin makes the background bigger than the text.
+    ///
+    /// The left and right margins take up space in the layout,
+    /// so the background never overlaps neighboring text.
+    /// The top and bottom margins are only visual: they do not affect the layout.
+    /// Negative top and bottom margins keep the code backgrounds on adjacent rows apart.
+    pub margin: Margin,
 }
 
 /// Visual style for IME composition.
@@ -1548,6 +1677,7 @@ impl Default for Style {
             interaction: Interaction::default(),
             visuals: Visuals::default(),
             animation_time: 0.2,
+            hover_highlight: DelayedHighlight::default(),
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
@@ -1622,7 +1752,7 @@ impl Visuals {
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
             text_edit_bg_color: None, // use `extreme_bg_color` by default
-            code_bg_color: Color32::from_gray(64),
+            code: CodeVisuals::dark(),
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
@@ -1685,7 +1815,7 @@ impl Visuals {
             hyperlink_color: Color32::from_rgb(0, 155, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(255),           // e.g. TextEdit background
-            code_bg_color: Color32::from_gray(230),
+            code: CodeVisuals::light(),
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
@@ -1740,6 +1870,37 @@ impl Selection {
 }
 
 impl Default for Selection {
+    fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl CodeVisuals {
+    /// The default for dark mode.
+    pub fn dark() -> Self {
+        Self {
+            bg_color: Color32::from_gray(48),
+            text_color: None,
+            corner_radius: CornerRadius::same(1),
+            margin: Margin {
+                left: 2,
+                right: 2,
+                top: -1,
+                bottom: -1,
+            },
+        }
+    }
+
+    /// The default for light mode.
+    pub fn light() -> Self {
+        Self {
+            bg_color: Color32::from_gray(230),
+            ..Self::dark()
+        }
+    }
+}
+
+impl Default for CodeVisuals {
     fn default() -> Self {
         Self::dark()
     }
@@ -1906,6 +2067,7 @@ impl Style {
             interaction,
             visuals,
             animation_time,
+            hover_highlight,
             #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
@@ -2006,6 +2168,12 @@ impl Style {
                     .speed(0.02)
                     .suffix(" s"),
             );
+            ui.end_row();
+
+            ui.label("Hover highlight").on_hover_text(
+                "Delay and easing of hover highlights. They fade in over the animation duration.",
+            );
+            hover_highlight.ui(ui);
             ui.end_row();
         });
 
@@ -2294,6 +2462,51 @@ impl Widgets {
     }
 }
 
+impl CodeVisuals {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            bg_color,
+            text_color,
+            corner_radius,
+            margin,
+        } = self;
+
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.label("For monospaced inlined text ");
+            ui.code("like this");
+            ui.label(".");
+        });
+
+        Grid::new("code_visuals").num_columns(2).show(ui, |ui| {
+            ui.label("Background color");
+            ui.color_edit_button_srgba(bg_color);
+            ui.end_row();
+
+            ui.label("Text color");
+            ui.horizontal(|ui| {
+                let mut set = text_color.is_some();
+                ui.checkbox(&mut set, "");
+                if set {
+                    let default_color = ui.visuals().text_color();
+                    ui.color_edit_button_srgba(text_color.get_or_insert(default_color));
+                } else {
+                    *text_color = None;
+                }
+            });
+            ui.end_row();
+
+            ui.label("Corner radius");
+            ui.add(corner_radius);
+            ui.end_row();
+
+            ui.label("Margin");
+            ui.add(margin);
+            ui.end_row();
+        });
+    }
+}
+
 impl Selection {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self { bg_fill, stroke } = self;
@@ -2401,7 +2614,7 @@ impl Visuals {
             faint_bg_color,
             extreme_bg_color,
             text_edit_bg_color,
-            code_bg_color,
+            code,
             warn_fg_color,
             error_fg_color,
 
@@ -2514,18 +2727,6 @@ impl Visuals {
 
                 ui_text_color(ui, hyperlink_color, "hyperlink_color");
 
-                ui.label(RichText::new("Code background").code())
-                    .on_hover_ui(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.spacing_mut().item_spacing.x = 0.0;
-                            ui.label("For monospaced inlined text ");
-                            ui.code("like this");
-                            ui.label(".");
-                        });
-                    });
-                ui.color_edit_button_srgba(code_bg_color);
-                ui.end_row();
-
                 ui.label("Weak text alpha");
                 ui.add_enabled(
                     weak_text_color.is_none(),
@@ -2604,6 +2805,7 @@ impl Visuals {
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
+        ui.collapsing("Code", |ui| code.ui(ui));
         ui.collapsing("IME composition", |ui| ime_composition.ui(ui));
 
         ui.collapsing("Misc", |ui| {
@@ -3291,5 +3493,25 @@ pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAx
 impl Widget for &mut FontTweak {
     fn ui(self, ui: &mut Ui) -> Response {
         font_tweak_ui(ui, self, &[])
+    }
+}
+
+#[cfg(test)]
+mod delayed_highlight_tests {
+    use super::{DelayedHighlight, Easing};
+
+    #[test]
+    fn strength() {
+        let highlight = DelayedHighlight {
+            delay: 0.2,
+            easing: Easing::Linear,
+        };
+        assert_eq!(highlight.strength(0.1, 0.0), 0.0);
+        assert_eq!(highlight.strength(0.1, 0.2), 0.0);
+        assert!((highlight.strength(0.1, 0.25) - 0.5).abs() < 1e-5);
+        assert_eq!(highlight.strength(0.1, 0.3), 1.0);
+        assert_eq!(highlight.strength(0.1, 10.0), 1.0);
+
+        assert_eq!(highlight.strength(0.0, 0.2), 1.0);
     }
 }

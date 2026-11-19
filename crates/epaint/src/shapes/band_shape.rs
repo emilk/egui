@@ -185,7 +185,7 @@ impl From<BandShape> for Shape {
 
 #[cfg(test)]
 mod tests {
-    use emath::{TSTransform, pos2, vec2};
+    use emath::{pos2, vec2};
 
     use super::*;
 

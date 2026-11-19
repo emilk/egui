@@ -2,7 +2,7 @@ use ahash::HashMap;
 
 use emath::TSTransform;
 
-use crate::{LayerId, Pos2, Sense, WidgetRect, WidgetRects, emath, id::IdSet};
+use crate::{LayerId, Pos2, Sense, WidgetRect, WidgetRects, id::IdSet};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
@@ -443,7 +443,7 @@ mod tests {
 
     use emath::{Rect, pos2, vec2};
 
-    use crate::{Id, Sense};
+    use crate::Id;
 
     use super::*;
 

@@ -1,3 +1,5 @@
+//! Per-pass state, which is reset at the start of each pass.
+
 use ahash::HashMap;
 
 use crate::{Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects, id::IdSet, style};
@@ -43,7 +45,7 @@ pub struct PerLayerState {
     pub widget_with_tooltip: Option<Id>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct ScrollTarget {
     // The range that the scroll area should scroll to.
     pub range: Rangef,
@@ -234,6 +236,9 @@ pub struct PassState {
 
     pub accesskit_state: Option<AccessKitPassState>,
 
+    /// The embedded views on screen this pass, in the order they were added.
+    pub(crate) embedded_views: Vec<crate::embedded_view::EmbeddedViewShown>,
+
     /// Highlight these widgets the next pass.
     pub highlight_next_pass: IdSet,
 
@@ -269,6 +274,7 @@ impl Default for PassState {
             scroll_area_viewports: Default::default(),
             scroll_area_deltas: Default::default(),
             accesskit_state: None,
+            embedded_views: Vec::new(),
             highlight_next_pass: Default::default(),
             label_selection_ends: None,
             label_selection_between: false,
@@ -332,6 +338,7 @@ impl PassState {
             scroll_area_viewports,
             scroll_area_deltas,
             accesskit_state,
+            embedded_views,
             highlight_next_pass,
             label_selection_ends,
             label_selection_between,
@@ -353,6 +360,7 @@ impl PassState {
         *scroll_delta = Default::default();
         scroll_area_viewports.clear();
         scroll_area_deltas.clear();
+        embedded_views.clear();
 
         #[cfg(debug_assertions)]
         {
