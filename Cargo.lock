@@ -1469,7 +1469,6 @@ dependencies = [
  "eframe",
  "egui",
  "egui-wgpu",
- "egui_extras",
  "image",
  "kittest",
  "log",
