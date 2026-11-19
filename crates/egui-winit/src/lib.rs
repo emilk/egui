@@ -101,6 +101,24 @@ pub struct State {
     modifiers: egui::Modifiers,
 
     pointer_pos_in_points: Option<egui::Pos2>,
+
+    /// The last pointer position we knew of, kept across `CursorLeft`.
+    ///
+    /// `pointer_pos_in_points` answers two questions at once: where the pointer is, and whether it
+    /// is inside this window (`is_pointer_in_window`). Clearing it on `CursorLeft` is right for the
+    /// second and incidental to the first.
+    ///
+    /// `CursorLeft` does not only mean the pointer moved away. On Windows, a window appearing over a
+    /// *stationary* cursor raises `WM_MOUSELEAVE` for the window underneath - including a popup the
+    /// application opened itself. Afterwards the OS sends no new position until the mouse physically
+    /// moves, and winit drops a `WM_MOUSEMOVE` whose coordinate equals the one it already holds, so
+    /// nothing restores the position and every mouse button is silently discarded until the user
+    /// happens to move the mouse.
+    ///
+    /// This field is therefore never cleared, and is only read when `pointer_pos_in_points` is
+    /// `None` - that is, only when no move has arrived since the pointer "left", in which case the
+    /// remembered position is still where the pointer is.
+    last_known_pointer_pos: Option<egui::Pos2>,
     any_pointer_button_down: bool,
     current_cursor_icon: Option<egui::CursorIcon>,
 
@@ -181,6 +199,7 @@ impl State {
             egui_input,
             modifiers: egui::Modifiers::default(),
             pointer_pos_in_points: None,
+            last_known_pointer_pos: None,
             any_pointer_button_down: false,
             current_cursor_icon: None,
             current_custom_cursor: None,
@@ -872,7 +891,9 @@ impl State {
         state: winit::event::ElementState,
         button: winit::event::MouseButton,
     ) {
-        if let Some(pos) = self.pointer_pos_in_points
+        // A button reaching us means the cursor is over this window, or we hold capture. If the
+        // pointer was marked "gone" without having moved, the last position we knew is still correct.
+        if let Some(pos) = self.pointer_pos_in_points.or(self.last_known_pointer_pos)
             && let Some(button) = translate_mouse_button(button)
         {
             let pressed = state == winit::event::ElementState::Pressed;
@@ -935,6 +956,7 @@ impl State {
             pos_in_pixels.y as f32 / pixels_per_point,
         );
         self.pointer_pos_in_points = Some(pos_in_points);
+        self.last_known_pointer_pos = Some(pos_in_points);
 
         if self.simulate_touch_screen {
             if self.any_pointer_button_down {
