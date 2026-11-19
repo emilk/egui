@@ -1093,6 +1093,11 @@ pub struct PointerState {
     ///
     /// This gets copied from `egui::Options` at the start of each frame for convenience.
     options: InputOptions,
+
+    /// Was the current primary press a Control-click, which on Mac is a secondary click?
+    /// Remembered so its release is secondary too, even if Control is let go first.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    primary_is_ctrl_click: bool,
 }
 
 impl Default for PointerState {
@@ -1118,11 +1123,37 @@ impl Default for PointerState {
             last_move_time: f64::NEG_INFINITY,
             pointer_events: vec![],
             options: Default::default(),
+            primary_is_ctrl_click: false,
         }
     }
 }
 
 impl PointerState {
+
+    /// On Mac, Control-click is the standard secondary click (e.g. with a one-button mouse),
+    /// so this turns primary presses made with Control held, and their releases, into secondary ones.
+    pub(crate) fn ctrl_click_to_secondary(&mut self, events: &mut [Event]) {
+        for event in events {
+            if let Event::PointerButton {
+                button: button @ PointerButton::Primary,
+                pressed,
+                modifiers,
+                ..
+            } = event
+            {
+                if *pressed {
+                    self.primary_is_ctrl_click = modifiers.ctrl;
+                }
+                if self.primary_is_ctrl_click {
+                    *button = PointerButton::Secondary;
+                }
+                if !*pressed {
+                    self.primary_is_ctrl_click = false;
+                }
+            }
+        }
+    }
+
     #[must_use]
     pub(crate) fn begin_pass(mut self, time: f64, new: &RawInput, options: InputOptions) -> Self {
         let was_decidedly_dragging = self.is_decidedly_dragging();
@@ -1725,6 +1756,7 @@ impl PointerState {
             pointer_events,
             last_move_time,
             options: _,
+            primary_is_ctrl_click,
         } = self;
 
         ui.label(format!("latest_pos: {latest_pos:?}"));
@@ -1751,5 +1783,6 @@ impl PointerState {
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
         ui.label(format!("last_move_time: {last_move_time:#?}"));
         ui.label(format!("pointer_events: {pointer_events:?}"));
+        ui.label(format!("primary_is_ctrl_click: {primary_is_ctrl_click}"));
     }
 }

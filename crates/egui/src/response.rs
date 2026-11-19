@@ -210,7 +210,8 @@ impl Response {
     /// Note that the widget must be sensing clicks with [`Sense::click`].
     /// [`crate::Button`] senses clicks; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
     ///
-    /// This also returns true if the widget was pressed-and-held on a touch screen.
+    /// This also returns true if the widget was pressed-and-held on a touch screen,
+    /// or Control-clicked on Mac.
     #[inline]
     pub fn secondary_clicked(&self) -> bool {
         self.flags.contains(Flags::LONG_TOUCHED) || self.clicked_by(PointerButton::Secondary)
