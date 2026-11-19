@@ -2,6 +2,8 @@
 
 #![cfg(feature = "datepicker")]
 
+use std::{cell::Cell, rc::Rc};
+
 use egui::{Key, Modifiers, Order, Rect, accesskit::Role};
 use egui_extras::DatePickerButton;
 use egui_kittest::{Harness, kittest::Queryable as _};
@@ -12,6 +14,9 @@ type Configure = for<'a> fn(DatePickerButton<'a>) -> DatePickerButton<'a>;
 /// A date picker (starting at 2026-05-15) in a headless UI.
 struct Picker {
     harness: Harness<'static, Date>,
+
+    /// How many frames the picker reported `changed()`.
+    changes: Rc<Cell<u32>>,
 }
 
 impl Picker {
@@ -20,17 +25,26 @@ impl Picker {
     }
 
     fn with(configure: Configure) -> Self {
+        let changes = Rc::new(Cell::new(0));
+        let counter = Rc::clone(&changes);
         let mut harness = Harness::builder()
             .with_accessibility_check(false)
             .with_size(egui::vec2(500.0, 500.0))
             .build_ui_state(
                 move |ui, date: &mut Date| {
-                    ui.add(configure(DatePickerButton::new(date)));
+                    if ui.add(configure(DatePickerButton::new(date))).changed() {
+                        counter.set(counter.get() + 1);
+                    }
                 },
                 Date::constant(2026, 5, 15),
             );
         harness.run();
-        Self { harness }
+        Self { harness, changes }
+    }
+
+    /// How many times `changed()` was reported since the last call.
+    fn take_changes(&self) -> u32 {
+        self.changes.replace(0)
     }
 
     fn focus_text(&mut self) {
@@ -303,4 +317,80 @@ fn a_read_only_picker_cannot_change_the_date() {
     picker.harness.get_by_role(Role::Button).click();
     picker.harness.run();
     assert!(!picker.is_open(), "the calendar button is disabled");
+}
+
+#[test]
+fn picking_a_day_reports_changed() {
+    let mut picker = Picker::new();
+    picker.open_with_keyboard();
+    assert_eq!(
+        picker.take_changes(),
+        0,
+        "opening the popup is not a change"
+    );
+    picker.click_a_day();
+    assert_eq!(picker.take_changes(), 1, "picking a day reports one change");
+}
+
+#[test]
+fn confirming_a_typed_date_reports_changed_once() {
+    for confirm in [Key::Enter, Key::Tab] {
+        let mut picker = Picker::new();
+        picker.type_text("20260620");
+        assert_eq!(picker.take_changes(), 0, "typing alone is not a change");
+        picker.press(confirm);
+        assert_eq!(picker.take_changes(), 1, "{confirm:?} confirms the date");
+    }
+}
+
+#[test]
+fn up_and_down_report_changed_on_every_press() {
+    let mut picker = Picker::new();
+    picker.focus_text();
+    picker.press(Key::End);
+    picker.take_changes();
+    picker.press(Key::ArrowUp);
+    assert_eq!(picker.take_changes(), 1, "up");
+    picker.press(Key::ArrowDown);
+    assert_eq!(picker.take_changes(), 1, "down");
+}
+
+#[test]
+fn nothing_reports_changed_when_the_date_stays_the_same() {
+    // The same date typed again.
+    let mut picker = Picker::new();
+    picker.type_text("20260515");
+    picker.press(Key::Enter);
+    assert_eq!(picker.take_changes(), 0, "same date");
+
+    // Invalid dates.
+    for typed in ["20260230", "20261301", "2026", "abc"] {
+        let mut picker = Picker::new();
+        picker.type_text(typed);
+        picker.press(Key::Enter);
+        assert_eq!(picker.take_changes(), 0, "invalid date {typed:?}");
+    }
+
+    // Cancelling.
+    let mut picker = Picker::new();
+    picker.open_with_keyboard();
+    picker.type_text("20260620");
+    picker.press(Key::Escape);
+    assert_eq!(picker.take_changes(), 0, "Esc");
+
+    let mut picker = Picker::new();
+    picker.open_with_keyboard();
+    picker.click_outside();
+    assert_eq!(picker.take_changes(), 0, "click outside");
+}
+
+#[test]
+fn a_read_only_picker_never_reports_changed() {
+    let mut picker = Picker::with(|picker| picker.editable(false));
+    picker.focus_text();
+    picker.press(Key::End);
+    picker.press(Key::ArrowUp);
+    picker.harness.get_by_role(Role::TextInput).type_text("9");
+    picker.press(Key::Enter);
+    assert_eq!(picker.take_changes(), 0);
 }
