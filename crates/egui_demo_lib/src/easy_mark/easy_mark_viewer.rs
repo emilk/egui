@@ -1,4 +1,4 @@
-use super::easy_mark_parser as easy_mark;
+use super::easy_mark_parser::{self as easy_mark, Heading};
 use egui::{
     Align, Align2, Hyperlink, Layout, Response, RichText, Sense, Separator, Shape, TextStyle, Ui,
     vec2,
@@ -120,10 +120,16 @@ fn rich_text_from_style(text: &str, style: &easy_mark::Style) -> RichText {
     let small = small || raised; // Raised text is also smaller
 
     let mut rich_text = RichText::new(text);
-    if heading && !small {
-        rich_text = rich_text.heading().strong();
+    if heading != Heading::None && !small {
+        rich_text = match heading {
+            Heading::H1 => rich_text.heading(),
+            Heading::H2 => rich_text.heading2(),
+            Heading::H3 => rich_text.heading3(),
+            Heading::None => rich_text,
+        }
+        .strong();
     }
-    if small && !heading {
+    if small && heading == Heading::None {
         rich_text = rich_text.small();
     }
     if code {

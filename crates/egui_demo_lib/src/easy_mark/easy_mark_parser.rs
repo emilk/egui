@@ -39,9 +39,18 @@ pub enum Item<'a> {
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum Heading {
+    H1,
+    H2,
+    H3,
+    #[default]
+    None,
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct Style {
     /// # heading (large text)
-    pub heading: bool,
+    pub heading: Heading,
 
     /// > quoted (slightly dimmer color or other font style)
     pub quoted: bool,
@@ -228,10 +237,20 @@ impl<'a> Iterator for Parser<'a> {
                 }
 
                 // # Heading
-                if let Some(after) = self.s.strip_prefix("# ") {
+                if let Some(after) = self.s.strip_prefix("#") {
                     self.s = after;
                     self.start_of_line = false;
-                    self.style.heading = true;
+                    //self.style.heading = true;
+                    let level = match self.s {
+                        t if t.starts_with("### ") => Heading::H3,
+                        t if t.starts_with("## ") => Heading::H2,
+                        t if t.starts_with("# ") => Heading::H1,
+                        _ => Heading::None,
+                    };
+
+                    if level != Heading::None {
+                        self.style.heading = level;
+                    }
                     continue;
                 }
 
