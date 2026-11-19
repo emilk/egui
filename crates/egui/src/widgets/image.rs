@@ -806,7 +806,7 @@ impl<T: Into<SizedTexture>> From<T> for ImageSource<'static> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ImageOptions {
     /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.

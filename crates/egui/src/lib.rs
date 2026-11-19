@@ -400,8 +400,10 @@ mod context;
 mod data;
 pub mod debug_text;
 mod drag_and_drop;
+mod embedded_view;
 pub(crate) mod grid;
 pub mod gui_zoom;
+mod highlight_state;
 mod hit_test;
 mod id;
 mod id_salt;
@@ -414,7 +416,7 @@ pub mod load;
 mod memory;
 pub mod os;
 mod painter;
-mod pass_state;
+pub mod pass_state;
 pub(crate) mod placer;
 pub mod plugin;
 pub mod response;
@@ -488,7 +490,7 @@ pub use self::{
         menu::{self, MenuBar},
         modal, panel, scroll_area,
     },
-    context::{Context, RepaintCause, RequestRepaintInfo},
+    context::{Context, RepaintCause, RequestRepaintInfo, ViewportState},
     data::{
         Key, ScreenshotCallback,
         input::{
@@ -503,20 +505,26 @@ pub use self::{
         },
     },
     drag_and_drop::DragAndDrop,
+    embedded_view::{EmbeddedView, EmbeddedViewOutput, EmbeddedViewPlacement},
     epaint::text::TextWrapMode,
     grid::Grid,
+    highlight_state::HighlightState,
+    hit_test::WidgetHits,
     id::{Id, IdMap, IdSet},
     id_salt::{AsIdSalt, IdSalt, IdSaltMap, IdSaltSet},
     input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
+    interaction::InteractionSnapshot,
     layers::{LayerId, Order},
     layout::Layout,
     load::SizeHint,
-    memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
+    memory::{Areas, FocusDirection, Memory, Options, Theme, ThemePreference},
     painter::Painter,
     plugin::Plugin,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{FontSelection, Spacing, Style, TextStyle, Visuals},
+    style::{
+        CodeVisuals, DelayedHighlight, FadeOut, FontSelection, Spacing, Style, TextStyle, Visuals,
+    },
     text::{Galley, TextFormat},
     ui::Ui,
     ui_builder::{IdSource, UiBuilder},

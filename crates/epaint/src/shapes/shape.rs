@@ -75,6 +75,13 @@ pub enum Shape {
 
     /// Backend-specific painting.
     Callback(PaintCallback),
+
+    /// Sets the pixels of a rect to transparent black, replacing whatever was painted there
+    /// before.
+    ///
+    /// Shapes painted after it blend over the transparent pixels as usual. Only the part inside
+    /// the clip rect is cleared.
+    Clear(Rect),
 }
 
 #[test]
@@ -427,6 +434,7 @@ impl Shape {
             Self::QuadraticBezier(bezier) => bezier.visual_bounding_rect(),
             Self::CubicBezier(bezier) => bezier.visual_bounding_rect(),
             Self::Callback(custom) => custom.rect,
+            Self::Clear(rect) => *rect,
         }
     }
 }
@@ -521,6 +529,9 @@ impl Shape {
             }
             Self::Callback(shape) => {
                 shape.rect = transform * shape.rect;
+            }
+            Self::Clear(rect) => {
+                *rect = transform * *rect;
             }
         }
     }

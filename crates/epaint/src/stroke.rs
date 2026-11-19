@@ -3,7 +3,7 @@ use core::fmt::Debug;
 
 use emath::GuiRounding as _;
 
-use super::{Color32, ColorMode, Pos2, Rect, emath};
+use super::{Color32, ColorMode, Pos2, Rect};
 
 /// Describes the width and color of a line.
 ///
@@ -34,6 +34,17 @@ impl Stroke {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.width <= 0.0 || self.color == Color32::TRANSPARENT
+    }
+
+    /// Interpolate the width (linearly) and the color (in gamma space) towards `other`.
+    ///
+    /// `t = 0` gives `self`, and `t = 1` gives `other`.
+    #[inline]
+    pub fn lerp(self, other: Self, t: f32) -> Self {
+        Self {
+            width: emath::lerp(self.width..=other.width, t),
+            color: self.color.lerp_to_gamma(other.color, t),
+        }
     }
 
     /// For vertical or horizontal lines:

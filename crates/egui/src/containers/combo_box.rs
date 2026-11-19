@@ -7,7 +7,6 @@ use crate::{
     NumExt as _, Painter, Popup, PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense,
     TextStyle, TextWrapMode, Ui, Vec2, WidgetAtom, WidgetInfo,
     class::{ClassName, Classes, HasClasses},
-    epaint,
     style::{StyleModifier, WidgetVisuals},
     vec2,
     widget_style::ButtonStyle,

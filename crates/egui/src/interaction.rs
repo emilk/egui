@@ -8,7 +8,7 @@ use self::{hit_test::WidgetHits, id::IdSet, input_state::PointerEvent, memory::I
 /// based on:
 /// * Widget rects from precious frame
 /// * Mouse/touch input
-/// * Current [`InteractionState`].
+/// * Current `InteractionState`.
 #[derive(Clone, Default)]
 pub struct InteractionSnapshot {
     /// The widget that got clicked this frame.

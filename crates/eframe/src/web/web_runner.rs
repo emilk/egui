@@ -169,7 +169,7 @@ impl WebRunner {
     ///
     /// All events added with this method will automatically be unsubscribed on panic,
     /// or when [`Self::destroy`] is called.
-    pub fn add_event_listener<E: wasm_bindgen::JsCast>(
+    pub(crate) fn add_event_listener<E: wasm_bindgen::JsCast>(
         &self,
         target: &web_sys::EventTarget,
         event_name: &'static str,
@@ -189,7 +189,7 @@ impl WebRunner {
     ///
     /// All events added with this method will automatically be unsubscribed on panic,
     /// or when [`Self::destroy`] is called.
-    pub fn add_event_listener_ex<E: wasm_bindgen::JsCast>(
+    pub(crate) fn add_event_listener_ex<E: wasm_bindgen::JsCast>(
         &self,
         target: &web_sys::EventTarget,
         event_name: &'static str,
