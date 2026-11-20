@@ -4738,6 +4738,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ten_bit_color"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
+]
+
+[[package]]
 name = "termcolor"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

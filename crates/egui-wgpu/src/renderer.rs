@@ -197,6 +197,8 @@ pub struct RendererOptions {
     /// two 8bit values after applying the sRGB OETF function, i.e. if it's not a whole 8bit value in "gamma space".
     /// This means that only inputs from texture interpolation and vertex colors should be affected in practice.
     ///
+    /// Ignored for a [`wgpu::TextureFormat::Rgb10a2Unorm`] target, which has no 8-bit steps to hide.
+    ///
     /// Defaults to true.
     pub dithering: bool,
 
@@ -274,13 +276,19 @@ impl Renderer {
     /// Creates a renderer for a egui UI.
     ///
     /// `output_color_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
-    /// [`wgpu::TextureFormat::Bgra8Unorm`], i.e. in gamma-space.
+    /// [`wgpu::TextureFormat::Bgra8Unorm`], i.e. in gamma-space, or
+    /// [`wgpu::TextureFormat::Rgb10a2Unorm`] for a 10-bit target.
     pub fn new(
         device: &wgpu::Device,
         output_color_format: wgpu::TextureFormat,
-        options: RendererOptions,
+        mut options: RendererOptions,
     ) -> Self {
         profiling::function_scope!();
+
+        // The dithering noise is sized for 8-bit steps; a 10-bit target doesn't need it.
+        if output_color_format == wgpu::TextureFormat::Rgb10a2Unorm {
+            options.dithering = false;
+        }
 
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("egui"),
