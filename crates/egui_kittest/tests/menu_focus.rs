@@ -1,5 +1,5 @@
 use egui::containers::menu::{MenuBar, SubMenuButton};
-use egui::{Key, Ui};
+use egui::{Key, NamedKey, Ui};
 use egui_kittest::Harness;
 use kittest::Queryable as _;
 
@@ -14,20 +14,20 @@ fn menu_linear_navigation() {
             open_navigation_menu(&mut harness);
         }
         for (from, key, to) in [
-            ("Menu", Key::ArrowDown, "First item"),
-            ("Menu", Key::ArrowUp, "Last item"),
+            ("Menu", NamedKey::ArrowDown.into(), "First item"),
+            ("Menu", NamedKey::ArrowUp.into(), "Last item"),
             // Skips the disabled entry.
-            ("First item", Key::ArrowDown, "Second item"),
-            ("Second item", Key::ArrowUp, "First item"),
-            ("First item", Key::ArrowUp, "Last item"),
-            ("Last item", Key::ArrowDown, "First item"),
-            ("First item", Key::ArrowLeft, "Menu"),
-            ("First item", Key::ArrowRight, "First item"),
+            ("First item", NamedKey::ArrowDown.into(), "Second item"),
+            ("Second item", NamedKey::ArrowUp.into(), "First item"),
+            ("First item", NamedKey::ArrowUp.into(), "Last item"),
+            ("Last item", NamedKey::ArrowDown.into(), "First item"),
+            ("First item", NamedKey::ArrowLeft.into(), "Menu"),
+            ("First item", NamedKey::ArrowRight.into(), "First item"),
         ] {
             focus(&mut harness, from);
             harness.state_mut().clear();
-            press(&mut harness, key);
             let step = format!("{from}, {key:?}, context_menu={context_menu}");
+            press(&mut harness, key);
             assert!(is_focused(&harness, to), "{step}");
             if to.ends_with("item") && to != from {
                 assert_eq!(*harness.state(), [to], "gained_focus: {step}");
@@ -43,39 +43,39 @@ fn submenu_navigation() {
 
     // Arrowing onto a submenu button opens the submenu but keeps focus on the button.
     focus(&mut harness, "Second item");
-    press(&mut harness, Key::ArrowDown);
+    press(&mut harness, NamedKey::ArrowDown.into());
     assert!(is_focused(&harness, "Submenu"));
     assert!(is_shown(&harness, "First child"));
-    press(&mut harness, Key::ArrowDown);
+    press(&mut harness, NamedKey::ArrowDown.into());
     assert!(is_focused(&harness, "Last item"));
     assert!(!is_shown(&harness, "First child"));
-    press(&mut harness, Key::ArrowUp);
+    press(&mut harness, NamedKey::ArrowUp.into());
     assert!(is_shown(&harness, "First child"));
 
-    press(&mut harness, Key::ArrowRight);
+    press(&mut harness, NamedKey::ArrowRight.into());
     assert!(is_focused(&harness, "First child"));
-    press(&mut harness, Key::ArrowDown);
+    press(&mut harness, NamedKey::ArrowDown.into());
     assert!(is_focused(&harness, "Nested submenu"));
     assert!(is_shown(&harness, "Nested item"));
-    press(&mut harness, Key::ArrowRight);
+    press(&mut harness, NamedKey::ArrowRight.into());
     assert!(is_focused(&harness, "Nested item"));
 
     // Left returns to the submenu button and closes the submenu.
-    press(&mut harness, Key::ArrowLeft);
+    press(&mut harness, NamedKey::ArrowLeft.into());
     assert!(is_focused(&harness, "Nested submenu"));
     assert!(!is_shown(&harness, "Nested item"));
-    press(&mut harness, Key::ArrowLeft);
+    press(&mut harness, NamedKey::ArrowLeft.into());
     assert!(is_focused(&harness, "Submenu"));
     assert!(!is_shown(&harness, "First child"));
 
-    press(&mut harness, Key::Enter);
+    press(&mut harness, NamedKey::Enter.into());
     assert!(is_focused(&harness, "First child"));
-    press(&mut harness, Key::ArrowLeft);
+    press(&mut harness, NamedKey::ArrowLeft.into());
     assert!(is_focused(&harness, "Submenu"));
 
     // Tab moves focus without opening the submenu.
     focus(&mut harness, "Second item");
-    press(&mut harness, Key::Tab);
+    press(&mut harness, NamedKey::Tab.into());
     assert!(is_focused(&harness, "Submenu"));
     assert!(!is_shown(&harness, "First child"));
 
@@ -83,7 +83,7 @@ fn submenu_navigation() {
     harness.get_by_label("First item").hover();
     harness.run();
     focus(&mut harness, "Second item");
-    press(&mut harness, Key::ArrowDown);
+    press(&mut harness, NamedKey::ArrowDown.into());
     assert!(is_shown(&harness, "First child"));
     harness.get_by_label("Second item").hover();
     harness.run();
@@ -109,10 +109,10 @@ fn menu_controls_keep_their_arrow_keys() {
         .focus();
     harness.run();
     for key in [
-        Key::ArrowLeft,
-        Key::ArrowRight,
-        Key::ArrowUp,
-        Key::ArrowDown,
+        NamedKey::ArrowLeft.into(),
+        NamedKey::ArrowRight.into(),
+        NamedKey::ArrowUp.into(),
+        NamedKey::ArrowDown.into(),
     ] {
         press(&mut harness, key);
         assert!(
@@ -123,7 +123,7 @@ fn menu_controls_keep_their_arrow_keys() {
     }
     harness.get_by_role(egui::accesskit::Role::Slider).focus();
     harness.run();
-    press(&mut harness, Key::ArrowRight);
+    press(&mut harness, NamedKey::ArrowRight.into());
     assert!(
         harness
             .get_by_role(egui::accesskit::Role::Slider)
@@ -139,9 +139,9 @@ fn arrow_navigation_outside_menus() {
     open_navigation_menu(&mut harness);
     for _ in 0..2 {
         focus(&mut harness, "Behind 10 0");
-        press(&mut harness, Key::ArrowRight);
+        press(&mut harness, NamedKey::ArrowRight.into());
         assert!(is_focused(&harness, "Behind 10 1"));
-        press(&mut harness, Key::Escape);
+        press(&mut harness, NamedKey::Escape.into());
         assert!(!is_shown(&harness, "First item"));
     }
 
@@ -157,7 +157,7 @@ fn arrow_navigation_outside_menus() {
         });
     });
     focus(&mut harness, "Popup item");
-    press(&mut harness, Key::ArrowRight);
+    press(&mut harness, NamedKey::ArrowRight.into());
     assert!(is_focused(&harness, "Background"));
 
     // A menu in a modal navigates its entries, and the modal navigates once the menu closes.
@@ -173,12 +173,12 @@ fn arrow_navigation_outside_menus() {
     });
     open_navigation_menu(&mut harness);
     for to in ["First item", "Last item", "First item"] {
-        press(&mut harness, Key::ArrowDown);
+        press(&mut harness, NamedKey::ArrowDown.into());
         assert!(is_focused(&harness, to));
     }
-    press(&mut harness, Key::Escape);
+    press(&mut harness, NamedKey::Escape.into());
     focus(&mut harness, "Menu");
-    press(&mut harness, Key::ArrowDown);
+    press(&mut harness, NamedKey::ArrowDown.into());
     assert!(is_focused(&harness, "Other modal item"));
 
     // A menu below a modal does not take the modal's arrow keys.
@@ -200,7 +200,7 @@ fn arrow_navigation_outside_menus() {
     *harness.state_mut() = true;
     harness.run();
     focus(&mut harness, "First modal item");
-    press(&mut harness, Key::ArrowDown);
+    press(&mut harness, NamedKey::ArrowDown.into());
     assert!(is_focused(&harness, "Last modal item"));
 }
 
@@ -230,16 +230,16 @@ fn submenu_in_other_containers() {
             });
         });
     focus(&mut harness, "Hosted submenu");
-    press(&mut harness, Key::Enter);
+    press(&mut harness, NamedKey::Enter.into());
     assert!(is_focused(&harness, "Hosted child"));
-    press(&mut harness, Key::ArrowLeft);
+    press(&mut harness, NamedKey::ArrowLeft.into());
     assert!(is_focused(&harness, "Hosted submenu"));
     assert!(!is_shown(&harness, "Hosted child"));
 
     focus(&mut harness, "Earlier popup child");
     let earlier_layer = focused_layer(&harness);
     focus(&mut harness, "Host first");
-    press(&mut harness, Key::ArrowRight);
+    press(&mut harness, NamedKey::ArrowRight.into());
     assert_eq!(focused_layer(&harness), earlier_layer);
 
     // A submenu directly in a menu bar keeps navigation inside the submenu.
@@ -255,11 +255,11 @@ fn submenu_in_other_containers() {
         );
     });
     focus(&mut harness, "Standalone submenu");
-    press(&mut harness, Key::ArrowRight);
+    press(&mut harness, NamedKey::ArrowRight.into());
     assert!(is_focused(&harness, "Standalone item"));
-    press(&mut harness, Key::ArrowRight);
+    press(&mut harness, NamedKey::ArrowRight.into());
     assert!(is_focused(&harness, "Standalone item"));
-    press(&mut harness, Key::ArrowLeft);
+    press(&mut harness, NamedKey::ArrowLeft.into());
     assert!(is_focused(&harness, "Standalone submenu"));
 }
 
@@ -316,7 +316,7 @@ fn navigation_menu(context_menu: bool) -> Harness<'static, Vec<String>> {
 
 fn open_navigation_menu<State>(harness: &mut Harness<'_, State>) {
     focus(harness, "Menu");
-    press(harness, Key::Enter);
+    press(harness, NamedKey::Enter.into());
 }
 
 fn focus<State>(harness: &mut Harness<'_, State>, label: &str) {

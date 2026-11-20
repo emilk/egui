@@ -666,88 +666,83 @@ impl<'a, State> Harness<'a, State> {
     }
 
     pub fn key_down(&self, key: egui::Key) {
-        self.event(egui::Event::Key {
-            key,
+        self.event(egui::Event::Key(egui::KeyEvent {
+            key: key.into(),
             pressed: true,
             modifiers: Modifiers::default(),
             repeat: false,
-            physical_key: None,
-        });
+        }));
     }
 
     pub fn key_down_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.event_modifiers(
-            egui::Event::Key {
-                key,
+            egui::Event::Key(egui::KeyEvent {
+                key: key.into(),
                 pressed: true,
                 modifiers,
                 repeat: false,
-                physical_key: None,
-            },
+            }),
             modifiers,
         );
     }
 
     pub fn key_up(&self, key: egui::Key) {
-        self.event(egui::Event::Key {
-            key,
+        self.event(egui::Event::Key(egui::KeyEvent {
+            key: key.into(),
             pressed: false,
             modifiers: Modifiers::default(),
             repeat: false,
-            physical_key: None,
-        });
+        }));
     }
 
     pub fn key_up_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.event_modifiers(
-            egui::Event::Key {
-                key,
+            egui::Event::Key(egui::KeyEvent {
+                key: key.into(),
                 pressed: false,
                 modifiers,
                 repeat: false,
-                physical_key: None,
-            },
+            }),
             modifiers,
         );
     }
 
     /// Press the given keys in combination.
     ///
-    /// For e.g. [`Key::A`] + [`Key::B`] this would generate:
-    /// - Press [`Key::A`]
-    /// - Press [`Key::B`]
-    /// - Release [`Key::B`]
-    /// - Release [`Key::A`]
+    /// For e.g. `Key::character("a")` + `Key::character("b")` this would generate:
+    /// - Press `a`
+    /// - Press `b`
+    /// - Release `b`
+    /// - Release `a`
     pub fn key_combination(&self, keys: &[Key]) {
         for key in keys {
-            self.key_down(*key);
+            self.key_down(key.clone());
         }
         for key in keys.iter().rev() {
-            self.key_up(*key);
+            self.key_up(key.clone());
         }
     }
 
     /// Press the given keys in combination, with modifiers.
     ///
-    /// For e.g. [`Modifiers::COMMAND`] + [`Key::A`] + [`Key::B`] this would generate:
+    /// For e.g. [`Modifiers::COMMAND`] + `Key::character("a")` + `Key::character("b")` this would generate:
     /// - Press [`Modifiers::COMMAND`]
-    /// - Press [`Key::A`]
-    /// - Press [`Key::B`]
-    /// - Release [`Key::B`]
-    /// - Release [`Key::A`]
+    /// - Press `a`
+    /// - Press `b`
+    /// - Release `b`
+    /// - Release `a`
     /// - Release [`Modifiers::COMMAND`]
     pub fn key_combination_modifiers(&self, modifiers: Modifiers, keys: &[Key]) {
         self.modifiers(modifiers);
 
         for pressed in [true, false] {
             for key in keys {
-                self.event(egui::Event::Key {
-                    key: *key,
+                self.event(egui::Event::Key(egui::KeyEvent {
+                    key: key.clone().into(),
                     pressed,
                     modifiers,
                     repeat: false,
-                    physical_key: None,
-                });
+                }));
             }
         }
 

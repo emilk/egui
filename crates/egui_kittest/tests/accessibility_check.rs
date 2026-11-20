@@ -77,9 +77,9 @@ fn slider_named_by_tooltip_keeps_name_when_number_field_has_focus() {
             .on_hover_text("Amount");
     });
 
-    harness.key_press(egui::Key::Tab); // Focus the slider
+    harness.key_press(egui::NamedKey::Tab.into()); // Focus the slider
     harness.run();
-    harness.key_press(egui::Key::Tab); // Focus the number field
+    harness.key_press(egui::NamedKey::Tab.into()); // Focus the number field
     harness.run();
 
     assert!(
