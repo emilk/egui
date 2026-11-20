@@ -1315,6 +1315,7 @@ dependencies = [
  "ron",
  "serde",
  "smallvec",
+ "smol_str",
  "unicode-segmentation",
  "web-sys",
 ]

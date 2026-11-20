@@ -143,6 +143,7 @@ skrifa = { version = "0.49.0", default-features = false, features = [
   "autohint_shaping",
 ] } # Can't update to 0.50+: `glifo` 0.5 (via vello_cpu 0.4) and usvg 0.50 pin skrifa 0.49
 smallvec = "1.16"
+smol_str = "0.2.2"
 smithay-clipboard = "0.7.2" # 0.7.3 pulls smithay-client-toolkit 0.20 (calloop 0.14), duplicating the 0.19/0.13 that winit 0.30 needs
 static_assertions = "1.1"
 syntect = { version = "5.3", default-features = false }

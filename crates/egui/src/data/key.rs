@@ -1,891 +1,556 @@
-/// Keyboard keys.
+use core::str::FromStr;
+
+pub use keyboard_types::NamedKey;
+use smol_str::SmolStr;
+
+/// A logical keyboard key.
 ///
-/// egui usually uses logical keys, i.e. after applying any user keymap.\
-// See comment at the end of `Key { … }` on how to add new keys.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+/// **NOTE:** keys are reported accounting for modifier keys
+/// e.g pressing `a` reports `Key::Character("a")`, but `Key::Character("A")` while shift is held
+/// (assuming a standard English layout).
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum Key {
-    // ----------------------------------------------
-    // Commands:
-    ArrowDown,
-    ArrowLeft,
-    ArrowRight,
-    ArrowUp,
-
-    Escape,
-    Tab,
-    Backspace,
-    Enter,
-    Space,
-
-    Insert,
-    Delete,
-    Home,
-    End,
-    PageUp,
-    PageDown,
-
-    Copy,
-    Cut,
-    Paste,
-
-    // ----------------------------------------------
-    // Punctuation:
-    /// `:`
-    Colon,
-
-    /// `,`
-    Comma,
-
-    /// `\`
-    Backslash,
-
-    /// `/`
-    Slash,
-
-    /// `|`, a vertical bar
-    Pipe,
-
-    /// `?`
-    Questionmark,
-
-    // '!'
-    Exclamationmark,
-
-    // `[`
-    OpenBracket,
-
-    // `]`
-    CloseBracket,
-
-    // `{`
-    OpenCurlyBracket,
-
-    // `}`
-    CloseCurlyBracket,
-
-    /// Also known as "backquote" or "grave"
-    Backtick,
-
-    /// `-`
-    Minus,
-
-    /// `.`
-    Period,
-
-    /// `+`
-    Plus,
-
-    /// `=`
-    Equals,
-
-    /// `;`
-    Semicolon,
-
-    /// `'`
-    Quote,
-
-    // ----------------------------------------------
-    // Digits:
-    /// `0` (from main row or numpad)
-    Num0,
-
-    /// `1` (from main row or numpad)
-    Num1,
-
-    /// `2` (from main row or numpad)
-    Num2,
-
-    /// `3` (from main row or numpad)
-    Num3,
-
-    /// `4` (from main row or numpad)
-    Num4,
-
-    /// `5` (from main row or numpad)
-    Num5,
-
-    /// `6` (from main row or numpad)
-    Num6,
-
-    /// `7` (from main row or numpad)
-    Num7,
-
-    /// `8` (from main row or numpad)
-    Num8,
-
-    /// `9` (from main row or numpad)
-    Num9,
-
-    // ----------------------------------------------
-    // Letters:
-    A, // Used for cmd+A (select All)
-    B,
-    C, // |CMD COPY|
-    D, // |CMD BOOKMARK|
-    E, // |CMD SEARCH|
-    F, // |CMD FIND firefox & chrome|
-    G, // |CMD FIND chrome|
-    H, // |CMD History|
-    I, // italics
-    J, // |CMD SEARCH firefox/DOWNLOAD chrome|
-    K, // Used for ctrl+K (delete text after cursor)
-    L,
-    M,
-    N,
-    O, // |CMD OPEN|
-    P, // |CMD PRINT|
-    Q,
-    R, // |CMD REFRESH|
-    S, // |CMD SAVE|
-    T, // |CMD TAB|
-    U, // Used for ctrl+U (delete text before cursor)
-    V, // |CMD PASTE|
-    W, // Used for ctrl+W (delete previous word)
-    X, // |CMD CUT|
-    Y,
-    Z, // |CMD UNDO|
-
-    // ----------------------------------------------
-    // Function keys:
-    F1,
-    F2,
-    F3,
-    F4,
-    F5, // |CMD REFRESH|
-    F6,
-    F7,
-    F8,
-    F9,
-    F10,
-    F11,
-    F12,
-    F13,
-    F14,
-    F15,
-    F16,
-    F17,
-    F18,
-    F19,
-    F20,
-    F21,
-    F22,
-    F23,
-    F24,
-    F25,
-    F26,
-    F27,
-    F28,
-    F29,
-    F30,
-    F31,
-    F32,
-    F33,
-    F34,
-    F35,
-
-    // ----------------------------------------------
-    // Browser / multimedia navigation keys:
-    /// Back navigation key from multimedia keyboard.
-    /// Android sends this key on Back button press.
-    /// Does not work on Web.
-    BrowserBack,
-
-    /// Forward navigation key.
-    BrowserForward,
-
-    /// Refresh / reload page key.
-    BrowserRefresh,
-
-    /// Search key.
-    BrowserSearch,
-
-    /// Go to home page key.
-    BrowserHome,
-
-    /// Open favorites / bookmarks key.
-    BrowserFavorites,
-
-    /// Stop loading key.
-    BrowserStop,
-
-    // ----------------------------------------------
-    // Media control keys:
-    /// Play / Pause toggle key.
-    MediaPlayPause,
-
-    /// Next track key.
-    MediaTrackNext,
-
-    /// Previous track key.
-    MediaTrackPrevious,
-
-    /// Stop playback key.
-    MediaStop,
-
-    /// Mute audio toggle key.
-    AudioVolumeMute,
-
-    /// Decrease audio volume key.
-    AudioVolumeDown,
-
-    /// Increase audio volume key.
-    AudioVolumeUp,
-
-    // ----------------------------------------------
-    // Launch keys:
-    /// Launch mail application key.
-    LaunchMail,
-
-    /// Launch application 1 (typically "My Computer") key.
-    LaunchApp1,
-
-    /// Launch application 2 (typically "Calculator") key.
-    LaunchApp2,
-
-    // ----------------------------------------------
-    // Modifier keys (exposed as distinct left/right variants so that
-    // games and input-capture UIs can bind them independently). egui's
-    // `Modifiers` struct still collapses both sides for the common case
-    // (e.g. "Ctrl+C"); these variants are emitted only as physical
-    // `Event::Key` presses.
-    /// Left Shift key.
-    ShiftLeft,
-
-    /// Right Shift key.
-    ShiftRight,
-
-    /// Left Control key.
-    ControlLeft,
-
-    /// Right Control key.
-    ControlRight,
-
-    /// Left Alt / Option key.
-    AltLeft,
-
-    /// Right Alt / `AltGr` / Option key.
-    AltRight,
-
-    /// Left Super / Meta / Command / Windows key.
-    SuperLeft,
-
-    /// Right Super / Meta / Command / Windows key.
-    SuperRight,
-
-    // ----------------------------------------------
-    // International keys — physical positions that only exist on
-    // non-US keyboards.
-    /// ISO 102nd key: physically located between the left Shift and Z
-    /// on ISO layouts. On French AZERTY it produces `<>|`; on UK
-    /// QWERTY a secondary `\` / `|`. Missing from US ANSI keyboards.
-    IntlBackslash,
-
-    // ----------------------------------------------
-    // Lock / System keys:
-    /// Caps Lock key.
-    CapsLock,
-
-    /// Num Lock key.
-    NumLock,
-
-    /// Scroll Lock key.
-    ScrollLock,
-
-    /// Print Screen / `SysRq` key.
-    PrintScreen,
-
-    /// Pause / Break key.
-    Pause,
-
-    /// Menu / Apps key (opens context menu).
-    Menu,
-
-    // ----------------------------------------------
-    // Mac / other system keys:
-    /// Fn / Globe key (Mac keyboard function key).
-    Fn,
-
-    /// Eject key (⏏) on Mac keyboards.
-    Eject,
-
-    /// Help key (found on older PC and Mac keyboards).
-    Help,
-
-    /// Power key (toggles power state).
-    Power,
-
-    /// Sleep / Standby key.
-    Sleep,
-
-    /// Clear key (on some keyboards/numpads).
-    Clear,
-    // When adding keys, remember to also update:
-    // * crates/egui-winit/src/lib.rs
-    // * Key::ALL
-    // * Key::from_name
-    // You should test that it works using the "Input Event History" window in the egui demo app.
-    // Make sure to test both natively and on web!
-    // Also: don't add keys last; add them to the group they best belong to.
+pub enum Key<Str = SmolStr> {
+    Character(Str),
+    Named(NamedKey),
+}
+
+impl<S> FromStr for Key<S>
+where
+    S: for<'a> From<&'a str>,
+{
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.parse::<NamedKey>() {
+            Ok(NamedKey::Dead | NamedKey::Unidentified) => Err(()),
+            Ok(named_key) => Ok(Self::Named(named_key)),
+            Err(_) if s.is_empty() => Err(()),
+            Err(_) => Ok(Self::Character(s.into())),
+        }
+    }
+}
+
+impl<S: From<String>> From<keyboard_types::Key> for Key<S> {
+    fn from(value: keyboard_types::Key) -> Self {
+        match value {
+            keyboard_types::Key::Character(c) => Self::Character(c.into()),
+            keyboard_types::Key::Named(named_key) => Self::Named(named_key),
+        }
+    }
+}
+
+impl<S> From<NamedKey> for Key<S> {
+    #[inline]
+    fn from(named_key: NamedKey) -> Self {
+        Self::Named(named_key)
+    }
+}
+
+impl<Str> PartialEq<NamedKey> for Key<Str> {
+    #[inline]
+    fn eq(&self, rhs: &NamedKey) -> bool {
+        match self {
+            Self::Named(a) => a == rhs,
+            Self::Character(_) => false,
+        }
+    }
+}
+
+impl<Str: PartialEq<str>> PartialEq<str> for Key<Str> {
+    #[inline]
+    fn eq(&self, rhs: &str) -> bool {
+        match self {
+            Self::Character(s) => s == rhs,
+            Self::Named(_) => false,
+        }
+    }
+}
+
+impl<Str: PartialEq<str>> PartialEq<&str> for Key<Str> {
+    #[inline]
+    fn eq(&self, rhs: &&str) -> bool {
+        self == *rhs
+    }
+}
+
+impl<S: AsRef<str>> Key<S> {
+    /// Convert [`Key::Character`] to contain `&str`, so you can more easily match on
+    /// `Key`. All other variants remain unchanged.
+    pub fn as_ref(&self) -> Key<&str> {
+        match self {
+            Self::Named(a) => Key::Named(*a),
+            Self::Character(ch) => Key::Character(ch.as_ref()),
+        }
+    }
+}
+
+impl Key<SmolStr> {
+    /// A [`Key::Character`] key, usable in `const` contexts.
+    ///
+    /// ```
+    /// # use egui::Key;
+    /// const SPACE: Key = Key::character(" ");
+    /// ```
+    #[inline]
+    pub const fn character(s: &'static str) -> Self {
+        Self::Character(SmolStr::new_static(s))
+    }
 }
 
 impl Key {
-    /// All egui keys
-    pub const ALL: &'static [Self] = &[
-        // Commands:
-        Self::ArrowDown,
-        Self::ArrowLeft,
-        Self::ArrowRight,
-        Self::ArrowUp,
-        Self::Escape,
-        Self::Tab,
-        Self::Backspace,
-        Self::Enter,
-        Self::Insert,
-        Self::Delete,
-        Self::Home,
-        Self::End,
-        Self::PageUp,
-        Self::PageDown,
-        Self::Copy,
-        Self::Cut,
-        Self::Paste,
-        // Punctuation:
-        Self::Space,
-        Self::Colon,
-        Self::Comma,
-        Self::Minus,
-        Self::Period,
-        Self::Plus,
-        Self::Equals,
-        Self::Semicolon,
-        Self::OpenBracket,
-        Self::CloseBracket,
-        Self::OpenCurlyBracket,
-        Self::CloseCurlyBracket,
-        Self::Backtick,
-        Self::Backslash,
-        Self::Slash,
-        Self::Pipe,
-        Self::Questionmark,
-        Self::Exclamationmark,
-        Self::Quote,
-        // Digits:
-        Self::Num0,
-        Self::Num1,
-        Self::Num2,
-        Self::Num3,
-        Self::Num4,
-        Self::Num5,
-        Self::Num6,
-        Self::Num7,
-        Self::Num8,
-        Self::Num9,
-        // Letters:
-        Self::A,
-        Self::B,
-        Self::C,
-        Self::D,
-        Self::E,
-        Self::F,
-        Self::G,
-        Self::H,
-        Self::I,
-        Self::J,
-        Self::K,
-        Self::L,
-        Self::M,
-        Self::N,
-        Self::O,
-        Self::P,
-        Self::Q,
-        Self::R,
-        Self::S,
-        Self::T,
-        Self::U,
-        Self::V,
-        Self::W,
-        Self::X,
-        Self::Y,
-        Self::Z,
-        // Function keys:
-        Self::F1,
-        Self::F2,
-        Self::F3,
-        Self::F4,
-        Self::F5,
-        Self::F6,
-        Self::F7,
-        Self::F8,
-        Self::F9,
-        Self::F10,
-        Self::F11,
-        Self::F12,
-        Self::F13,
-        Self::F14,
-        Self::F15,
-        Self::F16,
-        Self::F17,
-        Self::F18,
-        Self::F19,
-        Self::F20,
-        Self::F21,
-        Self::F22,
-        Self::F23,
-        Self::F24,
-        Self::F25,
-        Self::F26,
-        Self::F27,
-        Self::F28,
-        Self::F29,
-        Self::F30,
-        Self::F31,
-        Self::F32,
-        Self::F33,
-        Self::F34,
-        Self::F35,
-        // Navigation keys:
-        Self::BrowserBack,
-        Self::BrowserForward,
-        Self::BrowserRefresh,
-        Self::BrowserSearch,
-        Self::BrowserHome,
-        Self::BrowserFavorites,
-        Self::BrowserStop,
-        // Media control keys:
-        Self::MediaPlayPause,
-        Self::MediaTrackNext,
-        Self::MediaTrackPrevious,
-        Self::MediaStop,
-        Self::AudioVolumeMute,
-        Self::AudioVolumeDown,
-        Self::AudioVolumeUp,
-        // Launch keys:
-        Self::LaunchMail,
-        Self::LaunchApp1,
-        Self::LaunchApp2,
-        // Modifier keys (physical L/R):
-        Self::ShiftLeft,
-        Self::ShiftRight,
-        Self::ControlLeft,
-        Self::ControlRight,
-        Self::AltLeft,
-        Self::AltRight,
-        Self::SuperLeft,
-        Self::SuperRight,
-        // International keys:
-        Self::IntlBackslash,
-        // Lock / System keys:
-        Self::CapsLock,
-        Self::NumLock,
-        Self::ScrollLock,
-        Self::PrintScreen,
-        Self::Pause,
-        Self::Menu,
-        // Mac / other system keys:
-        Self::Fn,
-        Self::Eject,
-        Self::Help,
-        Self::Power,
-        Self::Sleep,
-        Self::Clear,
-    ];
+    /// Compare two keys, ignoring the ASCII letter case of [`Key::Character`] keys.
+    ///
+    /// Backends report the character exactly as typed, so `Shift`/`Caps Lock` turn `"z"` into `"Z"`.
+    /// [`crate::InputState`] uses this when matching keys, so that a shortcut on `"z"`
+    /// also triggers when `Shift` or `Caps Lock` is active.
+    ///
+    /// ```
+    /// # use egui::Key;
+    /// assert!(Key::character("z").eq_ignore_ascii_case(&Key::character("Z")));
+    /// assert!(!Key::character("z").eq_ignore_ascii_case(&Key::character("y")));
+    /// ```
+    pub fn eq_ignore_ascii_case(&self, other: &Self) -> bool {
+        match (self.as_ref(), other.as_ref()) {
+            (Key::Character(a), Key::Character(b)) => a.eq_ignore_ascii_case(b),
+            _ => self == other,
+        }
+    }
 
-    /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
+    /// Parses a key name, e.g. `"A"` to `Key::character("a")`, and `"PageUp"` to `Key::Named(NamedKey::PageUp)`.
     ///
     /// Makes sense for logical keys.
     ///
     /// This will parse the output of both [`Self::name`] and [`Self::symbol_or_name`],
-    /// but will also parse single characters, so that both `"-"` and `"Minus"` will return `Key::Minus`.
+    /// as well as the W3C names of all [`NamedKey`]s (as reported by web browsers and winit),
+    /// and any single character. Single ASCII letters are parsed as lowercase.
     ///
-    /// This should support both the names generated in a web browser,
-    /// and by winit. Please test on both with `eframe`.
+    /// For backwards compatibility it also parses the names of the old `egui::Key` enum
+    /// (from before egui used [`keyboard_types`]), e.g. `"Esc"`, `"ShiftLeft"`, `"KeyA"`, `"Numpad1"`.
+    /// Keys that used to be distinct are mapped to their logical equivalent,
+    /// e.g. `"ShiftLeft"` and `"ShiftRight"` both become [`NamedKey::Shift`].
+    ///
+    /// Returns `None` for empty or unknown multi-character strings,
+    /// and for [`NamedKey::Dead`] and [`NamedKey::Unidentified`].
+    ///
+    /// ```
+    /// # use egui::{Key, NamedKey};
+    /// assert_eq!(Key::from_name("A"), Some(Key::character("a")));
+    /// assert_eq!(Key::from_name("-"), Some(Key::character("-")));
+    /// assert_eq!(Key::from_name("Minus"), Some(Key::character("-")));
+    /// assert_eq!(Key::from_name("⏶"), Some(Key::Named(NamedKey::ArrowUp)));
+    /// assert_eq!(Key::from_name("Up"), Some(Key::Named(NamedKey::ArrowUp)));
+    /// assert_eq!(Key::from_name("ArrowUp"), Some(Key::Named(NamedKey::ArrowUp)));
+    /// assert_eq!(Key::from_name("Esc"), Some(Key::Named(NamedKey::Escape)));
+    /// assert_eq!(Key::from_name("KeyA"), Some(Key::character("a")));
+    /// assert_eq!(Key::from_name("Foo"), None);
+    /// ```
     pub fn from_name(key: &str) -> Option<Self> {
-        Some(match key {
-            "⏷" | "ArrowDown" | "Down" => Self::ArrowDown,
-            "⏴" | "ArrowLeft" | "Left" => Self::ArrowLeft,
-            "⏵" | "ArrowRight" | "Right" => Self::ArrowRight,
-            "⏶" | "ArrowUp" | "Up" => Self::ArrowUp,
+        let arrow = match key {
+            "⏷" | "Down" => Some(NamedKey::ArrowDown),
+            "⏴" | "Left" => Some(NamedKey::ArrowLeft),
+            "⏵" | "Right" => Some(NamedKey::ArrowRight),
+            "⏶" | "Up" => Some(NamedKey::ArrowUp),
+            _ => None,
+        };
+        if let Some(arrow) = arrow {
+            return Some(Self::Named(arrow));
+        }
 
-            "Escape" | "Esc" => Self::Escape,
-            "Tab" => Self::Tab,
-            "Backspace" => Self::Backspace,
-            "Enter" | "Return" | "NumpadEnter" => Self::Enter,
+        if key == crate::MINUS_CHAR_STR {
+            return Some(Self::character("-"));
+        }
 
-            "Insert" => Self::Insert,
-            "Delete" => Self::Delete,
-            "Home" => Self::Home,
-            "End" => Self::End,
-            "PageUp" => Self::PageUp,
-            "PageDown" => Self::PageDown,
+        if let Some(&(character, _)) = CHARACTER_NAMES.iter().find(|(_, name)| *name == key) {
+            return Some(Self::character(character));
+        }
 
-            "Copy" => Self::Copy,
-            "Cut" => Self::Cut,
-            "Paste" => Self::Paste,
-
-            " " | "Space" => Self::Space,
-            ":" | "Colon" => Self::Colon,
-            "," | "Comma" | "NumpadComma" => Self::Comma,
-            "-" | "−" | "Minus" | "NumpadSubtract" => Self::Minus,
-            "." | "Period" | "NumpadDecimal" => Self::Period,
-            "+" | "Plus" | "NumpadAdd" => Self::Plus,
-            "=" | "Equal" | "Equals" | "NumpadEqual" => Self::Equals,
-            ";" | "Semicolon" => Self::Semicolon,
-            "\\" | "Backslash" => Self::Backslash,
-            "/" | "Slash" | "NumpadDivide" => Self::Slash,
-            "|" | "Pipe" => Self::Pipe,
-            "?" | "Questionmark" => Self::Questionmark,
-            "!" | "Exclamationmark" => Self::Exclamationmark,
-            "[" | "OpenBracket" | "BracketLeft" => Self::OpenBracket,
-            "]" | "CloseBracket" | "BracketRight" => Self::CloseBracket,
-            "{" | "OpenCurlyBracket" => Self::OpenCurlyBracket,
-            "}" | "CloseCurlyBracket" => Self::CloseCurlyBracket,
-            "`" | "Backtick" | "Backquote" | "Grave" => Self::Backtick,
-            "'" | "Quote" => Self::Quote,
-
-            "0" | "Digit0" | "Numpad0" => Self::Num0,
-            "1" | "Digit1" | "Numpad1" => Self::Num1,
-            "2" | "Digit2" | "Numpad2" => Self::Num2,
-            "3" | "Digit3" | "Numpad3" => Self::Num3,
-            "4" | "Digit4" | "Numpad4" => Self::Num4,
-            "5" | "Digit5" | "Numpad5" => Self::Num5,
-            "6" | "Digit6" | "Numpad6" => Self::Num6,
-            "7" | "Digit7" | "Numpad7" => Self::Num7,
-            "8" | "Digit8" | "Numpad8" => Self::Num8,
-            "9" | "Digit9" | "Numpad9" => Self::Num9,
-
-            "a" | "A" | "KeyA" => Self::A,
-            "b" | "B" | "KeyB" => Self::B,
-            "c" | "C" | "KeyC" => Self::C,
-            "d" | "D" | "KeyD" => Self::D,
-            "e" | "E" | "KeyE" => Self::E,
-            "f" | "F" | "KeyF" => Self::F,
-            "g" | "G" | "KeyG" => Self::G,
-            "h" | "H" | "KeyH" => Self::H,
-            "i" | "I" | "KeyI" => Self::I,
-            "j" | "J" | "KeyJ" => Self::J,
-            "k" | "K" | "KeyK" => Self::K,
-            "l" | "L" | "KeyL" => Self::L,
-            "m" | "M" | "KeyM" => Self::M,
-            "n" | "N" | "KeyN" => Self::N,
-            "o" | "O" | "KeyO" => Self::O,
-            "p" | "P" | "KeyP" => Self::P,
-            "q" | "Q" | "KeyQ" => Self::Q,
-            "r" | "R" | "KeyR" => Self::R,
-            "s" | "S" | "KeyS" => Self::S,
-            "t" | "T" | "KeyT" => Self::T,
-            "u" | "U" | "KeyU" => Self::U,
-            "v" | "V" | "KeyV" => Self::V,
-            "w" | "W" | "KeyW" => Self::W,
-            "x" | "X" | "KeyX" => Self::X,
-            "y" | "Y" | "KeyY" => Self::Y,
-            "z" | "Z" | "KeyZ" => Self::Z,
-
-            "F1" => Self::F1,
-            "F2" => Self::F2,
-            "F3" => Self::F3,
-            "F4" => Self::F4,
-            "F5" => Self::F5,
-            "F6" => Self::F6,
-            "F7" => Self::F7,
-            "F8" => Self::F8,
-            "F9" => Self::F9,
-            "F10" => Self::F10,
-            "F11" => Self::F11,
-            "F12" => Self::F12,
-            "F13" => Self::F13,
-            "F14" => Self::F14,
-            "F15" => Self::F15,
-            "F16" => Self::F16,
-            "F17" => Self::F17,
-            "F18" => Self::F18,
-            "F19" => Self::F19,
-            "F20" => Self::F20,
-            "F21" => Self::F21,
-            "F22" => Self::F22,
-            "F23" => Self::F23,
-            "F24" => Self::F24,
-            "F25" => Self::F25,
-            "F26" => Self::F26,
-            "F27" => Self::F27,
-            "F28" => Self::F28,
-            "F29" => Self::F29,
-            "F30" => Self::F30,
-            "F31" => Self::F31,
-            "F32" => Self::F32,
-            "F33" => Self::F33,
-            "F34" => Self::F34,
-            "F35" => Self::F35,
-
-            "BrowserBack" => Self::BrowserBack,
-            "BrowserForward" => Self::BrowserForward,
-            "BrowserRefresh" => Self::BrowserRefresh,
-            "BrowserSearch" => Self::BrowserSearch,
-            "BrowserHome" => Self::BrowserHome,
-            "BrowserFavorites" => Self::BrowserFavorites,
-            "BrowserStop" => Self::BrowserStop,
-
-            "MediaPlayPause" => Self::MediaPlayPause,
-            "MediaTrackNext" => Self::MediaTrackNext,
-            "MediaTrackPrevious" => Self::MediaTrackPrevious,
-            "MediaStop" => Self::MediaStop,
-            "AudioVolumeMute" => Self::AudioVolumeMute,
-            "AudioVolumeDown" => Self::AudioVolumeDown,
-            "AudioVolumeUp" => Self::AudioVolumeUp,
-
-            "LaunchMail" => Self::LaunchMail,
-            "LaunchApp1" => Self::LaunchApp1,
-            "LaunchApp2" => Self::LaunchApp2,
-
-            "ShiftLeft" => Self::ShiftLeft,
-            "ShiftRight" => Self::ShiftRight,
-            "ControlLeft" => Self::ControlLeft,
-            "ControlRight" => Self::ControlRight,
-            "AltLeft" => Self::AltLeft,
-            "AltRight" => Self::AltRight,
-
-            "SuperLeft" | "MetaLeft" | "OSLeft" => Self::SuperLeft,
-            "SuperRight" | "MetaRight" | "OSRight" => Self::SuperRight,
-
-            "IntlBackslash" => Self::IntlBackslash,
-
-            "CapsLock" => Self::CapsLock,
-            "NumLock" => Self::NumLock,
-            "ScrollLock" => Self::ScrollLock,
-            "PrintScreen" => Self::PrintScreen,
-            "Pause" => Self::Pause,
-            "ContextMenu" | "Menu" | "Apps" => Self::Menu,
-
-            "Fn" | "FnLock" | "Globe" => Self::Fn,
-            "Eject" => Self::Eject,
-            "Help" => Self::Help,
-            "Power" => Self::Power,
-            "Sleep" | "Standby" => Self::Sleep,
-            "Clear" => Self::Clear,
-
-            _ => return None,
-        })
+        match key.parse::<NamedKey>() {
+            Ok(NamedKey::Dead | NamedKey::Unidentified) => None,
+            Ok(named_key) => Some(Self::Named(named_key)),
+            Err(_) => single_character_key(key).or_else(|| from_legacy_name(key)),
+        }
     }
 
-    /// Emoji or name representing the key
-    pub fn symbol_or_name(self) -> &'static str {
+    /// Emoji or name representing the key.
+    ///
+    /// Same as [`Self::name`], except arrow keys and punctuation are shown as symbols.
+    ///
+    /// ```
+    /// # use egui::{Key, NamedKey};
+    /// assert_eq!(Key::Named(NamedKey::ArrowUp).symbol_or_name(), "⏶");
+    /// assert_eq!(Key::character("[").symbol_or_name(), "[");
+    /// assert_eq!(Key::character("a").symbol_or_name(), "A");
+    /// assert_eq!(Key::character(" ").symbol_or_name(), "Space");
+    /// ```
+    pub fn symbol_or_name(&self) -> &str {
         // TODO(emilk): add support for more unicode symbols (see for instance https://wincent.com/wiki/Unicode_representations_of_modifier_keys).
         // Before we do we must first make sure they are supported in `Fonts` though,
         // so perhaps this functions needs to take a `supports_character: impl Fn(char) -> bool` or something.
-        match self {
-            Self::ArrowDown => "⏷",
-            Self::ArrowLeft => "⏴",
-            Self::ArrowRight => "⏵",
-            Self::ArrowUp => "⏶",
-
-            Self::Colon => ":",
-            Self::Comma => ",",
-            Self::Minus => crate::MINUS_CHAR_STR,
-            Self::Period => ".",
-            Self::Plus => "+",
-            Self::Equals => "=",
-            Self::Semicolon => ";",
-            Self::Backslash => "\\",
-            Self::Slash => "/",
-            Self::Pipe => "|",
-            Self::Questionmark => "?",
-            Self::Exclamationmark => "!",
-            Self::OpenBracket => "[",
-            Self::CloseBracket => "]",
-            Self::OpenCurlyBracket => "{",
-            Self::CloseCurlyBracket => "}",
-            Self::Backtick => "`",
-
+        match self.as_ref() {
+            Key::Named(NamedKey::ArrowDown) => "⏷",
+            Key::Named(NamedKey::ArrowLeft) => "⏴",
+            Key::Named(NamedKey::ArrowRight) => "⏵",
+            Key::Named(NamedKey::ArrowUp) => "⏶",
+            Key::Character("-") => crate::MINUS_CHAR_STR,
+            Key::Character(s) if matches!(s.as_bytes(), [b] if b.is_ascii_punctuation()) => s,
             _ => self.name(),
         }
     }
 
     /// Human-readable English name.
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::ArrowDown => "Down",
-            Self::ArrowLeft => "Left",
-            Self::ArrowRight => "Right",
-            Self::ArrowUp => "Up",
-
-            Self::Escape => "Escape",
-            Self::Tab => "Tab",
-            Self::Backspace => "Backspace",
-            Self::Enter => "Enter",
-
-            Self::Insert => "Insert",
-            Self::Delete => "Delete",
-            Self::Home => "Home",
-            Self::End => "End",
-            Self::PageUp => "PageUp",
-            Self::PageDown => "PageDown",
-
-            Self::Copy => "Copy",
-            Self::Cut => "Cut",
-            Self::Paste => "Paste",
-
-            Self::Space => "Space",
-            Self::Colon => "Colon",
-            Self::Comma => "Comma",
-            Self::Minus => "Minus",
-            Self::Period => "Period",
-            Self::Plus => "Plus",
-            Self::Equals => "Equals",
-            Self::Semicolon => "Semicolon",
-            Self::Backslash => "Backslash",
-            Self::Slash => "Slash",
-            Self::Pipe => "Pipe",
-            Self::Questionmark => "Questionmark",
-            Self::Exclamationmark => "Exclamationmark",
-            Self::OpenBracket => "OpenBracket",
-            Self::CloseBracket => "CloseBracket",
-            Self::OpenCurlyBracket => "OpenCurlyBracket",
-            Self::CloseCurlyBracket => "CloseCurlyBracket",
-            Self::Backtick => "Backtick",
-            Self::Quote => "Quote",
-
-            Self::Num0 => "0",
-            Self::Num1 => "1",
-            Self::Num2 => "2",
-            Self::Num3 => "3",
-            Self::Num4 => "4",
-            Self::Num5 => "5",
-            Self::Num6 => "6",
-            Self::Num7 => "7",
-            Self::Num8 => "8",
-            Self::Num9 => "9",
-
-            Self::A => "A",
-            Self::B => "B",
-            Self::C => "C",
-            Self::D => "D",
-            Self::E => "E",
-            Self::F => "F",
-            Self::G => "G",
-            Self::H => "H",
-            Self::I => "I",
-            Self::J => "J",
-            Self::K => "K",
-            Self::L => "L",
-            Self::M => "M",
-            Self::N => "N",
-            Self::O => "O",
-            Self::P => "P",
-            Self::Q => "Q",
-            Self::R => "R",
-            Self::S => "S",
-            Self::T => "T",
-            Self::U => "U",
-            Self::V => "V",
-            Self::W => "W",
-            Self::X => "X",
-            Self::Y => "Y",
-            Self::Z => "Z",
-            Self::F1 => "F1",
-            Self::F2 => "F2",
-            Self::F3 => "F3",
-            Self::F4 => "F4",
-            Self::F5 => "F5",
-            Self::F6 => "F6",
-            Self::F7 => "F7",
-            Self::F8 => "F8",
-            Self::F9 => "F9",
-            Self::F10 => "F10",
-            Self::F11 => "F11",
-            Self::F12 => "F12",
-            Self::F13 => "F13",
-            Self::F14 => "F14",
-            Self::F15 => "F15",
-            Self::F16 => "F16",
-            Self::F17 => "F17",
-            Self::F18 => "F18",
-            Self::F19 => "F19",
-            Self::F20 => "F20",
-            Self::F21 => "F21",
-            Self::F22 => "F22",
-            Self::F23 => "F23",
-            Self::F24 => "F24",
-            Self::F25 => "F25",
-            Self::F26 => "F26",
-            Self::F27 => "F27",
-            Self::F28 => "F28",
-            Self::F29 => "F29",
-            Self::F30 => "F30",
-            Self::F31 => "F31",
-            Self::F32 => "F32",
-            Self::F33 => "F33",
-            Self::F34 => "F34",
-            Self::F35 => "F35",
-
-            Self::BrowserBack => "BrowserBack",
-            Self::BrowserForward => "BrowserForward",
-            Self::BrowserRefresh => "BrowserRefresh",
-            Self::BrowserSearch => "BrowserSearch",
-            Self::BrowserHome => "BrowserHome",
-            Self::BrowserFavorites => "BrowserFavorites",
-            Self::BrowserStop => "BrowserStop",
-
-            Self::MediaPlayPause => "MediaPlayPause",
-            Self::MediaTrackNext => "MediaTrackNext",
-            Self::MediaTrackPrevious => "MediaTrackPrevious",
-            Self::MediaStop => "MediaStop",
-            Self::AudioVolumeMute => "AudioVolumeMute",
-            Self::AudioVolumeDown => "AudioVolumeDown",
-            Self::AudioVolumeUp => "AudioVolumeUp",
-
-            Self::LaunchMail => "LaunchMail",
-            Self::LaunchApp1 => "LaunchApp1",
-            Self::LaunchApp2 => "LaunchApp2",
-
-            Self::ShiftLeft => "ShiftLeft",
-            Self::ShiftRight => "ShiftRight",
-            Self::ControlLeft => "ControlLeft",
-            Self::ControlRight => "ControlRight",
-            Self::AltLeft => "AltLeft",
-            Self::AltRight => "AltRight",
-            Self::SuperLeft => "SuperLeft",
-            Self::SuperRight => "SuperRight",
-
-            Self::IntlBackslash => "IntlBackslash",
-
-            Self::CapsLock => "CapsLock",
-            Self::NumLock => "NumLock",
-            Self::ScrollLock => "ScrollLock",
-            Self::PrintScreen => "PrintScreen",
-            Self::Pause => "Pause",
-            Self::Menu => "Menu",
-
-            Self::Fn => "Fn",
-            Self::Eject => "Eject",
-            Self::Help => "Help",
-            Self::Power => "Power",
-            Self::Sleep => "Sleep",
-            Self::Clear => "Clear",
+    ///
+    /// Single ASCII letters are upper-cased, and space and ASCII punctuation are spelled out.
+    /// Other characters are returned as-is.
+    ///
+    /// ```
+    /// # use egui::{Key, NamedKey};
+    /// assert_eq!(Key::Named(NamedKey::ArrowUp).name(), "Up");
+    /// assert_eq!(Key::Named(NamedKey::PageDown).name(), "PageDown");
+    /// assert_eq!(Key::character("[").name(), "OpenBracket");
+    /// assert_eq!(Key::character("a").name(), "A");
+    /// assert_eq!(Key::character("é").name(), "é");
+    /// ```
+    pub fn name(&self) -> &str {
+        match self.as_ref() {
+            Key::Named(NamedKey::ArrowDown) => "Down",
+            Key::Named(NamedKey::ArrowLeft) => "Left",
+            Key::Named(NamedKey::ArrowRight) => "Right",
+            Key::Named(NamedKey::ArrowUp) => "Up",
+            Key::Named(named_key) => named_key_str(named_key),
+            Key::Character(s) => character_name(s),
         }
     }
 }
 
-#[test]
-fn test_key_from_name() {
-    assert_eq!(
-        Key::ALL.len(),
-        Key::Clear as usize + 1,
-        "Some keys are missing in Key::ALL"
-    );
+/// Parses a single character as a [`Key::Character`], lowercasing ASCII letters.
+fn single_character_key(s: &str) -> Option<Key> {
+    let mut chars = s.chars();
+    match (chars.next(), chars.next()) {
+        (Some(c), None) => {
+            let mut buf = [0; 4];
+            let lowercase = c.to_ascii_lowercase().encode_utf8(&mut buf);
+            Some(Key::Character(SmolStr::new(lowercase)))
+        }
+        _ => None,
+    }
+}
 
-    for &key in Key::ALL {
+/// Parses names of the old `egui::Key` enum (and the aliases it accepted)
+/// that are not otherwise understood by [`Key::from_name`].
+fn from_legacy_name(name: &str) -> Option<Key> {
+    let named_key = match name {
+        "Esc" => Some(NamedKey::Escape),
+        "Return" | "NumpadEnter" => Some(NamedKey::Enter),
+        "LaunchApp1" => Some(NamedKey::LaunchApplication1),
+        "LaunchApp2" => Some(NamedKey::LaunchApplication2),
+        "ShiftLeft" | "ShiftRight" => Some(NamedKey::Shift),
+        "ControlLeft" | "ControlRight" => Some(NamedKey::Control),
+        "AltLeft" | "AltRight" => Some(NamedKey::Alt),
+        "SuperLeft" | "SuperRight" | "MetaLeft" | "MetaRight" | "OSLeft" | "OSRight" => {
+            Some(NamedKey::Meta)
+        }
+        "Menu" | "Apps" => Some(NamedKey::ContextMenu),
+        "Globe" => Some(NamedKey::Fn),
+        "Sleep" => Some(NamedKey::Standby),
+        _ => None,
+    };
+    if let Some(named_key) = named_key {
+        return Some(Key::Named(named_key));
+    }
+
+    let character = match name {
+        "NumpadComma" => Some(","),
+        "NumpadSubtract" => Some("-"),
+        "NumpadDecimal" => Some("."),
+        "NumpadAdd" => Some("+"),
+        "Equal" | "NumpadEqual" => Some("="),
+        "NumpadDivide" => Some("/"),
+        "BracketLeft" => Some("["),
+        "BracketRight" => Some("]"),
+        "Backquote" | "Grave" => Some("`"),
+        "IntlBackslash" => Some("\\"),
+        _ => None,
+    };
+    if let Some(character) = character {
+        return Some(Key::character(character));
+    }
+
+    // Physical key code names, e.g. `KeyA`, `Digit1`, `Numpad1`.
+    let letter = name
+        .strip_prefix("Key")
+        .filter(|s| matches!(s.as_bytes(), [b'A'..=b'Z']));
+    let digit = name
+        .strip_prefix("Digit")
+        .or_else(|| name.strip_prefix("Numpad"))
+        .filter(|s| matches!(s.as_bytes(), [b'0'..=b'9']));
+    letter.or(digit).and_then(single_character_key)
+}
+
+/// Human-readable English names of space and ASCII punctuation [`Key::Character`]s.
+const CHARACTER_NAMES: [(&str, &str); 19] = [
+    (" ", "Space"),
+    (":", "Colon"),
+    (",", "Comma"),
+    ("-", "Minus"),
+    (".", "Period"),
+    ("+", "Plus"),
+    ("=", "Equals"),
+    (";", "Semicolon"),
+    ("\\", "Backslash"),
+    ("/", "Slash"),
+    ("|", "Pipe"),
+    ("?", "Questionmark"),
+    ("!", "Exclamationmark"),
+    ("[", "OpenBracket"),
+    ("]", "CloseBracket"),
+    ("{", "OpenCurlyBracket"),
+    ("}", "CloseCurlyBracket"),
+    ("`", "Backtick"),
+    ("'", "Quote"),
+];
+
+/// Human-readable English name of the text produced by a [`Key::Character`].
+fn character_name(s: &str) -> &str {
+    const ASCII_UPPERCASE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    if let Some(&(_, name)) = CHARACTER_NAMES
+        .iter()
+        .find(|(character, _)| *character == s)
+    {
+        return name;
+    }
+
+    match s.as_bytes() {
+        [b @ b'a'..=b'z'] => {
+            let i = usize::from(b - b'a');
+            &ASCII_UPPERCASE[i..=i]
+        }
+        _ => s,
+    }
+}
+
+/// The W3C name of a [`NamedKey`], e.g. `"PageUp"`.
+///
+/// Same as the `Display` output of [`NamedKey`], but without allocating.
+#[expect(
+    deprecated,
+    reason = "NamedKey::Hyper and NamedKey::Super are deprecated, but can still be reported by backends"
+)]
+fn named_key_str(named_key: NamedKey) -> &'static str {
+    macro_rules! names {
+        ($($variant:ident)*) => {
+            match named_key {
+                $(NamedKey::$variant => stringify!($variant),)*
+                // `NamedKey` is `#[non_exhaustive]`.
+                _ => "Unidentified",
+            }
+        };
+    }
+
+    names! {
+        Unidentified Alt AltGraph CapsLock Control Fn FnLock Meta NumLock ScrollLock Shift Symbol
+        SymbolLock Hyper Super Enter Tab ArrowDown ArrowLeft ArrowRight ArrowUp End Home PageDown
+        PageUp Backspace Clear Copy CrSel Cut Delete EraseEof ExSel Insert Paste Redo Undo Accept
+        Again Attn Cancel ContextMenu Escape Execute Find Help Pause Play Props Select ZoomIn
+        ZoomOut BrightnessDown BrightnessUp Eject LogOff Power PowerOff PrintScreen Hibernate
+        Standby WakeUp AllCandidates Alphanumeric CodeInput Compose Convert Dead FinalMode
+        GroupFirst GroupLast GroupNext GroupPrevious ModeChange NextCandidate NonConvert
+        PreviousCandidate Process SingleCandidate HangulMode HanjaMode JunjaMode Eisu Hankaku
+        Hiragana HiraganaKatakana KanaMode KanjiMode Katakana Romaji Zenkaku ZenkakuHankaku Soft1
+        Soft2 Soft3 Soft4 ChannelDown ChannelUp Close MailForward MailReply MailSend MediaClose
+        MediaFastForward MediaPause MediaPlay MediaPlayPause MediaRecord MediaRewind MediaStop
+        MediaTrackNext MediaTrackPrevious New Open Print Save SpellCheck Key11 Key12
+        AudioBalanceLeft AudioBalanceRight AudioBassBoostDown AudioBassBoostToggle
+        AudioBassBoostUp AudioFaderFront AudioFaderRear AudioSurroundModeNext AudioTrebleDown
+        AudioTrebleUp AudioVolumeDown AudioVolumeUp AudioVolumeMute MicrophoneToggle
+        MicrophoneVolumeDown MicrophoneVolumeUp MicrophoneVolumeMute SpeechCorrectionList
+        SpeechInputToggle LaunchApplication1 LaunchApplication2 LaunchCalendar LaunchContacts
+        LaunchMail LaunchMediaPlayer LaunchMusicPlayer LaunchPhone LaunchScreenSaver
+        LaunchSpreadsheet LaunchWebBrowser LaunchWebCam LaunchWordProcessor BrowserBack
+        BrowserFavorites BrowserForward BrowserHome BrowserRefresh BrowserSearch BrowserStop
+        AppSwitch Call Camera CameraFocus EndCall GoBack GoHome HeadsetHook LastNumberRedial
+        Notification MannerMode VoiceDial TV TV3DMode TVAntennaCable TVAudioDescription
+        TVAudioDescriptionMixDown TVAudioDescriptionMixUp TVContentsMenu TVDataService TVInput
+        TVInputComponent1 TVInputComponent2 TVInputComposite1 TVInputComposite2 TVInputHDMI1
+        TVInputHDMI2 TVInputHDMI3 TVInputHDMI4 TVInputVGA1 TVMediaContext TVNetwork
+        TVNumberEntry TVPower TVRadioService TVSatellite TVSatelliteBS TVSatelliteCS
+        TVSatelliteToggle TVTerrestrialAnalog TVTerrestrialDigital TVTimer AVRInput AVRPower
+        ColorF0Red ColorF1Green ColorF2Yellow ColorF3Blue ColorF4Grey ColorF5Brown
+        ClosedCaptionToggle Dimmer DisplaySwap DVR Exit FavoriteClear0 FavoriteClear1
+        FavoriteClear2 FavoriteClear3 FavoriteRecall0 FavoriteRecall1 FavoriteRecall2
+        FavoriteRecall3 FavoriteStore0 FavoriteStore1 FavoriteStore2 FavoriteStore3 Guide
+        GuideNextDay GuidePreviousDay Info InstantReplay Link ListProgram LiveContent Lock
+        MediaApps MediaAudioTrack MediaLast MediaSkipBackward MediaSkipForward MediaStepBackward
+        MediaStepForward MediaTopMenu NavigateIn NavigateNext NavigateOut NavigatePrevious
+        NextFavoriteChannel NextUserProfile OnDemand Pairing PinPDown PinPMove PinPToggle PinPUp
+        PlaySpeedDown PlaySpeedReset PlaySpeedUp RandomToggle RcLowBattery RecordSpeedNext
+        RfBypass ScanChannelsToggle ScreenModeNext Settings SplitScreenToggle STBInput STBPower
+        Subtitle Teletext VideoModeNext Wink ZoomToggle F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12
+        F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 F32 F33 F34
+        F35
+    }
+}
+
+#[test]
+fn test_key_from_name_roundtrip() {
+    let mut keys: Vec<Key> = [
+        NamedKey::ArrowDown,
+        NamedKey::ArrowLeft,
+        NamedKey::ArrowRight,
+        NamedKey::ArrowUp,
+        NamedKey::Escape,
+        NamedKey::Enter,
+        NamedKey::PageUp,
+        NamedKey::Shift,
+        NamedKey::MediaPlayPause,
+        NamedKey::TV3DMode,
+        NamedKey::F35,
+    ]
+    .into_iter()
+    .map(Key::Named)
+    .collect();
+    keys.extend(CHARACTER_NAMES.iter().map(|&(c, _)| Key::character(c)));
+    keys.extend(
+        ('a'..='z')
+            .chain('0'..='9')
+            .map(|c| Key::Character(c.to_string().into())),
+    );
+    keys.push(Key::character("é"));
+
+    for key in keys {
         let name = key.name();
         assert_eq!(
-            Key::from_name(name),
-            Some(key),
+            Key::from_name(name).as_ref(),
+            Some(&key),
             "Failed to roundtrip {key:?} from name {name:?}"
         );
 
         let symbol = key.symbol_or_name();
         assert_eq!(
-            Key::from_name(symbol),
-            Some(key),
+            Key::from_name(symbol).as_ref(),
+            Some(&key),
             "Failed to roundtrip {key:?} from symbol {symbol:?}"
         );
+    }
+}
+
+#[test]
+fn test_key_from_legacy_name() {
+    // Every name returned by the old `egui::Key::name` must still parse.
+    let legacy_names = [
+        "Down",
+        "Left",
+        "Right",
+        "Up",
+        "Escape",
+        "Tab",
+        "Backspace",
+        "Enter",
+        "Insert",
+        "Delete",
+        "Home",
+        "End",
+        "PageUp",
+        "PageDown",
+        "Copy",
+        "Cut",
+        "Paste",
+        "Space",
+        "Colon",
+        "Comma",
+        "Minus",
+        "Period",
+        "Plus",
+        "Equals",
+        "Semicolon",
+        "Backslash",
+        "Slash",
+        "Pipe",
+        "Questionmark",
+        "Exclamationmark",
+        "OpenBracket",
+        "CloseBracket",
+        "OpenCurlyBracket",
+        "CloseCurlyBracket",
+        "Backtick",
+        "Quote",
+        "BrowserBack",
+        "BrowserForward",
+        "BrowserRefresh",
+        "BrowserSearch",
+        "BrowserHome",
+        "BrowserFavorites",
+        "BrowserStop",
+        "MediaPlayPause",
+        "MediaTrackNext",
+        "MediaTrackPrevious",
+        "MediaStop",
+        "AudioVolumeMute",
+        "AudioVolumeDown",
+        "AudioVolumeUp",
+        "LaunchMail",
+        "LaunchApp1",
+        "LaunchApp2",
+        "ShiftLeft",
+        "ShiftRight",
+        "ControlLeft",
+        "ControlRight",
+        "AltLeft",
+        "AltRight",
+        "SuperLeft",
+        "SuperRight",
+        "IntlBackslash",
+        "CapsLock",
+        "NumLock",
+        "ScrollLock",
+        "PrintScreen",
+        "Pause",
+        "Menu",
+        "Fn",
+        "Eject",
+        "Help",
+        "Power",
+        "Sleep",
+        "Clear",
+    ];
+    let generated = ('0'..='9')
+        .chain('A'..='Z')
+        .map(|c| c.to_string())
+        .chain((1..=35).map(|n| format!("F{n}")));
+    for name in legacy_names
+        .iter()
+        .map(|s| (*s).to_owned())
+        .chain(generated)
+    {
+        assert!(
+            Key::from_name(&name).is_some(),
+            "Failed to parse legacy name {name:?}"
+        );
+    }
+
+    // Aliases that map onto a different logical key.
+    for (name, expected) in [
+        ("Esc", Key::Named(NamedKey::Escape)),
+        ("Return", Key::Named(NamedKey::Enter)),
+        ("NumpadEnter", Key::Named(NamedKey::Enter)),
+        ("ShiftRight", Key::Named(NamedKey::Shift)),
+        ("OSLeft", Key::Named(NamedKey::Meta)),
+        ("Menu", Key::Named(NamedKey::ContextMenu)),
+        ("Sleep", Key::Named(NamedKey::Standby)),
+        ("LaunchApp1", Key::Named(NamedKey::LaunchApplication1)),
+        ("NumpadSubtract", Key::character("-")),
+        ("Equal", Key::character("=")),
+        ("BracketLeft", Key::character("[")),
+        ("Grave", Key::character("`")),
+        ("KeyQ", Key::character("q")),
+        ("Digit7", Key::character("7")),
+        ("Numpad0", Key::character("0")),
+    ] {
+        assert_eq!(Key::from_name(name), Some(expected), "{name:?}");
+    }
+
+    for name in ["Keya", "KeyAB", "Digit", "Numpad10"] {
+        assert_eq!(Key::from_name(name), None, "{name:?}");
     }
 }
