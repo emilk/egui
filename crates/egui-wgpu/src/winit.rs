@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
+    transparent: bool,
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
@@ -107,32 +108,33 @@ impl Painter {
         }
     }
 
-    /// Makes the surfaces keep their alpha, or makes them opaque again.
+    /// Makes the surface of `viewport_id` keep its alpha, or makes it opaque again.
     ///
     /// A surface that keeps its alpha shows what is behind it where egui paints nothing or
-    /// clears it. That is the window's background, or a view below egui's surface.
+    /// clears it. That is the window's background, or a view below egui's surface,
+    /// e.g. an [`egui::EmbeddedView`] with [`egui::EmbeddedViewPlacement::Below`].
     ///
-    /// This starts out as the `support_transparent_backbuffer` passed to [`Self::new`].
+    /// Each surface starts out with the `support_transparent_backbuffer` passed to [`Self::new`].
+    /// Call this after [`Self::set_window`] for the viewport, since it does nothing for a
+    /// viewport that has no surface yet.
     ///
-    /// All surfaces are reconfigured before the next paint.
+    /// The surface is reconfigured before the next paint.
     ///
     /// This is cheap to call every frame.
-    pub fn set_transparent(&mut self, transparent: bool) {
-        if self.support_transparent_backbuffer == transparent {
-            return;
-        }
-
-        self.support_transparent_backbuffer = transparent;
-
+    pub fn set_transparent(&mut self, viewport_id: ViewportId, transparent: bool) {
         let Some(render_state) = &self.render_state else {
-            // No surface exists yet. New ones pick their alpha mode when they are installed.
             return;
         };
-        #[expect(clippy::iter_over_hash_type)]
-        for surface in self.surfaces.values_mut() {
-            surface.alpha_mode = Self::alpha_mode(&surface.surface, render_state, transparent);
-            surface.needs_reconfigure = true;
+        let Some(surface) = self.surfaces.get_mut(&viewport_id) else {
+            return;
+        };
+        if surface.transparent == transparent {
+            return;
         }
+
+        surface.transparent = transparent;
+        surface.alpha_mode = Self::alpha_mode(&surface.surface, render_state, transparent);
+        surface.needs_reconfigure = true;
     }
 
     /// The alpha mode for `surface`. If `transparent`, it is one that keeps the alpha, if the
@@ -223,6 +225,7 @@ impl Painter {
             width,
             height,
             resizing,
+            transparent,
             ..
         } = old_state;
         // Drop the old surface before creating the new one, because some backends allow only
@@ -231,7 +234,7 @@ impl Painter {
         drop(old_state);
 
         let surface = self.instance.create_surface(Arc::clone(window))?;
-        self.install_surface(surface, viewport_id, width, height, resizing);
+        self.install_surface(surface, viewport_id, width, height, resizing, transparent);
         Ok(())
     }
 
@@ -317,7 +320,15 @@ impl Painter {
                     .await?;
             self.render_state = Some(render_state);
         }
-        self.install_surface(surface, viewport_id, size.width, size.height, false);
+        let transparent = self.support_transparent_backbuffer;
+        self.install_surface(
+            surface,
+            viewport_id,
+            size.width,
+            size.height,
+            false,
+            transparent,
+        );
         Ok(())
     }
 
@@ -332,6 +343,7 @@ impl Painter {
         width: u32,
         height: u32,
         resizing: bool,
+        transparent: bool,
     ) {
         let alpha_mode = {
             // Panic: We use the same failure mode as `resize_and_generate_depth_texture_view_and_msaa_view`
@@ -339,12 +351,13 @@ impl Painter {
                 .render_state
                 .as_ref()
                 .expect("install_surface called before render_state initialization");
-            Self::alpha_mode(&surface, render_state, self.support_transparent_backbuffer)
+            Self::alpha_mode(&surface, render_state, transparent)
         };
         self.surfaces.insert(
             viewport_id,
             SurfaceState {
                 surface,
+                transparent,
                 width,
                 height,
                 alpha_mode,

@@ -805,12 +805,8 @@ impl WgpuWinitRunning<'_> {
         // A view below egui's surface shows through it, so the surface has to keep its alpha.
         // It stays that way once it is: a view that was shown is likely shown again, and each
         // switch reconfigures the surface.
-        let shows_views_below = platform_output
-            .embedded_views
-            .iter()
-            .any(|view| view.side == egui::EmbeddedViewPlacement::Below);
-        if shows_views_below {
-            painter.set_transparent(true);
+        if winit_integration::shows_views_below(&platform_output) {
+            painter.set_transparent(viewport_id, true);
         }
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
