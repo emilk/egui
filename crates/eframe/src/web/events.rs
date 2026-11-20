@@ -83,6 +83,14 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
             // By default, right-clicks open a browser context menu.
             // We don't want to do that (right clicks are handled by egui):
             "contextmenu",
+            // A canvas is never a native drag source for egui: in-app drags are
+            // handled with pointer events, and dropping files on the app only
+            // needs "dragover"/"drop". If a document selection was made before
+            // the drag (e.g. by Ctrl+A), the browser would otherwise start a
+            // native drag of it here and the pointer events for the in-app
+            // drag never arrive.
+            // https://github.com/emilk/egui/issues/8876
+            "dragstart",
         ],
     )?;
 
@@ -551,7 +559,7 @@ fn install_input_element(
     runner_ref: &WebRunner,
     input_element: &EventTarget,
 ) -> Result<(), JsValue> {
-    prevent_default_and_stop_propagation(runner_ref, input_element, &["contextmenu"])?;
+    prevent_default_and_stop_propagation(runner_ref, input_element, &["contextmenu", "dragstart"])?;
     // Cancel the default action of `mousedown`, which would move the keyboard focus off the
     // canvas. The `pointerup` listener on the document focuses the canvas instead. While an
     // embedded view has the focus, it does so only once egui's own focus moved off the view.
