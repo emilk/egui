@@ -996,9 +996,22 @@ impl<'t> TextEdit<'t> {
                 let primary_cursor_rect = cursor_rect(&galley, &cursor_range.primary, row_height)
                     .translate(galley_pos.to_vec2() - vec2(galley.rect.left(), 0.0));
 
-                if response.changed() || selection_changed {
+                let frame_nr = ui.ctx().cumulative_frame_nr();
+                let cursor_moved_from_outside = state
+                    .last_focused_cursor
+                    .is_some_and(|last_cursor| last_cursor != cursor_range);
+                let scroll_was_discarded = 0 < ui.ctx().current_pass_index()
+                    && state.scrolled_to_cursor_in_frame == Some(frame_nr);
+                state.last_focused_cursor = Some(cursor_range);
+
+                if response.changed()
+                    || selection_changed
+                    || cursor_moved_from_outside
+                    || scroll_was_discarded
+                {
                     // Scroll to keep primary cursor in view:
                     ui.scroll_to_rect(primary_cursor_rect, None);
+                    state.scrolled_to_cursor_in_frame = Some(frame_nr);
                 }
 
                 if text.is_mutable() && interactive {
