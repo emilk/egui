@@ -336,7 +336,7 @@ impl Default for Options {
             zoom_with_keyboard: true,
             quit_shortcuts: vec![crate::KeyboardShortcut::new(
                 crate::Modifiers::COMMAND,
-                crate::Key::Q,
+                crate::ShortcutKey::simple("q"),
             )],
             tessellation_options: Default::default(),
             repaint_on_widget_change: false,
