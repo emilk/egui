@@ -141,7 +141,7 @@ mod tests {
                 .get_by_role(Role::MultilineTextInput)
                 .type_text(":grinning_face");
             harness.run();
-            harness.key_press(NamedKey::Enter.into());
+            harness.key_press(NamedKey::Enter);
             harness.run();
         }
         assert_eq!(harness.state().text, "😀😀");

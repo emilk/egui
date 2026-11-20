@@ -15,19 +15,19 @@ pub fn focus_should_skip_over_disabled_buttons() {
         ui.add(Button::new("Button 3"));
     });
 
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     let button_1 = harness.get_by_label("Button 1");
     assert!(button_1.is_focused());
 
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     let button_3 = harness.get_by_label("Button 3");
     assert!(button_3.is_focused());
 
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     let button_1 = harness.get_by_label("Button 1");
@@ -45,19 +45,19 @@ pub fn arrow_navigation_should_skip_over_previously_disabled_buttons() {
         false,
     );
 
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     harness.key_press(egui::Key::character(" "));
     harness.run();
 
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     let button = harness.get_by_label("Button");
     assert!(button.is_focused());
 
-    harness.key_press_modifiers(Modifiers::SHIFT, egui::NamedKey::Tab.into());
+    harness.key_press_modifiers(Modifiers::SHIFT, egui::NamedKey::Tab);
     harness.run();
 
     harness.key_press(egui::Key::character(" "));
@@ -69,14 +69,14 @@ pub fn arrow_navigation_should_skip_over_previously_disabled_buttons() {
     assert!(checkbox.is_focused());
 
     // Down should skip over the disabled button.
-    harness.key_press(egui::NamedKey::ArrowDown.into());
+    harness.key_press(egui::NamedKey::ArrowDown);
     harness.run();
 
     let other_button = harness.get_by_label("Other Button");
     assert!(other_button.is_focused());
 
     // Up should also skip over the disabled button.
-    harness.key_press(egui::NamedKey::ArrowUp.into());
+    harness.key_press(egui::NamedKey::ArrowUp);
     harness.run();
 
     let checkbox = harness.get_by_label("Enable Button");
@@ -88,7 +88,7 @@ pub fn arrow_navigation_should_skip_over_previously_disabled_buttons() {
 
     assert!(*harness.state());
 
-    harness.key_press(egui::NamedKey::ArrowDown.into());
+    harness.key_press(egui::NamedKey::ArrowDown);
     harness.run();
 
     let button = harness.get_by_label("Button");
@@ -110,13 +110,13 @@ pub fn focus_should_skip_over_disabled_drag_values() {
             .on_hover_text("Value 3");
     });
 
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     let drag_value_1 = harness.get_by(|node| node.numeric_value() == Some(1.0));
     assert!(drag_value_1.is_focused());
 
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     let drag_value_3 = harness.get_by(|node| node.numeric_value() == Some(3.0));
@@ -195,31 +195,31 @@ pub fn slider_should_move_with_fixed_decimals() {
             .on_hover_text("Value");
     });
 
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
     assert_eq!(actual_slider.value(), Some("1.00".to_owned()));
 
-    harness.key_press(egui::NamedKey::ArrowRight.into());
+    harness.key_press(egui::NamedKey::ArrowRight);
     harness.run();
 
     let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
     assert_eq!(actual_slider.value(), Some("1.01".to_owned()));
 
-    harness.key_press(egui::NamedKey::ArrowRight.into());
+    harness.key_press(egui::NamedKey::ArrowRight);
     harness.run();
 
     let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
     assert_eq!(actual_slider.value(), Some("1.02".to_owned()));
 
-    harness.key_press(egui::NamedKey::ArrowLeft.into());
+    harness.key_press(egui::NamedKey::ArrowLeft);
     harness.run();
 
     let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
     assert_eq!(actual_slider.value(), Some("1.01".to_owned()));
 
-    harness.key_press(egui::NamedKey::ArrowLeft.into());
+    harness.key_press(egui::NamedKey::ArrowLeft);
     harness.run();
 
     let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
@@ -357,13 +357,13 @@ pub fn keyboard_should_open_nested_submenu() {
     harness.get_by_label("X").focus();
     harness.run();
 
-    harness.key_press(egui::NamedKey::Enter.into());
+    harness.key_press(egui::NamedKey::Enter);
     harness.run();
 
     harness.get_by_label_contains("Y").focus();
     harness.run();
 
-    harness.key_press(egui::NamedKey::Enter.into());
+    harness.key_press(egui::NamedKey::Enter);
     harness.run();
 
     assert!(
@@ -379,13 +379,13 @@ pub fn keyboard_should_close_nested_submenu_with_left() {
     harness.get_by_label("X").focus();
     harness.run();
 
-    harness.key_press(egui::NamedKey::Enter.into());
+    harness.key_press(egui::NamedKey::Enter);
     harness.run();
 
     harness.get_by_label_contains("Y").focus();
     harness.run();
 
-    harness.key_press(egui::NamedKey::Enter.into());
+    harness.key_press(egui::NamedKey::Enter);
     harness.run();
 
     assert!(
@@ -393,7 +393,7 @@ pub fn keyboard_should_close_nested_submenu_with_left() {
         "Expected Enter to open the nested submenu and focus its first entry"
     );
 
-    harness.key_press(egui::NamedKey::ArrowLeft.into());
+    harness.key_press(egui::NamedKey::ArrowLeft);
     harness.run();
 
     assert!(
@@ -894,7 +894,7 @@ pub fn drag_value_should_not_revert_external_changes_while_focused() {
     );
 
     // Focus the `DragValue`, putting it in text-edit mode.
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     // Something else changes the value while the `DragValue` is focused.
@@ -906,7 +906,7 @@ pub fn drag_value_should_not_revert_external_changes_while_focused() {
     assert_eq!(drag_value.value(), Some("42".to_owned()));
 
     // Losing focus must not restore the value the `DragValue` had when it gained focus.
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     assert_eq!(harness.state(), &42);
@@ -924,7 +924,7 @@ pub fn drag_value_should_keep_text_while_typing() {
     );
 
     // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     // Type one character per frame. `"1."` parses to `1`, which is formatted as `"1"`,
@@ -936,7 +936,7 @@ pub fn drag_value_should_keep_text_while_typing() {
         harness.run();
     }
 
-    harness.key_press(egui::NamedKey::Enter.into());
+    harness.key_press(egui::NamedKey::Enter);
     harness.run();
 
     assert_eq!(harness.state(), &1.25);
@@ -954,7 +954,7 @@ pub fn drag_value_should_keep_text_the_value_cannot_represent() {
     );
 
     // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     // `"12.5"` is stored as `12`, which is formatted as `"12"`.
@@ -969,7 +969,7 @@ pub fn drag_value_should_keep_text_the_value_cannot_represent() {
         .type_text("9");
     harness.run();
 
-    harness.key_press(egui::NamedKey::Enter.into());
+    harness.key_press(egui::NamedKey::Enter);
     harness.run();
 
     assert_eq!(harness.state(), &12, "The text should have been \"12.59\"");
@@ -994,7 +994,7 @@ pub fn drag_value_should_not_report_changes_while_typing_without_update_while_ed
     );
 
     // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     for character in "42".chars() {
@@ -1010,7 +1010,7 @@ pub fn drag_value_should_not_report_changes_while_typing_without_update_while_ed
         "Nothing should change while typing"
     );
 
-    harness.key_press(egui::NamedKey::Enter.into());
+    harness.key_press(egui::NamedKey::Enter);
     harness.run();
 
     assert_eq!(
@@ -1034,7 +1034,7 @@ pub fn drag_value_should_report_changes_while_typing_with_update_while_editing()
         (0.0, 0),
     );
 
-    harness.key_press(egui::NamedKey::Tab.into());
+    harness.key_press(egui::NamedKey::Tab);
     harness.run();
 
     for character in "42".chars() {

@@ -38,7 +38,7 @@ use core::{
 };
 
 use egui::{
-    Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Vec2, ViewportId,
+    Color32, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Vec2, ViewportId,
     epaint::{ClippedShape, RectShape},
     style::ScrollAnimation,
 };
@@ -665,7 +665,11 @@ impl<'a, State> Harness<'a, State> {
             .push(egui::Event::ModifiersChanged(modifiers));
     }
 
-    pub fn key_down(&self, key: egui::Key) {
+    /// Press a key, without releasing it.
+    ///
+    /// Accepts a [`Key`], [`egui::NamedKey`], or an [`egui::FullKey`] to also specify the physical key,
+    /// e.g. `FullKey::new(Key::character("я"), Some(PhysicalKey::Code(KeyCode::KeyZ)))` for a Russian layout.
+    pub fn key_down(&self, key: impl Into<egui::FullKey>) {
         self.event(egui::Event::Key(egui::KeyEvent {
             key: key.into(),
             pressed: true,
@@ -674,7 +678,7 @@ impl<'a, State> Harness<'a, State> {
         }));
     }
 
-    pub fn key_down_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+    pub fn key_down_modifiers(&self, modifiers: Modifiers, key: impl Into<egui::FullKey>) {
         self.event_modifiers(
             egui::Event::Key(egui::KeyEvent {
                 key: key.into(),
@@ -686,7 +690,8 @@ impl<'a, State> Harness<'a, State> {
         );
     }
 
-    pub fn key_up(&self, key: egui::Key) {
+    /// Release a key. See [`Self::key_down`].
+    pub fn key_up(&self, key: impl Into<egui::FullKey>) {
         self.event(egui::Event::Key(egui::KeyEvent {
             key: key.into(),
             pressed: false,
@@ -695,7 +700,7 @@ impl<'a, State> Harness<'a, State> {
         }));
     }
 
-    pub fn key_up_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+    pub fn key_up_modifiers(&self, modifiers: Modifiers, key: impl Into<egui::FullKey>) {
         self.event_modifiers(
             egui::Event::Key(egui::KeyEvent {
                 key: key.into(),
@@ -714,7 +719,7 @@ impl<'a, State> Harness<'a, State> {
     /// - Press `b`
     /// - Release `b`
     /// - Release `a`
-    pub fn key_combination(&self, keys: &[Key]) {
+    pub fn key_combination(&self, keys: &[impl Clone + Into<egui::FullKey>]) {
         for key in keys {
             self.key_down(key.clone());
         }
@@ -732,7 +737,11 @@ impl<'a, State> Harness<'a, State> {
     /// - Release `b`
     /// - Release `a`
     /// - Release [`Modifiers::COMMAND`]
-    pub fn key_combination_modifiers(&self, modifiers: Modifiers, keys: &[Key]) {
+    pub fn key_combination_modifiers(
+        &self,
+        modifiers: Modifiers,
+        keys: &[impl Clone + Into<egui::FullKey>],
+    ) {
         self.modifiers(modifiers);
 
         for pressed in [true, false] {
@@ -752,8 +761,8 @@ impl<'a, State> Harness<'a, State> {
     /// Press a key.
     ///
     /// This will create a key down event and a key up event.
-    pub fn key_press(&self, key: egui::Key) {
-        self.key_combination(&[key]);
+    pub fn key_press(&self, key: impl Into<egui::FullKey>) {
+        self.key_combination(&[key.into()]);
     }
 
     /// Press a key with modifiers.
@@ -763,8 +772,8 @@ impl<'a, State> Harness<'a, State> {
     /// - create a key down event
     /// - create a key up event
     /// - reset the modifiers
-    pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
-        self.key_combination_modifiers(modifiers, &[key]);
+    pub fn key_press_modifiers(&self, modifiers: Modifiers, key: impl Into<egui::FullKey>) {
+        self.key_combination_modifiers(modifiers, &[key.into()]);
     }
 
     /// Move mouse cursor to this position.

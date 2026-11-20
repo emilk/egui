@@ -238,9 +238,9 @@ fn test_ime_composition_visuals() {
     text_edit.focus();
     harness.run();
 
-    harness.key_press(egui::NamedKey::Home.into());
+    harness.key_press(egui::NamedKey::Home);
     for _ in 0.."Hello. ".len() {
-        harness.key_press(egui::NamedKey::ArrowRight.into());
+        harness.key_press(egui::NamedKey::ArrowRight);
     }
 
     let text = "Have you ever seen an IME composing English text? You now see it. ";

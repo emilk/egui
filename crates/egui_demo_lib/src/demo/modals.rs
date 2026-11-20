@@ -191,7 +191,7 @@ mod tests {
         assert!(Popup::is_any_open(&harness.ctx));
         assert!(harness.state().user_modal_open);
 
-        harness.key_press(NamedKey::Escape.into());
+        harness.key_press(NamedKey::Escape);
         harness.run_ok();
         assert!(!Popup::is_any_open(&harness.ctx));
         assert!(harness.state().user_modal_open);
@@ -215,7 +215,7 @@ mod tests {
         assert!(harness.state().user_modal_open);
         assert!(harness.state().save_modal_open);
 
-        harness.key_press(NamedKey::Escape.into());
+        harness.key_press(NamedKey::Escape);
         harness.run();
 
         assert!(harness.state().user_modal_open);
