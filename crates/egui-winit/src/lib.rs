@@ -1120,19 +1120,20 @@ impl State {
             physical_key
         );
 
-        // "Logical OR physical key" is a fallback mechanism for keyboard layouts without Latin characters: it lets them
-        // emit events as if the corresponding keys from the Latin layout were pressed. In this case, clipboard shortcuts
-        // are mapped to the physical keys that normally contain C, X, V, etc.
-        // See also: https://github.com/emilk/egui/issues/3653
-        if let Some(active_key) = logical_key.or_else(|| physical_key?.try_into().ok()) {
+        // Fall back to the physical key if there is no logical key.
+        if let Some(active_key) = logical_key {
             if pressed && self.clipboard_shortcuts {
-                if is_cut_command(self.modifiers, active_key) {
+                // On non-Latin layouts, clipboard shortcuts use the physical keys
+                // that normally contain C, X, V, etc. (see `Key::shortcut_key`).
+                // See also: https://github.com/emilk/egui/issues/3653
+                let shortcut_key = active_key.shortcut_key(physical_key);
+                if is_cut_command(self.modifiers, &shortcut_key) {
                     self.egui_input.events.push(egui::Event::Cut);
                     return;
-                } else if is_copy_command(self.modifiers, active_key) {
+                } else if is_copy_command(self.modifiers, &shortcut_key) {
                     self.egui_input.events.push(egui::Event::Copy);
                     return;
-                } else if is_paste_command(self.modifiers, active_key) {
+                } else if is_paste_command(self.modifiers, &shortcut_key) {
                     if let Some(contents) = self.clipboard.get() {
                         let contents = contents.replace("\r\n", "\n");
                         if !contents.is_empty() {
@@ -1151,13 +1152,14 @@ impl State {
                 }
             }
 
-            self.egui_input.events.push(egui::Event::Key {
-                key: active_key,
-                physical_key,
-                pressed,
-                repeat: false, // egui will fill this in for us!
-                modifiers: self.modifiers,
-            });
+            self.egui_input
+                .events
+                .push(egui::Event::Key(egui::KeyEvent {
+                    key: egui::FullKey::new(active_key, physical_key),
+                    pressed,
+                    repeat: false, // egui will fill this in for us!
+                    modifiers: self.modifiers,
+                }));
         }
 
         if let Some(text) = text
@@ -1526,7 +1528,7 @@ fn open_url_in_browser(_url: &str) {
 /// Winit sends special keys (backspace, delete, F1, …) as characters.
 /// Ignore those.
 /// We also ignore '\r', '\n', '\t'.
-/// Newlines are handled by the `Key::Enter` event.
+/// Newlines are handled by the `NamedKey::Enter` event.
 fn is_printable_char(chr: char) -> bool {
     let is_in_private_use_area = '\u{e000}' <= chr && chr <= '\u{f8ff}'
         || '\u{f0000}' <= chr && chr <= '\u{ffffd}'
@@ -1535,22 +1537,28 @@ fn is_printable_char(chr: char) -> bool {
     !is_in_private_use_area && !chr.is_ascii_control()
 }
 
-fn is_cut_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
-    keycode == egui::Key::Cut
-        || (modifiers.command_only() && keycode == egui::Key::X)
-        || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Delete)
+fn is_cut_command(modifiers: egui::Modifiers, keycode: &egui::ShortcutKey) -> bool {
+    use egui::{NamedKey, ShortcutKey};
+
+    **keycode == NamedKey::Cut
+        || (modifiers.command_only() && *keycode == ShortcutKey::simple("x"))
+        || (cfg!(target_os = "windows") && modifiers.shift && **keycode == NamedKey::Delete)
 }
 
-fn is_copy_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
-    keycode == egui::Key::Copy
-        || (modifiers.command_only() && keycode == egui::Key::C)
-        || (cfg!(target_os = "windows") && modifiers.ctrl && keycode == egui::Key::Insert)
+fn is_copy_command(modifiers: egui::Modifiers, keycode: &egui::ShortcutKey) -> bool {
+    use egui::{NamedKey, ShortcutKey};
+
+    **keycode == NamedKey::Copy
+        || (modifiers.command_only() && *keycode == ShortcutKey::simple("c"))
+        || (cfg!(target_os = "windows") && modifiers.ctrl && **keycode == NamedKey::Insert)
 }
 
-fn is_paste_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
-    keycode == egui::Key::Paste
-        || (modifiers.command_only() && keycode == egui::Key::V)
-        || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Insert)
+fn is_paste_command(modifiers: egui::Modifiers, keycode: &egui::ShortcutKey) -> bool {
+    use egui::{NamedKey, ShortcutKey};
+
+    **keycode == NamedKey::Paste
+        || (modifiers.command_only() && *keycode == ShortcutKey::simple("v"))
+        || (cfg!(target_os = "windows") && modifiers.shift && **keycode == NamedKey::Insert)
 }
 
 fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::PointerButton> {
@@ -1567,7 +1575,7 @@ fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::Poi
 fn key_from_winit_key(key: &winit::keyboard::Key) -> Option<egui::Key> {
     match key {
         winit::keyboard::Key::Named(named_key) => key_from_named_key(*named_key),
-        winit::keyboard::Key::Character(str) => egui::Key::from_name(str.as_str()),
+        winit::keyboard::Key::Character(str) => Some(egui::Key::Character(str.as_str().into())),
         winit::keyboard::Key::Unidentified(_) | winit::keyboard::Key::Dead(_) => None,
     }
 }
@@ -1576,102 +1584,103 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
     use egui::Key;
     use winit::keyboard::NamedKey;
 
-    Some(match named_key {
-        NamedKey::Enter => Key::Enter,
-        NamedKey::Tab => Key::Tab,
-        NamedKey::ArrowDown => Key::ArrowDown,
-        NamedKey::ArrowLeft => Key::ArrowLeft,
-        NamedKey::ArrowRight => Key::ArrowRight,
-        NamedKey::ArrowUp => Key::ArrowUp,
-        NamedKey::End => Key::End,
-        NamedKey::Home => Key::Home,
-        NamedKey::PageDown => Key::PageDown,
-        NamedKey::PageUp => Key::PageUp,
-        NamedKey::Backspace => Key::Backspace,
-        NamedKey::Delete => Key::Delete,
-        NamedKey::Insert => Key::Insert,
-        NamedKey::Escape => Key::Escape,
-        NamedKey::Cut => Key::Cut,
-        NamedKey::Copy => Key::Copy,
-        NamedKey::Paste => Key::Paste,
+    let named_key = match named_key {
+        NamedKey::Enter => egui::NamedKey::Enter,
+        NamedKey::Tab => egui::NamedKey::Tab,
+        NamedKey::ArrowDown => egui::NamedKey::ArrowDown,
+        NamedKey::ArrowLeft => egui::NamedKey::ArrowLeft,
+        NamedKey::ArrowRight => egui::NamedKey::ArrowRight,
+        NamedKey::ArrowUp => egui::NamedKey::ArrowUp,
+        NamedKey::End => egui::NamedKey::End,
+        NamedKey::Home => egui::NamedKey::Home,
+        NamedKey::PageDown => egui::NamedKey::PageDown,
+        NamedKey::PageUp => egui::NamedKey::PageUp,
+        NamedKey::Backspace => egui::NamedKey::Backspace,
+        NamedKey::Delete => egui::NamedKey::Delete,
+        NamedKey::Insert => egui::NamedKey::Insert,
+        NamedKey::Escape => egui::NamedKey::Escape,
+        NamedKey::Cut => egui::NamedKey::Cut,
+        NamedKey::Copy => egui::NamedKey::Copy,
+        NamedKey::Paste => egui::NamedKey::Paste,
 
-        NamedKey::Space => Key::Space,
+        NamedKey::Space => return Some(Key::character(" ")),
 
-        NamedKey::F1 => Key::F1,
-        NamedKey::F2 => Key::F2,
-        NamedKey::F3 => Key::F3,
-        NamedKey::F4 => Key::F4,
-        NamedKey::F5 => Key::F5,
-        NamedKey::F6 => Key::F6,
-        NamedKey::F7 => Key::F7,
-        NamedKey::F8 => Key::F8,
-        NamedKey::F9 => Key::F9,
-        NamedKey::F10 => Key::F10,
-        NamedKey::F11 => Key::F11,
-        NamedKey::F12 => Key::F12,
-        NamedKey::F13 => Key::F13,
-        NamedKey::F14 => Key::F14,
-        NamedKey::F15 => Key::F15,
-        NamedKey::F16 => Key::F16,
-        NamedKey::F17 => Key::F17,
-        NamedKey::F18 => Key::F18,
-        NamedKey::F19 => Key::F19,
-        NamedKey::F20 => Key::F20,
-        NamedKey::F21 => Key::F21,
-        NamedKey::F22 => Key::F22,
-        NamedKey::F23 => Key::F23,
-        NamedKey::F24 => Key::F24,
-        NamedKey::F25 => Key::F25,
-        NamedKey::F26 => Key::F26,
-        NamedKey::F27 => Key::F27,
-        NamedKey::F28 => Key::F28,
-        NamedKey::F29 => Key::F29,
-        NamedKey::F30 => Key::F30,
-        NamedKey::F31 => Key::F31,
-        NamedKey::F32 => Key::F32,
-        NamedKey::F33 => Key::F33,
-        NamedKey::F34 => Key::F34,
-        NamedKey::F35 => Key::F35,
+        NamedKey::F1 => egui::NamedKey::F1,
+        NamedKey::F2 => egui::NamedKey::F2,
+        NamedKey::F3 => egui::NamedKey::F3,
+        NamedKey::F4 => egui::NamedKey::F4,
+        NamedKey::F5 => egui::NamedKey::F5,
+        NamedKey::F6 => egui::NamedKey::F6,
+        NamedKey::F7 => egui::NamedKey::F7,
+        NamedKey::F8 => egui::NamedKey::F8,
+        NamedKey::F9 => egui::NamedKey::F9,
+        NamedKey::F10 => egui::NamedKey::F10,
+        NamedKey::F11 => egui::NamedKey::F11,
+        NamedKey::F12 => egui::NamedKey::F12,
+        NamedKey::F13 => egui::NamedKey::F13,
+        NamedKey::F14 => egui::NamedKey::F14,
+        NamedKey::F15 => egui::NamedKey::F15,
+        NamedKey::F16 => egui::NamedKey::F16,
+        NamedKey::F17 => egui::NamedKey::F17,
+        NamedKey::F18 => egui::NamedKey::F18,
+        NamedKey::F19 => egui::NamedKey::F19,
+        NamedKey::F20 => egui::NamedKey::F20,
+        NamedKey::F21 => egui::NamedKey::F21,
+        NamedKey::F22 => egui::NamedKey::F22,
+        NamedKey::F23 => egui::NamedKey::F23,
+        NamedKey::F24 => egui::NamedKey::F24,
+        NamedKey::F25 => egui::NamedKey::F25,
+        NamedKey::F26 => egui::NamedKey::F26,
+        NamedKey::F27 => egui::NamedKey::F27,
+        NamedKey::F28 => egui::NamedKey::F28,
+        NamedKey::F29 => egui::NamedKey::F29,
+        NamedKey::F30 => egui::NamedKey::F30,
+        NamedKey::F31 => egui::NamedKey::F31,
+        NamedKey::F32 => egui::NamedKey::F32,
+        NamedKey::F33 => egui::NamedKey::F33,
+        NamedKey::F34 => egui::NamedKey::F34,
+        NamedKey::F35 => egui::NamedKey::F35,
 
-        NamedKey::BrowserBack => Key::BrowserBack,
-        NamedKey::BrowserForward => Key::BrowserForward,
-        NamedKey::BrowserRefresh => Key::BrowserRefresh,
-        NamedKey::BrowserSearch => Key::BrowserSearch,
-        NamedKey::BrowserHome => Key::BrowserHome,
-        NamedKey::BrowserFavorites => Key::BrowserFavorites,
-        NamedKey::BrowserStop => Key::BrowserStop,
+        NamedKey::BrowserBack => egui::NamedKey::BrowserBack,
+        NamedKey::BrowserForward => egui::NamedKey::BrowserForward,
+        NamedKey::BrowserRefresh => egui::NamedKey::BrowserRefresh,
+        NamedKey::BrowserSearch => egui::NamedKey::BrowserSearch,
+        NamedKey::BrowserHome => egui::NamedKey::BrowserHome,
+        NamedKey::BrowserFavorites => egui::NamedKey::BrowserFavorites,
+        NamedKey::BrowserStop => egui::NamedKey::BrowserStop,
 
-        NamedKey::MediaPlayPause => Key::MediaPlayPause,
-        NamedKey::MediaTrackNext => Key::MediaTrackNext,
-        NamedKey::MediaTrackPrevious => Key::MediaTrackPrevious,
-        NamedKey::MediaStop => Key::MediaStop,
-        NamedKey::AudioVolumeMute => Key::AudioVolumeMute,
-        NamedKey::AudioVolumeDown => Key::AudioVolumeDown,
-        NamedKey::AudioVolumeUp => Key::AudioVolumeUp,
+        NamedKey::MediaPlayPause => egui::NamedKey::MediaPlayPause,
+        NamedKey::MediaTrackNext => egui::NamedKey::MediaTrackNext,
+        NamedKey::MediaTrackPrevious => egui::NamedKey::MediaTrackPrevious,
+        NamedKey::MediaStop => egui::NamedKey::MediaStop,
+        NamedKey::AudioVolumeMute => egui::NamedKey::AudioVolumeMute,
+        NamedKey::AudioVolumeDown => egui::NamedKey::AudioVolumeDown,
+        NamedKey::AudioVolumeUp => egui::NamedKey::AudioVolumeUp,
 
-        NamedKey::LaunchMail => Key::LaunchMail,
-        NamedKey::LaunchApplication1 => Key::LaunchApp1,
-        NamedKey::LaunchApplication2 => Key::LaunchApp2,
+        NamedKey::LaunchMail => egui::NamedKey::LaunchMail,
+        NamedKey::LaunchApplication1 => egui::NamedKey::LaunchApplication1,
+        NamedKey::LaunchApplication2 => egui::NamedKey::LaunchApplication2,
 
-        NamedKey::CapsLock => Key::CapsLock,
-        NamedKey::NumLock => Key::NumLock,
-        NamedKey::ScrollLock => Key::ScrollLock,
-        NamedKey::PrintScreen => Key::PrintScreen,
-        NamedKey::Pause => Key::Pause,
-        NamedKey::ContextMenu => Key::Menu,
+        NamedKey::CapsLock => egui::NamedKey::CapsLock,
+        NamedKey::NumLock => egui::NamedKey::NumLock,
+        NamedKey::ScrollLock => egui::NamedKey::ScrollLock,
+        NamedKey::PrintScreen => egui::NamedKey::PrintScreen,
+        NamedKey::Pause => egui::NamedKey::Pause,
+        NamedKey::ContextMenu => egui::NamedKey::ContextMenu,
 
-        NamedKey::Fn => Key::Fn,
-        NamedKey::Eject => Key::Eject,
-        NamedKey::Help => Key::Help,
-        NamedKey::Power => Key::Power,
-        NamedKey::Standby => Key::Sleep,
-        NamedKey::Clear => Key::Clear,
+        NamedKey::Fn => egui::NamedKey::Fn,
+        NamedKey::Eject => egui::NamedKey::Eject,
+        NamedKey::Help => egui::NamedKey::Help,
+        NamedKey::Power => egui::NamedKey::Power,
+        NamedKey::Standby => egui::NamedKey::Standby,
+        NamedKey::Clear => egui::NamedKey::Clear,
 
         _ => {
             log::trace!("Unknown key: {named_key:?}");
             return None;
         }
-    })
+    };
+    Some(Key::Named(named_key))
 }
 
 fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::CursorIcon> {
