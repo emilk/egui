@@ -23,7 +23,7 @@
 //! The keyboard focus stays on the canvas: the input element isn't focusable, and eframe cancels
 //! the default action of a `mousedown` on the input element, which would move the focus.
 
-use egui::{Context, EmbeddedViewOutput, EmbeddedViewPlacement, Pos2, Rect, vec2};
+use egui::{Context, EmbeddedViewOutput, EmbeddedViewPlacement, Pos2, Rect, RectSet, vec2};
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use web_sys::{HtmlCanvasElement, HtmlElement};
@@ -65,7 +65,7 @@ struct InputStyle {
 
     /// The rects that take egui's pointer input, in CSS pixels relative to the input element.
     /// They don't overlap.
-    rects: Vec<Rect>,
+    rects: RectSet,
 }
 
 /// The attribute that marks the container, so that [`container_of`] can find it.
@@ -213,8 +213,8 @@ impl WebEmbeddedViews {
             // egui keeps getting the drag. eframe tracks a drag with `mousemove` events on the
             // document, and the document gets none while the pointer is over an `<iframe>`.
             let egui_press = ctx.input(|input| input.pointer.any_down());
-            let view_areas: Vec<Rect> = if egui_press {
-                Vec::new()
+            let view_areas = if egui_press {
+                RectSet::new()
             } else {
                 let to_css = to_css_pixels(ctx, canvas);
                 below
@@ -245,7 +245,7 @@ impl WebEmbeddedViews {
                 canvas_style.set_property("position", "relative").ok();
             }
             set_style(&elements.input, &style.element);
-            if let Err(err) = elements.set_input_rects(&style.rects) {
+            if let Err(err) = elements.set_input_rects(&style.rects.0) {
                 log::warn!(
                     "Failed to lay out the input element: {}",
                     super::string_from_js_value(&err)
@@ -314,7 +314,7 @@ fn to_css_pixels(
 
 /// Returns the layout of the input element: it covers `canvas`, and takes the pointer input
 /// everywhere but in `view_areas` (in CSS pixels relative to the canvas).
-fn input_style(canvas: &HtmlCanvasElement, view_areas: &[Rect]) -> InputStyle {
+fn input_style(canvas: &HtmlCanvasElement, view_areas: &RectSet) -> InputStyle {
     let rect = canvas.get_bounding_client_rect();
     // The container's top left corner is the canvas's. The maximum `z-index` puts the input
     // element in front of the views. It takes no pointer input itself, only its rects do.
