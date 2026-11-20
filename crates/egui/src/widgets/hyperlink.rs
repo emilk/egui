@@ -42,7 +42,16 @@ impl Widget for Link {
         let (galley_pos, galley, response) = label.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(Role::Link, ui.is_enabled(), galley.text()));
 
-        if ui.is_rect_visible(response.rect) {
+        let selectable = ui.style().interaction.selectable_labels;
+        let is_visible = ui.is_rect_visible(response.rect);
+
+        if is_visible
+            || (selectable
+                && ui.is_visible()
+                && !ui.is_sizing_pass()
+                && ui.label_selection_exists
+                && LabelSelectionState::may_track_out_of_view(ui.ctx(), response.id))
+        {
             let color = ui.visuals().hyperlink_color;
             let visuals = ui.style().interact(&response);
 
@@ -52,7 +61,6 @@ impl Widget for Link {
                 Stroke::NONE
             };
 
-            let selectable = ui.style().interaction.selectable_labels;
             if selectable {
                 LabelSelectionState::label_text_selection(
                     ui, &response, galley_pos, galley, color, underline,
