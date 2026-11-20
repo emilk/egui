@@ -3,7 +3,7 @@ mod wheel_state;
 
 use crate::{
     MouseWheelSource, SafeAreaInsets,
-    data::{FullKey, input::KeyEvent},
+    data::{FullKey, KeyVariant, input::KeyEvent},
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
 };
@@ -705,24 +705,36 @@ impl InputState {
     ///
     /// Includes key-repeat events.
     ///
+    /// What counts as a matched key depends on what key variant you pass in:
+    /// - [`KeyVariant::Logical`] looks for exactly that logical key in a press event
+    ///   (case/modifier sensitive).
+    /// - [`KeyVariant::Physical`] only compares against known physical keys in press events
+    /// - [`KeyVariant::Shortcut`] compares the given [`crate::ShortcutKey`] to the event's shortcut key
+    ///   (obtained via [`FullKey::shortcut_key`])
+    ///
     /// This uses [`Modifiers::matches_logically`] to match modifiers,
     /// meaning extra Shift and Alt modifiers are ignored.
     /// Therefore, you should match most specific shortcuts first,
     /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
     /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
-    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> usize {
+    pub fn count_and_consume_key(
+        &mut self,
+        modifiers: Modifiers,
+        key: impl Into<KeyVariant>,
+    ) -> usize {
+        let key = key.into();
         let mut count = 0usize;
 
         self.events.retain(|event| {
-            let is_match = matches!(
-                event,
+            let is_match = match event {
                 Event::Key(KeyEvent {
                     key: ev_key,
                     modifiers: ev_mods,
                     pressed: true,
                     ..
-                }) if *ev_key == logical_key && ev_mods.matches_logically(modifiers)
-            );
+                }) => ev_mods.matches_logically(modifiers) && key.equivalent(ev_key),
+                _ => false,
+            };
 
             count += is_match as usize;
 
@@ -736,13 +748,20 @@ impl InputState {
     ///
     /// Includes key-repeat events.
     ///
+    /// What counts as a matched key depends on what key variant you pass in:
+    /// - [`KeyVariant::Logical`] looks for exactly that logical key in a press event
+    ///   (case/modifier sensitive).
+    /// - [`KeyVariant::Physical`] only compares against known physical keys in press events
+    /// - [`KeyVariant::Shortcut`] compares the given [`crate::ShortcutKey`] to the event's shortcut key
+    ///   (obtained via [`FullKey::shortcut_key`])
+    ///
     /// This uses [`Modifiers::matches_logically`] to match modifiers,
     /// meaning extra Shift and Alt modifiers are ignored.
     /// Therefore, you should match most specific shortcuts first,
     /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
     /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
-    pub fn consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> bool {
-        self.count_and_consume_key(modifiers, logical_key) > 0
+    pub fn consume_key(&mut self, modifiers: Modifiers, key: impl Into<KeyVariant>) -> bool {
+        self.count_and_consume_key(modifiers, key) > 0
     }
 
     /// Check if the given shortcut has been pressed.
@@ -755,31 +774,30 @@ impl InputState {
     /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
     /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
     pub fn consume_shortcut(&mut self, shortcut: &KeyboardShortcut) -> bool {
-        let KeyboardShortcut {
-            modifiers,
-            logical_key,
-        } = *shortcut;
-        self.consume_key(modifiers, logical_key)
+        self.consume_key(shortcut.modifiers, shortcut.shortcut_key.clone())
     }
 
     /// Was the given key pressed this frame?
     ///
     /// Includes key-repeat events.
-    pub fn key_pressed(&self, desired_key: Key) -> bool {
+    ///
+    /// Like all key queries on [`InputState`], this matches the [`Key`] exactly.
+    pub fn key_pressed(&self, desired_key: impl Into<KeyVariant>) -> bool {
         self.num_presses(desired_key) > 0
     }
 
     /// How many times was the given key pressed this frame?
     ///
     /// Includes key-repeat events.
-    pub fn num_presses(&self, desired_key: Key) -> usize {
+    pub fn num_presses(&self, desired_key: impl Into<KeyVariant>) -> usize {
+        let desired_key = desired_key.into();
         self.events
             .iter()
             .filter(|event| {
                 matches!(
                     event,
-                    Event::Key(KeyEvent { key, pressed: true, .. })
-                    if *key == desired_key
+                    Event::Key (KeyEvent{ key, pressed: true, .. })
+                    if desired_key.equivalent(key)
                 )
             })
             .count()
@@ -793,15 +811,16 @@ impl InputState {
     }
 
     /// Was the given key released this frame?
-    pub fn key_released(&self, desired_key: Key) -> bool {
+    pub fn key_released(&self, desired_key: impl Into<KeyVariant>) -> bool {
+        let desired_key = desired_key.into();
         self.events.iter().any(|event| {
             matches!(
                 event,
-                Event::Key(KeyEvent {
+                Event::Key (KeyEvent{
                     key,
                     pressed: false,
                     ..
-                }) if *key == desired_key
+                }) if desired_key.equivalent(key)
             )
         })
     }

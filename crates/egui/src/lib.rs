@@ -492,7 +492,7 @@ pub use self::{
     },
     context::{Context, RepaintCause, RequestRepaintInfo, ViewportState},
     data::{
-        FullKey, Key, KeyCode, NamedKey, PhysicalKey, ScreenshotCallback, ShortcutKey,
+        FullKey, Key, KeyCode, KeyVariant, NamedKey, PhysicalKey, ScreenshotCallback, ShortcutKey,
         ShortcutKeyExt,
         input::{
             DroppedFile, DroppedFileHandle, Event, EventFilter, HoveredFile, ImeEvent, KeyEvent,
