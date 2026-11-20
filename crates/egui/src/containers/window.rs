@@ -757,6 +757,11 @@ impl Window<'_> {
                 outer_rect,
                 window_frame,
             );
+            let resize_stroke = area_content_ui.resize_line_stroke(
+                area.id().with("resize"),
+                resize_interaction.state(),
+                window_frame.stroke,
+            );
 
             paint_resize_corner(
                 &area_content_ui,
@@ -764,6 +769,7 @@ impl Window<'_> {
                 outer_rect,
                 &window_frame,
                 resize_interaction,
+                resize_stroke,
             );
 
             {
@@ -782,7 +788,12 @@ impl Window<'_> {
 
             collapsing.store(ctx);
 
-            paint_frame_interaction(&area_content_ui, outer_rect, resize_interaction);
+            paint_frame_interaction(
+                &area_content_ui,
+                outer_rect,
+                resize_interaction,
+                resize_stroke,
+            );
 
             outer_response.inner
         };
@@ -809,6 +820,7 @@ fn paint_resize_corner(
     outer_rect: Rect,
     window_frame: &Frame,
     i: ResizeInteraction,
+    resize_stroke: Stroke,
 ) {
     let cr = window_frame.corner_radius;
 
@@ -842,10 +854,8 @@ fn paint_resize_corner(
     let offset =
         ((2.0_f32.sqrt() * (1.0 + radius) - radius) * 45.0_f32.to_radians().cos()).max(2.0);
 
-    let stroke = if corner_response.drag {
-        ui.visuals().widgets.active.fg_stroke
-    } else if corner_response.hover {
-        ui.visuals().widgets.hovered.fg_stroke
+    let stroke = if corner_response.any() {
+        resize_stroke
     } else {
         window_frame.stroke
     };
@@ -961,6 +971,10 @@ impl ResizeInteraction {
 
     pub fn any_dragged(&self) -> bool {
         self.left.drag || self.right.drag || self.top.drag || self.bottom.drag
+    }
+
+    fn state(&self) -> HighlightState {
+        HighlightState::new(self.any_hovered(), self.any_dragged())
     }
 }
 
@@ -1222,17 +1236,15 @@ fn do_resize_interaction(
     interaction
 }
 
-/// Fill in parts of the window frame when we resize by dragging that part
-fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) {
+/// Paint the highlighted window edges while hovering or resizing.
+///
+/// `stroke` comes from [`Ui::resize_line_stroke`].
+fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction, stroke: Stroke) {
     use epaint::tessellator::path::add_circle_quadrant;
 
-    let visuals = if interaction.any_dragged() {
-        ui.style().visuals.widgets.active
-    } else if interaction.any_hovered() {
-        ui.style().visuals.widgets.hovered
-    } else {
+    if interaction.state() == HighlightState::Idle || stroke == interaction.window_frame.stroke {
         return;
-    };
+    }
 
     let [left, right, top, bottom]: [bool; 4];
 
@@ -1254,7 +1266,6 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
     let rect = rect.shrink(interaction.window_frame.stroke.width * 0.5);
 
     // Make sure the inner part of the stroke is at a pixel boundary:
-    let stroke = visuals.bg_stroke;
     let half_stroke = stroke.width * 0.5;
     let rect = rect
         .shrink(half_stroke)
