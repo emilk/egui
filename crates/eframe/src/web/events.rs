@@ -4,7 +4,7 @@ use super::{
     AppRunner, Closure, DEBUG_RESIZE, JsCast as _, JsValue, WebRunner, button_from_mouse_event,
     location_hash, modifiers_from_kb_event, modifiers_from_mouse_event, modifiers_from_wheel_event,
     native_pixels_per_point, pos_from_mouse_event, prefers_color_scheme, primary_touch_pos,
-    push_touches, text_from_keyboard_event, translate_key,
+    push_touches, text_from_keyboard_event, translate_code, translate_key,
 };
 
 use js_sys::Reflect;
@@ -206,11 +206,11 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
 
     let key = event.key();
     let logical_key = translate_key(&key);
-    let physical_key = translate_key(&event.code());
+    let physical_key = translate_code(&event.code());
 
     // Fall back to the physical key so that modifier keys (which have no logical
     // `egui::Key`) and non-Latin layouts still produce a `Key` event.
-    if let Some(active_key) = logical_key.or(physical_key) {
+    if let Some(active_key) = logical_key.or_else(|| physical_key?.try_into().ok()) {
         let egui_event = egui::Event::Key {
             key: active_key,
             physical_key,
@@ -301,9 +301,9 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let mut should_stop_propagation = true;
 
     let logical_key = translate_key(&event.key());
-    let physical_key = translate_key(&event.code());
+    let physical_key = translate_code(&event.code());
 
-    if let Some(active_key) = logical_key.or(physical_key) {
+    if let Some(active_key) = logical_key.or_else(|| physical_key?.try_into().ok()) {
         let egui_event = egui::Event::Key {
             key: active_key,
             physical_key,

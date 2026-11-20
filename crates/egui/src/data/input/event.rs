@@ -2,7 +2,7 @@ use epaint::ColorImage;
 
 use crate::MouseWheelSource;
 use crate::{
-    Key,
+    Key, PhysicalKey,
     emath::{Pos2, Vec2},
 };
 
@@ -72,7 +72,7 @@ pub enum Event {
         /// even if the user is using Dvorak or AZERTY.
         ///
         /// `eframe` does not (yet) implement this on web.
-        physical_key: Option<Key>,
+        physical_key: Option<PhysicalKey>,
 
         /// Was it pressed or released?
         pressed: bool,

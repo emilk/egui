@@ -35,7 +35,7 @@ impl State {
         if let Some(key) = egui::Key::from_name(&c.to_string()) {
             events.push(egui::Event::Key {
                 key,
-                physical_key: Some(key),
+                physical_key: None,
                 pressed: true,
                 repeat: false,
                 modifiers: Default::default(),
@@ -48,7 +48,7 @@ impl State {
         let events = self.events.get_or_insert(vec![]);
         events.push(egui::Event::Key {
             key,
-            physical_key: Some(key),
+            physical_key: None,
             pressed: true,
             repeat: false,
             modifiers: Default::default(),

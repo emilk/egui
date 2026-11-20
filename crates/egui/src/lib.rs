@@ -492,7 +492,7 @@ pub use self::{
     },
     context::{Context, RepaintCause, RequestRepaintInfo, ViewportState},
     data::{
-        Key, ScreenshotCallback,
+        Key, KeyCode, PhysicalKey, ScreenshotCallback,
         input::{
             DroppedFile, DroppedFileHandle, Event, EventFilter, HoveredFile, ImeEvent,
             KeyboardShortcut, ModifierNames, Modifiers, MouseWheelSource, MouseWheelUnit,

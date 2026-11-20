@@ -106,6 +106,7 @@ image = { version = "0.25.10", default-features = false } # `flate2` is held at 
 itertools = "0.15.0"
 jiff = { version = "0.2.39", default-features = false }
 js-sys = "0.3.103"
+keyboard-types = "0.8.3"
 kittest = { version = "0.5.0" }
 log = { version = "0.4.35", features = ["std"] }
 mimalloc = "0.1.52"

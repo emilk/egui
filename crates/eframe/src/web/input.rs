@@ -173,6 +173,12 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
     egui::Key::from_name(key)
 }
 
+/// Translate a [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code)
+/// string into a physical key.
+pub fn translate_code(code: &str) -> Option<egui::PhysicalKey> {
+    code.parse().ok().map(egui::PhysicalKey::Code)
+}
+
 pub fn modifiers_from_kb_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
     egui::Modifiers {
         alt: event.alt_key(),
