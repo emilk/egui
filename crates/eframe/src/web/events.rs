@@ -204,13 +204,15 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
     let modifiers = modifiers_from_kb_event(&event);
     runner.input.set_modifiers(modifiers);
 
-    let key = event.key();
-    let logical_key = translate_key(&key);
-    let physical_key = translate_code(&event.code());
+    let key = egui::FullKey::new(
+        translate_key(&event.key()).unwrap_or(egui::Key::Named(egui::NamedKey::Unidentified)),
+        translate_code(&event.code()),
+    );
 
-    if let Some(active_key) = logical_key {
+    if key.is_identified() {
+        let shortcut_key = key.shortcut_key();
         let egui_event = egui::Event::Key(egui::KeyEvent {
-            key: egui::FullKey::new(active_key.clone(), physical_key),
+            key,
             pressed: true,
             repeat: false, // egui will fill this in for us!
             modifiers,
@@ -219,15 +221,11 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
         runner.input.raw.events.push(egui_event);
         runner.needs_repaint.repaint_asap();
 
-        let prevent_default = should_prevent_default_for_key(
-            runner,
-            &modifiers,
-            &active_key.shortcut_key(physical_key),
-        );
+        let prevent_default = should_prevent_default_for_key(runner, &modifiers, &shortcut_key);
 
         if false {
             log::debug!(
-                "On keydown {:?} {active_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
+                "On keydown {:?} {shortcut_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
                 event.key().as_str(),
                 runner.egui_ctx().egui_wants_keyboard_input()
             );
@@ -306,12 +304,14 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 
     let mut should_stop_propagation = true;
 
-    let logical_key = translate_key(&event.key());
-    let physical_key = translate_code(&event.code());
+    let key = egui::FullKey::new(
+        translate_key(&event.key()).unwrap_or(egui::Key::Named(egui::NamedKey::Unidentified)),
+        translate_code(&event.code()),
+    );
 
-    if let Some(active_key) = logical_key {
+    if key.is_identified() {
         let egui_event = egui::Event::Key(egui::KeyEvent {
-            key: egui::FullKey::new(active_key, physical_key),
+            key,
             pressed: false,
             repeat: false,
             modifiers,
@@ -328,7 +328,6 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 
         let keys_down = runner.egui_ctx().input(|i| i.keys_down.clone());
 
-        #[expect(clippy::iter_over_hash_type)]
         for key in keys_down {
             let egui_event = egui::Event::Key(egui::KeyEvent {
                 key,
