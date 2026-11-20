@@ -359,7 +359,7 @@ impl DatePickerPopup<'_> {
     /// Returns `true` if user pressed `Save` button.
     pub fn draw(&mut self, ui: &mut Ui) -> bool {
         let id = ui.make_persistent_id("date_picker");
-        let today = jiff::Zoned::now().date();
+        let today = jiff::ZonedDateTime::now().date();
         let mut popup_state = ui
             .data_mut(|data| data.get_persisted::<DatePickerPopupState>(id))
             .unwrap_or_default();
