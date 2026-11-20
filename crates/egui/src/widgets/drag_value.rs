@@ -1,5 +1,5 @@
 use crate::{
-    Atom, AtomExt as _, Atoms, Button, CursorIcon, Id, IdSalt, IntoAtoms, Key, Modifiers,
+    Atom, AtomExt as _, Atoms, Button, CursorIcon, Id, IdSalt, IntoAtoms, Modifiers, NamedKey,
     NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget, WidgetInfo,
     class::{ClassName, Classes, HasClasses},
     text,
@@ -485,8 +485,8 @@ impl Widget for DragValue<'_> {
                 // assume this behavior, so having a separate mode for incrementing
                 // and decrementing, that supports all arrow keys, would be
                 // problematic.
-                change += input.count_and_consume_key(Modifiers::NONE, Key::ArrowUp) as f64
-                    - input.count_and_consume_key(Modifiers::NONE, Key::ArrowDown) as f64;
+                change += input.count_and_consume_key(Modifiers::NONE, NamedKey::ArrowUp) as f64
+                    - input.count_and_consume_key(Modifiers::NONE, NamedKey::ArrowDown) as f64;
             }
 
             use accesskit::Action;
@@ -529,7 +529,7 @@ impl Widget for DragValue<'_> {
 
         let text_style = ui.style().drag_value_text_style.clone();
 
-        if ui.memory(|mem| mem.lost_focus(id)) && !ui.input(|i| i.key_pressed(Key::Escape)) {
+        if ui.memory(|mem| mem.lost_focus(id)) && !ui.input(|i| i.key_pressed(NamedKey::Escape)) {
             let edit_state = ui.data_mut(|data| data.remove_temp::<EditState>(id));
             // Ignore the text if the value was changed by something else while we were editing it,
             // or we would revert that change.
@@ -576,7 +576,7 @@ impl Widget for DragValue<'_> {
                 response.changed()
             } else {
                 // Update only when the edit has lost focus.
-                response.lost_focus() && !ui.input(|i| i.key_pressed(Key::Escape))
+                response.lost_focus() && !ui.input(|i| i.key_pressed(NamedKey::Escape))
             };
             if update {
                 let parsed_value = parse(custom_parser.as_ref(), &value_text);

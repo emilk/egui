@@ -596,22 +596,34 @@ impl Focus {
 
         for event in &new_input.events {
             if !event_filter.matches(event)
-                && let crate::Event::Key {
+                && let crate::Event::Key(crate::KeyEvent {
                     key,
                     pressed: true,
                     modifiers,
                     ..
-                } = event
-                && let Some(cardinality) = match key {
-                    crate::Key::ArrowUp if !modifiers.any() => Some(FocusDirection::Up),
-                    crate::Key::ArrowRight if !modifiers.any() => Some(FocusDirection::Right),
-                    crate::Key::ArrowDown if !modifiers.any() => Some(FocusDirection::Down),
-                    crate::Key::ArrowLeft if !modifiers.any() => Some(FocusDirection::Left),
+                }) = event
+                && let Some(cardinality) = match key.logical {
+                    crate::Key::Named(crate::NamedKey::ArrowUp) if !modifiers.any() => {
+                        Some(FocusDirection::Up)
+                    }
+                    crate::Key::Named(crate::NamedKey::ArrowRight) if !modifiers.any() => {
+                        Some(FocusDirection::Right)
+                    }
+                    crate::Key::Named(crate::NamedKey::ArrowDown) if !modifiers.any() => {
+                        Some(FocusDirection::Down)
+                    }
+                    crate::Key::Named(crate::NamedKey::ArrowLeft) if !modifiers.any() => {
+                        Some(FocusDirection::Left)
+                    }
 
-                    crate::Key::Tab if !modifiers.any() => Some(FocusDirection::Next),
-                    crate::Key::Tab if modifiers.shift_only() => Some(FocusDirection::Previous),
+                    crate::Key::Named(crate::NamedKey::Tab) if !modifiers.any() => {
+                        Some(FocusDirection::Next)
+                    }
+                    crate::Key::Named(crate::NamedKey::Tab) if modifiers.shift_only() => {
+                        Some(FocusDirection::Previous)
+                    }
 
-                    crate::Key::Escape if !modifiers.any() => {
+                    crate::Key::Named(crate::NamedKey::Escape) if !modifiers.any() => {
                         self.focused_widget = None;
                         Some(FocusDirection::None)
                     }

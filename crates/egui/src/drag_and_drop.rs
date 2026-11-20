@@ -38,7 +38,7 @@ impl Plugin for DragAndDrop {
 
         if has_any_payload {
             let abort_dnd_due_to_escape_key =
-                ui.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::Key::Escape));
+                ui.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::NamedKey::Escape));
 
             if abort_dnd_due_to_escape_key {
                 self.payload = None;
