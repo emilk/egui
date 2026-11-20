@@ -224,6 +224,7 @@ impl EpiIntegration {
     ) -> Self {
         let frame = epi::Frame {
             info: epi::IntegrationInfo { cpu_usage: None },
+            ten_bit_color: false, // set by the renderer integration
             storage,
             #[cfg(feature = "glow")]
             gl,

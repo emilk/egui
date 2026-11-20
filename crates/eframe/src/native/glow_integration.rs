@@ -92,6 +92,44 @@ impl Drop for GlowWinitRunning<'_> {
     }
 }
 
+/// Has at least 10 bits per color channel (see `NativeOptions::prefer_10_bit_color`).
+fn is_10_bit(config: &glutin::config::Config) -> bool {
+    use glutin::config::{ColorBufferType, GlConfig as _};
+    matches!(
+        config.color_buffer_type(),
+        Some(ColorBufferType::Rgb {
+            r_size: 10..,
+            g_size: 10..,
+            b_size: 10..,
+        })
+    )
+}
+
+/// Picks a config for `NativeOptions::prefer_10_bit_color` from configs that meet a template that
+/// asks for any alpha size.
+///
+/// The usual config is the first one with 8 bits of alpha, as without the option. A 10-bit config
+/// replaces it only if it supports the same client APIs (so the app doesn't switch from desktop GL
+/// to GLES on EGL), has the same sample count and at least the same depth and stencil sizes.
+fn pick_10_bit_config(
+    configs: impl Iterator<Item = glutin::config::Config>,
+) -> Option<glutin::config::Config> {
+    use glutin::config::GlConfig as _;
+    let configs: Vec<_> = configs.collect();
+    let usual = configs
+        .iter()
+        .find(|c| c.alpha_size() >= 8)
+        .or_else(|| configs.first())?;
+    let ten_bit = configs.iter().find(|c| {
+        is_10_bit(c)
+            && c.api().contains(usual.api())
+            && c.num_samples() == usual.num_samples()
+            && c.depth_size() >= usual.depth_size()
+            && c.stencil_size() >= usual.stencil_size()
+    });
+    Some(ten_bit.unwrap_or(usual).clone())
+}
+
 /// This struct will contain both persistent and temporary glutin state.
 ///
 /// Platform Quirks:
@@ -303,7 +341,8 @@ impl<'app> GlowWinitApp<'app> {
             gl,
             "",
             native_options.glow_options.shader_version,
-            native_options.dithering,
+            // The dithering noise is sized for 8-bit steps; a 10-bit window doesn't need it.
+            native_options.dithering && !is_10_bit(&glutin_window_context.gl_config),
         )?;
 
         Ok((glutin_window_context, painter))
@@ -350,7 +389,7 @@ impl<'app> GlowWinitApp<'app> {
 
         let painter = Rc::new(RefCell::new(painter));
 
-        let integration = EpiIntegration::new(
+        let mut integration = EpiIntegration::new(
             egui_ctx,
             &glutin.window(ViewportId::ROOT),
             &self.app_name,
@@ -364,6 +403,7 @@ impl<'app> GlowWinitApp<'app> {
             #[cfg(feature = "wgpu_no_default_features")]
             None,
         );
+        integration.frame.ten_bit_color = is_10_bit(&glutin.gl_config);
 
         {
             let event_loop_proxy = Arc::clone(&self.repaint_proxy);
@@ -1223,12 +1263,21 @@ impl GlutinWindowContext {
             3. opengl context configuration
             4. opengl context creation
         */
+        let transparent = native_options.viewport.transparent.unwrap_or(false);
+        // 10-bit configs have 2 bits of alpha or none, too few for a transparent window.
+        let prefer_10_bit = native_options.prefer_10_bit_color && !transparent;
         // start building config for gl display
         let config_template_builder = glutin::config::ConfigTemplateBuilder::new()
             .prefer_hardware_accelerated(hardware_acceleration)
             .with_depth_size(native_options.depth_buffer)
             .with_stencil_size(native_options.stencil_buffer)
-            .with_transparency(native_options.viewport.transparent.unwrap_or(false));
+            .with_transparency(transparent);
+        // The default template asks for 8 bits of alpha, which no 10-bit config has.
+        let config_template_builder = if prefer_10_bit {
+            config_template_builder.with_alpha_size(0)
+        } else {
+            config_template_builder
+        };
         // we don't know if multi sampling option is set. so, check if its more than 0.
         let config_template_builder = if native_options.multisampling > 0 {
             config_template_builder.with_multisampling(
@@ -1263,12 +1312,15 @@ impl GlutinWindowContext {
                     event_loop,
                     config_template_builder.clone(),
                     |mut config_iterator| {
-                        let config = config_iterator.next().expect(
+                        let config = if prefer_10_bit {
+                            pick_10_bit_config(config_iterator)
+                        } else {
+                            config_iterator.next()
+                        }
+                        .expect(
                             "failed to find a matching configuration for creating glutin config",
                         );
-                        log::debug!(
-                            "using the first config from config picker closure. config: {config:?}"
-                        );
+                        log::debug!("using config from config picker closure. config: {config:?}");
                         config
                     },
                 )
