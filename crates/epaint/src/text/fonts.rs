@@ -8,7 +8,7 @@ use crate::{
         TextOptions, VariationCoords,
         face_store::{FaceStore, FontFaceKey},
         family::{Family, FamilyKey},
-        font_face::{FontFace, GlyphInfo, ShapedGlyph},
+        font_face::{FontFace, GlyphIdResolution, GlyphInfo, ShapedGlyph},
         font_provider::FontProviders,
         galley_cache::GalleyCache,
         glyph_atlas::{GlyphAllocation, GlyphAtlas, OutlineGlyph, RasterGlyphAllocation},
@@ -688,7 +688,7 @@ impl FontsImpl {
             )
     }
 
-    /// Width of this character in points, at the font's default variation location.
+    /// Width of this character in points, including the font's configured features and variations.
     ///
     /// Returns `0.0` if no font has the character.
     pub fn glyph_width(&mut self, family: &FontFamily, c: char, font_size: f32) -> f32 {
@@ -698,6 +698,19 @@ impl FontsImpl {
             return 0.0;
         };
         let metrics = face.styled_metrics(1.0, font_size, &VariationCoords::default());
+        // Preserve egui's custom tab and thin-space widths, matching text layout.
+        // Shape only characters the face has, so a missing glyph still measures zero.
+        if !face.tweak().features.is_empty()
+            && !c.is_control()
+            && !matches!(c, '\u{2009}' | '\u{202F}')
+            && matches!(
+                face.glyph_id_resolution(c),
+                Some(GlyphIdResolution::Glyph(_))
+            )
+        {
+            let advance = face.shaped_advance_width_unscaled(c);
+            return advance as f32 * metrics.px_scale_factor;
+        }
         let Some(glyph_info) = face.glyph_info(c, &metrics) else {
             return 0.0;
         };
