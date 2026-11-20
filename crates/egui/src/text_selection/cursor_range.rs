@@ -1,6 +1,6 @@
 use epaint::{Galley, text::CharIndex, text::cursor::CCursor};
 
-use crate::{Event, Id, Key, Modifiers, os::OperatingSystem};
+use crate::{Event, Id, Key, Modifiers, NamedKey, data::ShortcutKey, os::OperatingSystem};
 
 use super::text_cursor_state::{ccursor_next_word, ccursor_previous_word, slice_char_range};
 
@@ -116,16 +116,18 @@ impl CCursorRange {
         os: OperatingSystem,
         galley: &Galley,
         modifiers: &Modifiers,
-        key: Key,
+        shortcut_key: &ShortcutKey,
     ) -> bool {
-        match key {
-            Key::A if modifiers.command => {
+        match shortcut_key.as_ref() {
+            Key::Character("a") if modifiers.command => {
                 *self = Self::select_all(galley);
                 true
             }
 
-            Key::ArrowLeft | Key::ArrowRight if modifiers.is_none() && !self.is_empty() => {
-                if key == Key::ArrowLeft {
+            shortcut_key @ Key::Named(NamedKey::ArrowLeft | NamedKey::ArrowRight)
+                if modifiers.is_none() && !self.is_empty() =>
+            {
+                if shortcut_key == NamedKey::ArrowLeft {
                     *self = Self::one(self.sorted_cursors()[0]);
                 } else {
                     *self = Self::one(self.sorted_cursors()[1]);
@@ -133,18 +135,20 @@ impl CCursorRange {
                 true
             }
 
-            Key::ArrowLeft
-            | Key::ArrowRight
-            | Key::ArrowUp
-            | Key::ArrowDown
-            | Key::Home
-            | Key::End => {
+            Key::Named(
+                NamedKey::ArrowLeft
+                | NamedKey::ArrowRight
+                | NamedKey::ArrowUp
+                | NamedKey::ArrowDown
+                | NamedKey::Home
+                | NamedKey::End,
+            ) => {
                 move_single_cursor(
                     os,
                     &mut self.primary,
                     &mut self.h_pos,
                     galley,
-                    key,
+                    shortcut_key,
                     modifiers,
                 );
                 if !modifiers.shift {
@@ -153,7 +157,7 @@ impl CCursorRange {
                 true
             }
 
-            Key::P | Key::N | Key::B | Key::F | Key::A | Key::E
+            Key::Character("p" | "n" | "b" | "f" | "a" | "e")
                 if os == OperatingSystem::Mac && modifiers.ctrl && !modifiers.shift =>
             {
                 move_single_cursor(
@@ -161,7 +165,7 @@ impl CCursorRange {
                     &mut self.primary,
                     &mut self.h_pos,
                     galley,
-                    key,
+                    shortcut_key,
                     modifiers,
                 );
                 self.secondary = self.primary;
@@ -183,12 +187,12 @@ impl CCursorRange {
         _widget_id: Id,
     ) -> bool {
         match event {
-            Event::Key {
+            Event::Key(crate::KeyEvent {
                 modifiers,
                 key,
                 pressed: true,
                 ..
-            } => self.on_key_press(os, galley, modifiers, *key),
+            }) => self.on_key_press(os, galley, modifiers, &key.shortcut_key()),
 
             Event::AccessKitActionRequest(accesskit::ActionRequest {
                 action: accesskit::Action::SetTextSelection,
@@ -264,23 +268,30 @@ fn move_single_cursor(
     cursor: &mut CCursor,
     h_pos: &mut Option<f32>,
     galley: &Galley,
-    key: Key,
+    key: &ShortcutKey,
     modifiers: &Modifiers,
 ) {
     let (new_cursor, new_h_pos) =
         if os == OperatingSystem::Mac && modifiers.ctrl && !modifiers.shift {
-            match key {
-                Key::A => (galley.cursor_begin_of_row(cursor), None),
-                Key::E => (galley.cursor_end_of_row(cursor), None),
-                Key::P => galley.cursor_up_one_row(cursor, *h_pos),
-                Key::N => galley.cursor_down_one_row(cursor, *h_pos),
-                Key::B => (galley.cursor_left_one_character(cursor), None),
-                Key::F => (galley.cursor_right_one_character(cursor), None),
-                _ => return,
+            let is = |c: &'static str| *key == ShortcutKey::simple(c);
+            if is("a") {
+                (galley.cursor_begin_of_row(cursor), None)
+            } else if is("e") {
+                (galley.cursor_end_of_row(cursor), None)
+            } else if is("p") {
+                galley.cursor_up_one_row(cursor, *h_pos)
+            } else if is("n") {
+                galley.cursor_down_one_row(cursor, *h_pos)
+            } else if is("b") {
+                (galley.cursor_left_one_character(cursor), None)
+            } else if is("f") {
+                (galley.cursor_right_one_character(cursor), None)
+            } else {
+                return;
             }
         } else {
-            match key {
-                Key::ArrowLeft => {
+            match &**key {
+                Key::Named(NamedKey::ArrowLeft) => {
                     if modifiers.alt || modifiers.ctrl {
                         // alt on mac, ctrl on windows
                         (ccursor_previous_word(galley, *cursor), None)
@@ -290,7 +301,7 @@ fn move_single_cursor(
                         (galley.cursor_left_one_character(cursor), None)
                     }
                 }
-                Key::ArrowRight => {
+                Key::Named(NamedKey::ArrowRight) => {
                     if modifiers.alt || modifiers.ctrl {
                         // alt on mac, ctrl on windows
                         (ccursor_next_word(galley, *cursor), None)
@@ -300,7 +311,7 @@ fn move_single_cursor(
                         (galley.cursor_right_one_character(cursor), None)
                     }
                 }
-                Key::ArrowUp => {
+                Key::Named(NamedKey::ArrowUp) => {
                     if modifiers.command {
                         // mac and windows behavior
                         (galley.begin(), None)
@@ -308,7 +319,7 @@ fn move_single_cursor(
                         galley.cursor_up_one_row(cursor, *h_pos)
                     }
                 }
-                Key::ArrowDown => {
+                Key::Named(NamedKey::ArrowDown) => {
                     if modifiers.command {
                         // mac and windows behavior
                         (galley.end(), None)
@@ -317,7 +328,7 @@ fn move_single_cursor(
                     }
                 }
 
-                Key::Home => {
+                Key::Named(NamedKey::Home) => {
                     if modifiers.ctrl {
                         // windows behavior
                         (galley.begin(), None)
@@ -325,7 +336,7 @@ fn move_single_cursor(
                         (galley.cursor_begin_of_row(cursor), None)
                     }
                 }
-                Key::End => {
+                Key::Named(NamedKey::End) => {
                     if modifiers.ctrl {
                         // windows behavior
                         (galley.end(), None)
