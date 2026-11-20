@@ -16,9 +16,7 @@ use crate::{
 };
 use alloc::collections::BTreeMap;
 use core::time::Duration;
-use std::collections::HashSet;
 
-pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
@@ -319,10 +317,12 @@ pub struct InputState {
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
 
-    /// The keys that are currently being held down.
+    /// The keys that are currently being held down, in the order they were pressed.
     ///
     /// Keys released this frame are NOT considered down.
-    pub keys_down: HashSet<FullKey>,
+    ///
+    /// A release is paired with its press via [`FullKey::is_same_key`], i.e. by physical key when known.
+    pub keys_down: Vec<FullKey>,
 
     /// In-order events received this frame
     pub events: Vec<Event>,
@@ -407,11 +407,16 @@ impl InputState {
                     repeat,
                     ..
                 }) => {
+                    let held = keys_down.iter().position(|held| held.is_same_key(key));
                     if *pressed {
-                        let first_press = keys_down.insert(key.clone());
-                        *repeat = !first_press;
-                    } else {
-                        keys_down.remove(key);
+                        *repeat = held.is_some();
+                        if held.is_none() {
+                            keys_down.push(key.clone());
+                        }
+                    } else if let Some(held) = held {
+                        // Report the release with the key as it was pressed,
+                        // in case the logical key changed in between (e.g. `Shift` was pressed on web).
+                        *key = keys_down.remove(held);
                     }
                 }
                 Event::MouseWheel {
@@ -781,7 +786,7 @@ impl InputState {
     ///
     /// Includes key-repeat events.
     ///
-    /// Like all key queries on [`InputState`], this matches the [`Key`] exactly.
+    /// See [`Self::count_and_consume_key`] for how the different [`KeyVariant`]s are matched.
     pub fn key_pressed(&self, desired_key: impl Into<KeyVariant>) -> bool {
         self.num_presses(desired_key) > 0
     }
@@ -806,8 +811,11 @@ impl InputState {
     /// Is the given key currently held down?
     ///
     /// Keys released this frame are NOT considered down.
-    pub fn key_down(&self, desired_key: Key) -> bool {
-        self.keys_down.contains(&desired_key.into())
+    ///
+    /// See [`Self::count_and_consume_key`] for how the different [`KeyVariant`]s are matched.
+    pub fn key_down(&self, desired_key: impl Into<KeyVariant>) -> bool {
+        let desired_key = desired_key.into();
+        self.keys_down.iter().any(|key| desired_key.equivalent(key))
     }
 
     /// Was the given key released this frame?

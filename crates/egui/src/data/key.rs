@@ -5,9 +5,15 @@ use smol_str::SmolStr;
 
 /// A logical keyboard key.
 ///
-/// **NOTE:** keys are reported accounting for modifier keys
-/// e.g pressing `a` reports `Key::Character("a")`, but `Key::Character("A")` while shift is held
-/// (assuming a standard English layout).
+/// **NOTE:** what a [`Key::Character`] contains depends on the integration:
+/// - `egui-winit` (native) reports the key without modifiers, e.g. pressing `a` reports
+///   `Key::Character("a")` even while `Shift` or `Caps Lock` is active, and `Shift+1` reports `"1"`
+///   (assuming a US layout).
+/// - `eframe` on web reports [`KeyboardEvent.key`](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key),
+///   lowercased, so `Shift+a` reports `Key::Character("a")`, but `Shift+1` reports `"!"`
+///   and `Option+a` on macOS reports `"å"`.
+///
+/// The text produced by a key press is sent separately as [`crate::Event::Text`].
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Key<Str = SmolStr> {
@@ -15,6 +21,10 @@ pub enum Key<Str = SmolStr> {
     Named(NamedKey),
 }
 
+/// Parses a W3C key value, as reported by e.g. [`KeyboardEvent.key`](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key):
+/// a [`NamedKey`] name (including `"Dead"` and `"Unidentified"`), or else the produced character as-is.
+///
+/// Fails only for the empty string. See [`Key::from_name`] for parsing human-readable key names.
 impl<S> FromStr for Key<S>
 where
     S: for<'a> From<&'a str>,
@@ -23,7 +33,6 @@ where
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.parse::<NamedKey>() {
-            Ok(NamedKey::Dead | NamedKey::Unidentified) => Err(()),
             Ok(named_key) => Ok(Self::Named(named_key)),
             Err(_) if s.is_empty() => Err(()),
             Err(_) => Ok(Self::Character(s.into())),
@@ -101,9 +110,7 @@ impl Key<SmolStr> {
 impl Key {
     /// Compare two keys, ignoring the ASCII letter case of [`Key::Character`] keys.
     ///
-    /// Backends report the character exactly as typed, so `Shift`/`Caps Lock` turn `"z"` into `"Z"`.
-    /// [`crate::InputState`] uses this when matching keys, so that a shortcut on `"z"`
-    /// also triggers when `Shift` or `Caps Lock` is active.
+    /// Useful for keys that keep their letter case, e.g. parsed from user configuration.
     ///
     /// ```
     /// # use egui::Key;
