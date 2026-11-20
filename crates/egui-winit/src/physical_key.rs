@@ -5,55 +5,28 @@
 
 use winit::keyboard::KeyCode as WinitKeyCode;
 
+/// Translates a winit physical key.
+///
+/// Keys without a [`egui::KeyCode`] become [`egui::PhysicalKey::Unidentified`] with the platform's native
+/// key code, if winit provides one.
+///
+/// Returns `None` for [`winit::keyboard::NativeKeyCode::Unidentified`],
+/// and for [`WinitKeyCode`]s added in winit versions newer than this mapping.
 pub fn physical_key_from_winit(key: winit::keyboard::PhysicalKey) -> Option<egui::PhysicalKey> {
+    use winit::keyboard::{NativeKeyCode, PhysicalKey};
+
     match key {
-        winit::keyboard::PhysicalKey::Code(key_code) => {
-            Some(egui::PhysicalKey::Code(keycode_from_winit(key_code)?))
-        }
-        key => scancode_from_winit(key).map(egui::PhysicalKey::Unidentified),
+        PhysicalKey::Code(key_code) => keycode_from_winit(key_code).map(egui::PhysicalKey::Code),
+        PhysicalKey::Unidentified(native) => match native {
+            NativeKeyCode::Android(code) | NativeKeyCode::Xkb(code) => {
+                Some(egui::PhysicalKey::Unidentified(code))
+            }
+            NativeKeyCode::MacOS(code) | NativeKeyCode::Windows(code) => {
+                Some(egui::PhysicalKey::Unidentified(code.into()))
+            }
+            NativeKeyCode::Unidentified => None,
+        },
     }
-}
-
-/// Mirrors the `cfg` gating `winit::platform::scancode` in winit 0.30
-/// (`windows_platform`, `macos_platform`, `x11_platform`, `wayland_platform`).
-#[cfg(any(
-    target_os = "windows",
-    target_os = "macos",
-    all(
-        any(feature = "x11", feature = "wayland"),
-        unix,
-        not(any(
-            target_os = "ios",
-            target_os = "macos",
-            target_os = "android",
-            target_os = "emscripten",
-            target_os = "redox"
-        ))
-    )
-))]
-fn scancode_from_winit(key: winit::keyboard::PhysicalKey) -> Option<u32> {
-    use winit::platform::scancode::PhysicalKeyExtScancode as _;
-    key.to_scancode()
-}
-
-/// `winit::platform::scancode` is unavailable on this target/feature set.
-#[cfg(not(any(
-    target_os = "windows",
-    target_os = "macos",
-    all(
-        any(feature = "x11", feature = "wayland"),
-        unix,
-        not(any(
-            target_os = "ios",
-            target_os = "macos",
-            target_os = "android",
-            target_os = "emscripten",
-            target_os = "redox"
-        ))
-    )
-)))]
-fn scancode_from_winit(_key: winit::keyboard::PhysicalKey) -> Option<u32> {
-    None
 }
 
 #[expect(deprecated)]

@@ -1090,10 +1090,9 @@ impl State {
             // layout. (This value is `KeyCode::KeyW` for the Z key on an AZERTY layout.)
             physical_key,
 
-            // Represents the results of a keymap, i.e. what character a certain key press represents.
-            // When telling users "Press Ctrl-F to find", this is where we should
-            // look for the "F" key, because they may have a dvorak layout on
-            // a qwerty keyboard, and so the logical "F" character may not be located on the physical `KeyCode::KeyF` position.
+            // Represents the results of a keymap, including modifiers, i.e. what character a certain key press
+            // produced. Only used as a fallback for `text`: egui's logical key comes from
+            // `logical_key_without_modifiers` instead.
             logical_key: winit_logical_key,
 
             text,
@@ -1109,24 +1108,26 @@ impl State {
 
         let physical_key = physical_key_from_winit(*physical_key);
 
-        let logical_key = key_from_winit_key(winit_logical_key);
+        let winit_key_without_modifiers = logical_key_without_modifiers(event);
+        let logical_key = key_from_winit_key(&winit_key_without_modifiers);
 
         // Helpful logging to enable when adding new key support
         log::trace!(
-            "logical {:?} -> {:?},  physical {:?} -> {:?}",
+            "logical {:?} (without modifiers: {:?}) -> {:?},  physical {:?} -> {:?}",
             event.logical_key,
+            winit_key_without_modifiers,
             logical_key,
             event.physical_key,
             physical_key
         );
 
-        // Fall back to the physical key if there is no logical key.
-        if let Some(active_key) = logical_key {
+        let key = egui::FullKey::new(logical_key, physical_key);
+        if key.is_identified() {
             if pressed && self.clipboard_shortcuts {
                 // On non-Latin layouts, clipboard shortcuts use the physical keys
                 // that normally contain C, X, V, etc. (see `Key::shortcut_key`).
                 // See also: https://github.com/emilk/egui/issues/3653
-                let shortcut_key = active_key.shortcut_key(physical_key);
+                let shortcut_key = key.shortcut_key();
                 if is_cut_command(self.modifiers, &shortcut_key) {
                     self.egui_input.events.push(egui::Event::Cut);
                     return;
@@ -1155,7 +1156,7 @@ impl State {
             self.egui_input
                 .events
                 .push(egui::Event::Key(egui::KeyEvent {
-                    key: egui::FullKey::new(active_key, physical_key),
+                    key,
                     pressed,
                     repeat: false, // egui will fill this in for us!
                     modifiers: self.modifiers,
@@ -1572,115 +1573,139 @@ fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::Poi
     }
 }
 
-fn key_from_winit_key(key: &winit::keyboard::Key) -> Option<egui::Key> {
+/// The logical key of `event`, ignoring all modifiers (`Shift`, `Caps Lock`, `Ctrl`, `Alt`/`Option`, …).
+///
+/// This is what egui reports as the logical key, so that e.g. `Shift+A` is `"a"` and `Shift+1` is `"1"`
+/// (on a US layout), and a key's press and release report the same logical key even if the modifiers
+/// changed in between. Dead keys are reported as the character they are labeled with.
+/// The text the key produces (which does depend on modifiers) is sent separately as [`egui::Event::Text`].
+///
+/// Falls back to [`winit::event::KeyEvent::logical_key`] on platforms where winit has no
+/// `key_without_modifiers` (Android, iOS, web).
+#[cfg(any(
+    target_os = "windows",
+    target_os = "macos",
+    target_os = "redox",
+    all(
+        any(feature = "x11", feature = "wayland"),
+        unix,
+        not(any(
+            target_os = "ios",
+            target_os = "macos",
+            target_os = "android",
+            target_os = "emscripten",
+            target_os = "redox"
+        ))
+    )
+))]
+fn logical_key_without_modifiers(event: &winit::event::KeyEvent) -> winit::keyboard::Key {
+    use winit::platform::modifier_supplement::KeyEventExtModifierSupplement as _;
+    event.key_without_modifiers()
+}
+
+/// `winit::platform::modifier_supplement` is unavailable on this target/feature set.
+#[cfg(not(any(
+    target_os = "windows",
+    target_os = "macos",
+    target_os = "redox",
+    all(
+        any(feature = "x11", feature = "wayland"),
+        unix,
+        not(any(
+            target_os = "ios",
+            target_os = "macos",
+            target_os = "android",
+            target_os = "emscripten",
+            target_os = "redox"
+        ))
+    )
+)))]
+fn logical_key_without_modifiers(event: &winit::event::KeyEvent) -> winit::keyboard::Key {
+    event.logical_key.clone()
+}
+
+/// Keys egui can't represent become [`egui::NamedKey::Unidentified`].
+fn key_from_winit_key(key: &winit::keyboard::Key) -> egui::Key {
     match key {
         winit::keyboard::Key::Named(named_key) => key_from_named_key(*named_key),
-        winit::keyboard::Key::Character(str) => Some(egui::Key::Character(str.as_str().into())),
-        winit::keyboard::Key::Unidentified(_) | winit::keyboard::Key::Dead(_) => None,
+        winit::keyboard::Key::Character(str) => egui::Key::Character(str.as_str().into()),
+        winit::keyboard::Key::Unidentified(_) => egui::Key::Named(egui::NamedKey::Unidentified),
+        winit::keyboard::Key::Dead(_) => egui::Key::Named(egui::NamedKey::Dead),
     }
 }
 
-fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key> {
-    use egui::Key;
-    use winit::keyboard::NamedKey;
+/// winit's `NamedKey` is a fork of `keyboard-types`' [`egui::NamedKey`],
+/// so apart from `Space`, `Super` and `Meta` this maps identically named variants.
+#[expect(
+    deprecated,
+    reason = "egui::NamedKey::Hyper and egui::NamedKey::Super are deprecated, but winit still reports them"
+)]
+fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> egui::Key {
+    use winit::keyboard::NamedKey as W;
 
-    let named_key = match named_key {
-        NamedKey::Enter => egui::NamedKey::Enter,
-        NamedKey::Tab => egui::NamedKey::Tab,
-        NamedKey::ArrowDown => egui::NamedKey::ArrowDown,
-        NamedKey::ArrowLeft => egui::NamedKey::ArrowLeft,
-        NamedKey::ArrowRight => egui::NamedKey::ArrowRight,
-        NamedKey::ArrowUp => egui::NamedKey::ArrowUp,
-        NamedKey::End => egui::NamedKey::End,
-        NamedKey::Home => egui::NamedKey::Home,
-        NamedKey::PageDown => egui::NamedKey::PageDown,
-        NamedKey::PageUp => egui::NamedKey::PageUp,
-        NamedKey::Backspace => egui::NamedKey::Backspace,
-        NamedKey::Delete => egui::NamedKey::Delete,
-        NamedKey::Insert => egui::NamedKey::Insert,
-        NamedKey::Escape => egui::NamedKey::Escape,
-        NamedKey::Cut => egui::NamedKey::Cut,
-        NamedKey::Copy => egui::NamedKey::Copy,
-        NamedKey::Paste => egui::NamedKey::Paste,
+    macro_rules! map_named_key {
+        ($($variant:ident)*) => {
+            match named_key {
+                // In the W3C spec (and egui), space is the character it produces.
+                W::Space => return egui::Key::character(" "),
 
-        NamedKey::Space => return Some(Key::character(" ")),
+                // winit calls the W3C `Meta` key (Windows logo / `⌘`) `Super`,
+                // and the legacy W3C `Super` key `Meta`.
+                W::Super => egui::NamedKey::Meta,
+                W::Meta => egui::NamedKey::Super,
+                W::Hyper => egui::NamedKey::Hyper,
 
-        NamedKey::F1 => egui::NamedKey::F1,
-        NamedKey::F2 => egui::NamedKey::F2,
-        NamedKey::F3 => egui::NamedKey::F3,
-        NamedKey::F4 => egui::NamedKey::F4,
-        NamedKey::F5 => egui::NamedKey::F5,
-        NamedKey::F6 => egui::NamedKey::F6,
-        NamedKey::F7 => egui::NamedKey::F7,
-        NamedKey::F8 => egui::NamedKey::F8,
-        NamedKey::F9 => egui::NamedKey::F9,
-        NamedKey::F10 => egui::NamedKey::F10,
-        NamedKey::F11 => egui::NamedKey::F11,
-        NamedKey::F12 => egui::NamedKey::F12,
-        NamedKey::F13 => egui::NamedKey::F13,
-        NamedKey::F14 => egui::NamedKey::F14,
-        NamedKey::F15 => egui::NamedKey::F15,
-        NamedKey::F16 => egui::NamedKey::F16,
-        NamedKey::F17 => egui::NamedKey::F17,
-        NamedKey::F18 => egui::NamedKey::F18,
-        NamedKey::F19 => egui::NamedKey::F19,
-        NamedKey::F20 => egui::NamedKey::F20,
-        NamedKey::F21 => egui::NamedKey::F21,
-        NamedKey::F22 => egui::NamedKey::F22,
-        NamedKey::F23 => egui::NamedKey::F23,
-        NamedKey::F24 => egui::NamedKey::F24,
-        NamedKey::F25 => egui::NamedKey::F25,
-        NamedKey::F26 => egui::NamedKey::F26,
-        NamedKey::F27 => egui::NamedKey::F27,
-        NamedKey::F28 => egui::NamedKey::F28,
-        NamedKey::F29 => egui::NamedKey::F29,
-        NamedKey::F30 => egui::NamedKey::F30,
-        NamedKey::F31 => egui::NamedKey::F31,
-        NamedKey::F32 => egui::NamedKey::F32,
-        NamedKey::F33 => egui::NamedKey::F33,
-        NamedKey::F34 => egui::NamedKey::F34,
-        NamedKey::F35 => egui::NamedKey::F35,
+                $(W::$variant => egui::NamedKey::$variant,)*
 
-        NamedKey::BrowserBack => egui::NamedKey::BrowserBack,
-        NamedKey::BrowserForward => egui::NamedKey::BrowserForward,
-        NamedKey::BrowserRefresh => egui::NamedKey::BrowserRefresh,
-        NamedKey::BrowserSearch => egui::NamedKey::BrowserSearch,
-        NamedKey::BrowserHome => egui::NamedKey::BrowserHome,
-        NamedKey::BrowserFavorites => egui::NamedKey::BrowserFavorites,
-        NamedKey::BrowserStop => egui::NamedKey::BrowserStop,
+                // `winit::keyboard::NamedKey` is `#[non_exhaustive]`.
+                _ => {
+                    log::trace!("Unknown key: {named_key:?}");
+                    egui::NamedKey::Unidentified
+                }
+            }
+        };
+    }
 
-        NamedKey::MediaPlayPause => egui::NamedKey::MediaPlayPause,
-        NamedKey::MediaTrackNext => egui::NamedKey::MediaTrackNext,
-        NamedKey::MediaTrackPrevious => egui::NamedKey::MediaTrackPrevious,
-        NamedKey::MediaStop => egui::NamedKey::MediaStop,
-        NamedKey::AudioVolumeMute => egui::NamedKey::AudioVolumeMute,
-        NamedKey::AudioVolumeDown => egui::NamedKey::AudioVolumeDown,
-        NamedKey::AudioVolumeUp => egui::NamedKey::AudioVolumeUp,
-
-        NamedKey::LaunchMail => egui::NamedKey::LaunchMail,
-        NamedKey::LaunchApplication1 => egui::NamedKey::LaunchApplication1,
-        NamedKey::LaunchApplication2 => egui::NamedKey::LaunchApplication2,
-
-        NamedKey::CapsLock => egui::NamedKey::CapsLock,
-        NamedKey::NumLock => egui::NamedKey::NumLock,
-        NamedKey::ScrollLock => egui::NamedKey::ScrollLock,
-        NamedKey::PrintScreen => egui::NamedKey::PrintScreen,
-        NamedKey::Pause => egui::NamedKey::Pause,
-        NamedKey::ContextMenu => egui::NamedKey::ContextMenu,
-
-        NamedKey::Fn => egui::NamedKey::Fn,
-        NamedKey::Eject => egui::NamedKey::Eject,
-        NamedKey::Help => egui::NamedKey::Help,
-        NamedKey::Power => egui::NamedKey::Power,
-        NamedKey::Standby => egui::NamedKey::Standby,
-        NamedKey::Clear => egui::NamedKey::Clear,
-
-        _ => {
-            log::trace!("Unknown key: {named_key:?}");
-            return None;
-        }
-    };
-    Some(Key::Named(named_key))
+    egui::Key::Named(map_named_key! {
+        Alt AltGraph CapsLock Control Fn FnLock NumLock ScrollLock Shift Symbol SymbolLock Enter
+        Tab ArrowDown ArrowLeft ArrowRight ArrowUp End Home PageDown PageUp Backspace Clear Copy
+        CrSel Cut Delete EraseEof ExSel Insert Paste Redo Undo Accept Again Attn Cancel ContextMenu
+        Escape Execute Find Help Pause Play Props Select ZoomIn ZoomOut BrightnessDown BrightnessUp
+        Eject LogOff Power PowerOff PrintScreen Hibernate Standby WakeUp AllCandidates Alphanumeric
+        CodeInput Compose Convert FinalMode GroupFirst GroupLast GroupNext GroupPrevious ModeChange
+        NextCandidate NonConvert PreviousCandidate Process SingleCandidate HangulMode HanjaMode
+        JunjaMode Eisu Hankaku Hiragana HiraganaKatakana KanaMode KanjiMode Katakana Romaji Zenkaku
+        ZenkakuHankaku Soft1 Soft2 Soft3 Soft4 ChannelDown ChannelUp Close MailForward MailReply
+        MailSend MediaClose MediaFastForward MediaPause MediaPlay MediaPlayPause MediaRecord
+        MediaRewind MediaStop MediaTrackNext MediaTrackPrevious New Open Print Save SpellCheck
+        Key11 Key12 AudioBalanceLeft AudioBalanceRight AudioBassBoostDown AudioBassBoostToggle
+        AudioBassBoostUp AudioFaderFront AudioFaderRear AudioSurroundModeNext AudioTrebleDown
+        AudioTrebleUp AudioVolumeDown AudioVolumeUp AudioVolumeMute MicrophoneToggle
+        MicrophoneVolumeDown MicrophoneVolumeUp MicrophoneVolumeMute SpeechCorrectionList
+        SpeechInputToggle LaunchApplication1 LaunchApplication2 LaunchCalendar LaunchContacts
+        LaunchMail LaunchMediaPlayer LaunchMusicPlayer LaunchPhone LaunchScreenSaver
+        LaunchSpreadsheet LaunchWebBrowser LaunchWebCam LaunchWordProcessor BrowserBack
+        BrowserFavorites BrowserForward BrowserHome BrowserRefresh BrowserSearch BrowserStop
+        AppSwitch Call Camera CameraFocus EndCall GoBack GoHome HeadsetHook LastNumberRedial
+        Notification MannerMode VoiceDial TV TV3DMode TVAntennaCable TVAudioDescription
+        TVAudioDescriptionMixDown TVAudioDescriptionMixUp TVContentsMenu TVDataService TVInput
+        TVInputComponent1 TVInputComponent2 TVInputComposite1 TVInputComposite2 TVInputHDMI1
+        TVInputHDMI2 TVInputHDMI3 TVInputHDMI4 TVInputVGA1 TVMediaContext TVNetwork TVNumberEntry
+        TVPower TVRadioService TVSatellite TVSatelliteBS TVSatelliteCS TVSatelliteToggle
+        TVTerrestrialAnalog TVTerrestrialDigital TVTimer AVRInput AVRPower ColorF0Red ColorF1Green
+        ColorF2Yellow ColorF3Blue ColorF4Grey ColorF5Brown ClosedCaptionToggle Dimmer DisplaySwap
+        DVR Exit FavoriteClear0 FavoriteClear1 FavoriteClear2 FavoriteClear3 FavoriteRecall0
+        FavoriteRecall1 FavoriteRecall2 FavoriteRecall3 FavoriteStore0 FavoriteStore1 FavoriteStore2
+        FavoriteStore3 Guide GuideNextDay GuidePreviousDay Info InstantReplay Link ListProgram
+        LiveContent Lock MediaApps MediaAudioTrack MediaLast MediaSkipBackward MediaSkipForward
+        MediaStepBackward MediaStepForward MediaTopMenu NavigateIn NavigateNext NavigateOut
+        NavigatePrevious NextFavoriteChannel NextUserProfile OnDemand Pairing PinPDown PinPMove
+        PinPToggle PinPUp PlaySpeedDown PlaySpeedReset PlaySpeedUp RandomToggle RcLowBattery
+        RecordSpeedNext RfBypass ScanChannelsToggle ScreenModeNext Settings SplitScreenToggle
+        STBInput STBPower Subtitle Teletext VideoModeNext Wink ZoomToggle F1 F2 F3 F4 F5 F6 F7
+        F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29
+        F30 F31 F32 F33 F34 F35
+    })
 }
 
 fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::CursorIcon> {
