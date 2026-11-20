@@ -495,9 +495,9 @@ pub use self::{
         Key, ScreenshotCallback,
         input::{
             DroppedFile, DroppedFileHandle, Event, EventFilter, HoveredFile, ImeEvent,
-            KeyboardShortcut, ModifierNames, Modifiers, MouseWheelSource, MouseWheelUnit,
-            NUM_POINTER_BUTTONS, PointerButton, RawInput, SafeAreaInsets, TouchDeviceId, TouchId,
-            TouchPhase, ViewportEvent, ViewportInfo,
+            KeyboardShortcut, KeyboardType, ModifierNames, Modifiers, MouseWheelSource,
+            MouseWheelUnit, NUM_POINTER_BUTTONS, PointerButton, RawInput, SafeAreaInsets,
+            TouchDeviceId, TouchId, TouchPhase, ViewportEvent, ViewportInfo,
         },
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,

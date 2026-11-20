@@ -4,6 +4,7 @@
 use core::cell::RefCell;
 use std::rc::Rc;
 
+use egui::KeyboardType;
 use wasm_bindgen::prelude::*;
 
 use super::{AppRunner, WebRunner};
@@ -123,6 +124,12 @@ impl TextAgent {
         Ok(Self { input, input_state })
     }
 
+    pub fn update_keyboard_type(&self, keyboard_type: KeyboardType) -> Result<bool, JsValue> {
+        self.input_state
+            .borrow_mut()
+            .update_keyboard_type(keyboard_type)
+    }
+
     pub fn update(
         &self,
         ime: Option<egui::output::IMEOutput>,
@@ -226,6 +233,57 @@ impl InputState {
             ime_output: None,
             keydown_special_case: KeydownSpecialCase::None,
         }
+    }
+
+    // Checks if it was or wasn't updated because immediately switching between keyboard_type TextEdits
+    // 'Password'/'None' <-> 'Normal' doesn't have immediate affect on the virtual keyboard attributes.
+    // Therefore we have special handling to switch the input field to trigger loading a new keyboard
+    // with the new attributes.
+    fn update_keyboard_type(&self, keyboard_type: KeyboardType) -> Result<bool, JsValue> {
+        let mut did_update = false;
+
+        let requested_type = if matches!(keyboard_type, KeyboardType::None) {
+            if self
+                .input
+                .get_attribute("autocomplete")
+                .is_none_or(|autocomplete| autocomplete != "off")
+            {
+                did_update = true;
+            }
+
+            self.input.set_attribute("autocapitalize", "off")?;
+            self.input.set_attribute("autocomplete", "off")?;
+            self.input.set_attribute("autocorrect", "off")?;
+            self.input.set_attribute("spellcheck", "false")?;
+            self.input.set_attribute("writingsuggestions", "false")?;
+
+            // Work around because the input gets stuck when immediately switching between TextEdits
+            if did_update { "email" } else { "text" }
+        } else {
+            if self
+                .input
+                .get_attribute("inputmode")
+                .is_none_or(|inputmode| inputmode != format!("{keyboard_type}"))
+                || self
+                    .input
+                    .get_attribute("autocomplete")
+                    .is_none_or(|autocomplete| autocomplete != "on")
+            {
+                did_update = true;
+            }
+
+            self.input.set_attribute("autocapitalize", "off")?;
+            self.input.set_attribute("autocomplete", "on")?;
+            self.input.set_attribute("autocorrect", "on")?;
+            self.input.set_attribute("spellcheck", "true")?;
+            self.input.set_attribute("writingsuggestions", "true")?;
+
+            &keyboard_type.to_string()
+        };
+
+        let _ = self.input.set_attribute("inputmode", requested_type);
+
+        Ok(did_update)
     }
 
     fn update(

@@ -6,8 +6,8 @@ use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 use crate::{
     Align, Align2, AsIdSalt, AtomExt as _, AtomKind, Atoms, Color32, Context, CursorIcon, Event,
     EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent, IntoAtoms,
-    IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense,
-    SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom, WidgetInfo,
+    IntoSizedResult, Key, KeyboardShortcut, KeyboardType, Margin, Modifiers, NumExt as _, Response,
+    Sense, SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom, WidgetInfo,
     WidgetWithState,
     class::{ClassName, Classes, HasClasses},
     os::OperatingSystem,
@@ -79,6 +79,7 @@ pub struct TextEdit<'t> {
     font_selection: FontSelection,
     text_color: Option<Color32>,
     layouter: Option<LayouterFn<'t>>,
+    keyboard_type: KeyboardType,
     password: bool,
     frame: Option<Frame>,
     margin: Option<Margin>,
@@ -137,6 +138,7 @@ impl<'t> TextEdit<'t> {
             font_selection: Default::default(),
             text_color: None,
             layouter: None,
+            keyboard_type: KeyboardType::Text,
             password: false,
             frame: None,
             margin: None,
@@ -168,6 +170,13 @@ impl<'t> TextEdit<'t> {
     /// - focus lock (tab will insert a tab character instead of moving focus)
     pub fn code_editor(self) -> Self {
         self.font(TextStyle::Monospace).lock_focus(true)
+    }
+
+    /// Tell the browser what virtual keyboard should be used
+    #[inline]
+    pub fn keyboard_type(mut self, keyboard_type: KeyboardType) -> Self {
+        self.keyboard_type = keyboard_type;
+        self
     }
 
     /// Use if you want to set an explicit [`Id`] for this widget.
@@ -245,6 +254,7 @@ impl<'t> TextEdit<'t> {
     }
 
     /// If true, hide the letters from view and prevent copying from the field.
+    /// Prevents virtual keyboard writing suggestions, autocapitilization etc.
     #[inline]
     pub fn password(mut self, password: bool) -> Self {
         self.password = password;
@@ -504,6 +514,7 @@ impl<'t> TextEdit<'t> {
             font_selection,
             text_color,
             layouter,
+            keyboard_type,
             password,
             frame,
             margin,
@@ -1058,6 +1069,7 @@ impl<'t> TextEdit<'t> {
                                 } else {
                                     IMEPurpose::Normal
                                 },
+                                keyboard_type,
                                 rect: to_global * inner_rect,
                                 cursor_rect: to_global * primary_cursor_rect,
                                 should_interrupt_composition: false,

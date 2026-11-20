@@ -4,6 +4,7 @@ use core::ops::Range;
 
 use epaint::text::CharIndex;
 
+use crate::KeyboardType;
 use crate::{OrderedViewportIdMap, RepaintCause, Role, ViewportOutput};
 
 /// What egui emits each frame from [`crate::Context::run_ui`].
@@ -103,6 +104,9 @@ pub struct IMEOutput {
 
     /// Where the [`crate::TextEdit`] is located on screen.
     pub rect: crate::Rect,
+
+    /// Hint to the virtual keyboard the type of input we are expecting
+    pub keyboard_type: KeyboardType,
 
     /// Where the primary cursor is.
     ///
