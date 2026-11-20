@@ -256,7 +256,7 @@ impl WidgetGallery {
 
         #[cfg(feature = "jiff")]
         if *with_date_button {
-            let date = date.get_or_insert_with(|| jiff::Zoned::now().date());
+            let date = date.get_or_insert_with(|| jiff::ZonedDateTime::now().date());
             ui.add(doc_link_label_with_crate(
                 "egui_extras",
                 "DatePickerButton",
