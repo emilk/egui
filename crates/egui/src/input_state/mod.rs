@@ -3,6 +3,7 @@ mod wheel_state;
 
 use crate::{
     MouseWheelSource, SafeAreaInsets,
+    data::{FullKey, input::KeyEvent},
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
 };
@@ -321,7 +322,7 @@ pub struct InputState {
     /// The keys that are currently being held down.
     ///
     /// Keys released this frame are NOT considered down.
-    pub keys_down: HashSet<Key>,
+    pub keys_down: HashSet<FullKey>,
 
     /// In-order events received this frame
     pub events: Vec<Event>,
@@ -400,14 +401,14 @@ impl InputState {
 
         for event in &mut new.events {
             match event {
-                Event::Key {
+                Event::Key(KeyEvent {
                     key,
                     pressed,
                     repeat,
                     ..
-                } => {
+                }) => {
                     if *pressed {
-                        let first_press = keys_down.insert(*key);
+                        let first_press = keys_down.insert(key.clone());
                         *repeat = !first_press;
                     } else {
                         keys_down.remove(key);
@@ -715,12 +716,12 @@ impl InputState {
         self.events.retain(|event| {
             let is_match = matches!(
                 event,
-                Event::Key {
+                Event::Key(KeyEvent {
                     key: ev_key,
                     modifiers: ev_mods,
                     pressed: true,
                     ..
-                } if *ev_key == logical_key && ev_mods.matches_logically(modifiers)
+                }) if *ev_key == logical_key && ev_mods.matches_logically(modifiers)
             );
 
             count += is_match as usize;
@@ -777,7 +778,7 @@ impl InputState {
             .filter(|event| {
                 matches!(
                     event,
-                    Event::Key { key, pressed: true, .. }
+                    Event::Key(KeyEvent { key, pressed: true, .. })
                     if *key == desired_key
                 )
             })
@@ -788,7 +789,7 @@ impl InputState {
     ///
     /// Keys released this frame are NOT considered down.
     pub fn key_down(&self, desired_key: Key) -> bool {
-        self.keys_down.contains(&desired_key)
+        self.keys_down.contains(&desired_key.into())
     }
 
     /// Was the given key released this frame?
@@ -796,11 +797,11 @@ impl InputState {
         self.events.iter().any(|event| {
             matches!(
                 event,
-                Event::Key {
+                Event::Key(KeyEvent {
                     key,
                     pressed: false,
                     ..
-                } if *key == desired_key
+                }) if *key == desired_key
             )
         })
     }

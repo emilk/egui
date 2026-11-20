@@ -4,9 +4,11 @@ pub mod input;
 pub mod output;
 mod screenshot_callback;
 
+mod full_key;
 mod key;
 mod physical_key;
 
+pub use full_key::FullKey;
 pub use key::{Key, NamedKey};
 pub use physical_key::{KeyCode, PhysicalKey};
 pub use screenshot_callback::ScreenshotCallback;
