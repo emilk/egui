@@ -106,7 +106,9 @@ impl crate::View for TextEditDemo {
         );
 
         if output.response.has_focus()
-            && ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y))
+            && ui.input_mut(|i| {
+                i.consume_key(egui::Modifiers::COMMAND, egui::ShortcutKey::simple("y"))
+            })
             && let Some(text_cursor_range) = output.cursor_range
         {
             use egui::TextBuffer as _;
@@ -177,7 +179,7 @@ mod tests {
         assert_eq!(text_edit.value().as_deref(), Some("Hello, world!"));
         text_edit.focus();
 
-        harness.key_press_modifiers(Modifiers::COMMAND, Key::A);
+        harness.key_press_modifiers(Modifiers::COMMAND, Key::character("a"));
         text_edit.type_text("Hi ");
 
         harness.run();

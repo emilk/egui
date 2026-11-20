@@ -1,7 +1,7 @@
 //! Tests for [`egui::RangeSlider`], which places two handles on one rail.
 
 use egui::accesskit::Role;
-use egui::{Key, RangeSlider, Rangef, SliderClamping};
+use egui::{NamedKey, RangeSlider, Rangef, SliderClamping};
 use egui_kittest::{Harness, kittest::Queryable as _};
 
 struct State {
@@ -48,7 +48,7 @@ fn arrow_keys_move_the_focused_handle() {
         .focus();
     harness.run();
 
-    harness.key_press(Key::ArrowRight);
+    harness.key_press(NamedKey::ArrowRight.into());
     harness.run();
 
     assert_eq!(harness.state().range.min, 21.0);
@@ -68,7 +68,7 @@ fn a_handle_stops_at_its_neighbor() {
     harness.run();
 
     for _ in 0..70 {
-        harness.key_press(Key::ArrowRight);
+        harness.key_press(NamedKey::ArrowRight.into());
         harness.run();
     }
 
@@ -102,7 +102,7 @@ fn rounding_to_the_step_never_crosses_the_other_handle() {
     harness.run();
 
     for _ in 0..5 {
-        harness.key_press(Key::ArrowRight);
+        harness.key_press(NamedKey::ArrowRight.into());
         harness.run();
     }
 
@@ -125,7 +125,7 @@ fn on_a_vertical_rail_the_up_arrow_raises_the_value_with_or_without_a_step() {
             .focus();
         harness.run();
 
-        harness.key_press(Key::ArrowUp);
+        harness.key_press(NamedKey::ArrowUp.into());
         harness.run();
 
         assert!(
@@ -148,7 +148,7 @@ fn the_numbers_beside_the_rail_move_by_the_step() {
         .focus();
     harness.run();
 
-    harness.key_press(Key::ArrowUp);
+    harness.key_press(NamedKey::ArrowUp.into());
     harness.run();
 
     assert_eq!(harness.state().range.min, 25.0);

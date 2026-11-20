@@ -1,6 +1,6 @@
 use super::popup::DatePickerPopup;
 use core::ops::RangeInclusive;
-use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
+use egui::{Area, Button, Frame, InnerResponse, NamedKey, Order, RichText, Ui, Widget};
 use jiff::civil::Date;
 
 #[derive(Default, Clone)]
@@ -209,7 +209,8 @@ impl Widget for DatePickerButton<'_> {
             let any_popup_open = ui.any_popup_open();
             if !button_response.clicked()
                 && !any_popup_open
-                && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
+                && (ui.input(|i| i.key_pressed(NamedKey::Escape))
+                    || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;
                 ui.data_mut(|data| data.insert_persisted(id, button_state));

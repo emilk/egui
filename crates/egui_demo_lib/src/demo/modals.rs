@@ -166,7 +166,7 @@ mod tests {
     use crate::Demo as _;
     use crate::demo::modals::Modals;
     use egui::accesskit::Role;
-    use egui::{Key, Popup};
+    use egui::{NamedKey, Popup};
     use egui_kittest::kittest::Queryable as _;
     use egui_kittest::{Harness, SnapshotResults};
 
@@ -191,7 +191,7 @@ mod tests {
         assert!(Popup::is_any_open(&harness.ctx));
         assert!(harness.state().user_modal_open);
 
-        harness.key_press(Key::Escape);
+        harness.key_press(NamedKey::Escape.into());
         harness.run_ok();
         assert!(!Popup::is_any_open(&harness.ctx));
         assert!(harness.state().user_modal_open);
@@ -215,7 +215,7 @@ mod tests {
         assert!(harness.state().user_modal_open);
         assert!(harness.state().save_modal_open);
 
-        harness.key_press(Key::Escape);
+        harness.key_press(NamedKey::Escape.into());
         harness.run();
 
         assert!(harness.state().user_modal_open);

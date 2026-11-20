@@ -117,7 +117,7 @@ fn all_emojis() -> Vec<Emoji> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use egui::{Key, accesskit::Role};
+    use egui::{NamedKey, accesskit::Role};
     use egui_kittest::{Harness, kittest::Queryable as _};
 
     #[test]
@@ -141,7 +141,7 @@ mod tests {
                 .get_by_role(Role::MultilineTextInput)
                 .type_text(":grinning_face");
             harness.run();
-            harness.key_press(Key::Enter);
+            harness.key_press(NamedKey::Enter.into());
             harness.run();
         }
         assert_eq!(harness.state().text, "😀😀");
