@@ -81,6 +81,12 @@ impl View for MiscDemoWindow {
                 self.widgets.ui(ui);
             });
 
+        CollapsingHeader::new("Grid")
+            .default_open(false)
+            .show(ui, |ui| {
+                grid_demo(ui);
+            });
+
         CollapsingHeader::new("Text layout")
             .default_open(false)
             .show(ui, |ui| {
@@ -746,6 +752,27 @@ fn system_font_fallback_demo(ui: &mut Ui) {
                 ui.end_row();
             }
         });
+}
+
+fn grid_demo(ui: &mut Ui) {
+    ui.label("A basic Grid");
+    egui::Grid::new("grid_demo").striped(true).show(ui, |ui| {
+        ui.label("First row, first column");
+        ui.label("First row, second column");
+        ui.end_row();
+
+        ui.label("Second row, first column");
+        ui.label("Second row, second column");
+        ui.label("Second row, third column");
+        ui.end_row();
+
+        ui.horizontal(|ui| {
+            ui.label("Same");
+            ui.label("cell");
+        });
+        ui.label("Third row, second column");
+        ui.end_row();
+    });
 }
 
 fn text_layout_demo(ui: &mut Ui) {
