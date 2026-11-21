@@ -111,7 +111,9 @@ impl<'a> DatePickerButton<'a> {
         self
     }
 
-    /// Show combo boxes in date picker popup. (Default: true)
+    /// Show combo boxes for the month and year in the date picker popup. (Default: true)
+    ///
+    /// When `false` they are shown as a plain label instead; the arrows still work.
     #[inline]
     pub fn combo_boxes(mut self, combo_boxes: bool) -> Self {
         self.combo_boxes = combo_boxes;

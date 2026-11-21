@@ -1,6 +1,9 @@
 use jiff::civil::{Date, Weekday};
 
-use egui::{Align, Align2, ComboBox, Id, Rect, Sense, Stroke, TextStyle, Ui, Vec2, pos2, vec2};
+use egui::{
+    Align, Align2, ComboBox, Id, Label, Rect, RichText, Sense, Stroke, TextStyle, Ui, Vec2, pos2,
+    vec2,
+};
 
 use super::{Week, button::DatePickerButtonState, month_data};
 
@@ -64,7 +67,8 @@ impl DatePickerPopup<'_> {
         ui.data_mut(|data| data.insert_persisted(id, popup_state.clone()));
     }
 
-    /// One compact row: `<`, the month and year combo boxes, and `>`.
+    /// One compact row: `<`, the month and year, and `>`.
+    /// The month and year are combo boxes, or a plain label if they are turned off.
     /// The arrows move the selected date by one month.
     fn header_row(
         &self,
@@ -77,9 +81,7 @@ impl DatePickerPopup<'_> {
         if self.arrows {
             builder = builder.size(Size::exact(Self::NAV_BUTTON_WIDTH));
         }
-        if self.combo_boxes {
-            builder = builder.size(Size::remainder());
-        }
+        builder = builder.size(Size::remainder());
         if self.arrows {
             builder = builder.size(Size::exact(Self::NAV_BUTTON_WIDTH));
         }
@@ -93,16 +95,23 @@ impl DatePickerPopup<'_> {
                     }
                 });
             }
-            if self.combo_boxes {
-                strip.cell(|ui| {
+            strip.cell(|ui| {
+                if self.combo_boxes {
                     ui.spacing_mut().item_spacing.x = 2.0;
                     let width = (ui.available_width() - 2.0) / 2.0;
                     ui.horizontal(|ui| {
                         Self::month_combo(ui, popup_state, id, width);
                         self.year_combo(ui, popup_state, today, id, width);
                     });
-                });
-            }
+                } else {
+                    ui.centered_and_justified(|ui| {
+                        let title =
+                            format!("{} {}", month_name(popup_state.month), popup_state.year);
+                        let color = ui.visuals().text_color();
+                        ui.add(Label::new(RichText::new(title).color(color)).selectable(false));
+                    });
+                }
+            });
             if self.arrows {
                 strip.cell(|ui| {
                     if Self::nav_button(ui, ">", "next month").clicked() {
@@ -392,20 +401,15 @@ impl DatePickerPopup<'_> {
 
         StripBuilder::new(ui)
             .clip(false)
-            .sizes(
-                Size::exact(Self::CELL_HEIGHT),
-                usize::from(self.combo_boxes || self.arrows),
-            )
+            .size(Size::exact(Self::CELL_HEIGHT))
             .sizes(
                 Size::exact(Self::calendar_height(popup_state.year, popup_state.month)),
                 usize::from(self.calendar),
             )
             .vertical(|mut strip| {
-                if self.combo_boxes || self.arrows {
-                    strip.strip(|builder| {
-                        self.header_row(builder, &mut popup_state, today, id);
-                    });
-                }
+                strip.strip(|builder| {
+                    self.header_row(builder, &mut popup_state, today, id);
+                });
 
                 if self.calendar {
                     strip.cell(|ui| {

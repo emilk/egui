@@ -2,7 +2,8 @@
 
 #![cfg(feature = "datepicker")]
 
-use std::{cell::Cell, rc::Rc};
+use core::cell::Cell;
+use std::rc::Rc;
 
 use egui::{Key, Modifiers, Order, Rect, accesskit::Role};
 use egui_extras::DatePickerButton;
@@ -393,4 +394,56 @@ fn a_read_only_picker_never_reports_changed() {
     picker.harness.get_by_role(Role::TextInput).type_text("9");
     picker.press(Key::Enter);
     assert_eq!(picker.take_changes(), 0);
+}
+
+#[test]
+fn without_combo_boxes_the_month_and_year_are_a_label() {
+    let mut picker = Picker::new();
+    picker.open_with_keyboard();
+    assert_eq!(
+        picker.harness.query_all_by_role(Role::ComboBox).count(),
+        2,
+        "month and year combo boxes by default"
+    );
+
+    let mut picker = Picker::with(|picker| picker.combo_boxes(false));
+    picker.open_with_keyboard();
+    assert_eq!(
+        picker.harness.query_all_by_role(Role::ComboBox).count(),
+        0,
+        "no combo boxes"
+    );
+    assert!(
+        picker.harness.query_by_label("May 2026").is_some(),
+        "the month and year are shown as a label"
+    );
+}
+
+#[test]
+fn the_month_buttons_still_work_without_combo_boxes() {
+    let mut picker = Picker::with(|picker| picker.combo_boxes(false));
+    picker.open_with_keyboard();
+    picker.harness.get_by_label("next month").click();
+    picker.harness.run();
+    assert!(
+        picker.harness.query_by_label("June 2026").is_some(),
+        "the label follows the month"
+    );
+    picker.harness.get_by_label("previous month").click();
+    picker.harness.get_by_label("previous month").click();
+    picker.harness.run();
+    assert!(picker.harness.query_by_label("April 2026").is_some());
+
+    picker.click_a_day();
+    let date = picker.harness.state();
+    assert_eq!((date.year(), date.month()), (2026, 4), "picked in April");
+}
+
+#[test]
+fn the_label_is_shown_even_without_combo_boxes_or_arrows() {
+    let mut picker = Picker::with(|picker| picker.combo_boxes(false).arrows(false));
+    picker.open_with_keyboard();
+    assert!(picker.harness.query_by_label("May 2026").is_some());
+    assert!(picker.harness.query_by_label("next month").is_none());
+    assert!(picker.harness.query_by_label("previous month").is_none());
 }
