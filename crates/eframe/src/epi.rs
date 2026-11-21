@@ -1157,6 +1157,14 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
 /// # Errors
 ///
 /// Returns an error if the stored value cannot be deserialized as `T`.
+///
+/// # Example
+///
+/// ```
+/// fn load_count(storage: &dyn eframe::Storage) -> eframe::Result<u32, ron::error::SpannedError> {
+///     Ok(eframe::try_get_value(storage, "count")?.unwrap_or_default())
+/// }
+/// ```
 #[cfg(feature = "ron")]
 pub fn try_get_value<T: serde::de::DeserializeOwned>(
     storage: &dyn Storage,
@@ -1208,7 +1216,10 @@ mod tests {
     #[test]
     fn try_get_value_missing_key() {
         let storage = MemoryStorage::default();
-        assert!(matches!(try_get_value::<u32>(&storage, "missing"), Ok(None)));
+        assert!(
+            matches!(try_get_value::<u32>(&storage, "missing"), Ok(None)),
+            "a missing key should not be an error"
+        );
         assert_eq!(get_value::<u32>(&storage, "missing"), None);
     }
 
@@ -1216,8 +1227,18 @@ mod tests {
     fn try_get_value_valid_value() {
         let mut storage = MemoryStorage::default();
         set_value(&mut storage, "value", &42_u32);
-        assert!(matches!(try_get_value::<u32>(&storage, "value"), Ok(Some(42))));
+        assert_eq!(try_get_value::<u32>(&storage, "value").unwrap(), Some(42));
         assert_eq!(get_value::<u32>(&storage, "value"), Some(42));
+    }
+
+    #[test]
+    fn try_get_value_stored_none() {
+        let mut storage = MemoryStorage::default();
+        set_value(&mut storage, "value", &None::<u32>);
+        assert_eq!(
+            try_get_value::<Option<u32>>(&storage, "value").unwrap(),
+            Some(None)
+        );
     }
 
     #[test]
@@ -1227,7 +1248,7 @@ mod tests {
             storage.set_string("value", value.to_owned());
             let expected = ron::from_str::<u32>(value);
             let actual = try_get_value::<u32>(&storage, "value");
-            assert!(expected.is_err());
+            assert!(expected.is_err(), "invalid test input: {value}");
             assert_eq!(actual, expected.map(Some));
             assert_eq!(get_value::<u32>(&storage, "value"), None);
             assert_eq!(storage.get_string("value").as_deref(), Some(value));
