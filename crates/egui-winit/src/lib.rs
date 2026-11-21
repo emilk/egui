@@ -1090,16 +1090,15 @@ impl State {
             // layout. (This value is `KeyCode::KeyW` for the Z key on an AZERTY layout.)
             physical_key,
 
-            // Represents the results of a keymap, including modifiers, i.e. what character a certain key press
-            // produced. Only used as a fallback for `text`: egui's logical key comes from
-            // `logical_key_without_modifiers` instead.
+            // Keypad keys retain their modifier-sensitive meaning (notably Num Lock).
+            // Other keys use `logical_key_without_modifiers`.
             logical_key: winit_logical_key,
 
             text,
 
             state,
 
-            location: _, // e.g. is it on the numpad?
+            location,
             repeat: _,   // egui will figure this out for us
             ..
         } = event;
@@ -1108,14 +1107,14 @@ impl State {
 
         let physical_key = physical_key_from_winit(*physical_key);
 
-        let winit_key_without_modifiers = logical_key_without_modifiers(event);
-        let logical_key = key_from_winit_key(&winit_key_without_modifiers);
+        let logical_key = key_from_winit_location(*location, winit_logical_key, || {
+            logical_key_without_modifiers(event)
+        });
 
         // Helpful logging to enable when adding new key support
         log::trace!(
-            "logical {:?} (without modifiers: {:?}) -> {:?},  physical {:?} -> {:?}",
+            "logical {:?} -> {:?},  physical {:?} -> {:?}",
             event.logical_key,
-            winit_key_without_modifiers,
             logical_key,
             event.physical_key,
             physical_key
@@ -1571,6 +1570,44 @@ fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::Poi
         winit::event::MouseButton::Forward => Some(egui::PointerButton::Extra2),
         winit::event::MouseButton::Other(_) => None,
     }
+}
+
+/// Keep Num Lock's effect on keypad keys, but ignore modifiers for other keys.
+fn key_from_winit_location(
+    location: winit::keyboard::KeyLocation,
+    logical: &winit::keyboard::Key,
+    without_modifiers: impl FnOnce() -> winit::keyboard::Key,
+) -> egui::Key {
+    if location == winit::keyboard::KeyLocation::Numpad {
+        key_from_winit_key(logical)
+    } else {
+        key_from_winit_key(&without_modifiers())
+    }
+}
+
+#[test]
+fn numpad_key_preserves_num_lock() {
+    use winit::keyboard::{Key, KeyLocation, NamedKey};
+
+    for (character, navigation) in [("1", NamedKey::End), (".", NamedKey::Delete)] {
+        let numeric = Key::Character(character.into());
+        let navigation = Key::Named(navigation);
+        assert_eq!(
+            key_from_winit_location(KeyLocation::Numpad, &numeric, || navigation.clone()),
+            egui::Key::character(character)
+        );
+        assert_eq!(
+            key_from_winit_location(KeyLocation::Numpad, &navigation, || navigation.clone()),
+            key_from_winit_key(&navigation)
+        );
+    }
+
+    assert_eq!(
+        key_from_winit_location(KeyLocation::Standard, &Key::Character("!".into()), || {
+            Key::Character("1".into())
+        }),
+        egui::Key::character("1")
+    );
 }
 
 /// The logical key of `event` without modifiers on platforms that provide it.
