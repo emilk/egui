@@ -155,7 +155,12 @@ impl crate::View for PopupsDemo {
         self.apply_options(Popup::menu(&response).id(Id::unique("menu")))
             .show(|ui| self.nested_menus(ui));
 
-        self.apply_options(Popup::context_menu(&response).id(Id::unique("context_menu")))
+        // Keep the close behavior of the context menu, which depends on
+        // `style.interaction.context_menu_opens_on_press`.
+        Popup::context_menu(&response)
+            .id(Id::unique("context_menu"))
+            .align(self.align4)
+            .gap(self.gap)
             .show(|ui| self.nested_menus(ui));
 
         if self.popup_open {
