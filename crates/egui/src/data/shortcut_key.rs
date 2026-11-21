@@ -4,19 +4,23 @@ use smol_str::StrExt as _;
 
 use crate::{Key, NamedKey, PhysicalKey, data::FullKey};
 
-/// Key wrapper type, representing a key that is considered safe to use to check for keyboard shortcuts. It is always lowercase.
+/// A key used to match keyboard shortcuts.
 ///
-/// Typically obtained by calling [`FullKey::shortcut_key`] or [`Key::shortcut_key`], which uses the logical key when it's
-/// ASCII/named, and the physical key's US QWERTY equivalent otherwise.
+/// [`FullKey::shortcut_key`] and [`Key::shortcut_key`] use the logical key for named keys
+/// and ASCII characters, or the physical key's US QWERTY equivalent for other characters
+/// when available. Character values are lowercased.
+///
+/// Platform differences in logical keys can affect shortcut matching; see [`Key`].
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[repr(transparent)]
 pub struct ShortcutKey(Key);
 
 impl ShortcutKey {
-    /// Naively creates a new shortcut-safe key. Lowercase's any [`Key::Character`]'s.
+    /// Creates a shortcut key by lowercasing character values.
     ///
-    /// Unless you want custom logical/physical key -> shortcut key mapping, you should use  [`FullKey::shortcut_key`] or [`Key::shortcut_key`].
+    /// This does not apply the physical-key fallback. Normally, use [`FullKey::shortcut_key`]
+    /// or [`Key::shortcut_key`] to map an input event to a shortcut key.
     pub fn new(key: Key) -> Self {
         Self(match key {
             Key::Character(c) => Key::Character(c.to_lowercase_smolstr()),
@@ -75,7 +79,9 @@ impl Key {
     /// Non-ASCII characters (e.g. `"я"` on a Russian layout) use the character the physical key
     /// produces on a US layout instead (see [`PhysicalKey::us_layout_character`]),
     /// so that `Ctrl+Z` works on non-Latin layouts too.
-    /// If the physical key is unknown, the logical key is used.
+    /// If no US-layout character is available for the physical key, the logical key is used.
+    /// The result is lowercased. On the web, modifiers can affect the logical key and therefore
+    /// shortcut matching; see [`Key`].
     ///
     /// ```
     /// # use egui::{Key, KeyCode, PhysicalKey, ShortcutKey};

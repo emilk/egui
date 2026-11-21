@@ -321,7 +321,9 @@ pub struct InputState {
     ///
     /// Keys released this frame are NOT considered down.
     ///
-    /// A release is paired with its press via [`FullKey::is_same_key`], i.e. by physical key when known.
+    /// Each entry retains the logical key from its initial press, even if modifiers change.
+    /// Releases are paired with presses via [`FullKey::is_same_key`], using physical keys when
+    /// both are available. See [`crate::Key`] for platform differences in logical keys.
     pub keys_down: Vec<FullKey>,
 
     /// In-order events received this frame
@@ -710,12 +712,12 @@ impl InputState {
     ///
     /// Includes key-repeat events.
     ///
-    /// What counts as a matched key depends on what key variant you pass in:
-    /// - [`KeyVariant::Logical`] looks for exactly that logical key in a press event
-    ///   (case/modifier sensitive).
-    /// - [`KeyVariant::Physical`] only compares against known physical keys in press events
-    /// - [`KeyVariant::Shortcut`] compares the given [`crate::ShortcutKey`] to the event's shortcut key
-    ///   (obtained via [`FullKey::shortcut_key`])
+    /// The key variant determines how each press is matched:
+    /// - [`KeyVariant::Logical`] compares logical keys exactly, including character case.
+    /// - [`KeyVariant::Physical`] compares physical keys when available.
+    /// - [`KeyVariant::Shortcut`] compares against the event's [`FullKey::shortcut_key`].
+    ///
+    /// Logical keys may depend on modifiers and platform; see [`crate::Key`].
     ///
     /// This uses [`Modifiers::matches_logically`] to match modifiers,
     /// meaning extra Shift and Alt modifiers are ignored.
@@ -753,12 +755,7 @@ impl InputState {
     ///
     /// Includes key-repeat events.
     ///
-    /// What counts as a matched key depends on what key variant you pass in:
-    /// - [`KeyVariant::Logical`] looks for exactly that logical key in a press event
-    ///   (case/modifier sensitive).
-    /// - [`KeyVariant::Physical`] only compares against known physical keys in press events
-    /// - [`KeyVariant::Shortcut`] compares the given [`crate::ShortcutKey`] to the event's shortcut key
-    ///   (obtained via [`FullKey::shortcut_key`])
+    /// See [`Self::count_and_consume_key`] for key matching.
     ///
     /// This uses [`Modifiers::matches_logically`] to match modifiers,
     /// meaning extra Shift and Alt modifiers are ignored.
@@ -812,13 +809,18 @@ impl InputState {
     ///
     /// Keys released this frame are NOT considered down.
     ///
-    /// See [`Self::count_and_consume_key`] for how the different [`KeyVariant`]s are matched.
+    /// Matching uses the key recorded at the initial press, not the current modifier state.
+    /// See [`Self::count_and_consume_key`] for key matching and [`crate::Key`] for platform
+    /// differences in logical keys.
     pub fn key_down(&self, desired_key: impl Into<KeyVariant>) -> bool {
         let desired_key = desired_key.into();
         self.keys_down.iter().any(|key| desired_key.equivalent(key))
     }
 
     /// Was the given key released this frame?
+    ///
+    /// When a release matches a held key, its key is replaced by the key recorded at the
+    /// initial press. See [`FullKey::is_same_key`] for how releases are paired with presses.
     pub fn key_released(&self, desired_key: impl Into<KeyVariant>) -> bool {
         let desired_key = desired_key.into();
         self.events.iter().any(|event| {

@@ -170,10 +170,9 @@ pub fn text_from_keyboard_event(event: &web_sys::KeyboardEvent) -> Option<String
 /// Translate a [`KeyboardEvent.key`](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key)
 /// string into a logical key.
 ///
-/// Named keys use their W3C names (`"Enter"`, `"ArrowLeft"`, `"Dead"`, `"Unidentified"`, …);
-/// anything else is the character produced by the key, lowercased to undo `Shift`/`Caps Lock`
-/// (approximating native, which reports keys without modifiers).
-/// Shifted symbols are left as-is, e.g. `Shift+1` stays `"!"` on a US layout.
+/// Named keys use their W3C names (`"Enter"`, `"ArrowLeft"`, `"Dead"`, `"Unidentified"`, …).
+/// Other values are lowercased, but this cannot recover the unmodified logical key:
+/// for example, `Shift+1` remains `"!"` on a US layout.
 /// Returns `None` only for an empty string.
 pub fn translate_key(key: &str) -> Option<egui::Key> {
     match key.parse::<egui::Key>().ok()? {

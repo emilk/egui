@@ -5,14 +5,17 @@ use smol_str::SmolStr;
 
 /// A logical keyboard key.
 ///
-/// **NOTE:** what a [`Key::Character`] contains depends on the integration:
-/// - `egui-winit` (native) reports the key without modifiers, e.g. pressing `a` reports
-///   `Key::Character("a")` even while `Shift` or `Caps Lock` is active, and `Shift+1` reports `"1"`
-///   (assuming a US layout).
-/// - `eframe` on web reports [`KeyboardEvent.key`](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key),
-///   lowercased, so `Shift+a` reports `Key::Character("a")`, but `Shift+1` reports `"!"`
-///   and `Option+a` on macOS reports `"å"`.
+/// Character keys depend on the integration and platform:
 ///
+/// - On supported desktop platforms, `egui-winit` reports the logical key without modifiers.
+///   For example, `Shift+A` reports `"a"` and `Shift+1` reports `"1"` on a US layout.
+/// - `eframe` on the web uses [`KeyboardEvent.key`](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key).
+///   Browsers do not generally provide the logical key without modifiers. Character values are
+///   lowercased, so `Shift+A` reports `"a"`, but `Shift+1` reports `"!"` on a US layout,
+///   and `Option+A` on macOS reports `"å"`.
+/// - Other integrations and platforms may report different values, including modifier effects.
+///
+/// This affects logical key queries and shortcuts; lowercasing cannot undo every modifier.
 /// The text produced by a key press is sent separately as [`crate::Event::Text`].
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -84,8 +87,8 @@ impl<Str: PartialEq<str>> PartialEq<&str> for Key<Str> {
 }
 
 impl<S: AsRef<str>> Key<S> {
-    /// Convert [`Key::Character`] to contain `&str`, so you can more easily match on
-    /// `Key`. All other variants remain unchanged.
+    /// Borrow the character string, making it easier to match on a `Key`.
+    /// Named keys remain unchanged.
     pub fn as_ref(&self) -> Key<&str> {
         match self {
             Self::Named(a) => Key::Named(*a),
@@ -124,9 +127,8 @@ impl Key {
         }
     }
 
-    /// Parses a key name, e.g. `"A"` to `Key::character("a")`, and `"PageUp"` to `Key::Named(NamedKey::PageUp)`.
-    ///
-    /// Makes sense for logical keys.
+    /// Parses a logical key name, e.g. `"A"` as `Key::character("a")`
+    /// or `"PageUp"` as `Key::Named(NamedKey::PageUp)`.
     ///
     /// This will parse the output of both [`Self::name`] and [`Self::symbol_or_name`],
     /// as well as the W3C names of all [`NamedKey`]s (as reported by web browsers and winit),

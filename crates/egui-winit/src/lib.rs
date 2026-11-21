@@ -1573,15 +1573,13 @@ fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::Poi
     }
 }
 
-/// The logical key of `event`, ignoring all modifiers (`Shift`, `Caps Lock`, `Ctrl`, `Alt`/`Option`, …).
+/// The logical key of `event` without modifiers on platforms that provide it.
 ///
-/// This is what egui reports as the logical key, so that e.g. `Shift+A` is `"a"` and `Shift+1` is `"1"`
-/// (on a US layout), and a key's press and release report the same logical key even if the modifiers
-/// changed in between. Dead keys are reported as the character they are labeled with.
-/// The text the key produces (which does depend on modifiers) is sent separately as [`egui::Event::Text`].
+/// For example, on a US layout `Shift+A` is `"a"` and `Shift+1` is `"1"`.
+/// The resulting text, which depends on modifiers, is sent separately as [`egui::Event::Text`].
 ///
-/// Falls back to [`winit::event::KeyEvent::logical_key`] on platforms where winit has no
-/// `key_without_modifiers` (Android, iOS, web).
+/// On platforms without `key_without_modifiers` (including Android, iOS, and web),
+/// this falls back to [`winit::event::KeyEvent::logical_key`], which may include modifier effects.
 #[cfg(any(
     target_os = "windows",
     target_os = "macos",

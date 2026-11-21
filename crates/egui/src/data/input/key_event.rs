@@ -3,7 +3,9 @@ use crate::{Modifiers, data::FullKey};
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct KeyEvent {
-    /// The actual logical/physical key that was pressed/released, and modifier state.
+    /// The logical and, if available, physical key that was pressed or released.
+    ///
+    /// See [`crate::Key`] for platform differences in logical keys.
     pub key: FullKey,
 
     /// Was it pressed or released?
