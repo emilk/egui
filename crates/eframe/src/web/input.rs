@@ -167,10 +167,31 @@ pub fn text_from_keyboard_event(event: &web_sys::KeyboardEvent) -> Option<String
     Some(key)
 }
 
-/// Web sends all keys as strings, so it is up to us to figure out if it is
-/// a real text input or the name of a key.
+/// Translate a [`KeyboardEvent.key`](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key)
+/// string into a logical key.
+///
+/// Named keys use their W3C names (`"Enter"`, `"ArrowLeft"`, `"Dead"`, `"Unidentified"`, …).
+/// Other values are lowercased, but this cannot recover the unmodified logical key:
+/// for example, `Shift+1` remains `"!"` on a US layout.
+/// Returns `None` only for an empty string.
 pub fn translate_key(key: &str) -> Option<egui::Key> {
-    egui::Key::from_name(key)
+    match key.parse::<egui::Key>().ok()? {
+        egui::Key::Character(c) if c.chars().any(char::is_uppercase) => {
+            Some(egui::Key::Character(c.to_lowercase().into()))
+        }
+        key => Some(key),
+    }
+}
+
+/// Translate a [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code)
+/// string into a physical key.
+///
+/// Returns `None` for empty (common with virtual keyboards), unknown, and `"Unidentified"` codes.
+pub fn translate_code(code: &str) -> Option<egui::PhysicalKey> {
+    match code.parse() {
+        Ok(egui::KeyCode::Unidentified) | Err(_) => None,
+        Ok(code) => Some(egui::PhysicalKey::Code(code)),
+    }
 }
 
 pub fn modifiers_from_kb_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {

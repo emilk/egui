@@ -4,7 +4,7 @@ use super::{
     AppRunner, Closure, DEBUG_RESIZE, JsCast as _, JsValue, WebRunner, button_from_mouse_event,
     location_hash, modifiers_from_kb_event, modifiers_from_mouse_event, modifiers_from_wheel_event,
     native_pixels_per_point, pos_from_mouse_event, prefers_color_scheme, primary_touch_pos,
-    push_touches, text_from_keyboard_event, translate_key,
+    push_touches, text_from_keyboard_event, translate_code, translate_key,
 };
 
 use js_sys::Reflect;
@@ -204,29 +204,28 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
     let modifiers = modifiers_from_kb_event(&event);
     runner.input.set_modifiers(modifiers);
 
-    let key = event.key();
-    let logical_key = translate_key(&key);
-    let physical_key = translate_key(&event.code());
+    let key = egui::FullKey::new(
+        translate_key(&event.key()).unwrap_or(egui::Key::Named(egui::NamedKey::Unidentified)),
+        translate_code(&event.code()),
+    );
 
-    // Fall back to the physical key so that modifier keys (which have no logical
-    // `egui::Key`) and non-Latin layouts still produce a `Key` event.
-    if let Some(active_key) = logical_key.or(physical_key) {
-        let egui_event = egui::Event::Key {
-            key: active_key,
-            physical_key,
+    if key.is_identified() {
+        let shortcut_key = key.shortcut_key();
+        let egui_event = egui::Event::Key(egui::KeyEvent {
+            key,
             pressed: true,
             repeat: false, // egui will fill this in for us!
             modifiers,
-        };
+        });
         let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
         runner.input.raw.events.push(egui_event);
         runner.needs_repaint.repaint_asap();
 
-        let prevent_default = should_prevent_default_for_key(runner, &modifiers, active_key);
+        let prevent_default = should_prevent_default_for_key(runner, &modifiers, &shortcut_key);
 
         if false {
             log::debug!(
-                "On keydown {:?} {active_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
+                "On keydown {:?} {shortcut_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
                 event.key().as_str(),
                 runner.egui_ctx().egui_wants_keyboard_input()
             );
@@ -248,7 +247,7 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
 fn should_prevent_default_for_key(
     runner: &AppRunner,
     modifiers: &egui::Modifiers,
-    egui_key: egui::Key,
+    egui_key: &egui::ShortcutKey,
 ) -> bool {
     // NOTE: We never want to prevent:
     // * F5 / cmd-R (refresh)
@@ -257,35 +256,40 @@ fn should_prevent_default_for_key(
 
     // Prevent cmd/ctrl plus these keys from triggering the default browser action:
     let keys = [
-        egui::Key::Comma, // cmd-, opens options on macOS, which egui apps may wanna "steal"
-        egui::Key::O,     // open
-        egui::Key::P,     // print (cmd-P is common for command palette)
-        egui::Key::S,     // save
+        egui::ShortcutKey::simple(","), // cmd-, opens options on macOS, which egui apps may wanna "steal"
+        egui::ShortcutKey::simple("o"), // open
+        egui::ShortcutKey::simple("p"), // print (cmd-P is common for command palette)
+        egui::ShortcutKey::simple("s"), // save
     ];
     for key in keys {
-        if egui_key == key && (modifiers.ctrl || modifiers.command || modifiers.mac_cmd) {
+        if *egui_key == key && (modifiers.ctrl || modifiers.command || modifiers.mac_cmd) {
             return true;
         }
     }
 
-    if egui_key == egui::Key::Space && !runner.text_agent.has_focus() {
+    if *egui_key == egui::ShortcutKey::simple(" ") && !runner.text_agent.has_focus() {
         // Space scrolls the web page, but we don't want that while canvas has focus
         // However, don't prevent it if text agent has focus, or we can't type space!
         return true;
     }
 
     matches!(
-        egui_key,
+        **egui_key,
         // Prevent browser from focusing the next HTML element.
         // egui uses Tab to move focus within the egui app.
-        egui::Key::Tab
+        egui::Key::Named(
+            egui::NamedKey::Tab
 
-        // So we don't go back to previous page while canvas has focus
-        | egui::Key::Backspace
+            // So we don't go back to previous page while canvas has focus
+            | egui::NamedKey::Backspace
 
-        // Don't scroll web page while canvas has focus.
-        // Also, cmd-left is "back" on Mac (https://github.com/emilk/egui/issues/58)
-        | egui::Key::ArrowDown | egui::Key::ArrowLeft | egui::Key::ArrowRight |  egui::Key::ArrowUp
+            // Don't scroll web page while canvas has focus.
+            // Also, cmd-left is "back" on Mac (https://github.com/emilk/egui/issues/58)
+            | egui::NamedKey::ArrowDown
+            | egui::NamedKey::ArrowLeft
+            | egui::NamedKey::ArrowRight
+            | egui::NamedKey::ArrowUp
+        )
     )
 }
 
@@ -300,17 +304,18 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 
     let mut should_stop_propagation = true;
 
-    let logical_key = translate_key(&event.key());
-    let physical_key = translate_key(&event.code());
+    let key = egui::FullKey::new(
+        translate_key(&event.key()).unwrap_or(egui::Key::Named(egui::NamedKey::Unidentified)),
+        translate_code(&event.code()),
+    );
 
-    if let Some(active_key) = logical_key.or(physical_key) {
-        let egui_event = egui::Event::Key {
-            key: active_key,
-            physical_key,
+    if key.is_identified() {
+        let egui_event = egui::Event::Key(egui::KeyEvent {
+            key,
             pressed: false,
             repeat: false,
             modifiers,
-        };
+        });
         should_stop_propagation &= (runner.web_options.should_stop_propagation)(&egui_event);
         runner.input.raw.events.push(egui_event);
     }
@@ -323,15 +328,13 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 
         let keys_down = runner.egui_ctx().input(|i| i.keys_down.clone());
 
-        #[expect(clippy::iter_over_hash_type)]
         for key in keys_down {
-            let egui_event = egui::Event::Key {
+            let egui_event = egui::Event::Key(egui::KeyEvent {
                 key,
-                physical_key: None,
                 pressed: false,
                 repeat: false,
                 modifiers,
-            };
+            });
             should_stop_propagation &= (runner.web_options.should_stop_propagation)(&egui_event);
             runner.input.raw.events.push(egui_event);
         }

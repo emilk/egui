@@ -33,14 +33,14 @@ impl eframe::App for Content {
                     ui.label(&self.text);
                 });
 
-            if ui.input(|i| i.key_pressed(Key::A)) {
+            if ui.input(|i| i.key_pressed(Key::character("a"))) {
                 self.text.push_str("\nPressed");
             }
-            if ui.input(|i| i.key_down(Key::A)) {
+            if ui.input(|i| i.key_down(Key::character("a"))) {
                 self.text.push_str("\nHeld");
                 ui.request_repaint(); // make sure we note the holding.
             }
-            if ui.input(|i| i.key_released(Key::A)) {
+            if ui.input(|i| i.key_released(Key::character("a"))) {
                 self.text.push_str("\nReleased");
             }
         });

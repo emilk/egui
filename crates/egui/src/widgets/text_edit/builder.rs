@@ -6,10 +6,11 @@ use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 use crate::{
     Align, Align2, AsIdSalt, AtomExt as _, AtomKind, Atoms, Color32, Context, CursorIcon, Event,
     EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent, IntoAtoms,
-    IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense,
-    SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom, WidgetInfo,
-    WidgetWithState,
+    IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NamedKey, NumExt as _, Response,
+    Sense, ShortcutKey, SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom,
+    WidgetInfo, WidgetWithState,
     class::{ClassName, Classes, HasClasses},
+    data::ShortcutKeyExt as _,
     os::OperatingSystem,
     output::OutputEvent,
     response,
@@ -38,7 +39,7 @@ type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley
 /// if response.changed() {
 ///     // …
 /// }
-/// if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+/// if response.lost_focus() && ui.input(|i| i.key_pressed(egui::NamedKey::Enter)) {
 ///     // …
 /// }
 /// # });
@@ -156,7 +157,10 @@ impl<'t> TextEdit<'t> {
             align: None,
             clip_text: false,
             char_limit: usize::MAX,
-            return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
+            return_key: Some(KeyboardShortcut::new(
+                Modifiers::NONE,
+                NamedKey::Enter.shortcut_key(),
+            )),
             background_color: None,
             classes: Classes::default(),
         }
@@ -675,7 +679,7 @@ impl<'t> TextEdit<'t> {
                         owns_ime_events,
                         char_limit,
                         event_filter,
-                        return_key,
+                        return_key: return_key.clone(),
                     },
                 );
 
@@ -1193,6 +1197,7 @@ fn events(
     layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
     opts: &EventsOptions,
 ) -> (bool, CCursorRange) {
+    let return_key = &opts.return_key;
     let EventsOptions {
         id,
         wrap_width,
@@ -1202,7 +1207,7 @@ fn events(
         owns_ime_events,
         char_limit,
         event_filter,
-        return_key,
+        ..
     } = *opts;
 
     let os = ui.os();
@@ -1286,7 +1291,7 @@ fn events(
                 Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
             }
             Event::Text(text_to_insert) => {
-                // Newlines are handled by `Key::Enter`.
+                // Newlines are handled by `NamedKey::Enter`.
                 if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
                     let mut ccursor = text.delete_selected(&cursor_range);
 
@@ -1297,12 +1302,12 @@ fn events(
                     None
                 }
             }
-            Event::Key {
-                key: Key::Tab,
+            Event::Key(crate::KeyEvent {
+                key,
                 pressed: true,
                 modifiers,
                 ..
-            } if multiline => {
+            }) if *key == NamedKey::Tab && multiline => {
                 let mut ccursor = text.delete_selected(&cursor_range);
                 if modifiers.shift {
                     // TODO(emilk): support removing indentation over a selection?
@@ -1312,13 +1317,14 @@ fn events(
                 }
                 Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
             }
-            Event::Key {
+            Event::Key(crate::KeyEvent {
                 key,
                 pressed: true,
                 modifiers,
                 ..
-            } if return_key.is_some_and(|return_key| {
-                *key == return_key.logical_key && modifiers.matches_logically(return_key.modifiers)
+            }) if return_key.as_ref().is_some_and(|return_key| {
+                key.shortcut_key() == return_key.shortcut_key
+                    && modifiers.matches_logically(return_key.modifiers)
             }) =>
             {
                 if multiline {
@@ -1332,14 +1338,15 @@ fn events(
                 }
             }
 
-            Event::Key {
+            Event::Key(crate::KeyEvent {
                 key,
                 pressed: true,
                 modifiers,
                 ..
-            } if (modifiers.matches_logically(Modifiers::COMMAND) && *key == Key::Y)
+            }) if (modifiers.matches_logically(Modifiers::COMMAND)
+                && key.shortcut_key() == ShortcutKey::simple("y"))
                 || (modifiers.matches_logically(Modifiers::SHIFT | Modifiers::COMMAND)
-                    && *key == Key::Z) =>
+                    && key.shortcut_key() == ShortcutKey::simple("z")) =>
             {
                 if let Some((redo_ccursor_range, redo_txt)) = state
                     .undoer
@@ -1353,12 +1360,14 @@ fn events(
                 }
             }
 
-            Event::Key {
-                key: Key::Z,
+            Event::Key(crate::KeyEvent {
+                key,
                 pressed: true,
                 modifiers,
                 ..
-            } if modifiers.matches_logically(Modifiers::COMMAND) => {
+            }) if modifiers.matches_logically(Modifiers::COMMAND)
+                && key.shortcut_key() == ShortcutKey::simple("z") =>
+            {
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
@@ -1371,13 +1380,20 @@ fn events(
                 }
             }
 
-            Event::Key {
+            Event::Key(crate::KeyEvent {
                 modifiers,
                 key,
                 pressed: true,
                 ..
-            } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key)
-                .map(CursorMutation::Selection),
+            }) => check_for_mutating_key_press(
+                os,
+                &cursor_range,
+                text,
+                galley,
+                modifiers,
+                &key.shortcut_key(),
+            )
+            .map(CursorMutation::Selection),
             Event::Ime(ime_event) if owns_ime_events => {
                 /// Both `ImeEvent::Preedit("")` and `ImeEvent::Commit("")`
                 /// might be emitted from different integrations to signify that
@@ -1565,10 +1581,10 @@ fn check_for_mutating_key_press(
     text: &mut dyn TextBuffer,
     galley: &Galley,
     modifiers: &Modifiers,
-    key: Key,
+    key: &ShortcutKey,
 ) -> Option<CCursorRange> {
-    match key {
-        Key::Backspace => {
+    match &**key {
+        Key::Named(NamedKey::Backspace) => {
             let ccursor = if modifiers.mac_cmd {
                 text.delete_paragraph_before_cursor(galley, cursor_range)
             } else if let Some(cursor) = cursor_range.single() {
@@ -1584,7 +1600,7 @@ fn check_for_mutating_key_press(
             Some(CCursorRange::one(ccursor))
         }
 
-        Key::Delete if !modifiers.shift || os != OperatingSystem::Windows => {
+        Key::Named(NamedKey::Delete) if !modifiers.shift || os != OperatingSystem::Windows => {
             let ccursor = if modifiers.mac_cmd {
                 text.delete_paragraph_after_cursor(galley, cursor_range)
             } else if let Some(cursor) = cursor_range.single() {
@@ -1604,22 +1620,22 @@ fn check_for_mutating_key_press(
             Some(CCursorRange::one(ccursor))
         }
 
-        Key::H if modifiers.ctrl => {
+        _ if modifiers.ctrl && *key == ShortcutKey::simple("h") => {
             let ccursor = text.delete_previous_char(cursor_range.primary);
             Some(CCursorRange::one(ccursor))
         }
 
-        Key::K if modifiers.ctrl => {
+        _ if modifiers.ctrl && *key == ShortcutKey::simple("k") => {
             let ccursor = text.delete_paragraph_after_cursor(galley, cursor_range);
             Some(CCursorRange::one(ccursor))
         }
 
-        Key::U if modifiers.ctrl => {
+        _ if modifiers.ctrl && *key == ShortcutKey::simple("u") => {
             let ccursor = text.delete_paragraph_before_cursor(galley, cursor_range);
             Some(CCursorRange::one(ccursor))
         }
 
-        Key::W if modifiers.ctrl => {
+        _ if modifiers.ctrl && *key == ShortcutKey::simple("w") => {
             let ccursor = if let Some(cursor) = cursor_range.single() {
                 text.delete_previous_word(cursor)
             } else {

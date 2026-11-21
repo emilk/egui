@@ -1,5 +1,6 @@
 use egui::{
-    Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui, text::CCursorRange,
+    KeyboardShortcut, Modifiers, ScrollArea, ShortcutKey, TextBuffer, TextEdit, Ui,
+    text::CCursorRange,
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -113,18 +114,28 @@ impl EasyMarkEditor {
     }
 }
 
-pub const SHORTCUT_BOLD: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::B);
-pub const SHORTCUT_CODE: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::N);
-pub const SHORTCUT_ITALICS: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::I);
-pub const SHORTCUT_SUBSCRIPT: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::L);
+pub const SHORTCUT_BOLD: KeyboardShortcut =
+    KeyboardShortcut::new(Modifiers::COMMAND, ShortcutKey::simple("b"));
+pub const SHORTCUT_CODE: KeyboardShortcut =
+    KeyboardShortcut::new(Modifiers::COMMAND, ShortcutKey::simple("n"));
+pub const SHORTCUT_ITALICS: KeyboardShortcut =
+    KeyboardShortcut::new(Modifiers::COMMAND, ShortcutKey::simple("i"));
+pub const SHORTCUT_SUBSCRIPT: KeyboardShortcut =
+    KeyboardShortcut::new(Modifiers::COMMAND, ShortcutKey::simple("l"));
 pub const SHORTCUT_SUPERSCRIPT: KeyboardShortcut =
-    KeyboardShortcut::new(Modifiers::COMMAND, Key::Y);
-pub const SHORTCUT_STRIKETHROUGH: KeyboardShortcut =
-    KeyboardShortcut::new(Modifiers::CTRL.plus(Modifiers::SHIFT), Key::Q);
-pub const SHORTCUT_UNDERLINE: KeyboardShortcut =
-    KeyboardShortcut::new(Modifiers::CTRL.plus(Modifiers::SHIFT), Key::W);
-pub const SHORTCUT_INDENT: KeyboardShortcut =
-    KeyboardShortcut::new(Modifiers::CTRL.plus(Modifiers::SHIFT), Key::E);
+    KeyboardShortcut::new(Modifiers::COMMAND, ShortcutKey::simple("y"));
+pub const SHORTCUT_STRIKETHROUGH: KeyboardShortcut = KeyboardShortcut::new(
+    Modifiers::CTRL.plus(Modifiers::SHIFT),
+    ShortcutKey::simple("q"),
+);
+pub const SHORTCUT_UNDERLINE: KeyboardShortcut = KeyboardShortcut::new(
+    Modifiers::CTRL.plus(Modifiers::SHIFT),
+    ShortcutKey::simple("w"),
+);
+pub const SHORTCUT_INDENT: KeyboardShortcut = KeyboardShortcut::new(
+    Modifiers::CTRL.plus(Modifiers::SHIFT),
+    ShortcutKey::simple("e"),
+);
 
 fn nested_hotkeys_ui(ui: &mut egui::Ui) {
     egui::Grid::new("shortcuts").striped(true).show(ui, |ui| {

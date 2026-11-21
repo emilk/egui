@@ -111,6 +111,11 @@ impl crate::View for InputEventHistory {
 
         ui.label("Recent history of raw input events to egui.");
         ui.label("Hover any entry for details.");
+        let keys_down = ui.input(|i| format!("{:?}", i.keys_down));
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Keys down:");
+            ui.code(keys_down);
+        });
         ui.checkbox(
             &mut self.include_pointer_movements,
             "Include pointer/mouse movements",

@@ -18,8 +18,8 @@ use epaint::{
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, FontProvider, GlyphRasterizer,
     Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label,
-    LayerId, Memory, MissingGlyphPolicy, ModifierNames, Modifiers, NumExt as _, Order, Painter,
-    RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle,
+    LayerId, Memory, MissingGlyphPolicy, ModifierNames, Modifiers, NamedKey, NumExt as _, Order,
+    Painter, RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle,
     TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId,
     ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect,
     WidgetText,
@@ -748,7 +748,7 @@ impl ContextImpl {
 ///
 /// ```
 /// # let ctx = egui::Context::default();
-/// if ctx.input(|i| i.key_pressed(egui::Key::A)) {
+/// if ctx.input(|i| i.key_pressed(egui::Key::character("a"))) {
 ///     ctx.copy_text("Hello!".to_owned());
 /// }
 /// ```
@@ -1765,7 +1765,7 @@ impl Context {
             if enabled
                 && sense.senses_click()
                 && memory.has_focus(id)
-                && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
+                && (input.key_pressed(Key::character(" ")) || input.key_pressed(NamedKey::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
                 res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);

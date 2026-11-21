@@ -5,7 +5,7 @@
 use core::ops::RangeInclusive;
 
 use crate::{
-    DragValue, EventFilter, Id, Key, NumExt as _, Pos2, Rangef, Rect, Response, TextStyle, Ui,
+    DragValue, EventFilter, Id, NamedKey, NumExt as _, Pos2, Rangef, Rect, Response, TextStyle, Ui,
     Vec2, WidgetText, lerp, pos2, remap, remap_clamp, style, style::HandleShape, vec2,
 };
 
@@ -338,10 +338,10 @@ impl SliderCore<'_> {
     /// where the handle is.
     pub fn drag_value_speed_at(&self, ui: &Ui, geom: &SliderGeometry, value: f64) -> f64 {
         let arrow_presses = ui.input(|input| {
-            input.num_presses(Key::ArrowUp)
-                + input.num_presses(Key::ArrowRight)
-                + input.num_presses(Key::ArrowDown)
-                + input.num_presses(Key::ArrowLeft)
+            input.num_presses(NamedKey::ArrowUp)
+                + input.num_presses(NamedKey::ArrowRight)
+                + input.num_presses(NamedKey::ArrowDown)
+                + input.num_presses(NamedKey::ArrowLeft)
         });
 
         match self.step {
@@ -494,10 +494,10 @@ pub fn keyboard_steps(ui: &Ui, response: &Response, geom: &SliderGeometry) -> f3
         });
 
         let (dec_key, inc_key) = match orientation {
-            SliderOrientation::Horizontal => (Key::ArrowLeft, Key::ArrowRight),
+            SliderOrientation::Horizontal => (NamedKey::ArrowLeft, NamedKey::ArrowRight),
             // Note that this is for moving the slider position,
             // so up = decrement y coordinate:
-            SliderOrientation::Vertical => (Key::ArrowUp, Key::ArrowDown),
+            SliderOrientation::Vertical => (NamedKey::ArrowUp, NamedKey::ArrowDown),
         };
 
         ui.input(|input| {

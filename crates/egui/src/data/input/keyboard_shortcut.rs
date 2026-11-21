@@ -1,4 +1,4 @@
-use crate::Key;
+use crate::{Key, NamedKey, ShortcutKey};
 
 use super::{ModifierNames, Modifiers};
 
@@ -6,19 +6,19 @@ use super::{ModifierNames, Modifiers};
 ///
 /// Can be used with [`crate::InputState::consume_shortcut`]
 /// and [`crate::Context::format_shortcut`].
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct KeyboardShortcut {
     pub modifiers: Modifiers,
 
-    pub logical_key: Key,
+    pub shortcut_key: ShortcutKey,
 }
 
 impl KeyboardShortcut {
-    pub const fn new(modifiers: Modifiers, logical_key: Key) -> Self {
+    pub const fn new(modifiers: Modifiers, shortcut_key: ShortcutKey) -> Self {
         Self {
             modifiers,
-            logical_key,
+            shortcut_key,
         }
     }
 
@@ -28,9 +28,9 @@ impl KeyboardShortcut {
             s += names.concat;
         }
         if names.is_short {
-            s += self.logical_key.symbol_or_name();
+            s += self.shortcut_key.symbol_or_name();
         } else {
-            s += self.logical_key.name();
+            s += self.shortcut_key.name();
         }
         s
     }
@@ -46,29 +46,34 @@ impl KeyboardShortcut {
     /// See also [`crate::Memory::focused`] and [`crate::Context::egui_wants_keyboard_input`].
     ///
     /// ```
-    /// # use egui::{Key, KeyboardShortcut, Modifiers};
-    /// assert!(KeyboardShortcut::new(Modifiers::NONE, Key::Space).conflicts_with_text_editing());
-    /// assert!(KeyboardShortcut::new(Modifiers::ALT, Key::ArrowLeft).conflicts_with_text_editing());
-    /// assert!(!KeyboardShortcut::new(Modifiers::COMMAND, Key::S).conflicts_with_text_editing());
+    /// # use egui::{KeyboardShortcut, Modifiers, NamedKey, ShortcutKey, ShortcutKeyExt as _};
+    /// assert!(KeyboardShortcut::new(Modifiers::NONE, ShortcutKey::simple(" ")).conflicts_with_text_editing());
+    /// assert!(KeyboardShortcut::new(Modifiers::ALT, NamedKey::ArrowLeft.shortcut_key()).conflicts_with_text_editing());
+    /// assert!(!KeyboardShortcut::new(Modifiers::COMMAND, ShortcutKey::simple("s")).conflicts_with_text_editing());
     /// ```
     pub fn conflicts_with_text_editing(&self) -> bool {
         self.modifiers.is_none()
+            || *self.shortcut_key == Key::character(" ")
             || matches!(
-                self.logical_key,
-                Key::Space
-                    | Key::ArrowLeft
-                    | Key::ArrowRight
-                    | Key::ArrowUp
-                    | Key::ArrowDown
-                    | Key::Home
-                    | Key::End
+                *self.shortcut_key,
+                Key::Named(
+                    NamedKey::ArrowLeft
+                        | NamedKey::ArrowRight
+                        | NamedKey::ArrowUp
+                        | NamedKey::ArrowDown
+                        | NamedKey::Home
+                        | NamedKey::End
+                )
             )
     }
 }
 
 #[test]
 fn format_kb_shortcut() {
-    let cmd_shift_f = KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, Key::F);
+    let cmd_shift_f = KeyboardShortcut::new(
+        Modifiers::COMMAND | Modifiers::SHIFT,
+        ShortcutKey::simple("f"),
+    );
     assert_eq!(
         cmd_shift_f.format(&ModifierNames::NAMES, false),
         "Ctrl+Shift+F"

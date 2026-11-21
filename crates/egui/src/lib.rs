@@ -492,9 +492,10 @@ pub use self::{
     },
     context::{Context, RepaintCause, RequestRepaintInfo, ViewportState},
     data::{
-        Key, ScreenshotCallback,
+        FullKey, Key, KeyCode, KeyVariant, NamedKey, PhysicalKey, ScreenshotCallback, ShortcutKey,
+        ShortcutKeyExt,
         input::{
-            DroppedFile, DroppedFileHandle, Event, EventFilter, HoveredFile, ImeEvent,
+            DroppedFile, DroppedFileHandle, Event, EventFilter, HoveredFile, ImeEvent, KeyEvent,
             KeyboardShortcut, ModifierNames, Modifiers, MouseWheelSource, MouseWheelUnit,
             NUM_POINTER_BUTTONS, PointerButton, RawInput, SafeAreaInsets, TouchDeviceId, TouchId,
             TouchPhase, ViewportEvent, ViewportInfo,

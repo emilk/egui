@@ -159,4 +159,5 @@ extend-exclude = ["web_demo/egui_demo_app.js"] # auto-generated
 [default]
 extend-ignore-re = [
   "#\\[doc\\(alias = .*", # We suggest "grey" in some doc
+  "ColorF4Grey", # egui::NamedKey variant
 ]

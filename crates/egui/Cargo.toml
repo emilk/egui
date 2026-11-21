@@ -75,7 +75,7 @@ persistence = ["serde", "epaint/serde", "ron"]
 rayon = ["epaint/rayon"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "epaint/serde", "accesskit/serde"]
+serde = ["dep:serde", "epaint/serde", "accesskit/serde", "keyboard-types/serde", "smol_str/serde"]
 
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
@@ -100,10 +100,12 @@ accesskit.workspace = true
 ahash.workspace = true
 bitflags.workspace = true
 itertools.workspace = true
+keyboard-types.workspace = true
 log.workspace = true
 nohash-hasher.workspace = true
 profiling.workspace = true
 smallvec.workspace = true
+smol_str.workspace = true
 unicode-segmentation.workspace = true
 
 #! ### Optional dependencies
