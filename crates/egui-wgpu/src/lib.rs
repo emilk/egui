@@ -78,6 +78,21 @@ pub struct SurfaceConfig {
     ///
     /// `None` => Let `wgpu` pick a default (currently `2`).
     pub desired_maximum_frame_latency: Option<u32>,
+
+    /// Call `winit::window::Window::pre_present_notify` before presenting.
+    ///
+    /// On Wayland, winit then holds back the window's next redraw until the compositor
+    /// sends a frame callback, which paces frames to the display and keeps dragging
+    /// and resizing smooth.
+    ///
+    /// But compositors send no frame callbacks to a window they hide, e.g. one that is
+    /// fully covered by another window. Such a window stops redrawing, and so do the
+    /// immediate viewports shown from it (<https://github.com/emilk/egui/issues/5145>).
+    /// Apps with immediate viewports can turn this off and pace their frames themselves,
+    /// e.g. with a non-blocking [`Self::present_mode`].
+    ///
+    /// Default: `true`.
+    pub pre_present_notify: bool,
 }
 
 impl SurfaceConfig {
@@ -90,6 +105,7 @@ impl SurfaceConfig {
         } else {
             Some(1)
         },
+        pre_present_notify: true,
     };
 
     /// Good default for GUIs with a lot of extra GPU work,
@@ -97,6 +113,7 @@ impl SurfaceConfig {
     pub const HIGH_THROUGHPUT: Self = Self {
         present_mode: wgpu::PresentMode::AutoVsync,
         desired_maximum_frame_latency: Some(2), // High-throughput.
+        pre_present_notify: true,
     };
 }
 
