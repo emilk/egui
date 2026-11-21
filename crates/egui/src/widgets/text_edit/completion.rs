@@ -97,7 +97,7 @@ struct CompletionState {
     open: bool,
 
     /// The word for which the user dismissed the popup with Escape.
-    /// The popup stays hidden until the word changes.
+    /// The popup stays hidden until the word changes or the [`TextEdit`] is focused again.
     dismissed_word: Option<String>,
 }
 
@@ -134,7 +134,7 @@ impl PopupKeys {
 ///
 /// Shows a list of suggestions for the word under the cursor.
 /// Use the arrow keys to select one, and Enter or Tab to accept it.
-/// Escape closes the popup until the word changes.
+/// Escape closes the popup until the word changes or the [`TextEdit`] is focused again.
 /// Clicking a suggestion also accepts it.
 ///
 /// Keyboard focus stays in the [`TextEdit`] the whole time.
@@ -307,6 +307,11 @@ impl<'a> CompletionPopup<'a> {
         let word_range = word_range_before_cursor(text.as_str(), cursor, &*is_word_boundary);
         let word = text.char_range(word_range.clone()).to_owned();
 
+        // Escape only hides the popup for the word it was pressed on,
+        // and only until the `TextEdit` is focused again:
+        if response.gained_focus() || state.dismissed_word.as_deref() != Some(word.as_str()) {
+            state.dismissed_word = None;
+        }
         if keys.dismiss {
             state.dismissed_word = Some(word.clone());
         }
