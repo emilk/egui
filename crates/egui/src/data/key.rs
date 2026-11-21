@@ -421,9 +421,7 @@ fn test_key_from_name_roundtrip() {
     .collect();
     keys.extend(CHARACTER_NAMES.iter().map(|&(c, _)| Key::character(c)));
     keys.extend(
-        ('a'..='z')
-            .chain('0'..='9')
-            .map(|c| Key::Character(c.to_string().into())),
+        core::iter::chain('a'..='z', '0'..='9').map(|c| Key::Character(c.to_string().into())),
     );
     keys.push(Key::character("é"));
 
@@ -523,15 +521,11 @@ fn test_key_from_legacy_name() {
         "Sleep",
         "Clear",
     ];
-    let generated = ('0'..='9')
-        .chain('A'..='Z')
-        .map(|c| c.to_string())
-        .chain((1..=35).map(|n| format!("F{n}")));
-    for name in legacy_names
-        .iter()
-        .map(|s| (*s).to_owned())
-        .chain(generated)
-    {
+    let generated = core::iter::chain(
+        core::iter::chain('0'..='9', 'A'..='Z').map(|c| c.to_string()),
+        (1..=35).map(|n| format!("F{n}")),
+    );
+    for name in core::iter::chain(legacy_names.iter().map(|s| (*s).to_owned()), generated) {
         assert!(
             Key::from_name(&name).is_some(),
             "Failed to parse legacy name {name:?}"
