@@ -66,7 +66,6 @@ tempfile = { workspace = true, optional = true }
 # `monochrome_emoji_fonts` so that the snapshots keep their emoji:
 egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
 image = { workspace = true, features = ["png"] }
-egui_extras = { workspace = true, features = ["image", "http"] }
 tempfile.workspace = true
 
 [lints]

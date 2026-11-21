@@ -43,7 +43,6 @@ ignore = [
 [bans]
 multiple-versions = "deny" # Use `cargo tree --duplicates` to easily find duplicates
 wildcards = "deny"
-allow-wildcard-paths = true # For the path-only `egui_kittest` dev-dependency of `egui_extras`
 deny = [
   { name = "cmake", reason = "It has hurt me too much" },
   { name = "openssl-sys", reason = "Use rustls" },
