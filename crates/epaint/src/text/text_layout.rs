@@ -618,6 +618,22 @@ fn layout_section(
     paragraph.cursor_x_px += format.background_margin.right as f32 * pixels_per_point;
 }
 
+/// Hebrew, Arabic and the scripts written like them (Syriac, Thaana, N'Ko and so on),
+/// with their presentation forms.
+fn rtl_letter(c: char) -> bool {
+    matches!(c, '\u{0590}'..='\u{08FF}' | '\u{FB1D}'..='\u{FDFF}' | '\u{FE70}'..='\u{FEFF}' | '\u{10800}'..='\u{10FFF}' | '\u{1E800}'..='\u{1EFFF}')
+}
+
+/// What takes the direction of the letters around it: spaces and punctuation.
+fn rtl_neutral(c: char) -> bool {
+    c.is_whitespace()
+        || c.is_ascii_punctuation()
+        || matches!(
+            c,
+            '\u{2010}'..='\u{2027}' | '\u{00A0}' | '\u{00AB}' | '\u{00BB}'
+        )
+}
+
 /// Iterator that either splits on `'\n'` or yields the whole string once.
 /// Avoids `Box<dyn Iterator>` and `Vec<&str>` allocation.
 enum SplitOrWhole<'a> {
@@ -1541,7 +1557,8 @@ fn segment_into_runs(
 
     out.clear();
 
-    for (byte_offset, grapheme_str) in text.grapheme_indices(true) {
+    let graphemes: Vec<(usize, &str)> = text.grapheme_indices(true).collect();
+    for (i, &(byte_offset, grapheme_str)) in graphemes.iter().enumerate() {
         let byte_offset = ByteIndex(byte_offset);
         let byte_end = byte_offset + grapheme_str.len();
 
@@ -1560,7 +1577,28 @@ fn segment_into_runs(
             continue;
         }
 
-        let font_key = fonts.resolve_cluster_face(ctx.family, grapheme_str);
+        let mut font_key = fonts.resolve_cluster_face(ctx.family, grapheme_str);
+
+        // A space or punctuation between two right-to-left letters stays in the run before
+        // it, so a Hebrew or Arabic phrase from a fallback font is shaped as one run, right
+        // to left, instead of word by word around the primary font's spaces, which put its
+        // words in left-to-right order.
+        if let Some(last) = out.last()
+            && last.raster.is_none()
+            && last.font_key != font_key
+            && grapheme_str.chars().all(rtl_neutral)
+            && graphemes[..i]
+                .iter()
+                .rev()
+                .find(|(_, g)| !g.chars().all(rtl_neutral))
+                .is_some_and(|(_, g)| g.chars().next().is_some_and(rtl_letter))
+            && graphemes[i + 1..]
+                .iter()
+                .find(|(_, g)| !g.chars().all(rtl_neutral))
+                .is_some_and(|(_, g)| g.chars().next().is_some_and(rtl_letter))
+        {
+            font_key = last.font_key;
+        }
 
         if fonts.face(font_key).is_none() {
             // The family has no font at all, so there is nothing to shape with.
