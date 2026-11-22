@@ -27,6 +27,7 @@ mod slider;
 mod slider_core;
 pub(crate) use slider_core::accesskit_set_value_request;
 mod spinner;
+mod tab;
 pub mod text_edit;
 mod value_format;
 
@@ -47,6 +48,7 @@ pub use self::{
     slider::{Slider, SliderClamping, SliderOrientation},
     slider_core::{DragValueSettings, SliderSpec},
     spinner::Spinner,
+    tab::Tab,
     text_edit::{
         CompletionOutput, CompletionPopup, CompletionQuery, Suggestion, TextBuffer, TextEdit,
     },

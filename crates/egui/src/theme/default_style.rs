@@ -1,15 +1,18 @@
 use emath::{Align2, Vec2};
-use epaint::{Color32, Margin};
+use epaint::{Color32, CornerRadius, Margin, Stroke};
 
 use crate::{
-    Button, ComboBox, Context, Frame, TextEdit, TextStyle,
+    Button, ComboBox, Context, Frame, Tab, TextEdit, TextStyle,
     class::HasClasses as _,
     theme::StyleProvider,
     widget_style::{
-        AtomLayoutStyle, ButtonStyle, CheckboxStyle, SeparatorStyle, StyleArgs, TextEditStyle,
-        TextVisuals, WidgetState,
+        AtomLayoutStyle, ButtonStyle, CheckboxStyle, SeparatorStyle, StyleArgs, TabStyle,
+        TextEditStyle, TextVisuals, WidgetState,
     },
 };
+
+/// The width of the line marking the selected [`Tab`].
+const INDICATOR_WIDTH: f32 = 2.0;
 
 /// The default [`StyleProvider`], implementing the default egui look based on
 /// [`crate::style::WidgetVisuals`].
@@ -26,6 +29,7 @@ impl DefaultStyle {
         ctx.add_widget_theme::<SeparatorStyle>(Self);
         ctx.add_widget_theme::<CheckboxStyle>(Self);
         ctx.add_widget_theme::<TextEditStyle>(Self);
+        ctx.add_widget_theme::<TabStyle>(Self);
     }
 }
 
@@ -199,6 +203,72 @@ impl StyleProvider<CheckboxStyle> for DefaultStyle {
                 ..Default::default()
             },
             check_stroke: widget_visuals.fg_stroke,
+        }
+    }
+}
+
+impl StyleProvider<TabStyle> for DefaultStyle {
+    fn style(&mut self, modifiers: &StyleArgs<'_>) -> TabStyle {
+        let StyleArgs {
+            classes,
+            style,
+            state,
+            ..
+        } = modifiers;
+        let spacing = &style.spacing;
+        let visuals = &style.visuals;
+        let widget_visuals = visuals.widgets.state(*state);
+        let selected = classes.has_class(&Tab::CLASS_SELECTED);
+
+        // Only the top corners are rounded, since the tab stands on the line of the tab bar:
+        let corner_radius = CornerRadius {
+            sw: 0,
+            se: 0,
+            ..widget_visuals.corner_radius
+        };
+
+        let painted_frame = Frame {
+            fill: widget_visuals.weak_bg_fill,
+            corner_radius,
+            // Same as a button, so they line up when next to each other:
+            inner_margin: spacing.button_padding.into(),
+            ..Default::default()
+        };
+
+        let frame = match state {
+            // A tab at rest is only its text, so that the selected tab stands out:
+            WidgetState::Noninteractive | WidgetState::Inactive => painted_frame.invisible(),
+
+            // No outline, since its bottom edge would double the line of the tab bar:
+            WidgetState::Hovered => painted_frame,
+
+            // The outline shows which tab has the keyboard focus.
+            // No expansion: that would paint over the line of the tab bar.
+            WidgetState::Active => painted_frame
+                .apply_stroke_and_expansion_without_layout_shift(widget_visuals.bg_stroke, 0.0),
+        };
+
+        let text_color = if selected {
+            visuals.strong_text_color()
+        } else {
+            widget_visuals.text_color()
+        };
+
+        TabStyle {
+            atom_layout: AtomLayoutStyle {
+                min_size: Vec2::new(0.0, spacing.interact_size.y),
+                gap: spacing.icon_spacing,
+                frame,
+                text_style: TextVisuals::new(style, TextStyle::Body, text_color),
+                ..Default::default()
+            },
+            indicator: if selected {
+                // `selection.bg_fill` is meant for filling large areas.
+                // It is too faint for a thin line, so use the color of selected text instead:
+                Stroke::new(INDICATOR_WIDTH, visuals.selection.stroke.color)
+            } else {
+                Stroke::NONE
+            },
         }
     }
 }

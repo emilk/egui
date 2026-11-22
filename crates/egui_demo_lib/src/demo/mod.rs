@@ -31,6 +31,7 @@ pub mod scrolling;
 pub mod sliders;
 pub mod strip_demo;
 pub mod table_demo;
+pub mod tabs;
 pub mod tests;
 pub mod text_edit;
 pub mod text_layout;

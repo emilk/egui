@@ -2198,6 +2198,37 @@ impl Ui {
         response
     }
 
+    /// Show a [`Tab`]. It is selected if `*current_value == selected_value`.
+    /// If clicked, `selected_value` is assigned to `*current_value`.
+    ///
+    /// Tabs go in a [`crate::TabBar`]:
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// #[derive(PartialEq)]
+    /// enum Page { Home, Settings }
+    /// let mut page = Page::Home;
+    ///
+    /// egui::TabBar::new().show(ui, |ui| {
+    ///     ui.tab_value(&mut page, Page::Home, "Home");
+    ///     ui.tab_value(&mut page, Page::Settings, "Settings");
+    /// });
+    /// # });
+    /// ```
+    pub fn tab_value<'a, Value: PartialEq>(
+        &mut self,
+        current_value: &mut Value,
+        selected_value: Value,
+        atoms: impl IntoAtoms<'a>,
+    ) -> Response {
+        let mut response = Tab::new(*current_value == selected_value, atoms).ui(self);
+        if response.clicked() && *current_value != selected_value {
+            *current_value = selected_value;
+            response.mark_changed();
+        }
+        response
+    }
+
     /// Shortcut for `add(Separator::default())`
     ///
     /// See also [`Separator`].

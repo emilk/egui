@@ -174,6 +174,20 @@ pub struct CheckboxStyle {
 
 impl WidgetStyle for CheckboxStyle {}
 
+/// Dedicated tab style
+#[derive(Debug, Clone)]
+pub struct TabStyle {
+    /// Style of the tab's atom layout.
+    pub atom_layout: AtomLayoutStyle,
+
+    /// The line along the bottom edge of the tab, e.g. to mark the selected tab.
+    ///
+    /// It is painted inside the tab, on top of [`AtomLayoutStyle::frame`].
+    pub indicator: Stroke,
+}
+
+impl WidgetStyle for TabStyle {}
+
 /// Dedicated separator style
 #[derive(Debug, Clone, Copy)]
 pub struct SeparatorStyle {

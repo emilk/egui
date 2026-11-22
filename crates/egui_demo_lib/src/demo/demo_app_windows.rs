@@ -102,6 +102,7 @@ impl Default for DemoGroups {
                 Box::<super::sliders::Sliders>::default(),
                 Box::<super::strip_demo::StripDemo>::default(),
                 Box::<super::table_demo::TableDemo>::default(),
+                Box::<super::tabs::TabsDemo>::default(),
                 Box::<super::text_edit::TextEditDemo>::default(),
                 Box::<super::text_layout::TextLayoutDemo>::default(),
                 Box::<super::tooltips::Tooltips>::default(),
