@@ -1129,7 +1129,6 @@ impl Default for PointerState {
 }
 
 impl PointerState {
-
     /// On Mac, Control-click is the standard secondary click (e.g. with a one-button mouse),
     /// so this turns primary presses made with Control held, and their releases, into secondary ones.
     pub(crate) fn ctrl_click_to_secondary(&mut self, events: &mut [Event]) {
