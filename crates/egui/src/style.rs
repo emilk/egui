@@ -1614,12 +1614,15 @@ pub struct DebugOptions {
     /// previous frame.
     pub warn_if_rect_changes_id: bool,
 
-    /// Show a warning if [`crate::Context::request_discard`] has been called many frames in a row.
+    /// Show a warning if [`crate::Context::request_discard`] has been called this many frames
+    /// in a row.
     ///
     /// Multi-pass frames are expensive, so this is likely a bug.
     ///
-    /// Default is `true`.
-    pub warn_if_multipass: bool,
+    /// `None` turns the warning off.
+    ///
+    /// Default is `Some(3)`.
+    pub consecutive_multipass_warning_cutoff: Option<usize>,
 
     /// If true, highlight widgets that are not aligned to [`emath::GUI_ROUNDING`].
     ///
@@ -1648,7 +1651,7 @@ impl Default for DebugOptions {
             show_interactive_widgets: false,
             show_widget_hits: false,
             warn_if_rect_changes_id: false,
-            warn_if_multipass: true,
+            consecutive_multipass_warning_cutoff: Some(3),
             show_unaligned: cfg!(debug_assertions),
             show_focused_widget: false,
         }
@@ -2965,7 +2968,7 @@ impl DebugOptions {
             show_interactive_widgets,
             show_widget_hits,
             warn_if_rect_changes_id,
-            warn_if_multipass,
+            consecutive_multipass_warning_cutoff,
             show_unaligned,
             show_focused_widget,
         } = self;
@@ -3002,10 +3005,23 @@ impl DebugOptions {
             "Warn if a Rect changes Id between frames",
         );
 
-        ui.checkbox(
-            warn_if_multipass,
-            "Warn if request_discard is called many frames in a row",
-        );
+        ui.horizontal(|ui| {
+            let mut warn = consecutive_multipass_warning_cutoff.is_some();
+            ui.checkbox(
+                &mut warn,
+                "Warn if request_discard is called many frames in a row",
+            );
+            if warn {
+                let cutoff = consecutive_multipass_warning_cutoff.get_or_insert(3);
+                ui.add(
+                    DragValue::new(cutoff)
+                        .range(1..=usize::MAX)
+                        .suffix(" frames"),
+                );
+            } else {
+                *consecutive_multipass_warning_cutoff = None;
+            }
+        });
 
         ui.checkbox(
             show_unaligned,

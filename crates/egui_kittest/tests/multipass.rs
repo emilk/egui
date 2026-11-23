@@ -36,7 +36,7 @@ fn multipass_warning_can_be_enabled() {
     let mut harness = discard_harness();
     harness
         .ctx
-        .all_styles_mut(|style| style.debug.warn_if_multipass = true);
+        .all_styles_mut(|style| style.debug.consecutive_multipass_warning_cutoff = Some(3));
     harness.run_steps(3);
     assert!(shows_perf_warning(&harness));
 }

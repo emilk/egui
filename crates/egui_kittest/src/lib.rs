@@ -238,7 +238,7 @@ impl<'a, State> Harness<'a, State> {
             // Keep the debug overlay out of snapshots
             #[cfg(debug_assertions)]
             {
-                style.debug.warn_if_multipass = false;
+                style.debug.consecutive_multipass_warning_cutoff = None;
             }
         });
         let mut input = egui::RawInput {
