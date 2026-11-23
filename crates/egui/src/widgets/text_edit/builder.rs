@@ -10,7 +10,6 @@ use crate::{
     SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom, WidgetInfo,
     WidgetWithState,
     class::{ClassName, Classes, HasClasses},
-    epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response,
@@ -878,7 +877,16 @@ impl<'t> TextEdit<'t> {
             );
 
             if did_interact || response.clicked() {
-                ui.memory_mut(|mem| mem.request_focus(response.id));
+                // A new press moves the caret, so it ends any composition even when this
+                // widget already has focus. The frames of a drag that follows must not:
+                // on Android an interrupt hides and re-shows the soft keyboard (#8884).
+                let new_press = ui.input(|i| i.pointer.any_pressed());
+                ui.memory_mut(|mem| {
+                    mem.request_focus(response.id);
+                    if new_press {
+                        mem.interrupt_ime();
+                    }
+                });
                 state.cursor_purpose = TextEditCursorPurpose::Selection;
 
                 state.last_interaction_time = ui.input(|i| i.time);
@@ -918,7 +926,10 @@ impl<'t> TextEdit<'t> {
                 .set_char_range(Some(CCursorRange::one(ccursor)));
             state.cursor_purpose = TextEditCursorPurpose::Selection;
             state.last_interaction_time = ui.input(|i| i.time);
-            ui.memory_mut(|mem| mem.request_focus(id));
+            ui.memory_mut(|mem| {
+                mem.request_focus(id);
+                mem.interrupt_ime(); // the text was inserted at the click position
+            });
 
             text_changed = true;
             ui.ctx().request_repaint(); // The galley is now stale

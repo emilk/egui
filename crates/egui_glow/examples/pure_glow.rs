@@ -8,7 +8,6 @@
 use core::num::NonZeroU32;
 use std::sync::Arc;
 
-use egui_winit::winit;
 use winit::raw_window_handle::HasWindowHandle as _;
 
 /// The majority of `GlutinWindowContext` is taken from `eframe`

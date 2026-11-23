@@ -2,7 +2,7 @@ use crate::{
     Atom, AtomExt as _, Atoms, Button, CursorIcon, Id, IdSalt, IntoAtoms, Key, Modifiers,
     NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget, WidgetInfo,
     class::{ClassName, Classes, HasClasses},
-    emath, text,
+    text,
 };
 use core::{cmp::Ordering, ops::RangeInclusive};
 use emath::Vec2;
@@ -529,13 +529,17 @@ impl Widget for DragValue<'_> {
 
         let text_style = ui.style().drag_value_text_style.clone();
 
-        if ui.memory(|mem| mem.lost_focus(id)) && !ui.input(|i| i.key_pressed(Key::Escape)) {
+        if ui.memory(|mem| mem.lost_focus(id)) {
+            // Forget the text even when the edit was cancelled: `lost_focus` holds for
+            // one more frame, in which Escape is no longer pressed.
             let edit_state = ui.data_mut(|data| data.remove_temp::<EditState>(id));
+            let cancelled = ui.input(|i| i.key_pressed(Key::Escape));
             // Ignore the text if the value was changed by something else while we were editing it,
             // or we would revert that change.
-            if let Some(value_text) = edit_state
-                .filter(|edit_state| edit_state.value == old_value)
-                .map(|edit_state| edit_state.text)
+            if !cancelled
+                && let Some(value_text) = edit_state
+                    .filter(|edit_state| edit_state.value == old_value)
+                    .map(|edit_state| edit_state.text)
             {
                 // We were editing the value as text last frame, but lost focus.
                 // Make sure we applied the last text value:

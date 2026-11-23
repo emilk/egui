@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
+    transparent: bool,
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
@@ -107,6 +108,59 @@ impl Painter {
         }
     }
 
+    /// Makes the surface of `viewport_id` keep its alpha, or makes it opaque again.
+    ///
+    /// A surface that keeps its alpha shows what is behind it where egui paints nothing or
+    /// clears it. That is the window's background, or a view below egui's surface,
+    /// e.g. an [`egui::EmbeddedView`] with [`egui::EmbeddedViewPlacement::Below`].
+    ///
+    /// Each surface starts out with the `support_transparent_backbuffer` passed to [`Self::new`].
+    /// Call this after [`Self::set_window`] for the viewport, since it does nothing for a
+    /// viewport that has no surface yet.
+    ///
+    /// The surface is reconfigured before the next paint.
+    ///
+    /// This is cheap to call every frame.
+    pub fn set_transparent(&mut self, viewport_id: ViewportId, transparent: bool) {
+        let Some(render_state) = &self.render_state else {
+            return;
+        };
+        let Some(surface) = self.surfaces.get_mut(&viewport_id) else {
+            return;
+        };
+        if surface.transparent == transparent {
+            return;
+        }
+
+        surface.transparent = transparent;
+        surface.alpha_mode = Self::alpha_mode(&surface.surface, render_state, transparent);
+        surface.needs_reconfigure = true;
+    }
+
+    /// The alpha mode for `surface`. If `transparent`, it is one that keeps the alpha, if the
+    /// surface supports one.
+    fn alpha_mode(
+        surface: &wgpu::Surface<'static>,
+        render_state: &RenderState,
+        transparent: bool,
+    ) -> wgpu::CompositeAlphaMode {
+        if !transparent {
+            return wgpu::CompositeAlphaMode::Auto;
+        }
+        let supported_alpha_modes = surface.get_capabilities(&render_state.adapter).alpha_modes;
+        // Prefer pre multiplied over post multiplied!
+        if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+            wgpu::CompositeAlphaMode::PreMultiplied
+        } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
+            wgpu::CompositeAlphaMode::PostMultiplied
+        } else {
+            log::warn!(
+                "A transparent surface was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
+            );
+            wgpu::CompositeAlphaMode::Auto
+        }
+    }
+
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
@@ -167,15 +221,20 @@ impl Painter {
         let Some(old_state) = self.surfaces.remove(&viewport_id) else {
             return Ok(());
         };
+        let SurfaceState {
+            width,
+            height,
+            resizing,
+            transparent,
+            ..
+        } = old_state;
+        // Drop the old surface before creating the new one, because some backends allow only
+        // one surface per window. For example, DirectComposition allows only one target per
+        // window.
+        drop(old_state);
 
         let surface = self.instance.create_surface(Arc::clone(window))?;
-        self.install_surface(
-            surface,
-            viewport_id,
-            old_state.width,
-            old_state.height,
-            old_state.resizing,
-        );
+        self.install_surface(surface, viewport_id, width, height, resizing, transparent);
         Ok(())
     }
 
@@ -208,7 +267,7 @@ impl Painter {
         profiling::scope!("Painter::set_window"); // profile_function gives bad names for async functions
 
         if let Some(window) = window {
-            let size = window.inner_size();
+            let size = surface_size(&window);
             if !self.surfaces.contains_key(&viewport_id) {
                 let surface = self.instance.create_surface(window)?;
                 self.add_surface(surface, viewport_id, size).await?;
@@ -234,7 +293,7 @@ impl Painter {
         profiling::scope!("Painter::set_window_unsafe"); // profile_function gives bad names for async functions
 
         if let Some(window) = window {
-            let size = window.inner_size();
+            let size = surface_size(window);
             if !self.surfaces.contains_key(&viewport_id) {
                 let surface = unsafe {
                     self.instance
@@ -261,7 +320,15 @@ impl Painter {
                     .await?;
             self.render_state = Some(render_state);
         }
-        self.install_surface(surface, viewport_id, size.width, size.height, false);
+        let transparent = self.support_transparent_backbuffer;
+        self.install_surface(
+            surface,
+            viewport_id,
+            size.width,
+            size.height,
+            false,
+            transparent,
+        );
         Ok(())
     }
 
@@ -276,6 +343,7 @@ impl Painter {
         width: u32,
         height: u32,
         resizing: bool,
+        transparent: bool,
     ) {
         let alpha_mode = {
             // Panic: We use the same failure mode as `resize_and_generate_depth_texture_view_and_msaa_view`
@@ -283,29 +351,13 @@ impl Painter {
                 .render_state
                 .as_ref()
                 .expect("install_surface called before render_state initialization");
-            if self.support_transparent_backbuffer {
-                let supported_alpha_modes =
-                    surface.get_capabilities(&render_state.adapter).alpha_modes;
-                // Prefer pre multiplied over post multiplied!
-                if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
-                    wgpu::CompositeAlphaMode::PreMultiplied
-                } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied)
-                {
-                    wgpu::CompositeAlphaMode::PostMultiplied
-                } else {
-                    log::warn!(
-                        "Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
-                    );
-                    wgpu::CompositeAlphaMode::Auto
-                }
-            } else {
-                wgpu::CompositeAlphaMode::Auto
-            }
+            Self::alpha_mode(&surface, render_state, transparent)
         };
         self.surfaces.insert(
             viewport_id,
             SurfaceState {
                 surface,
+                transparent,
                 width,
                 height,
                 alpha_mode,
@@ -807,5 +859,19 @@ impl Painter {
     #[expect(clippy::needless_pass_by_ref_mut, clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
+    }
+}
+
+/// The size a window's surface should have: the area egui lays out over.
+///
+/// That is [`winit::window::Window::inner_size`], except on iOS where it is
+/// [`winit::window::Window::outer_size`]: there `inner_size` is only the safe area, while
+/// `egui_winit::screen_size_in_pixels` lays egui out over the whole screen. A surface sized
+/// to the safe area would be stretched over the screen by the OS.
+pub fn surface_size(window: &winit::window::Window) -> winit::dpi::PhysicalSize<u32> {
+    if cfg!(target_os = "ios") {
+        window.outer_size()
+    } else {
+        window.inner_size()
     }
 }

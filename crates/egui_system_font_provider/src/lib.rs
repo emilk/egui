@@ -116,37 +116,45 @@ impl FontProvider for SystemFontProvider {
         };
 
         let font = if let Some(script) = script_of(base_char) {
-            // The fallback for a script may be a single font for one locale,
-            // e.g. a Japanese font for Han, which lacks many Simplified Chinese characters.
-            // So if it can't render the char, try the other locales of the script:
-            // TODO(https://github.com/linebender/parley/issues/644): remove `other_locales`
-            // once fontique falls back per char (https://github.com/linebender/parley/pull/689).
-            core::iter::chain(
-                [self.locale.as_ref()],
-                other_locales(script).iter().map(Some),
+            find_font_for_script(
+                collection,
+                source_cache,
+                generic,
+                script,
+                self.locale.as_ref(),
+                base_char,
             )
-            .find_map(|locale| {
-                let mut query = collection.query(source_cache);
-                query.set_families([QueryFamily::Generic(generic)]);
-                query.set_fallbacks(fallback_key(script, locale));
-                find_font(&mut query, base_char)
-            })
         } else {
             // Punctuation, symbols, emoji, etc. belong to no script, so there is no fallback for them.
             // Try the generic families instead.
-            let mut query = collection.query(source_cache);
-            query.set_families(
-                [
+            let from_generic_families = {
+                let mut query = collection.query(source_cache);
+                query.set_families(
+                    [
+                        generic,
+                        GenericFamily::SystemUi,
+                        GenericFamily::Emoji,
+                        GenericFamily::Math,
+                        GenericFamily::Serif,
+                        GenericFamily::Monospace,
+                    ]
+                    .map(QueryFamily::Generic),
+                );
+                find_font(&mut query, base_char)
+            };
+
+            // Fullwidth forms (＂：｜) and CJK punctuation (、。「」) also belong to no script,
+            // but only the CJK fonts have them. So try the Han fonts too:
+            from_generic_families.or_else(|| {
+                find_font_for_script(
+                    collection,
+                    source_cache,
                     generic,
-                    GenericFamily::SystemUi,
-                    GenericFamily::Emoji,
-                    GenericFamily::Math,
-                    GenericFamily::Serif,
-                    GenericFamily::Monospace,
-                ]
-                .map(QueryFamily::Generic),
-            );
-            find_font(&mut query, base_char)
+                    HAN,
+                    self.locale.as_ref(),
+                    base_char,
+                )
+            })
         }?;
 
         let family_name = collection.family_name(font.family.0).unwrap_or("unknown");
@@ -163,6 +171,29 @@ impl FontProvider for SystemFontProvider {
             }],
         })
     }
+}
+
+/// The first font of `generic` or the fallback fonts of `script` that can render `c`.
+///
+/// The fallback for a script may be a single font for one locale,
+/// e.g. a Japanese font for Han, which lacks many Simplified Chinese characters.
+/// So if the font for `locale` can't render the char, try the other locales of the script.
+// TODO(https://github.com/linebender/parley/issues/644): remove `other_locales`
+// once fontique falls back per char (https://github.com/linebender/parley/pull/689).
+fn find_font_for_script(
+    collection: &mut Collection,
+    source_cache: &mut SourceCache,
+    generic: GenericFamily,
+    script: Script,
+    locale: Option<&Language>,
+    c: char,
+) -> Option<QueryFont> {
+    core::iter::chain([locale], other_locales(script).iter().map(Some)).find_map(|locale| {
+        let mut query = collection.query(source_cache);
+        query.set_families([QueryFamily::Generic(generic)]);
+        query.set_fallbacks(fallback_key(script, locale));
+        find_font(&mut query, c)
+    })
 }
 
 /// The first font in the query that can render `c`.
@@ -268,7 +299,18 @@ mod tests {
         assert_eq!(script_of('1'), None);
         assert_eq!(script_of('⌥'), None);
         assert_eq!(script_of('\u{0301}'), None); // combining acute accent
+
+        // Fullwidth forms and CJK punctuation belong to no script, unlike fullwidth letters:
+        for c in FULLWIDTH_FORMS_AND_CJK_PUNCTUATION {
+            assert_eq!(script_of(c), None, "{c:?}");
+        }
+        assert_eq!(script_of('Ａ'), Some(Script::from_bytes(*b"Latn")));
+        assert_eq!(script_of('ｱ'), Some(Script::from_bytes(*b"Kana")));
     }
+
+    /// Script-less characters that only the CJK fonts have (<https://github.com/emilk/egui/issues/8842>).
+    const FULLWIDTH_FORMS_AND_CJK_PUNCTUATION: [char; 8] =
+        ['＂', '：', '｜', '、', '。', '「', '〜', '￥'];
 
     #[test]
     #[ignore = "Depends on which fonts are installed on this machine"]
@@ -276,7 +318,9 @@ mod tests {
     fn finds_system_fonts() {
         let provider = SystemFontProvider::new();
         for (c, script) in [
+            ('a', "Latin"),
             ('日', "CJK"),
+            ('ｱ', "Katakana"),
             ('ع', "Arabic"),
             ('א', "Hebrew"),
             ('क', "Devanagari"),
@@ -293,6 +337,37 @@ mod tests {
             };
             println!("{script} {c:?}: {}", insert.name);
             assert!(insert.name.starts_with("system:"));
+        }
+    }
+
+    /// Fullwidth forms and CJK punctuation belong to no script, and the generic families lack them,
+    /// so they must come from the Han fonts, whatever the locale.
+    #[test]
+    #[ignore = "Depends on which fonts are installed on this machine"]
+    #[expect(clippy::print_stdout)]
+    fn finds_fullwidth_forms_and_cjk_punctuation() {
+        for locale in [
+            None,
+            Some("ja-JP"),
+            Some("zh-SG"),
+            Some("zh-TW"),
+            Some("ko"),
+            Some("de-DE"),
+            Some("en-US"),
+        ] {
+            let provider = SystemFontProvider::new().with_locale(locale);
+            for c in FULLWIDTH_FORMS_AND_CJK_PUNCTUATION {
+                let cluster = c.to_string();
+                let request = FallbackRequest {
+                    cluster: &cluster,
+                    family: &FontFamily::Proportional,
+                };
+                let Some(insert) = provider.font_for(&request) else {
+                    panic!("No system font for {c:?} with locale {locale:?}");
+                };
+                println!("{locale:?} {c:?}: {}", insert.name);
+                assert!(insert.name.starts_with("system:"));
+            }
         }
     }
 

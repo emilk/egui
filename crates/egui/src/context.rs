@@ -7,7 +7,7 @@ use emath::GuiRounding as _;
 use epaint::{
     ClippedPrimitive, ClippedShape, Color32, ImageData, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureId, Vec2,
-    emath::{self, TSTransform},
+    emath::TSTransform,
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
@@ -26,7 +26,6 @@ use crate::{
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
-    epaint,
     hit_test::WidgetHits,
     input_state::{InputState, MultiTouchInfo, PointerEvent, SurrenderFocusOn},
     interaction::InteractionSnapshot,
@@ -229,6 +228,7 @@ pub struct ViewportState {
     /// `None` for immediate viewports.
     pub viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
+    /// The input for this viewport, for the current pass.
     pub input: InputState,
 
     /// State that is collected during a pass and then cleared.
@@ -259,13 +259,20 @@ pub struct ViewportState {
     // ----------------------
     // The output of a pass:
     //
+    /// The shapes painted this pass, per layer.
     pub graphics: GraphicLayers,
-    // Most of the things in `PlatformOutput` are not actually viewport dependent.
+
+    /// The platform output of this pass.
+    ///
+    /// Most of the things in `PlatformOutput` are not actually viewport dependent.
     pub output: PlatformOutput,
+
+    /// Commands sent to this viewport this pass.
     pub commands: Vec<ViewportCommand>,
 
     // ----------------------
     // Cross-frame statistics:
+    /// How many frames in a row used more than one pass.
     pub num_multipass_in_row: usize,
 
     /// The last theme we sent to the native window via [`ViewportCommand::SetTheme`],
@@ -480,9 +487,14 @@ impl ContextImpl {
             let ratio = self.memory.options.zoom_factor / new_zoom_factor;
             self.memory.options.zoom_factor = new_zoom_factor;
 
-            let input = &viewport.input;
-            // This is a bit hacky, but is required to avoid jitter:
-            let mut rect = input.content_rect();
+            // This is a bit hacky, but is required to avoid jitter.
+            // Before the first pass the previous input is only a placeholder,
+            // so scale the rect the backend measured at the old zoom factor instead.
+            let first_pass = viewport.repaint.cumulative_pass_nr == 0;
+            let mut rect = match new_raw_input.screen_rect {
+                Some(screen_rect) if first_pass => screen_rect,
+                _ => viewport.input.content_rect(),
+            };
             rect.min = (ratio * rect.min.to_vec2()).to_pos2();
             rect.max = (ratio * rect.max.to_vec2()).to_pos2();
             new_raw_input.screen_rect = Some(rect);
@@ -3136,7 +3148,11 @@ impl Context {
         }
 
         let num_multipass_in_row = self.viewport(|vp| vp.num_multipass_in_row);
-        if 3 <= num_multipass_in_row {
+        let cutoff = self
+            .global_style()
+            .debug
+            .consecutive_multipass_warning_cutoff;
+        if cutoff.is_some_and(|cutoff| cutoff <= num_multipass_in_row) {
             // If you see this message, it means we've been paying the cost of multi-pass for multiple frames in a row.
             // This is likely a bug. `request_discard` should only be called in rare situations, when some layout changes.
 
@@ -3179,6 +3195,16 @@ impl ContextImpl {
         let textures_delta = self.tex_manager.0.write().take_delta();
 
         let mut platform_output: PlatformOutput = core::mem::take(&mut viewport.output);
+
+        // This has to come after `Memory::end_pass`, which sorts the layers into their paint
+        // order for this pass.
+        platform_output.embedded_views = crate::embedded_view::outputs(
+            &viewport.this_pass.embedded_views,
+            &self.memory,
+            &viewport.this_pass.widgets,
+            &viewport.graphics,
+            pixels_per_point,
+        );
 
         if self.memory.should_interrupt_ime()
             && let Some(ime) = &mut platform_output.ime
@@ -5414,5 +5440,42 @@ mod test {
             );
             output.drop_without_applying_deltas();
         }
+    }
+
+    fn content_rect_after_pass(ctx: &Context, screen_size: crate::Vec2) -> crate::Rect {
+        let input = crate::RawInput {
+            screen_rect: Some(crate::Rect::from_min_size(crate::Pos2::ZERO, screen_size)),
+            ..Default::default()
+        };
+        let mut content_rect = None;
+        let output = ctx.run_ui(input, |ui| content_rect = Some(ui.ctx().content_rect()));
+        output.drop_without_applying_deltas();
+        content_rect.expect("the ui closure runs")
+    }
+
+    #[test]
+    fn test_zoom_factor_set_before_the_first_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        ctx.set_zoom_factor(0.5);
+
+        // The backend measured the window at the old zoom factor of 1.
+        let content_rect = content_rect_after_pass(&ctx, crate::vec2(400.0, 300.0));
+
+        assert_eq!(content_rect.size(), crate::vec2(800.0, 600.0));
+    }
+
+    #[test]
+    fn test_zoom_factor_changed_after_the_first_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        content_rect_after_pass(&ctx, crate::vec2(400.0, 300.0));
+        ctx.set_zoom_factor(0.5);
+
+        // A later zoom change scales the previous pass's rect, whatever size the
+        // backend sends with it.
+        let content_rect = content_rect_after_pass(&ctx, crate::vec2(123.0, 45.0));
+
+        assert_eq!(content_rect.size(), crate::vec2(800.0, 600.0));
     }
 }

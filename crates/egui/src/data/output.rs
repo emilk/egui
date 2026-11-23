@@ -199,6 +199,11 @@ pub struct PlatformOutput {
     /// If empty, there was never any calls.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub request_discard_reasons: Vec<RepaintCause>,
+
+    /// Where the embedded views that are on screen this pass go. See [`crate::EmbeddedView`].
+    ///
+    /// The integration should hide every embedded view that is missing from this list.
+    pub embedded_views: Vec<crate::EmbeddedViewOutput>,
 }
 
 impl PlatformOutput {
@@ -232,6 +237,7 @@ impl PlatformOutput {
             accesskit_update,
             num_completed_passes,
             mut request_discard_reasons,
+            embedded_views,
         } = newer;
 
         self.commands.append(&mut commands);
@@ -246,6 +252,9 @@ impl PlatformOutput {
 
         // egui produces a complete AccessKit tree for each frame, so overwrite rather than append:
         self.accesskit_update = accesskit_update;
+
+        // Only the latest pass says where the views go.
+        self.embedded_views = embedded_views;
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` and

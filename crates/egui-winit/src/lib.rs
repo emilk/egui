@@ -133,6 +133,9 @@ pub struct State {
     /// See [`Self::set_clipboard_shortcuts`].
     clipboard_shortcuts: bool,
 
+    /// The IME cursor area that the IME was last told, if it still has it.
+    ///
+    /// Reset when the IME may have lost it, so that it is sent again.
     ime_cursor_rect_px: Option<egui::Rect>,
     old_ime_purpose: egui::IMEPurpose,
 
@@ -491,7 +494,10 @@ impl State {
                 };
 
                 self.egui_input.focused = focused;
-                if !focused {
+                if focused {
+                    // The IME may have forgotten the cursor area while the window was unfocused.
+                    self.ime_cursor_rect_px = None;
+                } else {
                     // Avoid sticky modifiers when focus is lost (egui clears its own copy too).
                     self.modifiers = egui::Modifiers::default();
                 }
@@ -783,7 +789,12 @@ impl State {
             // [`winit::event::Ime::Enabled`] means different things in X11 and
             // Wayland, but it doesn't matter to us.
             // See <https://github.com/rust-windowing/winit/issues/2498>
-            winit::event::Ime::Enabled | winit::event::Ime::Disabled => {}
+            winit::event::Ime::Enabled => {
+                // A newly enabled IME doesn't know the cursor area yet. On Wayland, for example,
+                // enabling the text input resets its state.
+                self.ime_cursor_rect_px = None;
+            }
+            winit::event::Ime::Disabled => {}
             winit::event::Ime::Preedit(text, active_range_bytes) => {
                 let active_range_chars = match *active_range_bytes {
                     Some((start_bytes, end_bytes)) => {
@@ -1234,6 +1245,7 @@ impl State {
             accesskit_update,
             num_completed_passes: _,    // `egui::Context::run` handles this
             request_discard_reasons: _, // `egui::Context::run` handles this
+            embedded_views: _,          // eframe's `EmbeddedViews` handles this
         } = platform_output;
 
         for command in commands {
@@ -1271,6 +1283,7 @@ impl State {
 
             profiling::scope!("set_ime_allowed");
             window.set_ime_allowed(allow_ime);
+            self.ime_cursor_rect_px = None;
         }
 
         if let Some(ime) = ime {
@@ -1280,6 +1293,7 @@ impl State {
 
                 window.set_ime_allowed(false);
                 window.set_ime_allowed(true);
+                self.ime_cursor_rect_px = None;
             }
 
             if ime.purpose != self.old_ime_purpose {
@@ -1289,9 +1303,10 @@ impl State {
 
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
             let ime_cursor_rect_px = pixels_per_point * ime.cursor_rect;
-            if self.ime_cursor_rect_px != Some(ime_cursor_rect_px)
-                || self.egui_ctx.input(|i| !i.events.is_empty())
-            {
+            // Only when it changed, or the IME may have lost it. Calling `set_ime_cursor_area` in
+            // every frame would repaint in every frame on Wayland, where winit answers each call
+            // with an `Ime::Preedit`.
+            if self.ime_cursor_rect_px != Some(ime_cursor_rect_px) {
                 self.ime_cursor_rect_px = Some(ime_cursor_rect_px);
                 profiling::scope!("set_ime_cursor_area");
                 window.set_ime_cursor_area(

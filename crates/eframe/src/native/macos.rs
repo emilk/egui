@@ -7,7 +7,7 @@ use raw_window_handle::{AppKitWindowHandle, RawWindowHandle};
 /// on the native macOS window.
 ///
 /// This is very useful together with [`egui::ViewportBuilder::with_fullsize_content_view`].
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct WindowChromeMetrics {
     /// Size of the "traffic lights" (red/yellow/green close/minimize/maximize buttons),
     /// including margins.

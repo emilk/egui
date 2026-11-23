@@ -1,6 +1,4 @@
 use core::iter;
-use core::mem::size_of;
-use egui_wgpu::wgpu;
 use egui_wgpu::wgpu::{Device, Extent3d, Queue, Texture};
 use image::RgbaImage;
 use std::sync::mpsc::channel;
@@ -61,11 +59,7 @@ pub(crate) fn texture_to_image(device: &Device, queue: &Queue, texture: &Texture
     let data = buffer_slice
         .get_mapped_range()
         .expect("Failed to get mapped range");
-    let data = data
-        .chunks_exact(buffer_dimensions.padded_bytes_per_row)
-        .flat_map(|row| row.iter().take(buffer_dimensions.unpadded_bytes_per_row))
-        .copied()
-        .collect::<Vec<_>>();
+    let data = buffer_dimensions.unpad(&data);
 
     RgbaImage::from_raw(texture.width(), texture.height(), data).expect("Failed to create image")
 }
@@ -88,5 +82,40 @@ impl BufferDimensions {
             unpadded_bytes_per_row,
             padded_bytes_per_row,
         }
+    }
+
+    /// Copy the rows out of the padded buffer, dropping the padding.
+    ///
+    /// Copies whole rows: the mapped buffer can be uncached memory, where
+    /// reading it byte by byte is slow.
+    fn unpad(&self, data: &[u8]) -> Vec<u8> {
+        let mut pixels = Vec::with_capacity(self.unpadded_bytes_per_row * self.height);
+        for row in data.chunks_exact(self.padded_bytes_per_row) {
+            pixels.extend_from_slice(&row[..self.unpadded_bytes_per_row]);
+        }
+        pixels
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BufferDimensions;
+
+    #[test]
+    fn unpad_drops_the_row_padding() {
+        // 3 pixels of 4 bytes per row are padded to the copy alignment.
+        let dimensions = BufferDimensions::new(3, 2);
+        assert!(dimensions.padded_bytes_per_row > dimensions.unpadded_bytes_per_row);
+
+        let data: Vec<u8> = (0..dimensions.padded_bytes_per_row * dimensions.height)
+            .map(|i| (i % 251) as u8)
+            .collect();
+
+        let expected: Vec<u8> = data
+            .chunks_exact(dimensions.padded_bytes_per_row)
+            .flat_map(|row| row[..dimensions.unpadded_bytes_per_row].iter().copied())
+            .collect();
+        assert_eq!(dimensions.unpad(&data), expected);
+        assert_eq!(expected.len(), 3 * 4 * 2);
     }
 }

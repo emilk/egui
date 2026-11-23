@@ -29,6 +29,16 @@ pub fn sleep_if_invisible_or_minimized(window: Option<&Window>) {
     }
 }
 
+/// Does the pass show an [`egui::EmbeddedView`] below egui's surface?
+///
+/// Such a view only shows if the surface keeps its alpha.
+pub fn shows_views_below(platform_output: &egui::PlatformOutput) -> bool {
+    platform_output
+        .embedded_views
+        .iter()
+        .any(|view| view.side == egui::EmbeddedViewPlacement::Below)
+}
+
 /// What [`WinitApp::run_ui_and_paint`] runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PassMode {

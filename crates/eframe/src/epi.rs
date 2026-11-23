@@ -83,6 +83,9 @@ pub struct CreationContext<'s> {
     #[cfg(feature = "wgpu_no_default_features")]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
+    /// See [`Self::embedded_views`].
+    pub(crate) embedded_views: crate::EmbeddedViews,
+
     /// The root [`winit::window::Window`].
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) window: Option<std::sync::Arc<winit::window::Window>>,
@@ -94,6 +97,14 @@ pub struct CreationContext<'s> {
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
+}
+
+impl CreationContext<'_> {
+    /// The [`EmbeddedViews`](crate::EmbeddedViews) of the root window, which report where egui
+    /// placed the views that the platform draws, such as web views.
+    pub fn embedded_views(&self) -> &crate::EmbeddedViews {
+        &self.embedded_views
+    }
 }
 
 #[expect(unsafe_code)]
@@ -134,6 +145,7 @@ impl CreationContext<'_> {
             raw_window_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
             raw_display_handle: Err(HandleError::NotSupported),
+            embedded_views: crate::EmbeddedViews::detached(),
         }
     }
 
@@ -280,6 +292,20 @@ pub trait App {
     ///
     /// This function does not return a value. Any changes to the input should be made directly to `_raw_input`.
     fn raw_input_hook(&mut self, _ctx: &egui::Context, _raw_input: &mut egui::RawInput) {}
+
+    /// A hook for inspecting or changing the output of each pass of the root viewport, before
+    /// eframe acts on it and paints the frame.
+    ///
+    /// It is the counterpart of [`Self::raw_input_hook`]. eframe calls it right after the pass,
+    /// before it handles the output's commands and before it paints
+    /// [`egui::FullOutput::shapes`]. It isn't called while the window is hidden, because then
+    /// no pass runs.
+    ///
+    /// Use it to act on output that must be handled before the frame is painted, such as placing
+    /// the embedded views ([`egui::PlatformOutput::embedded_views`]) that the pass reserved rects
+    /// for with [`egui::EmbeddedView`]: the code that shows a view moves it there, or hides it
+    /// when its view is missing from the output.
+    fn output_hook(&mut self, _ctx: &egui::Context, _output: &mut egui::FullOutput) {}
 }
 
 /// Options controlling the behavior of a native window.
@@ -739,6 +765,9 @@ pub struct Frame {
     /// taken by the app. See [`Frame::request_activation_token`].
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) activation_token: Option<String>,
+
+    /// See [`Self::embedded_views`].
+    pub(crate) embedded_views: crate::EmbeddedViews,
 }
 
 // Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
@@ -786,7 +815,14 @@ impl Frame {
             wgpu_render_state: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_surface_config: None,
+            embedded_views: crate::EmbeddedViews::detached(),
         }
+    }
+
+    /// The [`EmbeddedViews`](crate::EmbeddedViews) of the root window, which report where egui
+    /// placed the views that the platform draws, such as web views.
+    pub fn embedded_views(&self) -> &crate::EmbeddedViews {
+        &self.embedded_views
     }
 
     /// True if you are in a web environment.
@@ -1098,18 +1134,47 @@ pub trait Storage {
 }
 
 /// Get and deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
+///
+/// Returns `None` if the key is missing or deserialization fails.
+/// Use [`try_get_value`] to distinguish between these cases.
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
-    profiling::function_scope!(key);
-    let value = storage.get_string(key)?;
-    match ron::from_str(&value) {
-        Ok(value) => Some(value),
+    match try_get_value(storage, key) {
+        Ok(value) => value,
         Err(err) => {
-            // This happens on when we break the format, e.g. when updating egui.
+            // This happens when we break the format, e.g. when updating egui.
             log::debug!("Failed to decode RON: {err}");
             None
         }
     }
+}
+
+/// Get and deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
+///
+/// Returns `Ok(None)` if the key is missing, or `Ok(Some(value))` on success.
+/// Unlike [`get_value`], this function returns deserialization errors.
+///
+/// # Errors
+///
+/// Returns an error if the stored value cannot be deserialized as `T`.
+///
+/// # Example
+///
+/// ```
+/// fn load_count(storage: &dyn eframe::Storage) -> eframe::Result<u32, ron::error::SpannedError> {
+///     Ok(eframe::try_get_value(storage, "count")?.unwrap_or_default())
+/// }
+/// ```
+#[cfg(feature = "ron")]
+pub fn try_get_value<T: serde::de::DeserializeOwned>(
+    storage: &dyn Storage,
+    key: &str,
+) -> Result<Option<T>, ron::error::SpannedError> {
+    profiling::function_scope!(key);
+    storage
+        .get_string(key)
+        .map(|value| ron::from_str(&value))
+        .transpose()
 }
 
 /// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
@@ -1124,3 +1189,69 @@ pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, valu
 
 /// [`Storage`] key used for app
 pub const APP_KEY: &str = "app";
+
+#[cfg(all(test, feature = "ron"))]
+mod tests {
+    use super::{Storage, get_value, set_value, try_get_value};
+
+    #[derive(Default)]
+    struct MemoryStorage(std::collections::HashMap<String, String>);
+
+    impl Storage for MemoryStorage {
+        fn get_string(&self, key: &str) -> Option<String> {
+            self.0.get(key).cloned()
+        }
+
+        fn set_string(&mut self, key: &str, value: String) {
+            self.0.insert(key.to_owned(), value);
+        }
+
+        fn remove_string(&mut self, key: &str) {
+            self.0.remove(key);
+        }
+
+        fn flush(&mut self) {}
+    }
+
+    #[test]
+    fn try_get_value_missing_key() {
+        let storage = MemoryStorage::default();
+        assert!(
+            matches!(try_get_value::<u32>(&storage, "missing"), Ok(None)),
+            "a missing key should not be an error"
+        );
+        assert_eq!(get_value::<u32>(&storage, "missing"), None);
+    }
+
+    #[test]
+    fn try_get_value_valid_value() {
+        let mut storage = MemoryStorage::default();
+        set_value(&mut storage, "value", &42_u32);
+        assert_eq!(try_get_value::<u32>(&storage, "value").unwrap(), Some(42));
+        assert_eq!(get_value::<u32>(&storage, "value"), Some(42));
+    }
+
+    #[test]
+    fn try_get_value_stored_none() {
+        let mut storage = MemoryStorage::default();
+        set_value(&mut storage, "value", &None::<u32>);
+        assert_eq!(
+            try_get_value::<Option<u32>>(&storage, "value").unwrap(),
+            Some(None)
+        );
+    }
+
+    #[test]
+    fn try_get_value_invalid_value() {
+        let mut storage = MemoryStorage::default();
+        for value in ["(", "\"not a number\""] {
+            storage.set_string("value", value.to_owned());
+            let expected = ron::from_str::<u32>(value);
+            let actual = try_get_value::<u32>(&storage, "value");
+            assert!(expected.is_err(), "invalid test input: {value}");
+            assert_eq!(actual, expected.map(Some));
+            assert_eq!(get_value::<u32>(&storage, "value"), None);
+            assert_eq!(storage.get_string("value").as_deref(), Some(value));
+        }
+    }
+}

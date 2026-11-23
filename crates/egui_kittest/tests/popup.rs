@@ -356,6 +356,39 @@ fn popup_item_click_registers_and_closes() {
     );
 }
 
+/// Secondary-clicking the same widget again while its context menu is open
+/// should move the menu, not close it.
+#[test]
+fn context_menu_moves_on_second_secondary_click() {
+    const MENU_CONTENT: &str = "Menu content";
+
+    let mut harness = harness_builder().build_ui(|ui| {
+        let response = ui.allocate_response(Vec2::new(400.0, 200.0), Sense::click());
+        Popup::context_menu(&response).show(|ui| {
+            ui.label(MENU_CONTENT);
+        });
+    });
+    harness.run();
+
+    slow_click(
+        &mut harness,
+        Pos2::new(50.0, 50.0),
+        PointerButton::Secondary,
+    );
+    let first = harness.get_by_label(MENU_CONTENT).rect();
+
+    slow_click(
+        &mut harness,
+        Pos2::new(300.0, 50.0),
+        PointerButton::Secondary,
+    );
+    let second = harness.query_by_label(MENU_CONTENT).map(|node| node.rect());
+    assert!(
+        second.is_some_and(|second| second.left() > first.left()),
+        "context menu should stay open and move to the second click"
+    );
+}
+
 /// Starting a drag outside a popup (e.g. on a slider) should not close it,
 /// since that is not a click.
 #[test]

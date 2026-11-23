@@ -70,6 +70,18 @@ fn hovering_should_preserve_text_format() {
     harness.snapshot("hovering_should_preserve_text_format");
 }
 
+/// Thin space (U+2009) allows a line break, but narrow no-break space (U+202F) does not.
+#[test]
+fn text_wrap_at_thin_space_but_not_narrow_no_break_space() {
+    let mut harness = Harness::builder().with_size((100.0, 100.0)).build_ui(|ui| {
+        ui.label("Sum: 123\u{2009}456\u{2009}789");
+        ui.separator();
+        ui.label("Sum: 123\u{202F}456\u{202F}789");
+    });
+    harness.fit_contents();
+    harness.snapshot("text_wrap_at_thin_space_but_not_narrow_no_break_space");
+}
+
 #[test]
 fn text_edit_rtl() {
     let mut text = "hello ".to_owned();

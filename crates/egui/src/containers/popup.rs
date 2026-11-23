@@ -551,12 +551,15 @@ impl<'a> Popup<'a> {
         // last frame. A convenient way to check this is to see if we have a response for the `Area`
         // from last frame:
         let was_open_last_frame = self.ctx.read_response(id).is_some();
+        let mut just_opened = !was_open_last_frame;
 
         let hover_pos = self.ctx.pointer_hover_pos();
         if let OpenKind::Memory { set } = self.open_kind {
             match set {
                 Some(SetOpenCommand::Bool(open)) => {
                     if open {
+                        // E.g. a context menu reopened by a second secondary click.
+                        just_opened = true;
                         match self.anchor {
                             PopupAnchor::PointerFixed => {
                                 self.ctx.memory_mut(|mem| mem.open_popup_at(id, hover_pos));
@@ -663,7 +666,7 @@ impl<'a> Popup<'a> {
         let press_started_while_open_id = id.with("press_started_while_open");
         let (any_pressed, any_click) =
             ctx.input(|i| (i.pointer.any_pressed(), i.pointer.any_click()));
-        let press_started_while_open = if !was_open_last_frame {
+        let press_started_while_open = if just_opened {
             ctx.data_mut(|d| d.remove::<bool>(press_started_while_open_id));
             false
         } else if any_pressed {

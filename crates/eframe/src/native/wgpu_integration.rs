@@ -339,6 +339,7 @@ impl<'app> WgpuWinitApp<'app> {
             window: Some(Arc::clone(&window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
+            embedded_views: integration.frame.embedded_views().clone(),
         };
         let app = {
             profiling::scope!("user_app_creator");
@@ -801,6 +802,13 @@ impl WgpuWinitRunning<'_> {
             painter.set_surface_config(surface_config);
         }
 
+        // A view below egui's surface shows through it, so the surface has to keep its alpha.
+        // It stays that way once it is: a view that was shown is likely shown again, and each
+        // switch reconfigures the surface.
+        if winit_integration::shows_views_below(&platform_output) {
+            painter.set_transparent(viewport_id, true);
+        }
+
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return Ok(EventResult::Wait);
         };
@@ -1000,7 +1008,9 @@ impl WgpuWinitRunning<'_> {
                 let physical_size = viewport_id
                     .and_then(|id| shared.viewports.get(&id))
                     .and_then(|viewport| viewport.window.as_ref())
-                    .map_or(*physical_size, |window| window.inner_size());
+                    .map_or(*physical_size, |window| {
+                        egui_wgpu::winit::surface_size(window)
+                    });
 
                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                 // See: https://github.com/rust-windowing/winit/issues/208
@@ -1306,13 +1316,23 @@ fn render_immediate_viewport(
     }
 
     let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+
+    let mut screenshot_commands = vec![];
+    viewport.actions_requested.retain(|cmd| {
+        if let ActionRequested::Screenshot(callback) = cmd {
+            screenshot_commands.push(callback.clone());
+            false
+        } else {
+            true
+        }
+    });
     painter.paint_and_update_textures(
         ids.this,
         pixels_per_point,
         [0.0, 0.0, 0.0, 0.0],
         &clipped_primitives,
         &mut viewport.pending_delta,
-        vec![],
+        screenshot_commands,
         window,
     );
 

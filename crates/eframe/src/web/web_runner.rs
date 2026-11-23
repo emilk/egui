@@ -70,6 +70,13 @@ impl WebRunner {
 
             // Don't outline the canvas when it has focus:
             canvas.style().set_property("outline", "none")?;
+
+            // The canvas is the whole app, not selectable page content.
+            // If Ctrl+A selects it, the next mouse-move starts a native
+            // browser drag of the selection, which swallows the pointer
+            // events egui needs for its own drag handling.
+            // https://github.com/emilk/egui/issues/8876
+            canvas.style().set_property("user-select", "none")?;
         }
 
         {
@@ -169,7 +176,7 @@ impl WebRunner {
     ///
     /// All events added with this method will automatically be unsubscribed on panic,
     /// or when [`Self::destroy`] is called.
-    pub fn add_event_listener<E: wasm_bindgen::JsCast>(
+    pub(crate) fn add_event_listener<E: wasm_bindgen::JsCast>(
         &self,
         target: &web_sys::EventTarget,
         event_name: &'static str,
@@ -189,7 +196,7 @@ impl WebRunner {
     ///
     /// All events added with this method will automatically be unsubscribed on panic,
     /// or when [`Self::destroy`] is called.
-    pub fn add_event_listener_ex<E: wasm_bindgen::JsCast>(
+    pub(crate) fn add_event_listener_ex<E: wasm_bindgen::JsCast>(
         &self,
         target: &web_sys::EventTarget,
         event_name: &'static str,
