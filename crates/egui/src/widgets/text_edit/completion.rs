@@ -96,6 +96,9 @@ struct CompletionState {
     /// Is the popup open? Updated at the end of each frame.
     open: bool,
 
+    /// How many suggestions the popup showed last frame.
+    num_suggestions: usize,
+
     /// The word for which the user dismissed the popup with Escape.
     /// The popup stays hidden until the word changes or the [`TextEdit`] is focused again.
     dismissed_word: Option<String>,
@@ -340,10 +343,20 @@ impl<'a> CompletionPopup<'a> {
         // Don't show the popup in the frame we accept, to avoid a one-frame flash of stale suggestions:
         let is_open = response.has_focus() && !suggestions.is_empty() && accepted_index.is_none();
 
+        // An open popup keeps its size, and the `ScrollArea` in it won't grow it,
+        // so resize it when the number of suggestions changes:
+        let resize = is_open && state.open && suggestions.len() != state.num_suggestions;
+        if resize {
+            ui.ctx()
+                .request_discard("CompletionPopup: number of suggestions changed");
+        }
+        state.num_suggestions = suggestions.len();
+
         let clicked = Popup::from_response(&response)
             .id(popup_id)
             .kind(PopupKind::Popup)
             .open(is_open)
+            .sizing_pass(resize)
             .align(align)
             .align_alternatives(&[align.flipped_y()])
             .width(response.rect.width())

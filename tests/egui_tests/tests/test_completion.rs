@@ -325,3 +325,39 @@ fn clicking_a_suggestion_with_cursor_mid_text() {
         assert!(text_input_has_focus(&harness), "{surrender_focus_on:?}");
     }
 }
+
+/// The popup must fit its suggestions however we got to them (#8893).
+#[test]
+fn popup_grows_when_suggestions_are_added() {
+    let popup_height = |harness: &Harness<'_, State>| {
+        harness
+            .ctx
+            .memory(|mem| mem.area_rect(id().with("completion_popup")))
+            .unwrap()
+            .height()
+    };
+
+    let mut harness = harness();
+    text_input(&harness).type_text("/");
+    harness.run();
+    let all_commands_height = popup_height(&harness);
+
+    text_input(&harness).type_text("gr");
+    harness.run();
+    assert!(popup_height(&harness) < all_commands_height);
+
+    harness.key_press(Key::Backspace);
+    harness.run();
+    // Check the frame in which the suggestions are added, so the popup doesn't blink:
+    harness.event(egui::Event::Key {
+        key: Key::Backspace,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: Modifiers::NONE,
+    });
+    harness.step();
+    assert_eq!(harness.state().text, "/");
+    assert_eq!(popup_height(&harness), all_commands_height);
+    assert!(harness.query_by_label("/help ").is_some());
+}
