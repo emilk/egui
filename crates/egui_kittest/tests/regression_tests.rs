@@ -1051,6 +1051,37 @@ pub fn drag_value_should_report_changes_while_typing_with_update_while_editing()
     );
 }
 
+/// With `update_while_editing(false)`, pressing Escape must discard the typed text,
+/// also on the frames after the one where Escape was pressed.
+#[test]
+pub fn drag_value_should_discard_typed_text_on_escape_without_update_while_editing() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut f64| {
+            ui.add(egui::DragValue::new(value).update_while_editing(false))
+                .on_hover_text("Value");
+        },
+        50.0,
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    harness
+        .get_by_role(accesskit::Role::SpinButton)
+        .type_text("7");
+    harness.run();
+
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+
+    assert_eq!(
+        harness.state(),
+        &50.0,
+        "Escape should discard the typed text"
+    );
+}
+
 /// <https://github.com/emilk/egui/issues/8620>
 #[test]
 pub fn scene_with_zero_rect_and_unbounded_zoom_should_not_produce_nan() {
