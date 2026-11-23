@@ -156,6 +156,33 @@ fn escape_closes_popup_and_keeps_focus() {
     text_input(&harness).type_text("o");
     harness.run();
     assert!(harness.state().popup_open);
+
+    // Going back to the dismissed word keeps it open:
+    harness.key_press(Key::Backspace);
+    harness.run();
+    assert_eq!(harness.state().text, "/c");
+    assert!(harness.state().popup_open);
+}
+
+#[test]
+fn refocusing_reopens_dismissed_popup() {
+    let mut harness = harness();
+    text_input(&harness).type_text("/c");
+    harness.run();
+    harness.key_press(Key::Escape);
+    harness.run();
+    assert!(!harness.state().popup_open);
+
+    harness
+        .ctx
+        .memory_mut(|memory| memory.surrender_focus(id()));
+    harness.run();
+    assert!(!text_input_has_focus(&harness));
+
+    text_input(&harness).focus();
+    harness.run();
+    assert!(text_input_has_focus(&harness));
+    assert!(harness.state().popup_open);
 }
 
 #[test]
