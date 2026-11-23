@@ -8,6 +8,19 @@ use crate::class::HasClasses as _;
 use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 use emath::GuiRounding as _;
 
+/// Stored state for [`Ui::delayed_highlight`].
+#[derive(Clone, Copy, Debug, Default)]
+struct DelayedHighlightState {
+    /// When the thing started being hovered or active.
+    hover_start: Option<f64>,
+
+    /// The strength returned last time.
+    strength: f32,
+
+    /// The [`Context::cumulative_frame_nr`] of the last update.
+    frame_nr: u64,
+}
+
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -934,6 +947,117 @@ impl Ui {
     /// Pretend like `count` widgets have been allocated, advancing [`Self::next_auto_id`].
     pub fn skip_ahead_auto_ids(&mut self, count: usize) {
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(count as u64);
+    }
+}
+
+/// # Animation
+impl Ui {
+    /// How strongly to show a hover highlight, in the range [0, 1].
+    ///
+    /// Returns `0.0` until `state` has been [`HighlightState::Hovered`] for [`DelayedHighlight::delay`] seconds,
+    /// then fades in (with [`DelayedHighlight::easing`]) to `1.0` over [`Style::animation_time`].
+    /// The settings come from [`Style::hover_highlight`].
+    ///
+    /// This avoids distracting flashes when the pointer merely passes over something,
+    /// e.g. the resize line between panels.
+    ///
+    /// The delay is primarily intended for large highlights, i.e. ones that cover a lot of
+    /// the screen (like a resize line along a whole panel), where flashing is distracting.
+    /// Small highlights, like on a button, should usually show right away.
+    ///
+    /// While [`HighlightState::Active`], returns `1.0` right away.
+    /// When [`HighlightState::Idle`], `fade_out` decides how the highlight disappears.
+    ///
+    /// The `id` must be unique for the thing being highlighted.
+    /// Requests a repaint when needed.
+    #[track_caller] // To track repaint cause
+    pub fn delayed_highlight(&self, id: Id, state: HighlightState, fade_out: FadeOut) -> f32 {
+        let ctx = self.ctx();
+        let style = self.style();
+        let animation_time = style.animation_time;
+        let highlight = style.hover_highlight;
+
+        let state_id = id.with("delayed_highlight");
+        let frame_nr = ctx.cumulative_frame_nr();
+        let (now, dt) = self.input(|i| (i.time, i.stable_dt));
+
+        // Forget state that wasn't updated last frame,
+        // e.g. if the thing was hidden while hovered:
+        let previous = ctx
+            .data(|data| data.get_temp::<DelayedHighlightState>(state_id))
+            .filter(|state| frame_nr <= state.frame_nr + 1)
+            .unwrap_or_default();
+
+        let hover_start =
+            (state != HighlightState::Idle).then(|| previous.hover_start.unwrap_or(now));
+
+        let strength = if state == HighlightState::Active {
+            1.0
+        } else if let Some(hover_start) = hover_start {
+            let hover_duration = (now - hover_start) as f32;
+            if hover_duration < highlight.delay {
+                ctx.request_repaint_after_secs(highlight.delay - hover_duration);
+            } else if hover_duration < highlight.delay + animation_time {
+                ctx.request_repaint();
+            }
+            highlight
+                .strength(animation_time, hover_duration)
+                .max(previous.strength)
+        } else {
+            match fade_out {
+                FadeOut::Instant => 0.0,
+                FadeOut::Animated => {
+                    let faded = if 0.0 < animation_time {
+                        (previous.strength - dt / animation_time).max(0.0)
+                    } else {
+                        0.0
+                    };
+                    if 0.0 < faded {
+                        ctx.request_repaint();
+                    }
+                    faded
+                }
+            }
+        };
+
+        ctx.data_mut(|data| {
+            if hover_start.is_none() && strength <= 0.0 {
+                data.remove_temp::<DelayedHighlightState>(state_id);
+            } else {
+                data.insert_temp(
+                    state_id,
+                    DelayedHighlightState {
+                        hover_start,
+                        strength,
+                        frame_nr,
+                    },
+                );
+            }
+        });
+
+        strength
+    }
+
+    /// The stroke of a resize line, e.g. the splitter between two panels.
+    ///
+    /// While [`HighlightState::Hovered`], fades from `idle_stroke` to the hovered stroke of
+    /// [`Visuals::widgets`] using [`Self::delayed_highlight`], so the line doesn't flash every
+    /// time the pointer passes over it.
+    /// While [`HighlightState::Active`], shows the active stroke right away.
+    ///
+    /// Call this every frame, also when idle.
+    /// The `id` must be unique for the resize line.
+    #[track_caller] // To track repaint cause
+    pub fn resize_line_stroke(&self, id: Id, state: HighlightState, idle_stroke: Stroke) -> Stroke {
+        let strength = self.delayed_highlight(id, state, FadeOut::Instant);
+
+        let widgets = &self.visuals().widgets;
+        match state {
+            HighlightState::Active => widgets.active.fg_stroke,
+            HighlightState::Idle | HighlightState::Hovered => {
+                DelayedHighlight::fade_stroke(idle_stroke, widgets.hovered.fg_stroke, strength)
+            }
+        }
     }
 }
 

@@ -36,7 +36,9 @@ use log::warn;
 
 use super::{
     epi_integration, event_loop_context,
-    winit_integration::{EventResult, PassMode, UserEvent, WinitApp, create_egui_context},
+    winit_integration::{
+        EventResult, PassMode, UserEvent, WinitApp, create_egui_context, shows_views_below,
+    },
 };
 use crate::epaint::textures::TexturesDelta;
 use crate::{
@@ -78,6 +80,9 @@ struct GlowWinitRunning<'app> {
 
     /// Any not yet applied deltas for this app.
     pending_deltas: TexturesDelta,
+
+    /// Set once we warned that a view below egui's surface can't show through it.
+    warned_about_opaque_surface: bool,
 }
 
 impl Drop for GlowWinitRunning<'_> {
@@ -462,6 +467,7 @@ impl<'app> GlowWinitApp<'app> {
             glutin,
             painter,
             pending_deltas: Default::default(),
+            warned_about_opaque_surface: false,
         }))
     }
 }
@@ -822,6 +828,7 @@ impl GlowWinitRunning<'_> {
             glutin,
             painter,
             pending_deltas,
+            warned_about_opaque_surface,
             ..
         } = self;
 
@@ -850,6 +857,17 @@ impl GlowWinitRunning<'_> {
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return Ok(EventResult::Wait);
         };
+
+        // Unlike with wgpu, the GL surface can't be made transparent after it was created.
+        if !*warned_about_opaque_surface
+            && viewport.builder.transparent != Some(true)
+            && shows_views_below(&platform_output)
+        {
+            *warned_about_opaque_surface = true;
+            log::warn!(
+                "An embedded view below egui's surface is shown, but the glow renderer can't make the surface transparent. Create the window with `ViewportBuilder::with_transparent(true)`, or use the wgpu renderer."
+            );
+        }
 
         viewport.info.events.clear(); // they should have been processed
         let window = viewport.window.clone().unwrap();
