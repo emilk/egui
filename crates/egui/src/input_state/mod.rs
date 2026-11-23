@@ -3,6 +3,7 @@ mod wheel_state;
 
 use crate::{
     MouseWheelSource, SafeAreaInsets,
+    data::{FullKey, KeyVariant, input::KeyEvent},
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
 };
@@ -15,9 +16,7 @@ use crate::{
 };
 use alloc::collections::BTreeMap;
 use core::time::Duration;
-use std::collections::HashSet;
 
-pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
@@ -318,10 +317,14 @@ pub struct InputState {
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
 
-    /// The keys that are currently being held down.
+    /// The keys that are currently being held down, in the order they were pressed.
     ///
     /// Keys released this frame are NOT considered down.
-    pub keys_down: HashSet<Key>,
+    ///
+    /// Each entry retains the logical key from its initial press, even if modifiers change.
+    /// Releases are paired with presses via [`FullKey::is_same_key`], using physical keys when
+    /// both are available. See [`crate::Key`] for platform differences in logical keys.
+    pub keys_down: Vec<FullKey>,
 
     /// In-order events received this frame
     pub events: Vec<Event>,
@@ -400,17 +403,22 @@ impl InputState {
 
         for event in &mut new.events {
             match event {
-                Event::Key {
+                Event::Key(KeyEvent {
                     key,
                     pressed,
                     repeat,
                     ..
-                } => {
+                }) => {
+                    let held = keys_down.iter().position(|held| held.is_same_key(key));
                     if *pressed {
-                        let first_press = keys_down.insert(*key);
-                        *repeat = !first_press;
-                    } else {
-                        keys_down.remove(key);
+                        *repeat = held.is_some();
+                        if held.is_none() {
+                            keys_down.push(key.clone());
+                        }
+                    } else if let Some(held) = held {
+                        // Report the release with the key as it was pressed,
+                        // in case the logical key changed in between (e.g. `Shift` was pressed on web).
+                        *key = keys_down.remove(held);
                     }
                 }
                 Event::MouseWheel {
@@ -704,24 +712,36 @@ impl InputState {
     ///
     /// Includes key-repeat events.
     ///
+    /// The key variant determines how each press is matched:
+    /// - [`KeyVariant::Logical`] compares logical keys exactly, including character case.
+    /// - [`KeyVariant::Physical`] compares physical keys when available.
+    /// - [`KeyVariant::Shortcut`] compares against the event's [`FullKey::shortcut_key`].
+    ///
+    /// Logical keys may depend on modifiers and platform; see [`crate::Key`].
+    ///
     /// This uses [`Modifiers::matches_logically`] to match modifiers,
     /// meaning extra Shift and Alt modifiers are ignored.
     /// Therefore, you should match most specific shortcuts first,
     /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
     /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
-    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> usize {
+    pub fn count_and_consume_key(
+        &mut self,
+        modifiers: Modifiers,
+        key: impl Into<KeyVariant>,
+    ) -> usize {
+        let key = key.into();
         let mut count = 0usize;
 
         self.events.retain(|event| {
-            let is_match = matches!(
-                event,
-                Event::Key {
+            let is_match = match event {
+                Event::Key(KeyEvent {
                     key: ev_key,
                     modifiers: ev_mods,
                     pressed: true,
                     ..
-                } if *ev_key == logical_key && ev_mods.matches_logically(modifiers)
-            );
+                }) => ev_mods.matches_logically(modifiers) && key.equivalent(ev_key),
+                _ => false,
+            };
 
             count += is_match as usize;
 
@@ -735,13 +755,15 @@ impl InputState {
     ///
     /// Includes key-repeat events.
     ///
+    /// See [`Self::count_and_consume_key`] for key matching.
+    ///
     /// This uses [`Modifiers::matches_logically`] to match modifiers,
     /// meaning extra Shift and Alt modifiers are ignored.
     /// Therefore, you should match most specific shortcuts first,
     /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
     /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
-    pub fn consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> bool {
-        self.count_and_consume_key(modifiers, logical_key) > 0
+    pub fn consume_key(&mut self, modifiers: Modifiers, key: impl Into<KeyVariant>) -> bool {
+        self.count_and_consume_key(modifiers, key) > 0
     }
 
     /// Check if the given shortcut has been pressed.
@@ -754,31 +776,30 @@ impl InputState {
     /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
     /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
     pub fn consume_shortcut(&mut self, shortcut: &KeyboardShortcut) -> bool {
-        let KeyboardShortcut {
-            modifiers,
-            logical_key,
-        } = *shortcut;
-        self.consume_key(modifiers, logical_key)
+        self.consume_key(shortcut.modifiers, shortcut.shortcut_key.clone())
     }
 
     /// Was the given key pressed this frame?
     ///
     /// Includes key-repeat events.
-    pub fn key_pressed(&self, desired_key: Key) -> bool {
+    ///
+    /// See [`Self::count_and_consume_key`] for how the different [`KeyVariant`]s are matched.
+    pub fn key_pressed(&self, desired_key: impl Into<KeyVariant>) -> bool {
         self.num_presses(desired_key) > 0
     }
 
     /// How many times was the given key pressed this frame?
     ///
     /// Includes key-repeat events.
-    pub fn num_presses(&self, desired_key: Key) -> usize {
+    pub fn num_presses(&self, desired_key: impl Into<KeyVariant>) -> usize {
+        let desired_key = desired_key.into();
         self.events
             .iter()
             .filter(|event| {
                 matches!(
                     event,
-                    Event::Key { key, pressed: true, .. }
-                    if *key == desired_key
+                    Event::Key (KeyEvent{ key, pressed: true, .. })
+                    if desired_key.equivalent(key)
                 )
             })
             .count()
@@ -787,20 +808,29 @@ impl InputState {
     /// Is the given key currently held down?
     ///
     /// Keys released this frame are NOT considered down.
-    pub fn key_down(&self, desired_key: Key) -> bool {
-        self.keys_down.contains(&desired_key)
+    ///
+    /// Matching uses the key recorded at the initial press, not the current modifier state.
+    /// See [`Self::count_and_consume_key`] for key matching and [`crate::Key`] for platform
+    /// differences in logical keys.
+    pub fn key_down(&self, desired_key: impl Into<KeyVariant>) -> bool {
+        let desired_key = desired_key.into();
+        self.keys_down.iter().any(|key| desired_key.equivalent(key))
     }
 
     /// Was the given key released this frame?
-    pub fn key_released(&self, desired_key: Key) -> bool {
+    ///
+    /// When a release matches a held key, its key is replaced by the key recorded at the
+    /// initial press. See [`FullKey::is_same_key`] for how releases are paired with presses.
+    pub fn key_released(&self, desired_key: impl Into<KeyVariant>) -> bool {
+        let desired_key = desired_key.into();
         self.events.iter().any(|event| {
             matches!(
                 event,
-                Event::Key {
+                Event::Key (KeyEvent{
                     key,
                     pressed: false,
                     ..
-                } if *key == desired_key
+                }) if desired_key.equivalent(key)
             )
         })
     }

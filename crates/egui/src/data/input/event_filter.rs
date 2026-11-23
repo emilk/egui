@@ -48,12 +48,16 @@ impl Default for EventFilter {
 
 impl EventFilter {
     pub fn matches(&self, event: &Event) -> bool {
-        if let Event::Key { key, .. } = event {
-            match key {
-                crate::Key::Tab => self.tab,
-                crate::Key::ArrowUp | crate::Key::ArrowDown => self.vertical_arrows,
-                crate::Key::ArrowRight | crate::Key::ArrowLeft => self.horizontal_arrows,
-                crate::Key::Escape => self.escape,
+        if let Event::Key(crate::KeyEvent { key, .. }) = event {
+            match key.logical {
+                crate::Key::Named(crate::NamedKey::Tab) => self.tab,
+                crate::Key::Named(crate::NamedKey::ArrowUp | crate::NamedKey::ArrowDown) => {
+                    self.vertical_arrows
+                }
+                crate::Key::Named(crate::NamedKey::ArrowRight | crate::NamedKey::ArrowLeft) => {
+                    self.horizontal_arrows
+                }
+                crate::Key::Named(crate::NamedKey::Escape) => self.escape,
                 _ => true,
             }
         } else {

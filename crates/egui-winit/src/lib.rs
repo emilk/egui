@@ -27,6 +27,7 @@ mod macos_scroll_momentum;
 pub mod clipboard;
 #[cfg(not(target_arch = "wasm32"))]
 mod dropped_file;
+mod physical_key;
 mod safe_area;
 mod window_settings;
 
@@ -43,6 +44,8 @@ use winit::{
     event_loop::ActiveEventLoop,
     window::{CursorGrabMode, CustomCursor, Window, WindowButtons, WindowLevel},
 };
+
+use crate::physical_key::physical_key_from_winit;
 
 pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
     let size = if cfg!(target_os = "ios") {
@@ -1098,30 +1101,26 @@ impl State {
             // layout. (This value is `KeyCode::KeyW` for the Z key on an AZERTY layout.)
             physical_key,
 
-            // Represents the results of a keymap, i.e. what character a certain key press represents.
-            // When telling users "Press Ctrl-F to find", this is where we should
-            // look for the "F" key, because they may have a dvorak layout on
-            // a qwerty keyboard, and so the logical "F" character may not be located on the physical `KeyCode::KeyF` position.
+            // Keypad keys retain their modifier-sensitive meaning (notably Num Lock).
+            // Other keys use `logical_key_without_modifiers`.
             logical_key: winit_logical_key,
 
             text,
 
             state,
 
-            location: _, // e.g. is it on the numpad?
+            location,
             repeat: _,   // egui will figure this out for us
             ..
         } = event;
 
         let pressed = *state == winit::event::ElementState::Pressed;
 
-        let physical_key = if let winit::keyboard::PhysicalKey::Code(keycode) = *physical_key {
-            key_from_key_code(keycode)
-        } else {
-            None
-        };
+        let physical_key = physical_key_from_winit(*physical_key);
 
-        let logical_key = key_from_winit_key(winit_logical_key);
+        let logical_key = key_from_winit_location(*location, winit_logical_key, || {
+            logical_key_without_modifiers(event)
+        });
 
         // Helpful logging to enable when adding new key support
         log::trace!(
@@ -1132,19 +1131,20 @@ impl State {
             physical_key
         );
 
-        // "Logical OR physical key" is a fallback mechanism for keyboard layouts without Latin characters: it lets them
-        // emit events as if the corresponding keys from the Latin layout were pressed. In this case, clipboard shortcuts
-        // are mapped to the physical keys that normally contain C, X, V, etc.
-        // See also: https://github.com/emilk/egui/issues/3653
-        if let Some(active_key) = logical_key.or(physical_key) {
+        let key = egui::FullKey::new(logical_key, physical_key);
+        if key.is_identified() {
             if pressed && self.clipboard_shortcuts {
-                if is_cut_command(self.modifiers, active_key) {
+                // On non-Latin layouts, clipboard shortcuts use the physical keys
+                // that normally contain C, X, V, etc. (see `Key::shortcut_key`).
+                // See also: https://github.com/emilk/egui/issues/3653
+                let shortcut_key = key.shortcut_key();
+                if is_cut_command(self.modifiers, &shortcut_key) {
                     self.egui_input.events.push(egui::Event::Cut);
                     return;
-                } else if is_copy_command(self.modifiers, active_key) {
+                } else if is_copy_command(self.modifiers, &shortcut_key) {
                     self.egui_input.events.push(egui::Event::Copy);
                     return;
-                } else if is_paste_command(self.modifiers, active_key) {
+                } else if is_paste_command(self.modifiers, &shortcut_key) {
                     if let Some(contents) = self.clipboard.get() {
                         let contents = contents.replace("\r\n", "\n");
                         if !contents.is_empty() {
@@ -1163,13 +1163,14 @@ impl State {
                 }
             }
 
-            self.egui_input.events.push(egui::Event::Key {
-                key: active_key,
-                physical_key,
-                pressed,
-                repeat: false, // egui will fill this in for us!
-                modifiers: self.modifiers,
-            });
+            self.egui_input
+                .events
+                .push(egui::Event::Key(egui::KeyEvent {
+                    key,
+                    pressed,
+                    repeat: false, // egui will fill this in for us!
+                    modifiers: self.modifiers,
+                }));
         }
 
         if let Some(text) = text
@@ -1541,7 +1542,7 @@ fn open_url_in_browser(_url: &str) {
 /// Winit sends special keys (backspace, delete, F1, …) as characters.
 /// Ignore those.
 /// We also ignore '\r', '\n', '\t'.
-/// Newlines are handled by the `Key::Enter` event.
+/// Newlines are handled by the `NamedKey::Enter` event.
 fn is_printable_char(chr: char) -> bool {
     let is_in_private_use_area = '\u{e000}' <= chr && chr <= '\u{f8ff}'
         || '\u{f0000}' <= chr && chr <= '\u{ffffd}'
@@ -1550,22 +1551,28 @@ fn is_printable_char(chr: char) -> bool {
     !is_in_private_use_area && !chr.is_ascii_control()
 }
 
-fn is_cut_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
-    keycode == egui::Key::Cut
-        || (modifiers.command_only() && keycode == egui::Key::X)
-        || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Delete)
+fn is_cut_command(modifiers: egui::Modifiers, keycode: &egui::ShortcutKey) -> bool {
+    use egui::{NamedKey, ShortcutKey};
+
+    **keycode == NamedKey::Cut
+        || (modifiers.command_only() && *keycode == ShortcutKey::simple("x"))
+        || (cfg!(target_os = "windows") && modifiers.shift && **keycode == NamedKey::Delete)
 }
 
-fn is_copy_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
-    keycode == egui::Key::Copy
-        || (modifiers.command_only() && keycode == egui::Key::C)
-        || (cfg!(target_os = "windows") && modifiers.ctrl && keycode == egui::Key::Insert)
+fn is_copy_command(modifiers: egui::Modifiers, keycode: &egui::ShortcutKey) -> bool {
+    use egui::{NamedKey, ShortcutKey};
+
+    **keycode == NamedKey::Copy
+        || (modifiers.command_only() && *keycode == ShortcutKey::simple("c"))
+        || (cfg!(target_os = "windows") && modifiers.ctrl && **keycode == NamedKey::Insert)
 }
 
-fn is_paste_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
-    keycode == egui::Key::Paste
-        || (modifiers.command_only() && keycode == egui::Key::V)
-        || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Insert)
+fn is_paste_command(modifiers: egui::Modifiers, keycode: &egui::ShortcutKey) -> bool {
+    use egui::{NamedKey, ShortcutKey};
+
+    **keycode == NamedKey::Paste
+        || (modifiers.command_only() && *keycode == ShortcutKey::simple("v"))
+        || (cfg!(target_os = "windows") && modifiers.shift && **keycode == NamedKey::Insert)
 }
 
 fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::PointerButton> {
@@ -1579,289 +1586,174 @@ fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::Poi
     }
 }
 
-fn key_from_winit_key(key: &winit::keyboard::Key) -> Option<egui::Key> {
-    match key {
-        winit::keyboard::Key::Named(named_key) => key_from_named_key(*named_key),
-        winit::keyboard::Key::Character(str) => egui::Key::from_name(str.as_str()),
-        winit::keyboard::Key::Unidentified(_) | winit::keyboard::Key::Dead(_) => None,
+/// Keep Num Lock's effect on keypad keys, but ignore modifiers for other keys.
+fn key_from_winit_location(
+    location: winit::keyboard::KeyLocation,
+    logical: &winit::keyboard::Key,
+    without_modifiers: impl FnOnce() -> winit::keyboard::Key,
+) -> egui::Key {
+    if location == winit::keyboard::KeyLocation::Numpad {
+        key_from_winit_key(logical)
+    } else {
+        key_from_winit_key(&without_modifiers())
     }
 }
 
-fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key> {
-    use egui::Key;
-    use winit::keyboard::NamedKey;
+#[test]
+fn numpad_key_preserves_num_lock() {
+    use winit::keyboard::{Key, KeyLocation, NamedKey};
 
-    Some(match named_key {
-        NamedKey::Enter => Key::Enter,
-        NamedKey::Tab => Key::Tab,
-        NamedKey::ArrowDown => Key::ArrowDown,
-        NamedKey::ArrowLeft => Key::ArrowLeft,
-        NamedKey::ArrowRight => Key::ArrowRight,
-        NamedKey::ArrowUp => Key::ArrowUp,
-        NamedKey::End => Key::End,
-        NamedKey::Home => Key::Home,
-        NamedKey::PageDown => Key::PageDown,
-        NamedKey::PageUp => Key::PageUp,
-        NamedKey::Backspace => Key::Backspace,
-        NamedKey::Delete => Key::Delete,
-        NamedKey::Insert => Key::Insert,
-        NamedKey::Escape => Key::Escape,
-        NamedKey::Cut => Key::Cut,
-        NamedKey::Copy => Key::Copy,
-        NamedKey::Paste => Key::Paste,
+    for (character, navigation) in [("1", NamedKey::End), (".", NamedKey::Delete)] {
+        let numeric = Key::Character(character.into());
+        let navigation = Key::Named(navigation);
+        assert_eq!(
+            key_from_winit_location(KeyLocation::Numpad, &numeric, || navigation.clone()),
+            egui::Key::character(character)
+        );
+        assert_eq!(
+            key_from_winit_location(KeyLocation::Numpad, &navigation, || navigation.clone()),
+            key_from_winit_key(&navigation)
+        );
+    }
 
-        NamedKey::Space => Key::Space,
-
-        NamedKey::F1 => Key::F1,
-        NamedKey::F2 => Key::F2,
-        NamedKey::F3 => Key::F3,
-        NamedKey::F4 => Key::F4,
-        NamedKey::F5 => Key::F5,
-        NamedKey::F6 => Key::F6,
-        NamedKey::F7 => Key::F7,
-        NamedKey::F8 => Key::F8,
-        NamedKey::F9 => Key::F9,
-        NamedKey::F10 => Key::F10,
-        NamedKey::F11 => Key::F11,
-        NamedKey::F12 => Key::F12,
-        NamedKey::F13 => Key::F13,
-        NamedKey::F14 => Key::F14,
-        NamedKey::F15 => Key::F15,
-        NamedKey::F16 => Key::F16,
-        NamedKey::F17 => Key::F17,
-        NamedKey::F18 => Key::F18,
-        NamedKey::F19 => Key::F19,
-        NamedKey::F20 => Key::F20,
-        NamedKey::F21 => Key::F21,
-        NamedKey::F22 => Key::F22,
-        NamedKey::F23 => Key::F23,
-        NamedKey::F24 => Key::F24,
-        NamedKey::F25 => Key::F25,
-        NamedKey::F26 => Key::F26,
-        NamedKey::F27 => Key::F27,
-        NamedKey::F28 => Key::F28,
-        NamedKey::F29 => Key::F29,
-        NamedKey::F30 => Key::F30,
-        NamedKey::F31 => Key::F31,
-        NamedKey::F32 => Key::F32,
-        NamedKey::F33 => Key::F33,
-        NamedKey::F34 => Key::F34,
-        NamedKey::F35 => Key::F35,
-
-        NamedKey::BrowserBack => Key::BrowserBack,
-        NamedKey::BrowserForward => Key::BrowserForward,
-        NamedKey::BrowserRefresh => Key::BrowserRefresh,
-        NamedKey::BrowserSearch => Key::BrowserSearch,
-        NamedKey::BrowserHome => Key::BrowserHome,
-        NamedKey::BrowserFavorites => Key::BrowserFavorites,
-        NamedKey::BrowserStop => Key::BrowserStop,
-
-        NamedKey::MediaPlayPause => Key::MediaPlayPause,
-        NamedKey::MediaTrackNext => Key::MediaTrackNext,
-        NamedKey::MediaTrackPrevious => Key::MediaTrackPrevious,
-        NamedKey::MediaStop => Key::MediaStop,
-        NamedKey::AudioVolumeMute => Key::AudioVolumeMute,
-        NamedKey::AudioVolumeDown => Key::AudioVolumeDown,
-        NamedKey::AudioVolumeUp => Key::AudioVolumeUp,
-
-        NamedKey::LaunchMail => Key::LaunchMail,
-        NamedKey::LaunchApplication1 => Key::LaunchApp1,
-        NamedKey::LaunchApplication2 => Key::LaunchApp2,
-
-        NamedKey::CapsLock => Key::CapsLock,
-        NamedKey::NumLock => Key::NumLock,
-        NamedKey::ScrollLock => Key::ScrollLock,
-        NamedKey::PrintScreen => Key::PrintScreen,
-        NamedKey::Pause => Key::Pause,
-        NamedKey::ContextMenu => Key::Menu,
-
-        NamedKey::Fn => Key::Fn,
-        NamedKey::Eject => Key::Eject,
-        NamedKey::Help => Key::Help,
-        NamedKey::Power => Key::Power,
-        NamedKey::Standby => Key::Sleep,
-        NamedKey::Clear => Key::Clear,
-
-        _ => {
-            log::trace!("Unknown key: {named_key:?}");
-            return None;
-        }
-    })
+    assert_eq!(
+        key_from_winit_location(KeyLocation::Standard, &Key::Character("!".into()), || {
+            Key::Character("1".into())
+        }),
+        egui::Key::character("1")
+    );
 }
 
-fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
-    use egui::Key;
-    use winit::keyboard::KeyCode;
+/// The logical key of `event` without modifiers on platforms that provide it.
+///
+/// For example, on a US layout `Shift+A` is `"a"` and `Shift+1` is `"1"`.
+/// The resulting text, which depends on modifiers, is sent separately as [`egui::Event::Text`].
+///
+/// On platforms without `key_without_modifiers` (including Android, iOS, and web),
+/// this falls back to [`winit::event::KeyEvent::logical_key`], which may include modifier effects.
+#[cfg(any(
+    target_os = "windows",
+    target_os = "macos",
+    target_os = "redox",
+    all(
+        any(feature = "x11", feature = "wayland"),
+        unix,
+        not(any(
+            target_os = "ios",
+            target_os = "macos",
+            target_os = "android",
+            target_os = "emscripten",
+            target_os = "redox"
+        ))
+    )
+))]
+fn logical_key_without_modifiers(event: &winit::event::KeyEvent) -> winit::keyboard::Key {
+    use winit::platform::modifier_supplement::KeyEventExtModifierSupplement as _;
+    event.key_without_modifiers()
+}
 
-    Some(match key {
-        KeyCode::ArrowDown => Key::ArrowDown,
-        KeyCode::ArrowLeft => Key::ArrowLeft,
-        KeyCode::ArrowRight => Key::ArrowRight,
-        KeyCode::ArrowUp => Key::ArrowUp,
+/// `winit::platform::modifier_supplement` is unavailable on this target/feature set.
+#[cfg(not(any(
+    target_os = "windows",
+    target_os = "macos",
+    target_os = "redox",
+    all(
+        any(feature = "x11", feature = "wayland"),
+        unix,
+        not(any(
+            target_os = "ios",
+            target_os = "macos",
+            target_os = "android",
+            target_os = "emscripten",
+            target_os = "redox"
+        ))
+    )
+)))]
+fn logical_key_without_modifiers(event: &winit::event::KeyEvent) -> winit::keyboard::Key {
+    event.logical_key.clone()
+}
 
-        KeyCode::Escape => Key::Escape,
-        KeyCode::Tab => Key::Tab,
-        KeyCode::Backspace => Key::Backspace,
-        KeyCode::Enter | KeyCode::NumpadEnter => Key::Enter,
+/// Keys egui can't represent become [`egui::NamedKey::Unidentified`].
+fn key_from_winit_key(key: &winit::keyboard::Key) -> egui::Key {
+    match key {
+        winit::keyboard::Key::Named(named_key) => key_from_named_key(*named_key),
+        winit::keyboard::Key::Character(str) => egui::Key::Character(str.as_str().into()),
+        winit::keyboard::Key::Unidentified(_) => egui::Key::Named(egui::NamedKey::Unidentified),
+        winit::keyboard::Key::Dead(_) => egui::Key::Named(egui::NamedKey::Dead),
+    }
+}
 
-        KeyCode::Insert => Key::Insert,
-        KeyCode::Delete => Key::Delete,
-        KeyCode::Home => Key::Home,
-        KeyCode::End => Key::End,
-        KeyCode::PageUp => Key::PageUp,
-        KeyCode::PageDown => Key::PageDown,
+/// winit's `NamedKey` is a fork of `keyboard-types`' [`egui::NamedKey`],
+/// so apart from `Space`, `Super` and `Meta` this maps identically named variants.
+#[expect(
+    deprecated,
+    reason = "egui::NamedKey::Hyper and egui::NamedKey::Super are deprecated, but winit still reports them"
+)]
+fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> egui::Key {
+    use winit::keyboard::NamedKey as W;
 
-        // Punctuation
-        KeyCode::Space => Key::Space,
-        KeyCode::Comma => Key::Comma,
-        KeyCode::Period => Key::Period,
-        // KeyCode::Colon => Key::Colon, // NOTE: there is no physical colon key on an american keyboard
-        KeyCode::Semicolon => Key::Semicolon,
-        KeyCode::Backslash => Key::Backslash,
-        KeyCode::Slash | KeyCode::NumpadDivide => Key::Slash,
-        KeyCode::BracketLeft => Key::OpenBracket,
-        KeyCode::BracketRight => Key::CloseBracket,
-        KeyCode::Backquote => Key::Backtick,
-        KeyCode::Quote => Key::Quote,
+    macro_rules! map_named_key {
+        ($($variant:ident)*) => {
+            match named_key {
+                // In the W3C spec (and egui), space is the character it produces.
+                W::Space => return egui::Key::character(" "),
 
-        KeyCode::Cut => Key::Cut,
-        KeyCode::Copy => Key::Copy,
-        KeyCode::Paste => Key::Paste,
-        KeyCode::Minus | KeyCode::NumpadSubtract => Key::Minus,
-        KeyCode::NumpadAdd => Key::Plus,
-        KeyCode::Equal => Key::Equals,
+                // winit calls the W3C `Meta` key (Windows logo / `⌘`) `Super`,
+                // and the legacy W3C `Super` key `Meta`.
+                W::Super => egui::NamedKey::Meta,
+                W::Meta => egui::NamedKey::Super,
+                W::Hyper => egui::NamedKey::Hyper,
 
-        KeyCode::Digit0 | KeyCode::Numpad0 => Key::Num0,
-        KeyCode::Digit1 | KeyCode::Numpad1 => Key::Num1,
-        KeyCode::Digit2 | KeyCode::Numpad2 => Key::Num2,
-        KeyCode::Digit3 | KeyCode::Numpad3 => Key::Num3,
-        KeyCode::Digit4 | KeyCode::Numpad4 => Key::Num4,
-        KeyCode::Digit5 | KeyCode::Numpad5 => Key::Num5,
-        KeyCode::Digit6 | KeyCode::Numpad6 => Key::Num6,
-        KeyCode::Digit7 | KeyCode::Numpad7 => Key::Num7,
-        KeyCode::Digit8 | KeyCode::Numpad8 => Key::Num8,
-        KeyCode::Digit9 | KeyCode::Numpad9 => Key::Num9,
+                $(W::$variant => egui::NamedKey::$variant,)*
 
-        KeyCode::KeyA => Key::A,
-        KeyCode::KeyB => Key::B,
-        KeyCode::KeyC => Key::C,
-        KeyCode::KeyD => Key::D,
-        KeyCode::KeyE => Key::E,
-        KeyCode::KeyF => Key::F,
-        KeyCode::KeyG => Key::G,
-        KeyCode::KeyH => Key::H,
-        KeyCode::KeyI => Key::I,
-        KeyCode::KeyJ => Key::J,
-        KeyCode::KeyK => Key::K,
-        KeyCode::KeyL => Key::L,
-        KeyCode::KeyM => Key::M,
-        KeyCode::KeyN => Key::N,
-        KeyCode::KeyO => Key::O,
-        KeyCode::KeyP => Key::P,
-        KeyCode::KeyQ => Key::Q,
-        KeyCode::KeyR => Key::R,
-        KeyCode::KeyS => Key::S,
-        KeyCode::KeyT => Key::T,
-        KeyCode::KeyU => Key::U,
-        KeyCode::KeyV => Key::V,
-        KeyCode::KeyW => Key::W,
-        KeyCode::KeyX => Key::X,
-        KeyCode::KeyY => Key::Y,
-        KeyCode::KeyZ => Key::Z,
+                // `winit::keyboard::NamedKey` is `#[non_exhaustive]`.
+                _ => {
+                    log::trace!("Unknown key: {named_key:?}");
+                    egui::NamedKey::Unidentified
+                }
+            }
+        };
+    }
 
-        KeyCode::F1 => Key::F1,
-        KeyCode::F2 => Key::F2,
-        KeyCode::F3 => Key::F3,
-        KeyCode::F4 => Key::F4,
-        KeyCode::F5 => Key::F5,
-        KeyCode::F6 => Key::F6,
-        KeyCode::F7 => Key::F7,
-        KeyCode::F8 => Key::F8,
-        KeyCode::F9 => Key::F9,
-        KeyCode::F10 => Key::F10,
-        KeyCode::F11 => Key::F11,
-        KeyCode::F12 => Key::F12,
-        KeyCode::F13 => Key::F13,
-        KeyCode::F14 => Key::F14,
-        KeyCode::F15 => Key::F15,
-        KeyCode::F16 => Key::F16,
-        KeyCode::F17 => Key::F17,
-        KeyCode::F18 => Key::F18,
-        KeyCode::F19 => Key::F19,
-        KeyCode::F20 => Key::F20,
-        KeyCode::F21 => Key::F21,
-        KeyCode::F22 => Key::F22,
-        KeyCode::F23 => Key::F23,
-        KeyCode::F24 => Key::F24,
-        KeyCode::F25 => Key::F25,
-        KeyCode::F26 => Key::F26,
-        KeyCode::F27 => Key::F27,
-        KeyCode::F28 => Key::F28,
-        KeyCode::F29 => Key::F29,
-        KeyCode::F30 => Key::F30,
-        KeyCode::F31 => Key::F31,
-        KeyCode::F32 => Key::F32,
-        KeyCode::F33 => Key::F33,
-        KeyCode::F34 => Key::F34,
-        KeyCode::F35 => Key::F35,
-
-        // Modifier keys — egui now surfaces them as distinct physical
-        // variants so games / capture UIs can bind them independently.
-        // The collapsed `Modifiers.shift/ctrl/alt/command` booleans still
-        // track just the "any side is pressed" state for shortcut matching.
-        KeyCode::ShiftLeft => Key::ShiftLeft,
-        KeyCode::ShiftRight => Key::ShiftRight,
-        KeyCode::ControlLeft => Key::ControlLeft,
-        KeyCode::ControlRight => Key::ControlRight,
-        KeyCode::AltLeft => Key::AltLeft,
-        KeyCode::AltRight => Key::AltRight,
-        KeyCode::SuperLeft => Key::SuperLeft,
-        KeyCode::SuperRight => Key::SuperRight,
-
-        // ISO 102nd key — `<>|` on French AZERTY, `\|` on UK QWERTY.
-        KeyCode::IntlBackslash => Key::IntlBackslash,
-
-        // Lock / System keys:
-        KeyCode::CapsLock => Key::CapsLock,
-        KeyCode::NumLock => Key::NumLock,
-        KeyCode::ScrollLock => Key::ScrollLock,
-        KeyCode::PrintScreen => Key::PrintScreen,
-        KeyCode::Pause => Key::Pause,
-        KeyCode::ContextMenu => Key::Menu,
-
-        // Browser keys:
-        KeyCode::BrowserBack => Key::BrowserBack,
-        KeyCode::BrowserForward => Key::BrowserForward,
-        KeyCode::BrowserRefresh => Key::BrowserRefresh,
-        KeyCode::BrowserSearch => Key::BrowserSearch,
-        KeyCode::BrowserHome => Key::BrowserHome,
-        KeyCode::BrowserFavorites => Key::BrowserFavorites,
-        KeyCode::BrowserStop => Key::BrowserStop,
-
-        // Media keys:
-        KeyCode::MediaPlayPause => Key::MediaPlayPause,
-        KeyCode::MediaTrackNext => Key::MediaTrackNext,
-        KeyCode::MediaTrackPrevious => Key::MediaTrackPrevious,
-        KeyCode::MediaStop => Key::MediaStop,
-        KeyCode::AudioVolumeMute => Key::AudioVolumeMute,
-        KeyCode::AudioVolumeDown => Key::AudioVolumeDown,
-        KeyCode::AudioVolumeUp => Key::AudioVolumeUp,
-
-        // Launch keys:
-        KeyCode::LaunchMail => Key::LaunchMail,
-        KeyCode::LaunchApp1 => Key::LaunchApp1,
-        KeyCode::LaunchApp2 => Key::LaunchApp2,
-
-        // Mac / other system keys:
-        KeyCode::Fn => Key::Fn,
-        KeyCode::Eject => Key::Eject,
-        KeyCode::Help => Key::Help,
-        KeyCode::Power => Key::Power,
-        KeyCode::Sleep => Key::Sleep,
-
-        _ => {
-            return None;
-        }
+    egui::Key::Named(map_named_key! {
+        Alt AltGraph CapsLock Control Fn FnLock NumLock ScrollLock Shift Symbol SymbolLock Enter
+        Tab ArrowDown ArrowLeft ArrowRight ArrowUp End Home PageDown PageUp Backspace Clear Copy
+        CrSel Cut Delete EraseEof ExSel Insert Paste Redo Undo Accept Again Attn Cancel ContextMenu
+        Escape Execute Find Help Pause Play Props Select ZoomIn ZoomOut BrightnessDown BrightnessUp
+        Eject LogOff Power PowerOff PrintScreen Hibernate Standby WakeUp AllCandidates Alphanumeric
+        CodeInput Compose Convert FinalMode GroupFirst GroupLast GroupNext GroupPrevious ModeChange
+        NextCandidate NonConvert PreviousCandidate Process SingleCandidate HangulMode HanjaMode
+        JunjaMode Eisu Hankaku Hiragana HiraganaKatakana KanaMode KanjiMode Katakana Romaji Zenkaku
+        ZenkakuHankaku Soft1 Soft2 Soft3 Soft4 ChannelDown ChannelUp Close MailForward MailReply
+        MailSend MediaClose MediaFastForward MediaPause MediaPlay MediaPlayPause MediaRecord
+        MediaRewind MediaStop MediaTrackNext MediaTrackPrevious New Open Print Save SpellCheck
+        Key11 Key12 AudioBalanceLeft AudioBalanceRight AudioBassBoostDown AudioBassBoostToggle
+        AudioBassBoostUp AudioFaderFront AudioFaderRear AudioSurroundModeNext AudioTrebleDown
+        AudioTrebleUp AudioVolumeDown AudioVolumeUp AudioVolumeMute MicrophoneToggle
+        MicrophoneVolumeDown MicrophoneVolumeUp MicrophoneVolumeMute SpeechCorrectionList
+        SpeechInputToggle LaunchApplication1 LaunchApplication2 LaunchCalendar LaunchContacts
+        LaunchMail LaunchMediaPlayer LaunchMusicPlayer LaunchPhone LaunchScreenSaver
+        LaunchSpreadsheet LaunchWebBrowser LaunchWebCam LaunchWordProcessor BrowserBack
+        BrowserFavorites BrowserForward BrowserHome BrowserRefresh BrowserSearch BrowserStop
+        AppSwitch Call Camera CameraFocus EndCall GoBack GoHome HeadsetHook LastNumberRedial
+        Notification MannerMode VoiceDial TV TV3DMode TVAntennaCable TVAudioDescription
+        TVAudioDescriptionMixDown TVAudioDescriptionMixUp TVContentsMenu TVDataService TVInput
+        TVInputComponent1 TVInputComponent2 TVInputComposite1 TVInputComposite2 TVInputHDMI1
+        TVInputHDMI2 TVInputHDMI3 TVInputHDMI4 TVInputVGA1 TVMediaContext TVNetwork TVNumberEntry
+        TVPower TVRadioService TVSatellite TVSatelliteBS TVSatelliteCS TVSatelliteToggle
+        TVTerrestrialAnalog TVTerrestrialDigital TVTimer AVRInput AVRPower ColorF0Red ColorF1Green
+        ColorF2Yellow ColorF3Blue ColorF4Grey ColorF5Brown ClosedCaptionToggle Dimmer DisplaySwap
+        DVR Exit FavoriteClear0 FavoriteClear1 FavoriteClear2 FavoriteClear3 FavoriteRecall0
+        FavoriteRecall1 FavoriteRecall2 FavoriteRecall3 FavoriteStore0 FavoriteStore1 FavoriteStore2
+        FavoriteStore3 Guide GuideNextDay GuidePreviousDay Info InstantReplay Link ListProgram
+        LiveContent Lock MediaApps MediaAudioTrack MediaLast MediaSkipBackward MediaSkipForward
+        MediaStepBackward MediaStepForward MediaTopMenu NavigateIn NavigateNext NavigateOut
+        NavigatePrevious NextFavoriteChannel NextUserProfile OnDemand Pairing PinPDown PinPMove
+        PinPToggle PinPUp PlaySpeedDown PlaySpeedReset PlaySpeedUp RandomToggle RcLowBattery
+        RecordSpeedNext RfBypass ScanChannelsToggle ScreenModeNext Settings SplitScreenToggle
+        STBInput STBPower Subtitle Teletext VideoModeNext Wink ZoomToggle F1 F2 F3 F4 F5 F6 F7
+        F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29
+        F30 F31 F32 F33 F34 F35
     })
 }
 

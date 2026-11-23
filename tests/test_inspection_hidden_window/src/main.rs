@@ -133,12 +133,13 @@ fn run_inspector(tx: &mpsc::Sender<Entry>) -> ! {
 
 /// The `M` keypress that the app turns into a minimize.
 fn press_m() -> Request {
-    let key = |pressed| egui::Event::Key {
-        key: egui::Key::M,
-        physical_key: None,
-        pressed,
-        repeat: false,
-        modifiers: egui::Modifiers::NONE,
+    let key = |pressed| {
+        egui::Event::Key(egui::KeyEvent {
+            key: egui::Key::character("m").into(),
+            pressed,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        })
     };
     Request::ApplyEvents {
         events: vec![key(true), key(false)],
@@ -186,7 +187,7 @@ impl eframe::App for App {
             );
 
             ui.add_space(8.0);
-            let pressed_m = ui.input(|i| i.key_pressed(egui::Key::M));
+            let pressed_m = ui.input(|i| i.key_pressed(egui::Key::character("m")));
             if ui
                 .button(format!("Minimize for {HIDE_SECONDS} s (or press M)"))
                 .clicked()

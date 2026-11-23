@@ -3,8 +3,8 @@ use core::ops::Range;
 use emath::RectAlign;
 
 use crate::{
-    Atom, Atoms, Button, Event, EventFilter, Id, InputState, IntoAtoms, Key, LayerId, Popup,
-    PopupKind, ScrollArea, SurrenderFocusOn, TextEdit, Ui, WidgetText,
+    Atom, Atoms, Button, Event, EventFilter, Id, InputState, IntoAtoms, Key, LayerId, NamedKey,
+    Popup, PopupKind, ScrollArea, SurrenderFocusOn, TextEdit, Ui, WidgetText,
     class::{ClassName, HasClasses as _},
     text::{CCursor, CCursorRange, CharIndex},
     vec2,
@@ -188,7 +188,7 @@ impl<'a> CompletionPopup<'a> {
             is_word_boundary: Box::new(char::is_whitespace),
             align: RectAlign::TOP_START,
             max_height: 200.0,
-            accept_keys: vec![Key::Enter, Key::Tab],
+            accept_keys: vec![NamedKey::Enter.into(), NamedKey::Tab.into()],
         }
     }
 
@@ -258,14 +258,14 @@ impl<'a> CompletionPopup<'a> {
         let mut keys = PopupKeys::default();
         if state.open {
             ui.input_mut(|input| {
-                keys.down = consume_unmodified_key(input, Key::ArrowDown);
-                keys.up = consume_unmodified_key(input, Key::ArrowUp);
-                for &key in &accept_keys {
+                keys.down = consume_unmodified_key(input, &NamedKey::ArrowDown.into());
+                keys.up = consume_unmodified_key(input, &NamedKey::ArrowUp.into());
+                for key in &accept_keys {
                     if 0 < consume_unmodified_key(input, key) {
                         keys.accept = true;
                     }
                 }
-                keys.dismiss = 0 < consume_unmodified_key(input, Key::Escape);
+                keys.dismiss = 0 < consume_unmodified_key(input, &NamedKey::Escape.into());
             });
         }
 
@@ -408,17 +408,17 @@ impl<'a> CompletionPopup<'a> {
 ///
 /// Unlike [`InputState::consume_key`], this leaves e.g. Shift+Enter and Shift+ArrowDown alone,
 /// so they still reach the [`TextEdit`].
-fn consume_unmodified_key(input: &mut InputState, key: Key) -> usize {
+fn consume_unmodified_key(input: &mut InputState, key: &Key) -> usize {
     let mut count = 0;
     input.events.retain(|event| {
         let is_match = matches!(
             event,
-            Event::Key {
+            Event::Key(crate::KeyEvent {
                 key: event_key,
                 modifiers,
                 pressed: true,
                 ..
-            } if *event_key == key && modifiers.is_none()
+            }) if event_key == key && modifiers.is_none()
         );
         count += usize::from(is_match);
         !is_match

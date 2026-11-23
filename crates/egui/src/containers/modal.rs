@@ -153,7 +153,7 @@ impl<T> ModalResponse<T> {
 
         // this is a closure so that `Esc` is consumed only if the modal is topmost
         let escape_clicked =
-            || ctx.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::Key::Escape));
+            || ctx.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::NamedKey::Escape));
 
         let ui_close_called = self.response.should_close();
 

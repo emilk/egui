@@ -1,6 +1,6 @@
 //! How mouse and touch interzcts with widgets.
 
-use crate::{Id, InputState, Key, WidgetRects, hit_test, id, input_state, memory};
+use crate::{Id, InputState, NamedKey, WidgetRects, hit_test, id, input_state, memory};
 
 use self::{hit_test::WidgetHits, id::IdSet, input_state::PointerEvent, memory::InteractionState};
 
@@ -134,7 +134,7 @@ pub(crate) fn interact(
     let mut dragged = prev_snapshot.dragged;
     let mut long_touched = None;
 
-    if input.key_pressed(Key::Escape) {
+    if input.key_pressed(NamedKey::Escape) {
         // Abort dragging on escape
         dragged = None;
         interaction.potential_drag_id = None;

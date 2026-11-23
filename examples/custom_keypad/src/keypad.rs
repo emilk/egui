@@ -32,27 +32,23 @@ impl State {
 
     fn queue_char(&mut self, c: char) {
         let events = self.events.get_or_insert(vec![]);
-        if let Some(key) = egui::Key::from_name(&c.to_string()) {
-            events.push(egui::Event::Key {
-                key,
-                physical_key: Some(key),
-                pressed: true,
-                repeat: false,
-                modifiers: Default::default(),
-            });
-        }
+        events.push(egui::Event::Key(egui::KeyEvent {
+            key: egui::Key::Character(c.to_string().into()).into(),
+            pressed: true,
+            repeat: false,
+            modifiers: Default::default(),
+        }));
         events.push(egui::Event::Text(c.to_string()));
     }
 
     fn queue_key(&mut self, key: egui::Key) {
         let events = self.events.get_or_insert(vec![]);
-        events.push(egui::Event::Key {
-            key,
-            physical_key: Some(key),
+        events.push(egui::Event::Key(egui::KeyEvent {
+            key: key.into(),
             pressed: true,
             repeat: false,
             modifiers: Default::default(),
-        });
+        }));
     }
 }
 
@@ -108,10 +104,10 @@ impl Keypad {
                     state.queue_char('3');
                 }
                 if ui.add_sized(size_1x1, Button::new("⏮")).clicked() {
-                    state.queue_key(egui::Key::Home);
+                    state.queue_key(egui::NamedKey::Home.into());
                 }
                 if ui.add_sized(size_1x1, Button::new("🔙")).clicked() {
-                    state.queue_key(egui::Key::Backspace);
+                    state.queue_key(egui::NamedKey::Backspace.into());
                 }
             });
             ui.horizontal(|ui| {
@@ -125,10 +121,10 @@ impl Keypad {
                     state.queue_char('6');
                 }
                 if ui.add_sized(size_1x1, Button::new("⏭")).clicked() {
-                    state.queue_key(egui::Key::End);
+                    state.queue_key(egui::NamedKey::End.into());
                 }
                 if ui.add_sized(size_1x1, Button::new("⎆")).clicked() {
-                    state.queue_key(egui::Key::Enter);
+                    state.queue_key(egui::NamedKey::Enter.into());
                     trans = Transition::CloseOnNextFrame;
                 }
             });
@@ -143,7 +139,7 @@ impl Keypad {
                     state.queue_char('9');
                 }
                 if ui.add_sized(size_1x1, Button::new("⏶")).clicked() {
-                    state.queue_key(egui::Key::ArrowUp);
+                    state.queue_key(egui::NamedKey::ArrowUp.into());
                 }
                 if ui.add_sized(size_1x1, Button::new("⌨")).clicked() {
                     trans = Transition::CloseImmediately;
@@ -157,13 +153,13 @@ impl Keypad {
                     state.queue_char('.');
                 }
                 if ui.add_sized(size_1x1, Button::new("⏴")).clicked() {
-                    state.queue_key(egui::Key::ArrowLeft);
+                    state.queue_key(egui::NamedKey::ArrowLeft.into());
                 }
                 if ui.add_sized(size_1x1, Button::new("⏷")).clicked() {
-                    state.queue_key(egui::Key::ArrowDown);
+                    state.queue_key(egui::NamedKey::ArrowDown.into());
                 }
                 if ui.add_sized(size_1x1, Button::new("⏵")).clicked() {
-                    state.queue_key(egui::Key::ArrowRight);
+                    state.queue_key(egui::NamedKey::ArrowRight.into());
                 }
             });
         });
