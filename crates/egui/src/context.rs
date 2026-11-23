@@ -3136,7 +3136,11 @@ impl Context {
         }
 
         let num_multipass_in_row = self.viewport(|vp| vp.num_multipass_in_row);
-        if 3 <= num_multipass_in_row {
+        let cutoff = self
+            .global_style()
+            .debug
+            .consecutive_multipass_warning_cutoff;
+        if cutoff.is_some_and(|cutoff| cutoff <= num_multipass_in_row) {
             // If you see this message, it means we've been paying the cost of multi-pass for multiple frames in a row.
             // This is likely a bug. `request_discard` should only be called in rare situations, when some layout changes.
 

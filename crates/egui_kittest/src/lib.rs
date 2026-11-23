@@ -234,6 +234,12 @@ impl<'a, State> Harness<'a, State> {
             style.visuals.text_cursor.blink = false;
             style.scroll_animation = ScrollAnimation::none();
             style.animation_time = 0.0;
+
+            // Keep the debug overlay out of snapshots
+            #[cfg(debug_assertions)]
+            {
+                style.debug.consecutive_multipass_warning_cutoff = None;
+            }
         });
         let mut input = egui::RawInput {
             screen_rect: Some(screen_rect),
