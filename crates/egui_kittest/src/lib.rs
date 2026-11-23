@@ -85,6 +85,10 @@ pub struct ExceededMaxStepsError {
     pub diagnostic_max_steps: u64,
 
     pub repaint_causes: Vec<RepaintCause>,
+
+    /// Was the ui still doing multi-pass frames (see [`egui::Context::request_discard`])
+    /// when we reached [`Self::max_steps`]?
+    pub multipass: bool,
 }
 
 impl Display for ExceededMaxStepsError {
@@ -98,6 +102,14 @@ impl Display for ExceededMaxStepsError {
                 "It did not settle within {} further steps either. ",
                 self.diagnostic_max_steps
             )?,
+        }
+
+        if self.multipass {
+            write!(
+                f,
+                "The ui kept calling Context::request_discard, \
+                and the harness waits for a single-pass frame. "
+            )?;
         }
 
         write!(
@@ -446,6 +458,7 @@ impl<'a, State> Harness<'a, State> {
     /// Run until
     /// - all animations are done
     /// - no more repaints are requested
+    /// - the last frame needed only a single pass (see [`egui::Context::request_discard`])
     ///
     /// Returns the number of frames that were run.
     ///
@@ -484,7 +497,7 @@ impl<'a, State> Harness<'a, State> {
             0
         };
         let last_diagnostic_step = self.max_steps.saturating_add(diagnostic_max_steps);
-        let mut repaint_causes_at_max_steps = None;
+        let mut causes_at_max_steps = None;
 
         let mut steps = 0;
         loop {
@@ -494,29 +507,35 @@ impl<'a, State> Harness<'a, State> {
             let wait_for_images = self.wait_for_pending_images && self.ctx.has_pending_images();
 
             // We only care about immediate repaints
-            if self.root_viewport_output().repaint_delay != Duration::ZERO && !wait_for_images {
-                if let Some(repaint_causes) = repaint_causes_at_max_steps {
+            let wants_repaint = self.root_viewport_output().repaint_delay == Duration::ZERO;
+            let multipass = 1 < self.output.platform_output.num_completed_passes;
+
+            if !wants_repaint && !multipass && !wait_for_images {
+                if let Some((repaint_causes, multipass)) = causes_at_max_steps {
                     return Err(ExceededMaxStepsError {
                         max_steps: self.max_steps,
                         steps_to_settle: Some(steps),
                         diagnostic_max_steps,
                         repaint_causes,
+                        multipass,
                     });
                 }
                 break;
             } else if sleep || wait_for_images {
                 std::thread::sleep(Duration::from_secs_f32(self.step_dt));
             }
-            if steps > self.max_steps && repaint_causes_at_max_steps.is_none() {
-                repaint_causes_at_max_steps = Some(self.ctx.repaint_causes());
+            if steps > self.max_steps && causes_at_max_steps.is_none() {
+                causes_at_max_steps = Some((self.ctx.repaint_causes(), multipass));
             }
             if steps > last_diagnostic_step {
+                let (repaint_causes, multipass) =
+                    causes_at_max_steps.unwrap_or_else(|| (self.ctx.repaint_causes(), multipass));
                 return Err(ExceededMaxStepsError {
                     max_steps: self.max_steps,
                     steps_to_settle: None,
                     diagnostic_max_steps,
-                    repaint_causes: repaint_causes_at_max_steps
-                        .unwrap_or_else(|| self.ctx.repaint_causes()),
+                    repaint_causes,
+                    multipass,
                 });
             }
         }
@@ -532,6 +551,7 @@ impl<'a, State> Harness<'a, State> {
     /// Run until
     /// - all animations are done
     /// - no more repaints are requested
+    /// - the last frame needed only a single pass (see [`egui::Context::request_discard`])
     /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
     ///
     /// Returns the number of steps that were run.
@@ -552,6 +572,7 @@ impl<'a, State> Harness<'a, State> {
     /// Run until
     /// - all animations are done
     /// - no more repaints are requested
+    /// - the last frame needed only a single pass (see [`egui::Context::request_discard`])
     /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
     ///
     /// Returns the number of steps that were run, or None if the maximum number of steps was exceeded.
@@ -574,6 +595,7 @@ impl<'a, State> Harness<'a, State> {
     /// Runs until
     /// - all animations are done
     /// - no more repaints are requested
+    /// - the last frame needed only a single pass (see [`egui::Context::request_discard`])
     /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
     ///
     /// Returns the number of steps that were run.
