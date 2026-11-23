@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    TextCursorState,
+    CursorSettings, TextCursorState,
     text_cursor_state::{
         GranularDragSelect, SelectGranularity, cursor_rect, extend_granular_select, select_unit_at,
     },
@@ -849,7 +849,8 @@ fn process_selection_key_events(
         // NOTE: we have a lock on ui/ctx here,
         // so be careful to not call into `ui` or `ctx` again.
         for event in &i.events {
-            changed |= cursor_range.on_event(os, event, galley, widget_id);
+            changed |=
+                cursor_range.on_event(os, event, galley, widget_id, CursorSettings::default());
         }
     });
 

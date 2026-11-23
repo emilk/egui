@@ -15,7 +15,8 @@ use crate::{
     response,
     text_edit::state::TextEditCursorPurpose,
     text_selection::{
-        self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
+        self, CCursorRange, CursorSettings, text_cursor_state::cursor_rect,
+        visuals::paint_text_selection,
     },
     vec2,
     widget_style::TextEditStyle,
@@ -93,8 +94,7 @@ pub struct TextEdit<'t> {
     clip_text: bool,
     char_limit: usize,
     return_key: Option<KeyboardShortcut>,
-    smart_home: bool,
-    smart_end: bool,
+    cursor_settings: CursorSettings,
     background_color: Option<Color32>,
     classes: Classes,
 }
@@ -159,8 +159,7 @@ impl<'t> TextEdit<'t> {
             clip_text: false,
             char_limit: usize::MAX,
             return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
-            smart_home: false,
-            smart_end: false,
+            cursor_settings: CursorSettings::default(),
             background_color: None,
             classes: Classes::default(),
         }
@@ -461,7 +460,7 @@ impl<'t> TextEdit<'t> {
     /// Default is `false`, but [`Self::code_editor`] turns it on.
     #[inline]
     pub fn smart_home(mut self, smart_home: bool) -> Self {
-        self.smart_home = smart_home;
+        self.cursor_settings.smart_home = smart_home;
         self
     }
 
@@ -475,7 +474,7 @@ impl<'t> TextEdit<'t> {
     /// Default is `false`, also for [`Self::code_editor`].
     #[inline]
     pub fn smart_end(mut self, smart_end: bool) -> Self {
-        self.smart_end = smart_end;
+        self.cursor_settings.smart_end = smart_end;
         self
     }
 }
@@ -553,8 +552,7 @@ impl<'t> TextEdit<'t> {
             clip_text,
             char_limit,
             return_key,
-            smart_home,
-            smart_end,
+            cursor_settings,
             background_color,
             mut classes,
         } = self;
@@ -713,8 +711,7 @@ impl<'t> TextEdit<'t> {
                         char_limit,
                         event_filter,
                         return_key,
-                        smart_home,
-                        smart_end,
+                        cursor_settings,
                     },
                 );
 
@@ -1221,8 +1218,7 @@ struct EventsOptions {
     char_limit: usize,
     event_filter: EventFilter,
     return_key: Option<KeyboardShortcut>,
-    smart_home: bool,
-    smart_end: bool,
+    cursor_settings: CursorSettings,
 }
 
 /// Check for (keyboard) events to edit the cursor and/or text.
@@ -1244,8 +1240,7 @@ fn events(
         char_limit,
         event_filter,
         return_key,
-        smart_home,
-        smart_end,
+        cursor_settings,
     } = *opts;
 
     let os = ui.os();
@@ -1281,15 +1276,7 @@ fn events(
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
-            Event::Key {
-                key,
-                pressed: true,
-                modifiers,
-                ..
-            } if cursor_range.on_smart_home_end(galley, modifiers, *key, smart_home, smart_end) => {
-                None
-            }
-            event if cursor_range.on_event(os, event, galley, id) => None,
+            event if cursor_range.on_event(os, event, galley, id, cursor_settings) => None,
 
             Event::Copy => {
                 if !cursor_range.is_empty() {

@@ -23,6 +23,44 @@ pub struct CCursorRange {
     pub h_pos: Option<f32>,
 }
 
+/// How the keyboard moves a text cursor.
+///
+/// Passed to [`CCursorRange::on_event`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CursorSettings {
+    /// Should `Home` go to the first non-whitespace character of the line,
+    /// and to the start of the line when pressed again?
+    ///
+    /// See [`crate::TextEdit::smart_home`].
+    pub smart_home: bool,
+
+    /// Should `End` go to just after the last non-whitespace character of the line,
+    /// and to the end of the line when pressed again?
+    ///
+    /// See [`crate::TextEdit::smart_end`].
+    pub smart_end: bool,
+}
+
+impl CursorSettings {
+    /// `Home` key takes the cursor
+    fn home(self, galley: &Galley, cursor: CCursor) -> CCursor {
+        if self.smart_home {
+            smart_home_cursor(galley, cursor)
+        } else {
+            galley.cursor_begin_of_row(&cursor)
+        }
+    }
+
+    /// `End` key takes the cursor
+    fn end(self, galley: &Galley, cursor: CCursor) -> CCursor {
+        if self.smart_end {
+            smart_end_cursor(galley, cursor)
+        } else {
+            galley.cursor_end_of_row(&cursor)
+        }
+    }
+}
+
 impl CCursorRange {
     /// The empty range.
     #[inline]
@@ -117,6 +155,7 @@ impl CCursorRange {
         galley: &Galley,
         modifiers: &Modifiers,
         key: Key,
+        settings: CursorSettings,
     ) -> bool {
         match key {
             Key::A if modifiers.command => {
@@ -146,6 +185,7 @@ impl CCursorRange {
                     galley,
                     key,
                     modifiers,
+                    settings,
                 );
                 if !modifiers.shift {
                     self.secondary = self.primary;
@@ -163,6 +203,7 @@ impl CCursorRange {
                     galley,
                     key,
                     modifiers,
+                    settings,
                 );
                 self.secondary = self.primary;
                 true
@@ -170,40 +211,6 @@ impl CCursorRange {
 
             _ => false,
         }
-    }
-
-    /// Handle the `Home` and `End` keys the way code editors do
-    /// See [`crate::TextEdit::smart_home`].
-    pub(crate) fn on_smart_home_end(
-        &mut self,
-        galley: &Galley,
-        modifiers: &Modifiers,
-        key: Key,
-        smart_home: bool,
-        smart_end: bool,
-    ) -> bool {
-        if modifiers.ctrl {
-            return false;
-        }
-
-        self.primary = match key {
-            Key::Home if smart_home && !modifiers.mac_cmd => {
-                smart_home_cursor(galley, self.primary)
-            }
-            Key::ArrowLeft if smart_home && modifiers.mac_cmd && !modifiers.alt => {
-                smart_home_cursor(galley, self.primary)
-            }
-            Key::End if smart_end && !modifiers.mac_cmd => smart_end_cursor(galley, self.primary),
-            Key::ArrowRight if smart_end && modifiers.mac_cmd && !modifiers.alt => {
-                smart_end_cursor(galley, self.primary)
-            }
-            _ => return false,
-        };
-        self.h_pos = None;
-        if !modifiers.shift {
-            self.secondary = self.primary;
-        }
-        true
     }
 
     /// Check for events that modify the cursor range.
@@ -215,6 +222,7 @@ impl CCursorRange {
         event: &Event,
         galley: &Galley,
         _widget_id: Id,
+        settings: CursorSettings,
     ) -> bool {
         match event {
             Event::Key {
@@ -222,7 +230,7 @@ impl CCursorRange {
                 key,
                 pressed: true,
                 ..
-            } => self.on_key_press(os, galley, modifiers, *key),
+            } => self.on_key_press(os, galley, modifiers, *key, settings),
 
             Event::AccessKitActionRequest(accesskit::ActionRequest {
                 action: accesskit::Action::SetTextSelection,
@@ -300,6 +308,7 @@ fn move_single_cursor(
     galley: &Galley,
     key: Key,
     modifiers: &Modifiers,
+    settings: CursorSettings,
 ) {
     let (new_cursor, new_h_pos) =
         if os == OperatingSystem::Mac && modifiers.ctrl && !modifiers.shift {
@@ -319,7 +328,7 @@ fn move_single_cursor(
                         // alt on mac, ctrl on windows
                         (ccursor_previous_word(galley, *cursor), None)
                     } else if modifiers.mac_cmd {
-                        (galley.cursor_begin_of_row(cursor), None)
+                        (settings.home(galley, *cursor), None)
                     } else {
                         (galley.cursor_left_one_character(cursor), None)
                     }
@@ -329,7 +338,7 @@ fn move_single_cursor(
                         // alt on mac, ctrl on windows
                         (ccursor_next_word(galley, *cursor), None)
                     } else if modifiers.mac_cmd {
-                        (galley.cursor_end_of_row(cursor), None)
+                        (settings.end(galley, *cursor), None)
                     } else {
                         (galley.cursor_right_one_character(cursor), None)
                     }
@@ -355,16 +364,20 @@ fn move_single_cursor(
                     if modifiers.ctrl {
                         // windows behavior
                         (galley.begin(), None)
-                    } else {
+                    } else if modifiers.mac_cmd {
                         (galley.cursor_begin_of_row(cursor), None)
+                    } else {
+                        (settings.home(galley, *cursor), None)
                     }
                 }
                 Key::End => {
                     if modifiers.ctrl {
                         // windows behavior
                         (galley.end(), None)
-                    } else {
+                    } else if modifiers.mac_cmd {
                         (galley.cursor_end_of_row(cursor), None)
+                    } else {
+                        (settings.end(galley, *cursor), None)
                     }
                 }
 
