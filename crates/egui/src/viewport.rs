@@ -1174,7 +1174,7 @@ pub enum ViewportCommand {
     /// Has no effect on Wayland, or if the window is minimized or invisible.
     Focus,
 
-    /// If the window is unfocused, attract the user's attention (native only).
+    /// If the window is unfocused, attract the user's attention (native only, not supported by `eframe` on web).
     ///
     /// Typically, this means that the window will flash on the taskbar, or bounce, until it is interacted with.
     ///
