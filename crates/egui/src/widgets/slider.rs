@@ -514,6 +514,16 @@ impl<'a> Slider<'a> {
         self.core.drag_value.format = self.core.drag_value.format.update_while_editing(update);
         self
     }
+
+    /// The most characters that can be entered when text-editing the value.
+    ///
+    /// Default: `usize::MAX`, meaning no limit. This also limits how far the number widens
+    /// while it is typed. See [`crate::DragValue::char_limit`].
+    #[inline]
+    pub fn char_limit(mut self, char_limit: usize) -> Self {
+        self.core.drag_value.format = self.core.drag_value.format.char_limit(char_limit);
+        self
+    }
 }
 
 impl Slider<'_> {

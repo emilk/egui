@@ -1082,6 +1082,123 @@ pub fn drag_value_should_discard_typed_text_on_escape_without_update_while_editi
     );
 }
 
+/// `char_limit` stops the typing once the field holds that many characters.
+/// The suffix isn't part of the edited text, so it doesn't count.
+#[test]
+pub fn drag_value_char_limit_should_stop_typing_at_the_limit() {
+    for update_while_editing in [true, false] {
+        let mut harness = Harness::new_ui_state(
+            move |ui, value: &mut f64| {
+                ui.add(
+                    egui::DragValue::new(value)
+                        .suffix("%")
+                        .char_limit(4)
+                        .update_while_editing(update_while_editing),
+                )
+                .on_hover_text("Value");
+            },
+            0.0,
+        );
+
+        // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+        harness.key_press(egui::Key::Tab);
+        harness.run();
+
+        for character in "123456".chars() {
+            harness
+                .get_by_role(accesskit::Role::SpinButton)
+                .type_text(&character.to_string());
+            harness.run();
+        }
+        assert_eq!(
+            harness
+                .get_by_role(accesskit::Role::SpinButton)
+                .value()
+                .as_deref(),
+            Some("1234"),
+            "update_while_editing({update_while_editing})"
+        );
+
+        harness.key_press(egui::Key::Enter);
+        harness.run();
+        assert_eq!(
+            harness.state(),
+            &1234.0,
+            "update_while_editing({update_while_editing})"
+        );
+    }
+}
+
+/// A value whose text is longer than the `char_limit` is shown in full, not truncated,
+/// and typing still replaces it, since all of it is selected when editing starts.
+#[test]
+pub fn drag_value_char_limit_should_not_truncate_a_longer_value() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut f64| {
+            ui.add(egui::DragValue::new(value).char_limit(3))
+                .on_hover_text("Value");
+        },
+        1234.5,
+    );
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+    assert_eq!(
+        harness
+            .get_by_role(accesskit::Role::SpinButton)
+            .value()
+            .as_deref(),
+        Some("1234.5"),
+        "The whole value should be shown for editing"
+    );
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+    assert_eq!(
+        harness.state(),
+        &1234.5,
+        "Editing without typing should keep the value"
+    );
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+    harness
+        .get_by_role(accesskit::Role::SpinButton)
+        .type_text("9876");
+    harness.run();
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+    assert_eq!(
+        harness.state(),
+        &987.0,
+        "Typing should replace the value, up to the limit"
+    );
+}
+
+/// A `Slider` applies its `char_limit` to the number beside it.
+#[test]
+pub fn slider_char_limit_should_stop_typing_at_the_limit() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut f64| {
+            ui.add(egui::Slider::new(value, 0.0..=1000.0).char_limit(2))
+                .on_hover_text("Value");
+        },
+        0.0,
+    );
+
+    // Clicking the number puts it in text-edit mode with the old text selected.
+    harness.get_by_role(accesskit::Role::SpinButton).click();
+    harness.run();
+    harness
+        .get_by_role(accesskit::Role::SpinButton)
+        .type_text("123");
+    harness.run();
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert_eq!(harness.state(), &12.0);
+}
+
 /// <https://github.com/emilk/egui/issues/8620>
 #[test]
 pub fn scene_with_zero_rect_and_unbounded_zoom_should_not_produce_nan() {
