@@ -1321,7 +1321,12 @@ fn add_row_backgrounds(
 
     for glyph in &row.glyphs {
         let format = &job.sections[glyph.section_index as usize].format;
-        let rect = glyph.logical_rect();
+        // The background covers the font, not the row. A `TextFormat::line_height` that is taller
+        // than the font adds space around the text, and the background must not grow into it.
+        let rect = Rect::from_min_size(
+            glyph.pos - vec2(0.0, glyph.font_ascent),
+            vec2(glyph.advance_width, glyph.font_height),
+        );
 
         if !has_background(format) {
             end_run(run_start.take(), last_rect.right());
@@ -1695,6 +1700,45 @@ mod tests {
         let job = LayoutJob::single_section("code".to_owned(), format);
         let galley = fonts.with_pixels_per_point(1.0).layout_job(job);
         galley.rows[0].visuals.glyph_vertex_range.start
+    }
+
+    /// The bounds of the vertices painted behind the glyphs of a one-row `format` galley, and the
+    /// first glyph.
+    fn background_bounds(format: TextFormat) -> (Rect, Glyph) {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        let job = LayoutJob::single_section("code".to_owned(), format);
+        let galley = fonts.with_pixels_per_point(1.0).layout_job(job);
+        let row = &galley.rows[0];
+        let background = &row.visuals.mesh.vertices[..row.visuals.glyph_vertex_range.start];
+        let bounds = Rect::from_points(&background.iter().map(|v| v.pos).collect::<Vec<_>>());
+        (bounds, row.glyphs[0])
+    }
+
+    #[test]
+    fn background_covers_the_font_and_not_a_taller_line_height() {
+        let format = TextFormat {
+            background: Color32::GRAY,
+            ..TextFormat::simple(FontId::monospace(14.0), Color32::WHITE)
+        };
+        let (default_bounds, glyph) = background_bounds(format.clone());
+
+        let tall = TextFormat {
+            line_height: Some(2.0 * glyph.font_height),
+            ..format
+        };
+        let (tall_bounds, tall_glyph) = background_bounds(tall);
+
+        assert_eq!(
+            tall_bounds.height(),
+            default_bounds.height(),
+            "the background has the height of the font"
+        );
+        let font_center_y =
+            tall_glyph.pos.y - tall_glyph.font_ascent + 0.5 * tall_glyph.font_height;
+        assert!(
+            (tall_bounds.center().y - font_center_y).abs() <= 0.5,
+            "the background is centered on the text: {tall_bounds:?}, font center {font_center_y}"
+        );
     }
 
     #[test]
