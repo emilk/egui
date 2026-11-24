@@ -757,7 +757,8 @@ impl Table<'_> {
         let widths_ref = &state.column_widths;
         let max_used_widths_ref = &mut max_used_widths;
 
-        let scroll_area_out = scroll_area.show(ui, move |ui| {
+        // `show_viewport`, as `TableBody::rows` and friends only lay out the visible rows
+        let scroll_area_out = scroll_area.show_viewport(ui, move |ui, _viewport| {
             let mut scroll_to_y_range = None;
 
             let clip_rect = ui.clip_rect();
