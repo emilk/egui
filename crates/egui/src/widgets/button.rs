@@ -79,7 +79,7 @@ impl<'a> Button<'a> {
     /// # use egui::{Button, IntoAtoms, __run_test_ui};
     /// # __run_test_ui(|ui| {
     /// let selected = true;
-    /// ui.add(Button::new("toggle me").selected(selected).frame_when_inactive(!selected).frame(true));
+    /// ui.add(Button::new("toggle me").selected(selected).frame_when_inactive(selected).frame(true));
     /// # });
     /// ```
     ///
