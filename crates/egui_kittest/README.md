@@ -97,6 +97,27 @@ transparent pixels turn black.
 The recorder is an `egui::Plugin` (`RecordingPlugin`), so you can also register it on any
 `egui::Context` yourself to record any egui app.
 
+## Concurrent rendering on Windows WARP
+
+Concurrent rendering with independent harnesses on the DirectX 12 software
+adapter (WARP) has been reported to cause intermittent native access violations.
+Until the cause is understood, run affected rendering tests serially (for
+example, with `cargo test -- --test-threads=1`) or select a hardware adapter.
+See [#8918](https://github.com/emilk/egui/issues/8918).
+
+To investigate on Windows with WARP available, run each opt-in diagnostic
+separately so a native process crash does not prevent the other tests from running:
+
+```sh
+cargo test -p egui_kittest --features wgpu --test warp_concurrent_rendering concurrent_warp_harness_rendering -- --ignored --nocapture
+cargo test -p egui_kittest --features wgpu --test warp_concurrent_rendering concurrent_warp_persistent_devices -- --ignored --nocapture
+cargo test -p egui_kittest --features wgpu --test warp_concurrent_rendering concurrent_warp_render_state_creation -- --ignored --nocapture
+```
+
+Repeat each command in a fresh process because the reported crash is intermittent.
+Report the Windows build, adapter, test name, exit status, and native crash stack
+if available. These diagnostics are not a fix for the underlying crash.
+
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.
 Once enabled, you can call `Harness::snapshot` to render the ui and save the image to the `tests/snapshots` directory.
