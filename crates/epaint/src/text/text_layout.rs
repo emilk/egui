@@ -1286,6 +1286,7 @@ fn add_row_backgrounds(
                 .round_to_pixels(point_scale.pixels_per_point());
             let stroke = format.background_stroke;
             if format.background_corner_radius == CornerRadius::ZERO && stroke.is_empty() {
+                // Common-case optimization
                 mesh.add_colored_rect(rect, format.background);
             } else {
                 let BackgroundScratch { points, path } = scratch;
