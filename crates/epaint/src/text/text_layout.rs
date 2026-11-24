@@ -1827,11 +1827,13 @@ mod tests {
             };
             let galley = layout_format("code", tall, f32::INFINITY);
             let row = &galley.rows[0];
-            let line = hline_y_range(row);
+            // The center of the line, because the mesh adds feathering around the stroke, and
+            // the center is rounded to the pixel grid.
+            let line_center = hline_y_range(row).center();
             let font = row.glyphs[0].font_rect();
             assert!(
-                font.min.y <= line.min && line.max <= font.max.y + stroke.width,
-                "the {name} {line:?} is outside the font {font:?}"
+                font.min.y - 0.5 <= line_center && line_center <= font.max.y + 0.5,
+                "the {name} at {line_center} is outside the font {font:?}"
             );
         }
     }
