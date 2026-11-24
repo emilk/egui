@@ -1,5 +1,5 @@
 use crate::{
-    Atom, AtomExt as _, AtomKind, Atoms, Color32, CornerRadius, Image, IntoAtoms, NumExt as _,
+    AsIdSalt, Atom, AtomExt as _, AtomKind, Atoms, Color32, CornerRadius, IdSalt, Image, IntoAtoms, NumExt as _,
     Response, Role, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetAtom,
     WidgetAtomResponse, WidgetInfo, WidgetText,
     class::{ClassName, Classes, HasClasses},
@@ -27,6 +27,7 @@ use crate::{
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Button<'a> {
     layout: WidgetAtom<'a>,
+    id_salt: Option<IdSalt>,
     fill: Option<Color32>,
     stroke: Option<Stroke>,
     min_size: Vec2,
@@ -62,6 +63,7 @@ impl<'a> Button<'a> {
             layout: WidgetAtom::new(atoms.into_atoms())
                 .sense(Sense::click())
                 .fallback_font(TextStyle::Button),
+            id_salt: None,
             fill: None,
             stroke: None,
             min_size: Vec2::ZERO,
@@ -125,6 +127,25 @@ impl<'a> Button<'a> {
         }
         button.limit_image_size = true;
         button
+    }
+
+    /// Give this button a stable identity within its containing [`Ui`] scope.
+    ///
+    /// Use a unique salt for buttons that must retain their identity when earlier
+    /// widgets appear or disappear, particularly for accessibility actions and
+    /// persistent popup state. The button's displayed text is not used as its ID.
+    ///
+    /// Unlike automatic IDs, this is based on [`Ui::make_persistent_id`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.add(egui::Button::new("Confirm").id_salt("confirm"));
+    /// # });
+    /// ```
+    #[inline]
+    pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
+        self.id_salt = Some(IdSalt::new(id_salt));
+        self
     }
 
     /// Set the wrap mode for the text.
@@ -322,6 +343,7 @@ impl<'a> Button<'a> {
     pub fn atom_ui(self, ui: &mut Ui) -> WidgetAtomResponse {
         let Button {
             mut layout,
+            id_salt,
             fill,
             stroke,
             min_size,
@@ -343,7 +365,8 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
-        let id = ui.next_auto_id();
+        let id = id_salt.map_or_else(|| ui.next_auto_id(), |salt| ui.scope_id().with_salt(salt));
+        layout = layout.id(id);
         let ButtonStyle {
             atom_layout: mut atom_layout_style,
         } = ui.widget_style(id, &classes);

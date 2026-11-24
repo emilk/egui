@@ -421,6 +421,16 @@ impl<'a> MenuButton<'a> {
         }
     }
 
+    /// Give this menu button a stable ID, so its popup can retain open state
+    /// when earlier widgets appear or disappear.
+    ///
+    /// The salt must be unique among buttons in the same `Ui` scope.
+    #[inline]
+    pub fn id_salt(mut self, id_salt: impl crate::AsIdSalt) -> Self {
+        self.button = self.button.id_salt(id_salt);
+        self
+    }
+
     /// Show the menu button.
     pub fn ui<R>(
         self,

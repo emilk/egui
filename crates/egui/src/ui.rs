@@ -2396,7 +2396,13 @@ impl Ui {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
 
-    /// Create a child Ui with an explicit [`Id`].
+    /// Create a child Ui with an explicit ID salt.
+    ///
+    /// This gives the child UI a stable *scope* ID, but its automatically
+    /// assigned widget IDs still depend on the order of widgets within it.
+    /// To keep a particular button's identity across changes to that order,
+    /// use [`Button::id_salt`](crate::Button::id_salt), or put the button
+    /// in a child UI with an explicit [`UiBuilder::scope_id`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
