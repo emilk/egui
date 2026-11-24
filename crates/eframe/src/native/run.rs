@@ -420,6 +420,11 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
     ) {
         profiling::function_scope!(egui_winit::short_window_event_description(&event));
 
+        #[cfg(target_os = "windows")]
+        if matches!(event, winit::event::WindowEvent::RedrawRequested) {
+            dispatch_due_timers();
+        }
+
         // Nb: Make sure this guard is dropped after this function returns.
         event_loop_context::with_event_loop_context(event_loop, move || {
             let event_result = match event {
@@ -433,6 +438,49 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
 
             self.handle_event_result(event_loop, event_result);
         });
+    }
+}
+
+/// Run any win32 timers (`WM_TIMER`) that are due.
+///
+/// Windows generates the inertia of a precision touchpad flick from such a timer, running on our
+/// thread. But `WM_TIMER` has lower priority than `WM_PAINT`, so for as long as we repaint
+/// continuously, the timer starves. Since scrolling makes us repaint continuously, the inertia
+/// would stall right after the fingers leave the touchpad, and then, once egui had gone idle,
+/// arrive all at once as one huge mouse wheel event.
+///
+/// So we need to call this before each repaint.
+/// See <https://github.com/emilk/egui/issues/4350>.
+#[cfg(target_os = "windows")]
+fn dispatch_due_timers() {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        DispatchMessageW, MSG, PM_QS_POSTMESSAGE, PM_REMOVE, PeekMessageW, WM_TIMER,
+    };
+
+    profiling::function_scope!();
+
+    /// Don't let a misbehaving timer stop us from painting.
+    const MAX_TIMERS: usize = 16;
+
+    for _ in 0..MAX_TIMERS {
+        let mut msg = MSG::default();
+
+        // `PM_QS_POSTMESSAGE` includes timers, but excludes messages sent from other threads.
+        let flags = PM_REMOVE | PM_QS_POSTMESSAGE;
+
+        // The touchpad timer doesn't belong to any window, yet filtering on that
+        // (passing -1 for the window) does not find it. So we run the timers of all windows.
+        let any_window = core::ptr::null_mut();
+
+        // SAFETY: `msg` is a valid out-pointer, and we are on the thread running the event loop.
+        // If a timer causes new window events, winit will buffer them until we are done.
+        #[expect(unsafe_code)]
+        unsafe {
+            if PeekMessageW(&raw mut msg, any_window, WM_TIMER, WM_TIMER, flags) == 0 {
+                break;
+            }
+            DispatchMessageW(&raw const msg);
+        }
     }
 }
 
