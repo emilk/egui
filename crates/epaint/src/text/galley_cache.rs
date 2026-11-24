@@ -184,6 +184,7 @@ impl GalleyCache {
             for section in &job.sections[current_section..job.sections.len()] {
                 let LayoutSection {
                     leading_space,
+                    wrap_indent,
                     byte_range: section_range,
                     format,
                 } = section;
@@ -214,6 +215,7 @@ impl GalleyCache {
                         } else {
                             0.0
                         },
+                        wrap_indent: *wrap_indent,
                         byte_range: new_range,
                         format: format.clone(),
                     });

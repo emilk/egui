@@ -71,6 +71,11 @@ struct Paragraph {
 
     /// In case of an empty paragraph ("\n"), use this as height.
     pub empty_paragraph_height: f32,
+
+    /// Where the rows that the paragraph wraps onto start, in points.
+    ///
+    /// See [`LayoutSection::wrap_indent`].
+    pub wrap_indent: f32,
 }
 
 impl Paragraph {
@@ -80,6 +85,7 @@ impl Paragraph {
             section_index_at_start,
             glyphs: vec![],
             empty_paragraph_height: 0.0,
+            wrap_indent: 0.0,
         }
     }
 }
@@ -524,6 +530,7 @@ fn layout_section(
 ) {
     let LayoutSection {
         leading_space,
+        wrap_indent,
         byte_range,
         format,
     } = section;
@@ -540,6 +547,7 @@ fn layout_section(
     let mut paragraph = out_paragraphs.last_mut().unwrap();
     if paragraph.glyphs.is_empty() {
         paragraph.empty_paragraph_height = line_height;
+        paragraph.wrap_indent = *wrap_indent;
     }
     paragraph.cursor_x_px +=
         (leading_space + format.background_margin.left as f32) * pixels_per_point;
@@ -563,6 +571,7 @@ fn layout_section(
         if 0 < seg_idx {
             paragraph = out_paragraphs.push_mut(Paragraph::from_section_index(section_index));
             paragraph.empty_paragraph_height = line_height;
+            paragraph.wrap_indent = *wrap_indent;
             ctx.is_first_glyph_in_section = true;
         }
 
@@ -752,13 +761,23 @@ fn line_break(
     let mut row_start_x = 0.0;
     let mut row_start_idx = 0;
 
+    // The first row of the paragraph is not indented, the rows it wraps onto are.
+    let first_out_row = out_rows.len();
+    let row_indent = |out_rows: &Vec<PlacedRow>| {
+        if first_out_row < out_rows.len() {
+            paragraph.wrap_indent
+        } else {
+            0.0
+        }
+    };
+
     for i in 0..paragraph.glyphs.len() {
         if job.wrap.max_rows <= out_rows.len() {
             *elided = true;
             break;
         }
 
-        let potential_row_width = paragraph.glyphs[i].max_x() - row_start_x;
+        let potential_row_width = row_indent(out_rows) + paragraph.glyphs[i].max_x() - row_start_x;
 
         if wrap_width < potential_row_width {
             // Row break:
@@ -795,7 +814,7 @@ fn line_break(
                 let paragraph_max_x = glyphs.last().unwrap().max_x();
 
                 out_rows.push(PlacedRow {
-                    pos: pos2(0.0, f32::NAN),
+                    pos: pos2(row_indent(out_rows), f32::NAN),
                     row: Arc::new(Row {
                         section_index_at_start,
                         glyphs,
@@ -838,7 +857,7 @@ fn line_break(
             let section_index_at_start = glyphs[0].section_index;
 
             out_rows.push(PlacedRow {
-                pos: pos2(paragraph_min_x, 0.0),
+                pos: pos2(row_indent(out_rows) + paragraph_min_x, 0.0),
                 row: Arc::new(Row {
                     section_index_at_start,
                     glyphs,
@@ -1650,6 +1669,66 @@ mod tests {
 
     /// Chinese closes a clause with full-width marks (，：；？！）), and those must never start a row:
     /// <https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages>
+    /// Lay out `paragraphs`, each `(text, wrap_indent)` its own section, wrapped at `wrap_width`.
+    fn layout_with_wrap_indents(paragraphs: &[(&str, f32)], wrap_width: f32) -> Arc<Galley> {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        let mut job = LayoutJob::default();
+        for &(text, wrap_indent) in paragraphs {
+            let start = job.text.len();
+            job.text += text;
+            job.sections.push(LayoutSection {
+                leading_space: 0.0,
+                wrap_indent,
+                byte_range: ByteIndex(start)..ByteIndex(job.text.len()),
+                format: TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+            });
+        }
+        job.wrap.max_width = wrap_width;
+        fonts.with_pixels_per_point(1.0).layout_job(job)
+    }
+
+    #[test]
+    fn wrap_indent_moves_only_the_wrapped_rows() {
+        let wrap_width = 100.0;
+        let galley =
+            layout_with_wrap_indents(&[("- one two three four five six seven", 12.0)], wrap_width);
+
+        assert!(3 <= galley.rows.len(), "{} rows", galley.rows.len());
+        assert_eq!(galley.rows[0].pos.x, 0.0);
+        for row in &galley.rows[1..] {
+            assert_eq!(row.pos.x, 12.0);
+            assert!(row.rect().max.x <= wrap_width, "{:?} overflows", row.rect());
+        }
+    }
+
+    #[test]
+    fn wrap_indent_comes_from_the_section_that_starts_the_paragraph() {
+        let galley = layout_with_wrap_indents(
+            &[
+                ("- one two three four five six seven\n", 12.0),
+                ("- one two three four five six seven", 24.0),
+            ],
+            100.0,
+        );
+
+        let second_paragraph = galley
+            .rows
+            .iter()
+            .position(|row| row.ends_with_newline)
+            .unwrap()
+            + 1;
+        assert_eq!(galley.rows[second_paragraph].pos.x, 0.0);
+        assert_eq!(galley.rows[second_paragraph + 1].pos.x, 24.0);
+    }
+
+    #[test]
+    fn wrap_indent_does_nothing_to_a_row_that_fits() {
+        let galley = layout_with_wrap_indents(&[("- one", 12.0)], 100.0);
+
+        assert_eq!(galley.rows.len(), 1);
+        assert_eq!(galley.rows[0].pos.x, 0.0);
+    }
+
     #[test]
     fn cjk_row_never_starts_with_full_width_closing_punctuation() {
         let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())

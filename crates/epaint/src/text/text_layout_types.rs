@@ -127,6 +127,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
+                wrap_indent: 0.0,
                 byte_range: ByteRange::full(&text),
                 format: TextFormat::simple(font_id, color),
             }],
@@ -146,6 +147,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
+                wrap_indent: 0.0,
                 byte_range: ByteRange::full(&text),
                 format,
             }],
@@ -161,6 +163,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
+                wrap_indent: 0.0,
                 byte_range: ByteRange::full(&text),
                 format: TextFormat::simple(font_id, color),
             }],
@@ -176,6 +179,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
+                wrap_indent: 0.0,
                 byte_range: ByteRange::full(&text),
                 format,
             }],
@@ -214,6 +218,7 @@ impl LayoutJob {
 
         self.sections.push(LayoutSection {
             leading_space,
+            wrap_indent: 0.0,
             byte_range,
             format,
         });
@@ -348,6 +353,18 @@ pub struct LayoutSection {
     /// Can be used for first row indentation.
     pub leading_space: f32,
 
+    /// Where the rows that a paragraph wraps onto start, in points.
+    ///
+    /// Use it for a hanging indent, e.g. so the wrapped rows of a list item line up
+    /// with the text after its bullet instead of with the bullet.
+    ///
+    /// The value of the section that holds the first character of a paragraph applies
+    /// to that whole paragraph. The first row of a paragraph is never indented by it:
+    /// use [`Self::leading_space`] for that.
+    ///
+    /// Only applies to left-aligned text that is neither justified nor centered.
+    pub wrap_indent: f32,
+
     /// Range into [`LayoutJob::text`].
     pub byte_range: ByteRange,
 
@@ -360,10 +377,12 @@ impl core::hash::Hash for LayoutSection {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         let Self {
             leading_space,
+            wrap_indent,
             byte_range,
             format,
         } = self;
         OrderedFloat(*leading_space).hash(state);
+        OrderedFloat(*wrap_indent).hash(state);
         byte_range.hash(state);
         format.hash(state);
     }
