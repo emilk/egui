@@ -1413,7 +1413,7 @@ pub struct Selection {
 /// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
 ///
 /// Also known as `pre` or `code` blocks, after the HTML tags.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct CodeVisuals {
@@ -1436,6 +1436,9 @@ pub struct CodeVisuals {
     /// The top and bottom margins are only visual: they do not affect the layout.
     /// Negative top and bottom margins keep the code backgrounds on adjacent rows apart.
     pub margin: Margin,
+
+    /// Outline of the background, painted inside its edge.
+    pub stroke: Stroke,
 }
 
 /// Visual style for IME composition.
@@ -1899,6 +1902,7 @@ impl CodeVisuals {
                 top: -1,
                 bottom: -1,
             },
+            stroke: Stroke::NONE,
         }
     }
 
@@ -2480,6 +2484,7 @@ impl CodeVisuals {
             text_color,
             corner_radius,
             margin,
+            stroke,
         } = self;
 
         ui.horizontal(|ui| {
@@ -2513,6 +2518,10 @@ impl CodeVisuals {
 
             ui.label("Margin");
             ui.add(margin);
+            ui.end_row();
+
+            ui.label("Stroke");
+            ui.add(stroke);
             ui.end_row();
         });
     }
