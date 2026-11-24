@@ -1236,7 +1236,7 @@ fn tessellate_row(
         add_row_hline(point_scale, row, &mut mesh, |glyph| {
             let format = &job.sections[glyph.section_index as usize].format;
             let stroke = format.underline;
-            let y = glyph.logical_rect().bottom();
+            let y = glyph.font_rect().bottom();
             (stroke, y)
         });
     }
@@ -1245,7 +1245,7 @@ fn tessellate_row(
         add_row_hline(point_scale, row, &mut mesh, |glyph| {
             let format = &job.sections[glyph.section_index as usize].format;
             let stroke = format.strikethrough;
-            let y = glyph.logical_rect().center().y;
+            let y = glyph.font_rect().center().y;
             (stroke, y)
         });
     }
@@ -1323,10 +1323,7 @@ fn add_row_backgrounds(
         let format = &job.sections[glyph.section_index as usize].format;
         // The background covers the font, not the row. A `TextFormat::line_height` that is taller
         // than the font adds space around the text, and the background must not grow into it.
-        let rect = Rect::from_min_size(
-            glyph.pos - vec2(0.0, glyph.font_ascent),
-            vec2(glyph.advance_width, glyph.font_height),
-        );
+        let rect = glyph.font_rect();
 
         if !has_background(format) {
             end_run(run_start.take(), last_rect.right());
@@ -1702,43 +1699,141 @@ mod tests {
         galley.rows[0].visuals.glyph_vertex_range.start
     }
 
-    /// The bounds of the vertices painted behind the glyphs of a one-row `format` galley, and the
-    /// first glyph.
-    fn background_bounds(format: TextFormat) -> (Rect, Glyph) {
+    /// Lay out `text` in `format`, wrapped at `wrap_width`.
+    fn layout_format(text: &str, format: TextFormat, wrap_width: f32) -> Arc<Galley> {
         let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
-        let job = LayoutJob::single_section("code".to_owned(), format);
-        let galley = fonts.with_pixels_per_point(1.0).layout_job(job);
-        let row = &galley.rows[0];
-        let background = &row.visuals.mesh.vertices[..row.visuals.glyph_vertex_range.start];
-        let bounds = Rect::from_points(&background.iter().map(|v| v.pos).collect::<Vec<_>>());
-        (bounds, row.glyphs[0])
+        let mut job = LayoutJob::single_section(text.to_owned(), format);
+        job.wrap.max_width = wrap_width;
+        fonts.with_pixels_per_point(1.0).layout_job(job)
+    }
+
+    /// The y range of the vertices of `row` in `range`, relative to the top of the row.
+    fn vertex_y_range(row: &PlacedRow, range: Range<usize>) -> emath::Rangef {
+        let ys = row.visuals.mesh.vertices[range].iter().map(|v| v.pos.y);
+        emath::Rangef::new(
+            ys.clone().fold(f32::INFINITY, f32::min),
+            ys.fold(f32::NEG_INFINITY, f32::max),
+        )
+    }
+
+    fn background_y_range(row: &PlacedRow) -> emath::Rangef {
+        vertex_y_range(row, 0..row.visuals.glyph_vertex_range.start)
+    }
+
+    fn hline_y_range(row: &PlacedRow) -> emath::Rangef {
+        vertex_y_range(
+            row,
+            row.visuals.glyph_vertex_range.end..row.visuals.mesh.vertices.len(),
+        )
+    }
+
+    fn code_format() -> TextFormat {
+        TextFormat {
+            background: Color32::GRAY,
+            ..TextFormat::simple(FontId::monospace(14.0), Color32::WHITE)
+        }
     }
 
     #[test]
-    fn background_covers_the_font_and_not_a_taller_line_height() {
-        let format = TextFormat {
-            background: Color32::GRAY,
-            ..TextFormat::simple(FontId::monospace(14.0), Color32::WHITE)
-        };
-        let (default_bounds, glyph) = background_bounds(format.clone());
+    fn background_stays_in_a_row_with_a_taller_line_height() {
+        let default_galley = layout_format("code", code_format(), f32::INFINITY);
+        let default_background = background_y_range(&default_galley.rows[0]);
+        let font_height = default_galley.rows[0].glyphs[0].font_height;
 
         let tall = TextFormat {
-            line_height: Some(2.0 * glyph.font_height),
-            ..format
+            line_height: Some(2.5 * font_height),
+            ..code_format()
         };
-        let (tall_bounds, tall_glyph) = background_bounds(tall);
+        let galley = layout_format("code", tall, f32::INFINITY);
+        let row = &galley.rows[0];
+        let background = background_y_range(row);
 
         assert_eq!(
-            tall_bounds.height(),
-            default_bounds.height(),
+            background.span(),
+            default_background.span(),
             "the background has the height of the font"
         );
-        let font_center_y =
-            tall_glyph.pos.y - tall_glyph.font_ascent + 0.5 * tall_glyph.font_height;
         assert!(
-            (tall_bounds.center().y - font_center_y).abs() <= 0.5,
-            "the background is centered on the text: {tall_bounds:?}, font center {font_center_y}"
+            0.0 <= background.min && background.max <= row.size.y,
+            "the background {background:?} is outside the row 0..{}",
+            row.size.y
         );
+    }
+
+    #[test]
+    fn background_covers_the_font_with_a_shorter_line_height() {
+        let font_height =
+            layout_format("code", code_format(), f32::INFINITY).rows[0].glyphs[0].font_height;
+        let short = TextFormat {
+            line_height: Some(0.5 * font_height),
+            ..code_format()
+        };
+        let galley = layout_format("code", short, f32::INFINITY);
+        let row = &galley.rows[0];
+        let font = row.glyphs[0].font_rect();
+        let background = background_y_range(row);
+        assert!(
+            background.min <= font.min.y && font.max.y <= background.max,
+            "the background {background:?} does not cover the font {font:?}"
+        );
+    }
+
+    #[test]
+    fn backgrounds_of_wrapped_rows_stay_in_their_rows() {
+        let font_height =
+            layout_format("code", code_format(), f32::INFINITY).rows[0].glyphs[0].font_height;
+        let tall = TextFormat {
+            line_height: Some(2.0 * font_height),
+            ..code_format()
+        };
+        let galley = layout_format("one two three four", tall, 40.0);
+        assert!(2 <= galley.rows.len(), "{} rows", galley.rows.len());
+        for row in &galley.rows {
+            let background = background_y_range(row);
+            assert!(
+                0.0 <= background.min && background.max <= row.size.y,
+                "the background {background:?} is outside the row 0..{}",
+                row.size.y
+            );
+        }
+    }
+
+    #[test]
+    fn underline_and_strikethrough_follow_the_font_with_a_taller_line_height() {
+        let plain = TextFormat::simple(FontId::monospace(14.0), Color32::WHITE);
+        let font_height =
+            layout_format("code", plain.clone(), f32::INFINITY).rows[0].glyphs[0].font_height;
+        let stroke = Stroke::new(1.0, Color32::RED);
+
+        for (name, format) in [
+            (
+                "underline",
+                TextFormat {
+                    underline: stroke,
+                    ..plain.clone()
+                },
+            ),
+            (
+                "strikethrough",
+                TextFormat {
+                    strikethrough: stroke,
+                    ..plain.clone()
+                },
+            ),
+        ] {
+            let tall = TextFormat {
+                line_height: Some(2.5 * font_height),
+                ..format
+            };
+            let galley = layout_format("code", tall, f32::INFINITY);
+            let row = &galley.rows[0];
+            let line = hline_y_range(row);
+            let font = row.glyphs[0].font_rect();
+            assert!(
+                font.min.y <= line.min && line.max <= font.max.y + stroke.width,
+                "the {name} {line:?} is outside the font {font:?}"
+            );
+        }
     }
 
     #[test]

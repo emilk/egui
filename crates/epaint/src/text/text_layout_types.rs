@@ -518,6 +518,7 @@ pub struct TextFormat {
     /// Text color
     pub color: Color32,
 
+    /// Background color. The background covers the font, not [`Self::line_height`].
     pub background: Color32,
 
     /// Amount to expand background fill by.
@@ -555,8 +556,10 @@ pub struct TextFormat {
 
     pub italics: bool,
 
+    /// Underline, at the bottom of the font, not of [`Self::line_height`].
     pub underline: Stroke,
 
+    /// Strikethrough, at the middle of the font, not of [`Self::line_height`].
     pub strikethrough: Stroke,
 
     /// If you use a small font and [`Align::TOP`] you
@@ -1009,6 +1012,19 @@ impl Glyph {
     #[inline]
     pub fn logical_rect(&self) -> Rect {
         Rect::from_min_size(self.pos - vec2(0.0, self.font_ascent), self.size())
+    }
+
+    /// The rect of the font around this glyph: from the top of the font to the bottom of the font.
+    ///
+    /// This is the same as [`Self::logical_rect`], unless [`TextFormat::line_height`] is set.
+    /// A custom line height centers the text in the line, so the font rect then sits in the
+    /// middle of the logical rect (taller line), or extends past it (shorter line).
+    #[inline]
+    pub fn font_rect(&self) -> Rect {
+        Rect::from_min_size(
+            self.pos - vec2(0.0, self.font_ascent),
+            vec2(self.advance_width, self.font_height),
+        )
     }
 }
 
