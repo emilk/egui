@@ -1014,11 +1014,9 @@ impl Glyph {
         Rect::from_min_size(self.pos - vec2(0.0, self.font_ascent), self.size())
     }
 
-    /// The rect of the font around this glyph: from the top of the font to the bottom of the font.
+    /// The rect of the font around this glyph, from the top to the bottom of the font.
     ///
-    /// This is the same as [`Self::logical_rect`], unless [`TextFormat::line_height`] is set.
-    /// A custom line height centers the text in the line, so the font rect then sits in the
-    /// middle of the logical rect (taller line), or extends past it (shorter line).
+    /// Unlike [`Self::logical_rect`], the height of this rect ignores [`TextFormat::line_height`].
     #[inline]
     pub fn font_rect(&self) -> Rect {
         Rect::from_min_size(
