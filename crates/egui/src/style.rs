@@ -1413,12 +1413,15 @@ pub struct Selection {
 /// How code-styled monospaced labels look, e.g. [`crate::RichText::code`].
 ///
 /// Also known as `pre` or `code` blocks, after the HTML tags.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct CodeVisuals {
     /// Background color behind the code.
     pub bg_color: Color32,
+
+    /// Outline of the background, painted inside its edge.
+    pub stroke: Stroke,
 
     /// Text color of the code.
     ///
@@ -1614,6 +1617,16 @@ pub struct DebugOptions {
     /// previous frame.
     pub warn_if_rect_changes_id: bool,
 
+    /// Show a warning if [`crate::Context::request_discard`] has been called this many frames
+    /// in a row.
+    ///
+    /// Multi-pass frames are expensive, so this is likely a bug.
+    ///
+    /// `None` turns the warning off.
+    ///
+    /// Default is `Some(3)`.
+    pub consecutive_multipass_warning_cutoff: Option<usize>,
+
     /// If true, highlight widgets that are not aligned to [`emath::GUI_ROUNDING`].
     ///
     /// See [`emath::GuiRounding`] for more.
@@ -1641,6 +1654,7 @@ impl Default for DebugOptions {
             show_interactive_widgets: false,
             show_widget_hits: false,
             warn_if_rect_changes_id: false,
+            consecutive_multipass_warning_cutoff: Some(3),
             show_unaligned: cfg!(debug_assertions),
             show_focused_widget: false,
         }
@@ -1880,6 +1894,7 @@ impl CodeVisuals {
     pub fn dark() -> Self {
         Self {
             bg_color: Color32::from_gray(48),
+            stroke: Stroke::NONE,
             text_color: None,
             corner_radius: CornerRadius::same(1),
             margin: Margin {
@@ -2466,6 +2481,7 @@ impl CodeVisuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             bg_color,
+            stroke,
             text_color,
             corner_radius,
             margin,
@@ -2481,6 +2497,10 @@ impl CodeVisuals {
         Grid::new("code_visuals").num_columns(2).show(ui, |ui| {
             ui.label("Background color");
             ui.color_edit_button_srgba(bg_color);
+            ui.end_row();
+
+            ui.label("Stroke");
+            ui.add(stroke);
             ui.end_row();
 
             ui.label("Text color");
@@ -2957,6 +2977,7 @@ impl DebugOptions {
             show_interactive_widgets,
             show_widget_hits,
             warn_if_rect_changes_id,
+            consecutive_multipass_warning_cutoff,
             show_unaligned,
             show_focused_widget,
         } = self;
@@ -2992,6 +3013,24 @@ impl DebugOptions {
             warn_if_rect_changes_id,
             "Warn if a Rect changes Id between frames",
         );
+
+        ui.horizontal(|ui| {
+            let mut warn = consecutive_multipass_warning_cutoff.is_some();
+            ui.checkbox(
+                &mut warn,
+                "Warn if request_discard is called many frames in a row",
+            );
+            if warn {
+                let cutoff = consecutive_multipass_warning_cutoff.get_or_insert(3);
+                ui.add(
+                    DragValue::new(cutoff)
+                        .range(1..=usize::MAX)
+                        .suffix(" frames"),
+                );
+            } else {
+                *consecutive_multipass_warning_cutoff = None;
+            }
+        });
 
         ui.checkbox(
             show_unaligned,
