@@ -1420,6 +1420,9 @@ pub struct CodeVisuals {
     /// Background color behind the code.
     pub bg_color: Color32,
 
+    /// Outline of the background, painted inside its edge.
+    pub stroke: Stroke,
+
     /// Text color of the code.
     ///
     /// If `None` (the default), code uses the same color as other text.
@@ -1436,9 +1439,6 @@ pub struct CodeVisuals {
     /// The top and bottom margins are only visual: they do not affect the layout.
     /// Negative top and bottom margins keep the code backgrounds on adjacent rows apart.
     pub margin: Margin,
-
-    /// Outline of the background, painted inside its edge.
-    pub stroke: Stroke,
 }
 
 /// Visual style for IME composition.
@@ -1894,6 +1894,7 @@ impl CodeVisuals {
     pub fn dark() -> Self {
         Self {
             bg_color: Color32::from_gray(48),
+            stroke: Stroke::NONE,
             text_color: None,
             corner_radius: CornerRadius::same(1),
             margin: Margin {
@@ -1902,7 +1903,6 @@ impl CodeVisuals {
                 top: -1,
                 bottom: -1,
             },
-            stroke: Stroke::NONE,
         }
     }
 
@@ -2481,10 +2481,10 @@ impl CodeVisuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             bg_color,
+            stroke,
             text_color,
             corner_radius,
             margin,
-            stroke,
         } = self;
 
         ui.horizontal(|ui| {
@@ -2497,6 +2497,10 @@ impl CodeVisuals {
         Grid::new("code_visuals").num_columns(2).show(ui, |ui| {
             ui.label("Background color");
             ui.color_edit_button_srgba(bg_color);
+            ui.end_row();
+
+            ui.label("Stroke");
+            ui.add(stroke);
             ui.end_row();
 
             ui.label("Text color");
@@ -2518,10 +2522,6 @@ impl CodeVisuals {
 
             ui.label("Margin");
             ui.add(margin);
-            ui.end_row();
-
-            ui.label("Stroke");
-            ui.add(stroke);
             ui.end_row();
         });
     }
