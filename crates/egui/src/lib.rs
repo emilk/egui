@@ -469,7 +469,7 @@ pub use epaint::{
 };
 
 pub mod text {
-    pub use crate::text_selection::CCursorRange;
+    pub use crate::text_selection::{CCursorRange, CursorSettings};
     pub use epaint::text::{
         ByteIndex, ByteRange, CharIndex, CharRange, FontData, FontDefinitions, FontFamily, Fonts,
         Galley, LayoutJob, LayoutSection, TextFormat, TextWrapping, cursor::CCursor,

@@ -23,6 +23,44 @@ pub struct CCursorRange {
     pub h_pos: Option<f32>,
 }
 
+/// How the keyboard moves a text cursor.
+///
+/// Passed to [`CCursorRange::on_event`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CursorSettings {
+    /// Should `Home` go to the first non-whitespace character of the line,
+    /// and to the start of the line when pressed again?
+    ///
+    /// See [`crate::TextEdit::smart_home`].
+    pub smart_home: bool,
+
+    /// Should `End` go to just after the last non-whitespace character of the line,
+    /// and to the end of the line when pressed again?
+    ///
+    /// See [`crate::TextEdit::smart_end`].
+    pub smart_end: bool,
+}
+
+impl CursorSettings {
+    /// `Home` key takes the cursor
+    fn home(self, galley: &Galley, cursor: CCursor) -> CCursor {
+        if self.smart_home {
+            smart_home_cursor(galley, cursor)
+        } else {
+            galley.cursor_begin_of_row(&cursor)
+        }
+    }
+
+    /// `End` key takes the cursor
+    fn end(self, galley: &Galley, cursor: CCursor) -> CCursor {
+        if self.smart_end {
+            smart_end_cursor(galley, cursor)
+        } else {
+            galley.cursor_end_of_row(&cursor)
+        }
+    }
+}
+
 impl CCursorRange {
     /// The empty range.
     #[inline]
@@ -117,6 +155,7 @@ impl CCursorRange {
         galley: &Galley,
         modifiers: &Modifiers,
         key: Key,
+        settings: CursorSettings,
     ) -> bool {
         match key {
             Key::A if modifiers.command => {
@@ -146,6 +185,7 @@ impl CCursorRange {
                     galley,
                     key,
                     modifiers,
+                    settings,
                 );
                 if !modifiers.shift {
                     self.secondary = self.primary;
@@ -163,6 +203,7 @@ impl CCursorRange {
                     galley,
                     key,
                     modifiers,
+                    settings,
                 );
                 self.secondary = self.primary;
                 true
@@ -181,6 +222,7 @@ impl CCursorRange {
         event: &Event,
         galley: &Galley,
         _widget_id: Id,
+        settings: CursorSettings,
     ) -> bool {
         match event {
             Event::Key {
@@ -188,7 +230,7 @@ impl CCursorRange {
                 key,
                 pressed: true,
                 ..
-            } => self.on_key_press(os, galley, modifiers, *key),
+            } => self.on_key_press(os, galley, modifiers, *key, settings),
 
             Event::AccessKitActionRequest(accesskit::ActionRequest {
                 action: accesskit::Action::SetTextSelection,
@@ -266,6 +308,7 @@ fn move_single_cursor(
     galley: &Galley,
     key: Key,
     modifiers: &Modifiers,
+    settings: CursorSettings,
 ) {
     let (new_cursor, new_h_pos) =
         if os == OperatingSystem::Mac && modifiers.ctrl && !modifiers.shift {
@@ -285,7 +328,7 @@ fn move_single_cursor(
                         // alt on mac, ctrl on windows
                         (ccursor_previous_word(galley, *cursor), None)
                     } else if modifiers.mac_cmd {
-                        (galley.cursor_begin_of_row(cursor), None)
+                        (settings.home(galley, *cursor), None)
                     } else {
                         (galley.cursor_left_one_character(cursor), None)
                     }
@@ -295,7 +338,7 @@ fn move_single_cursor(
                         // alt on mac, ctrl on windows
                         (ccursor_next_word(galley, *cursor), None)
                     } else if modifiers.mac_cmd {
-                        (galley.cursor_end_of_row(cursor), None)
+                        (settings.end(galley, *cursor), None)
                     } else {
                         (galley.cursor_right_one_character(cursor), None)
                     }
@@ -321,16 +364,20 @@ fn move_single_cursor(
                     if modifiers.ctrl {
                         // windows behavior
                         (galley.begin(), None)
-                    } else {
+                    } else if modifiers.mac_cmd {
                         (galley.cursor_begin_of_row(cursor), None)
+                    } else {
+                        (settings.home(galley, *cursor), None)
                     }
                 }
                 Key::End => {
                     if modifiers.ctrl {
                         // windows behavior
                         (galley.end(), None)
-                    } else {
+                    } else if modifiers.mac_cmd {
                         (galley.cursor_end_of_row(cursor), None)
+                    } else {
+                        (settings.end(galley, *cursor), None)
                     }
                 }
 
@@ -340,4 +387,57 @@ fn move_single_cursor(
 
     *cursor = new_cursor;
     *h_pos = new_h_pos;
+}
+
+fn paragraph_around(galley: &Galley, cursor: CCursor) -> (CCursor, CCursor, &str) {
+    let start = galley.cursor_begin_of_paragraph(&cursor);
+    let end = galley.cursor_end_of_paragraph(&cursor);
+    (
+        start,
+        end,
+        slice_char_range(galley.text(), start.index..end.index),
+    )
+}
+
+/// Go to start of line or to first non-whitespace character of the line
+fn smart_home_cursor(galley: &Galley, cursor: CCursor) -> CCursor {
+    let row_start = galley.cursor_begin_of_row(&cursor);
+    let (line_start, line_end, line) = paragraph_around(galley, cursor);
+    let indent = line.chars().take_while(|c| c.is_whitespace()).count();
+    let first_non_blank = if line_start.index + indent == line_end.index {
+        line_start // a blank line
+    } else {
+        CCursor {
+            index: line_start.index + indent,
+            prefer_next_row: true,
+        }
+    };
+
+    if cursor == first_non_blank {
+        line_start
+    } else if row_start.index > first_non_blank.index && cursor != row_start {
+        row_start
+    } else {
+        first_non_blank
+    }
+}
+
+/// Go to end of line or to just after last non-whitespace character of the line
+fn smart_end_cursor(galley: &Galley, cursor: CCursor) -> CCursor {
+    let row_end = galley.cursor_end_of_row(&cursor);
+    let (line_start, line_end, line) = paragraph_around(galley, cursor);
+    let trailing = line.chars().rev().take_while(|c| c.is_whitespace()).count();
+    let last_non_blank_end = if line_end.index - trailing == line_start.index {
+        line_end // a blank line
+    } else {
+        CCursor::new(line_end.index - trailing)
+    };
+
+    if cursor == last_non_blank_end {
+        line_end
+    } else if row_end.index < last_non_blank_end.index && cursor != row_end {
+        row_end
+    } else {
+        last_non_blank_end
+    }
 }

@@ -15,7 +15,8 @@ use crate::{
     response,
     text_edit::state::TextEditCursorPurpose,
     text_selection::{
-        self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
+        self, CCursorRange, CursorSettings, text_cursor_state::cursor_rect,
+        visuals::paint_text_selection,
     },
     vec2,
     widget_style::TextEditStyle,
@@ -93,6 +94,7 @@ pub struct TextEdit<'t> {
     clip_text: bool,
     char_limit: usize,
     return_key: Option<KeyboardShortcut>,
+    cursor_settings: CursorSettings,
     background_color: Option<Color32>,
     classes: Classes,
 }
@@ -157,6 +159,7 @@ impl<'t> TextEdit<'t> {
             clip_text: false,
             char_limit: usize::MAX,
             return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
+            cursor_settings: CursorSettings::default(),
             background_color: None,
             classes: Classes::default(),
         }
@@ -166,8 +169,11 @@ impl<'t> TextEdit<'t> {
     /// By default it comes with:
     /// - monospaced font
     /// - focus lock (tab will insert a tab character instead of moving focus)
+    /// - smart home key
     pub fn code_editor(self) -> Self {
-        self.font(TextStyle::Monospace).lock_focus(true)
+        self.font(TextStyle::Monospace)
+            .lock_focus(true)
+            .smart_home(true)
     }
 
     /// Use if you want to set an explicit [`Id`] for this widget.
@@ -443,6 +449,34 @@ impl<'t> TextEdit<'t> {
         self.return_key = return_key.into();
         self
     }
+
+    /// Toggle the smart `Home` key function.
+    ///
+    /// When `true`, the `Home` key moves the cursor to the first
+    /// non-whitespace character of the line, and pressing it again
+    /// moves it to the start of the line. On a Mac, `Cmd+ArrowLeft`
+    /// works the same way.
+    ///
+    /// Default is `false`, but [`Self::code_editor`] turns it on.
+    #[inline]
+    pub fn smart_home(mut self, smart_home: bool) -> Self {
+        self.cursor_settings.smart_home = smart_home;
+        self
+    }
+
+    /// Toggle the smart `End` key function.
+    ///
+    /// When `true`, the `End` key moves the cursor to just after
+    /// the last non-whitespace character of the line, and pressing
+    /// it again moves it to the end of the line. On a Mac,
+    /// `Cmd+ArrowRight` works the same way.
+    ///
+    /// Default is `false`, also for [`Self::code_editor`].
+    #[inline]
+    pub fn smart_end(mut self, smart_end: bool) -> Self {
+        self.cursor_settings.smart_end = smart_end;
+        self
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -518,6 +552,7 @@ impl<'t> TextEdit<'t> {
             clip_text,
             char_limit,
             return_key,
+            cursor_settings,
             background_color,
             mut classes,
         } = self;
@@ -676,6 +711,7 @@ impl<'t> TextEdit<'t> {
                         char_limit,
                         event_filter,
                         return_key,
+                        cursor_settings,
                     },
                 );
 
@@ -1194,6 +1230,7 @@ struct EventsOptions {
     char_limit: usize,
     event_filter: EventFilter,
     return_key: Option<KeyboardShortcut>,
+    cursor_settings: CursorSettings,
 }
 
 /// Check for (keyboard) events to edit the cursor and/or text.
@@ -1215,6 +1252,7 @@ fn events(
         char_limit,
         event_filter,
         return_key,
+        cursor_settings,
     } = *opts;
 
     let os = ui.os();
@@ -1250,7 +1288,7 @@ fn events(
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
-            event if cursor_range.on_event(os, event, galley, id) => None,
+            event if cursor_range.on_event(os, event, galley, id, cursor_settings) => None,
 
             Event::Copy => {
                 if !cursor_range.is_empty() {
