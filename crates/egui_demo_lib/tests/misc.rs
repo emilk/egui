@@ -124,6 +124,47 @@ fn test_text_selection() {
     }
 }
 
+/// A selection that starts inside a multi-line code block and ends in the text after it,
+/// with and without an outline around the code.
+#[test]
+fn test_text_selection_out_of_code_block() {
+    let mut results = egui_kittest::SnapshotResults::new();
+
+    for (name, code_stroke) in [
+        ("without_stroke", egui::Stroke::NONE),
+        ("with_stroke", egui::Stroke::new(1.0, Color32::LIGHT_BLUE)),
+    ] {
+        let mut harness = Harness::builder()
+            .with_pixels_per_point(1.0)
+            .build_ui(move |ui| {
+                let visuals = ui.visuals_mut();
+                visuals.selection.bg_fill = Color32::LIGHT_GREEN;
+                visuals.selection.stroke.color = Color32::RED;
+                visuals.code.stroke = code_stroke;
+
+                ui.label("Text before the code.");
+                ui.label(egui::RichText::new("fn main() {\n    println!(\"Hello\");\n}").code());
+                ui.label("Text after the code, where the selection ends.");
+            });
+        harness.run();
+        harness.fit_contents();
+
+        let labels: Vec<_> = harness.get_all_by_role(Role::Label).collect();
+        let [_, code, after] = labels.as_slice() else {
+            panic!("Expected three labels, got {}", labels.len());
+        };
+        let drag_start = code.rect().lerp_inside([0.5, 0.5]);
+        let drop = after.rect().lerp_inside([0.5, 0.5]);
+
+        harness.drag_at(drag_start);
+        harness.drop_at(drop);
+        harness.run();
+
+        harness.snapshot(format!("text_selection_out_of_code_block_{name}"));
+        results.extend_harness(&mut harness);
+    }
+}
+
 #[test]
 fn test_sql_syntax_highlighting() {
     let code = "\
