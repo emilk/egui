@@ -1667,8 +1667,6 @@ mod tests {
         )
     }
 
-    /// Chinese closes a clause with full-width marks (，：；？！）), and those must never start a row:
-    /// <https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages>
     /// Lay out `paragraphs`, each `(text, wrap_indent)` its own section, wrapped at `wrap_width`.
     fn layout_with_wrap_indents(paragraphs: &[(&str, f32)], wrap_width: f32) -> Arc<Galley> {
         let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
@@ -1729,6 +1727,8 @@ mod tests {
         assert_eq!(galley.rows[0].pos.x, 0.0);
     }
 
+    /// Chinese closes a clause with full-width marks (，：；？！）), and those must never start a row:
+    /// <https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages>
     #[test]
     fn cjk_row_never_starts_with_full_width_closing_punctuation() {
         let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())
