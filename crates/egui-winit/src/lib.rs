@@ -591,14 +591,10 @@ impl State {
                 consumed: false,
             },
 
-            // Moving the window needs no new frame: the window manager moves the old one.
-            WindowEvent::Moved(_) => EventResponse {
-                repaint: false,
-                consumed: false,
-            },
-
             // Things we completely ignore:
             WindowEvent::ActivationTokenDone { .. }
+            // No new frame needed: the compositor shows the last frame at the new position.
+            | WindowEvent::Moved(_)
             | WindowEvent::AxisMotion { .. }
             | WindowEvent::DoubleTapGesture { .. } => EventResponse {
                 repaint: false,
