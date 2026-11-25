@@ -37,7 +37,8 @@ use log::warn;
 use super::{
     epi_integration, event_loop_context,
     winit_integration::{
-        EventResult, PassMode, UserEvent, WinitApp, create_egui_context, shows_views_below,
+        EventResult, PassMode, UserEvent, WinitApp, create_egui_context,
+        schedule_ui_thread_callbacks, shows_views_below,
     },
 };
 use crate::epaint::textures::TexturesDelta;
@@ -382,6 +383,8 @@ impl<'app> GlowWinitApp<'app> {
                         })
                         .ok();
                 });
+
+            schedule_ui_thread_callbacks(&integration.egui_ctx, self.repaint_proxy.lock().clone());
         }
 
         #[cfg(feature = "accesskit")]

@@ -92,6 +92,9 @@ struct WinitAppWrapper<T: WinitApp> {
     /// Windows we asked to redraw, and when to give up waiting for their `RedrawRequested`.
     windows_redraw_deadlines: HashMap<WindowId, Instant>,
 
+    /// The callbacks of [`egui::Context::run_on_ui_thread_after`], and when to run each.
+    ui_thread_callbacks: Vec<(Instant, egui::UiThreadCallback)>,
+
     winit_app: T,
     return_result: Result<(), crate::Error>,
     run_and_return: bool,
@@ -102,6 +105,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         Self {
             windows_next_repaint_times: HashMap::default(),
             windows_redraw_deadlines: HashMap::default(),
+            ui_thread_callbacks: Vec::new(),
             winit_app,
             return_result: Ok(()),
             run_and_return,
@@ -202,7 +206,29 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         self.check_redraw_requests(event_loop);
     }
 
+    /// Runs the callbacks of [`egui::Context::run_on_ui_thread_after`] that are due.
+    fn run_due_ui_thread_callbacks(&mut self) {
+        let now = Instant::now();
+        let due: Vec<_> = self
+            .ui_thread_callbacks
+            .extract_if(.., |(when, _)| *when <= now)
+            .collect();
+        if due.is_empty() {
+            return;
+        }
+        profiling::function_scope!();
+
+        // Without a context the app is gone, and so is what the callbacks were for.
+        if let Some(egui_ctx) = self.winit_app.egui_ctx().cloned() {
+            for (_, callback) in due {
+                callback.run(&egui_ctx);
+            }
+        }
+    }
+
     fn check_redraw_requests(&mut self, event_loop: &ActiveEventLoop) {
+        self.run_due_ui_thread_callbacks();
+
         let now = Instant::now();
 
         let mut invisible_window_ids = Vec::new();
@@ -288,14 +314,16 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         // `ControlFlow::Poll` set earlier was never undone once the last timed
         // repaint had been consumed, leaving the loop spinning.
         // See https://github.com/emilk/egui/issues/8326.
-        let next_repaint_time = core::iter::chain(
+        let repaint_times = core::iter::chain(
             self.windows_next_repaint_times.values(),
             self.windows_redraw_deadlines.values(),
-        )
-        .min()
-        .copied();
-        event_loop.set_control_flow(match next_repaint_time {
-            Some(next_repaint_time) => ControlFlow::WaitUntil(next_repaint_time),
+        );
+        let callback_times = self.ui_thread_callbacks.iter().map(|(when, _)| when);
+        let next_wake_time = core::iter::chain(repaint_times, callback_times)
+            .min()
+            .copied();
+        event_loop.set_control_flow(match next_wake_time {
+            Some(next_wake_time) => ControlFlow::WaitUntil(next_wake_time),
             None => ControlFlow::Wait,
         });
     }
@@ -348,6 +376,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
         profiling::function_scope!(match &event {
             UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
+            UserEvent::UiThreadCallback { .. } => "UserEvent::UiThreadCallback",
             #[cfg(feature = "accesskit")]
             UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
         });
@@ -388,6 +417,11 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
                         log::trace!("Got outdated UserEvent::RequestRepaint");
                         Ok(EventResult::Wait) // old request - we've already repainted
                     }
+                }
+                UserEvent::UiThreadCallback { when, callback } => {
+                    // `handle_event_result` runs it if it is due, and wakes up for it otherwise.
+                    self.ui_thread_callbacks.push((when, callback));
+                    Ok(EventResult::Wait)
                 }
                 #[cfg(feature = "accesskit")]
                 UserEvent::AccessKitActionRequest(request) => {
