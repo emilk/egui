@@ -31,6 +31,12 @@ impl SurfaceState {
     fn update_present_with_transaction(&self) {
         cfg_select! {
             all(target_os = "macos", feature = "macos-window-resize-jitter-fix") => {
+                // Resizing is a bit tricky on macOS.
+                // It requires enabling ["present_with_transaction"](https://developer.apple.com/documentation/quartzcore/cametallayer/presentswithtransaction)
+                // flag to avoid jittering during the resize. Even though resize jittering on macOS
+                // is common across rendering backends, the solution for wgpu/metal is known.
+                //
+                // See https://github.com/emilk/egui/issues/903
                 // SAFETY: `as_hal::<Metal>()` returns `None` unless this surface is backed by
                 // wgpu's Metal backend.
                 if let Some(hal_surface) = unsafe { self.surface.as_hal::<wgpu::hal::api::Metal>() }
@@ -194,6 +200,7 @@ impl Painter {
 
         surface.present_with_transaction = present_with_transaction;
         surface.update_present_with_transaction();
+        surface.needs_reconfigure = true;
     }
 
     /// The alpha mode for `surface`. If `transparent`, it is one that keeps the alpha, if the
@@ -235,11 +242,12 @@ impl Painter {
         // Transaction presentation can hold a drawable during AppKit live resize. Keep the
         // configured low-latency path normally, but use three Metal drawables while resizing.
         #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
-        let desired_maximum_frame_latency = if surface_state.resizing {
-            Some(desired_maximum_frame_latency.unwrap_or(2).max(2))
-        } else {
-            desired_maximum_frame_latency
-        };
+        let desired_maximum_frame_latency =
+            if surface_state.resizing || surface_state.present_with_transaction {
+                Some(desired_maximum_frame_latency.unwrap_or(2).max(2))
+            } else {
+                desired_maximum_frame_latency
+            };
 
         let width = surface_state.width;
         let height = surface_state.height;
@@ -546,19 +554,11 @@ impl Painter {
 
         // Set before reconfiguring so macOS live resize uses the temporary latency bump above.
         state.resizing = resizing;
+        state.update_present_with_transaction();
 
-        // Resizing is a bit tricky on macOS.
-        // It requires enabling ["present_with_transaction"](https://developer.apple.com/documentation/quartzcore/cametallayer/presentswithtransaction)
-        // flag to avoid jittering during the resize. Even though resize jittering on macOS
-        // is common across rendering backends, the solution for wgpu/metal is known.
-        //
-        // See https://github.com/emilk/egui/issues/903
         #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
-        {
-            state.update_present_with_transaction();
-            if let Some(render_state) = &self.render_state {
-                Self::configure_surface(state, render_state, &self.config.surface);
-            }
+        if let Some(render_state) = &self.render_state {
+            Self::configure_surface(state, render_state, &self.config.surface);
         }
     }
 
