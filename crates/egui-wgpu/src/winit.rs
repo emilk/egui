@@ -179,11 +179,13 @@ impl Painter {
     ///
     /// On macOS with Metal, this sets
     /// [`presentsWithTransaction`](https://developer.apple.com/documentation/quartzcore/cametallayer/presentswithtransaction),
-    /// and requires the `macos-window-resize-jitter-fix` feature. It adds latency.
+    /// and requires the `macos-window-resize-jitter-fix` feature. It adds a frame of latency.
     /// It does nothing on other platforms.
     ///
     /// Call this after [`Self::set_window`] for the viewport, since it does nothing for a
     /// viewport that has no surface yet.
+    ///
+    /// The surface is reconfigured before the next paint.
     ///
     /// This is cheap to call every frame.
     pub fn set_present_with_transaction(
@@ -239,8 +241,9 @@ impl Painter {
             desired_maximum_frame_latency,
         } = *config;
 
-        // Transaction presentation can hold a drawable during AppKit live resize. Keep the
-        // configured low-latency path normally, but use three Metal drawables while resizing.
+        // Transaction presentation can hold a drawable until the transaction commits. Keep the
+        // configured low-latency path normally, but use three Metal drawables while presenting
+        // with a transaction. Otherwise the frame rate drops to a fraction.
         #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
         let desired_maximum_frame_latency =
             if surface_state.resizing || surface_state.present_with_transaction {
