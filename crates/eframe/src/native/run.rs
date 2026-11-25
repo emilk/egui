@@ -701,7 +701,7 @@ pub enum EframePumpStatus {
 // ----------------------------------------------------------------------------
 
 #[cfg(target_os = "windows")]
-impl<Id: Copy + Eq + std::hash::Hash> RedrawLedger<Id> {
+impl<Id: Copy + Eq + core::hash::Hash> RedrawLedger<Id> {
     /// Keep the earliest unanswered redraw request for each window.
     fn asked(&mut self, window: Id) {
         let order = self.next;
