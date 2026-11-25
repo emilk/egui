@@ -29,15 +29,20 @@ impl SurfaceState {
     ///
     /// Does nothing for other surfaces.
     fn update_present_with_transaction(&self) {
-        #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
-        {
-            // SAFETY: `as_hal::<Metal>()` returns `None` unless this surface is backed by wgpu's
-            // Metal backend.
-            if let Some(hal_surface) = unsafe { self.surface.as_hal::<wgpu::hal::api::Metal>() } {
-                hal_surface
-                    .render_layer()
-                    .lock()
-                    .setPresentsWithTransaction(self.resizing || self.present_with_transaction);
+        cfg_select! {
+            all(target_os = "macos", feature = "macos-window-resize-jitter-fix") => {
+                // SAFETY: `as_hal::<Metal>()` returns `None` unless this surface is backed by
+                // wgpu's Metal backend.
+                if let Some(hal_surface) = unsafe { self.surface.as_hal::<wgpu::hal::api::Metal>() }
+                {
+                    hal_surface
+                        .render_layer()
+                        .lock()
+                        .setPresentsWithTransaction(self.resizing || self.present_with_transaction);
+                }
+            }
+            _ => {
+                _ = self;
             }
         }
     }
