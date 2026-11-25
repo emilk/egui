@@ -490,7 +490,7 @@ pub use self::{
         menu::{self, MenuBar},
         modal, panel, scroll_area,
     },
-    context::{Context, RepaintCause, RequestRepaintInfo, ViewportState},
+    context::{Context, RepaintCause, RequestRepaintInfo, UiThreadCallback, ViewportState},
     data::{
         Key, ScreenshotCallback,
         input::{

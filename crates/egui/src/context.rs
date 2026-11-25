@@ -8,7 +8,7 @@ use epaint::{
     ClippedPrimitive, ClippedShape, Color32, ImageData, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureId, Vec2,
     emath::TSTransform,
-    mutex::RwLock,
+    mutex::{Mutex, RwLock},
     stats::PaintStats,
     tessellator,
     text::{FontInsert, FontPriority, Fonts, FontsView, ViewportKey},
@@ -61,6 +61,34 @@ pub struct RequestRepaintInfo {
     /// This can be compared to [`Context::cumulative_pass_nr`] to see if we we still
     /// need another repaint (ui pass / frame), or if one has already happened.
     pub current_cumulative_pass_nr: u64,
+}
+
+/// A callback to run on the UI thread, scheduled with [`Context::run_on_ui_thread_after`].
+///
+/// Integrations get these from the scheduler they set with
+/// [`Context::set_ui_thread_callback_scheduler`], and call [`Self::run`] on the UI thread
+/// once [`Self::delay`] has passed.
+pub struct UiThreadCallback {
+    /// Run the callback after this duration. If zero, run it as soon as possible.
+    pub delay: Duration,
+
+    callback: Box<dyn FnOnce(&Context) + Send>,
+}
+
+impl UiThreadCallback {
+    /// Run the callback. Call this on the UI thread, outside of any pass.
+    pub fn run(self, ctx: &Context) {
+        (self.callback)(ctx);
+    }
+}
+
+impl core::fmt::Debug for UiThreadCallback {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let Self { delay, callback: _ } = self;
+        f.debug_struct("UiThreadCallback")
+            .field("delay", delay)
+            .finish_non_exhaustive()
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -449,6 +477,15 @@ struct ContextImpl {
 
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
     repaint_observer: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
+
+    /// Set by the integration. See [`Context::set_ui_thread_callback_scheduler`].
+    ui_thread_callback_scheduler: Option<Arc<dyn Fn(UiThreadCallback) + Send + Sync>>,
+
+    /// The callbacks that wait for a pass, because there is no scheduler,
+    /// and the [`InputState::time`] at which each one is due.
+    ///
+    /// The callbacks are `Send` but not `Sync`, hence the mutex.
+    pending_ui_thread_callbacks: Mutex<Vec<(f64, UiThreadCallback)>>,
 
     viewport_parents: ViewportIdMap<ViewportId>,
     viewports: ViewportIdMap<ViewportState>,
@@ -1200,6 +1237,10 @@ impl Context {
             raw.focused = new_input.focused;
         });
 
+        // The time of the last pass is stale while the window is hidden:
+        let now = new_input.time.unwrap_or_else(|| self.latest_input_time());
+        self.run_due_ui_thread_callbacks(now);
+
         logic(self);
 
         self.write(|ctx| LogicOutput {
@@ -1239,6 +1280,8 @@ impl Context {
         plugins.on_input(self, &mut new_input);
 
         self.write(|ctx| ctx.begin_pass(new_input));
+
+        self.run_due_ui_thread_callbacks(self.input(|i| i.time));
     }
 }
 
@@ -2283,6 +2326,83 @@ impl Context {
     ) {
         let callback = Box::new(callback);
         self.write(|ctx| ctx.request_repaint_callback = Some(callback));
+    }
+
+    /// Run `callback` on the UI thread after `delay`, without running a pass or repainting.
+    ///
+    /// The UI thread is the thread that runs the passes. Call this from any thread.
+    ///
+    /// Use this for work that must happen on the UI thread at a certain time,
+    /// but that doesn't change what egui shows, such as pumping the message loop of an
+    /// embedded library. If the callback changes something that egui shows,
+    /// it should call [`Self::request_repaint`].
+    ///
+    /// The callback is called outside of any pass, so it must not show any ui.
+    ///
+    /// This needs the egui integration to have set that up via
+    /// [`Self::set_ui_thread_callback_scheduler`], which `eframe` does on native.
+    /// Without it, egui requests a repaint after `delay`, and runs the callback at the start
+    /// of the first pass (or [`Self::run_logic`]) that is due. That pass can come early,
+    /// by as much as the time since the previous pass.
+    pub fn run_on_ui_thread_after(
+        &self,
+        delay: Duration,
+        callback: impl FnOnce(&Self) + Send + 'static,
+    ) {
+        let callback = UiThreadCallback {
+            delay,
+            callback: Box::new(callback),
+        };
+
+        // Don't call the scheduler while holding the lock:
+        let scheduler = self.read(|ctx| ctx.ui_thread_callback_scheduler.clone());
+        if let Some(scheduler) = scheduler {
+            scheduler(callback);
+        } else {
+            let due = self.latest_input_time() + delay.as_secs_f64();
+            self.read(|ctx| ctx.pending_ui_thread_callbacks.lock().push((due, callback)));
+            self.request_repaint_after_for(delay, ViewportId::ROOT);
+        }
+    }
+
+    /// For integrations: `scheduler` will be called when an egui user calls
+    /// [`Self::run_on_ui_thread_after`].
+    ///
+    /// The scheduler may be called from any thread. It should arrange for
+    /// [`UiThreadCallback::run`] to be called on the UI thread after
+    /// [`UiThreadCallback::delay`], outside of any pass, and without repainting.
+    ///
+    /// Note that only one scheduler can be set. Any new call overrides the previous scheduler.
+    pub fn set_ui_thread_callback_scheduler(
+        &self,
+        scheduler: impl Fn(UiThreadCallback) + Send + Sync + 'static,
+    ) {
+        let scheduler = Arc::new(scheduler);
+        self.write(|ctx| ctx.ui_thread_callback_scheduler = Some(scheduler));
+    }
+
+    /// The most recent [`InputState::time`] of any viewport.
+    fn latest_input_time(&self) -> f64 {
+        self.read(|ctx| {
+            ctx.viewports
+                .values()
+                .map(|viewport| viewport.input.time)
+                .fold(0.0, f64::max)
+        })
+    }
+
+    /// Run the callbacks of [`Self::run_on_ui_thread_after`] that are due at `now`,
+    /// for when there is no scheduler.
+    fn run_due_ui_thread_callbacks(&self, now: f64) {
+        let due: Vec<_> = self.read(|ctx| {
+            ctx.pending_ui_thread_callbacks
+                .lock()
+                .extract_if(.., |(due, _)| *due <= now)
+                .collect()
+        });
+        for (_, callback) in due {
+            callback.run(self);
+        }
     }
 
     /// For integrations: this observer will be called for every repaint request,
@@ -5288,6 +5408,110 @@ mod test {
             [Duration::from_secs(1), Duration::from_secs(2)],
             "The observer sees every request"
         );
+    }
+
+    #[test]
+    fn test_ui_thread_callback_without_scheduler() {
+        use alloc::sync::Arc;
+        use core::sync::atomic::{AtomicUsize, Ordering};
+        use core::time::Duration;
+
+        use crate::RawInput;
+        use crate::mutex::Mutex;
+
+        fn pass(ctx: &Context, time: f64) {
+            let input = RawInput {
+                time: Some(time),
+                ..Default::default()
+            };
+            ctx.run_ui(input, |_| {}).drop_without_applying_deltas();
+        }
+
+        let ctx = Context::default();
+        let repaint_delays = Arc::new(Mutex::new(Vec::new()));
+        ctx.set_repaint_observer({
+            let repaint_delays = Arc::clone(&repaint_delays);
+            move |info| repaint_delays.lock().push(info.delay)
+        });
+        pass(&ctx, 10.0);
+        repaint_delays.lock().clear();
+
+        let num_calls = Arc::new(AtomicUsize::new(0));
+        ctx.run_on_ui_thread_after(Duration::from_secs(2), {
+            let num_calls = Arc::clone(&num_calls);
+            move |_| {
+                num_calls.fetch_add(1, Ordering::Relaxed);
+            }
+        });
+        assert_eq!(
+            *repaint_delays.lock(),
+            [Duration::from_secs(2)],
+            "A pass is requested for when the callback is due"
+        );
+
+        pass(&ctx, 11.9);
+        assert_eq!(num_calls.load(Ordering::Relaxed), 0, "Not due yet");
+
+        // A hidden window gets no pass, only `run_logic`, whose time isn't applied:
+        let hidden = RawInput {
+            time: Some(12.0),
+            ..Default::default()
+        };
+        _ = ctx.run_logic(&hidden, |_| {});
+        assert_eq!(num_calls.load(Ordering::Relaxed), 1);
+
+        pass(&ctx, 13.0);
+        assert_eq!(num_calls.load(Ordering::Relaxed), 1, "It only runs once");
+    }
+
+    #[test]
+    fn test_ui_thread_callback_with_scheduler() {
+        use alloc::sync::Arc;
+        use core::sync::atomic::{AtomicUsize, Ordering};
+        use core::time::Duration;
+
+        use crate::RawInput;
+        use crate::mutex::Mutex;
+
+        let ctx = Context::default();
+        let scheduled = Arc::new(Mutex::new(Vec::new()));
+        let num_repaint_requests = Arc::new(AtomicUsize::new(0));
+        ctx.set_ui_thread_callback_scheduler({
+            let scheduled = Arc::clone(&scheduled);
+            move |callback| scheduled.lock().push(callback)
+        });
+        ctx.set_repaint_observer({
+            let num_repaint_requests = Arc::clone(&num_repaint_requests);
+            move |_| {
+                num_repaint_requests.fetch_add(1, Ordering::Relaxed);
+            }
+        });
+
+        let num_calls = Arc::new(AtomicUsize::new(0));
+        ctx.run_on_ui_thread_after(Duration::from_secs(2), {
+            let num_calls = Arc::clone(&num_calls);
+            move |_| {
+                num_calls.fetch_add(1, Ordering::Relaxed);
+            }
+        });
+        assert_eq!(
+            num_repaint_requests.load(Ordering::Relaxed),
+            0,
+            "The scheduler needs no pass"
+        );
+
+        // A pass doesn't run a callback that the scheduler has:
+        ctx.run_ui(RawInput::default(), |_| {})
+            .drop_without_applying_deltas();
+        assert_eq!(num_calls.load(Ordering::Relaxed), 0);
+
+        let callbacks: Vec<_> = scheduled.lock().drain(..).collect();
+        assert_eq!(callbacks.len(), 1);
+        for callback in callbacks {
+            assert_eq!(callback.delay, Duration::from_secs(2));
+            callback.run(&ctx);
+        }
+        assert_eq!(num_calls.load(Ordering::Relaxed), 1);
     }
 
     #[test]
