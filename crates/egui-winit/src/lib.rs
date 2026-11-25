@@ -585,10 +585,15 @@ impl State {
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
-            | WindowEvent::Moved(_)
             | WindowEvent::TouchpadPressure { .. }
             | WindowEvent::CloseRequested => EventResponse {
                 repaint: true,
+                consumed: false,
+            },
+
+            // Moving the window needs no new frame: the window manager moves the old one.
+            WindowEvent::Moved(_) => EventResponse {
+                repaint: false,
                 consumed: false,
             },
 
