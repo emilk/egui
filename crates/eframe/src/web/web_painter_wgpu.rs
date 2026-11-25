@@ -144,7 +144,6 @@ impl WebPainterWgpu {
     fn poll_screen_captures(&self, device: &wgpu::Device) -> Result<(), JsValue> {
         if self.pending_screenshots.is_pending() {
             // WebGL needs polling to deliver map_async callbacks, even when the UI is idle.
-            // On WebGPU this is a no-op; the browser drives completion itself.
             device.poll(wgpu::PollType::Poll).map_err(|err| {
                 JsValue::from_str(&format!("Failed to poll screenshot readback: {err}"))
             })?;
@@ -388,8 +387,13 @@ impl WebPainter for WebPainterWgpu {
             if let Some(capture_buffer) = capture_buffer
                 && let Some(capture_state) = &self.screen_capture_state
             {
-                let callback = self.pending_screenshots.track(capture_data);
-                capture_state.read_screen_rgba(capture_buffer, vec![callback]);
+                // WebGPU delivers callbacks through the browser event loop without repainting.
+                let callbacks = if render_state.adapter.get_info().backend == wgpu::Backend::Gl {
+                    vec![self.pending_screenshots.track(capture_data)]
+                } else {
+                    capture_data
+                };
+                capture_state.read_screen_rgba(capture_buffer, callbacks);
             }
 
             render_state.queue.present(frame);
