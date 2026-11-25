@@ -807,6 +807,10 @@ impl WgpuWinitRunning<'_> {
         // switch reconfigures the surface.
         if winit_integration::shows_views_below(&platform_output) {
             painter.set_transparent(viewport_id, true);
+
+            // Otherwise the view moves before the frame that cleared its new rect appears,
+            // and the window background shows through the old rect.
+            painter.set_present_with_transaction(viewport_id, true);
         }
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
