@@ -1497,13 +1497,16 @@ pub fn update_viewport_info(
         None
     };
 
-    let monitor_size = {
-        profiling::scope!("monitor_size");
+    let (monitor_size, monitor_refresh_rate) = {
+        profiling::scope!("monitor");
         if let Some(monitor) = window.current_monitor() {
             let size = monitor.size().to_logical::<f32>(pixels_per_point.into());
-            Some(egui::vec2(size.width, size.height))
+            let refresh_rate = monitor
+                .refresh_rate_millihertz()
+                .map(|millihertz| millihertz as f32 / 1000.0);
+            (Some(egui::vec2(size.width, size.height)), refresh_rate)
         } else {
-            None
+            (None, None)
         }
     };
 
@@ -1511,6 +1514,7 @@ pub fn update_viewport_info(
     viewport_info.native_pixels_per_point = Some(window.scale_factor() as f32);
 
     viewport_info.monitor_size = monitor_size;
+    viewport_info.monitor_refresh_rate = monitor_refresh_rate;
     viewport_info.inner_rect = inner_rect;
     viewport_info.outer_rect = outer_rect;
 
