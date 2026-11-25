@@ -805,13 +805,15 @@ impl WgpuWinitRunning<'_> {
         // A view below egui's surface shows through it, so the surface has to keep its alpha.
         // It stays that way once it is: a view that was shown is likely shown again, and each
         // switch reconfigures the surface.
-        if winit_integration::shows_views_below(&platform_output) {
+        let shows_views_below = winit_integration::shows_views_below(&platform_output);
+        if shows_views_below {
             painter.set_transparent(viewport_id, true);
-
-            // Otherwise the view moves before the frame that cleared its new rect appears,
-            // and the window background shows through the old rect.
-            painter.set_present_with_transaction(viewport_id, true);
         }
+
+        // Otherwise a view below egui moves before the frame that cleared its new rect appears,
+        // and the window background shows through the old rect.
+        // Switching is cheap, so turn it off again to avoid the added latency.
+        painter.set_present_with_transaction(viewport_id, shows_views_below);
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return Ok(EventResult::Wait);
