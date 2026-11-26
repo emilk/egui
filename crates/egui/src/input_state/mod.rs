@@ -1,5 +1,9 @@
+mod event_list;
 mod touch_state;
 mod wheel_state;
+
+use event_list::EventId;
+pub use event_list::Events;
 
 use crate::{
     MouseWheelSource, SafeAreaInsets,
@@ -323,8 +327,38 @@ pub struct InputState {
     /// Keys released this frame are NOT considered down.
     pub keys_down: HashSet<Key>,
 
-    /// In-order events received this frame
-    pub events: Vec<Event>,
+    /// In-order events received this pass.
+    ///
+    /// Reading an event does not accept it. [`Self::key_pressed`],
+    /// [`Self::key_released`], and [`Self::num_presses`] only look.
+    /// [`Self::accept_key`] marks one event handled: later readers this pass
+    /// still see it, and the next pass of a discarded frame does not.
+    /// [`Self::consume_key`] removes it, so later readers this pass do not see it.
+    ///
+    /// Two events that compare equal are still two events. [`Events`] keeps
+    /// each event's acceptance when the list is reordered or shortened.
+    /// Replacing a value makes a new event.
+    ///
+    /// A handler that looks and then changes its own state has to accept or
+    /// consume the event. egui cannot see that side effect. A discarded pass
+    /// that only looks will see the same event on the next pass.
+    pub events: Events,
+
+    /// Id of this pass's navigation key inside [`Self::events`].
+    ///
+    /// Focus picks the event while scanning, before widgets edit the list.
+    /// The id moves with that event. It is accepted at the end of the pass
+    /// only when that key moved or cleared focus.
+    #[cfg_attr(feature = "serde", serde(skip, default))]
+    navigation_id: Option<EventId>,
+
+    /// Id of a key that already changed focus while the events were scanned.
+    ///
+    /// Escape clears focus as soon as it is seen. A later Tab or arrow replaces
+    /// [`Self::navigation_id`]. This id is what keeps that Escape from clearing
+    /// focus again on the next pass.
+    #[cfg_attr(feature = "serde", serde(skip, default))]
+    scan_handled_id: Option<EventId>,
 
     /// Input state management configuration.
     ///
@@ -355,7 +389,9 @@ impl Default for InputState {
             focused: false,
             modifiers: Default::default(),
             keys_down: Default::default(),
-            events: Default::default(),
+            events: Events::default(),
+            navigation_id: None,
+            scan_handled_id: None,
             options: Default::default(),
         }
     }
@@ -364,11 +400,36 @@ impl Default for InputState {
 impl InputState {
     #[must_use]
     pub fn begin_pass(
+        self,
+        new: RawInput,
+        requested_immediate_repaint_prev_frame: bool,
+        pixels_per_point: f32,
+        options: InputOptions,
+    ) -> Self {
+        self.begin_pass_impl(
+            new,
+            requested_immediate_repaint_prev_frame,
+            pixels_per_point,
+            options,
+            false,
+        )
+    }
+
+    /// [`Self::begin_pass`], with control over discarded-pass event replay.
+    ///
+    /// When `replaying_discarded_pass` is `true`, `new.events` only contains
+    /// unaccepted events carried from an earlier pass of the same frame.
+    /// `keys_down`, key `repeat` flags, and wheel smoothing already reflect the
+    /// full batch from pass 0 and must not be updated again from that partial
+    /// subset.
+    #[must_use]
+    pub(crate) fn begin_pass_impl(
         mut self,
         mut new: RawInput,
         requested_immediate_repaint_prev_frame: bool,
         pixels_per_point: f32,
         options: InputOptions,
+        replaying_discarded_pass: bool,
     ) -> Self {
         profiling::function_scope!();
 
@@ -400,12 +461,18 @@ impl InputState {
 
         for event in &mut new.events {
             match event {
+                // A replayed pass only carries unaccepted events. Updating
+                // `keys_down` from that partial subset would drop a held key
+                // whose press was accepted, or stick a released key down when
+                // its release or a `WindowFocused(false)` was not replayed.
+                // Recomputing `repeat` would also mark a replayed original
+                // press as a repeat because the key is already in `keys_down`.
                 Event::Key {
                     key,
                     pressed,
                     repeat,
                     ..
-                } => {
+                } if !replaying_discarded_pass => {
                     if *pressed {
                         let first_press = keys_down.insert(*key);
                         *repeat = !first_press;
@@ -457,7 +524,14 @@ impl InputState {
 
         {
             let dt = stable_dt.at_most(0.1);
-            self.wheel.after_events(time, dt);
+            // A later pass of this frame already stepped the smoother when the
+            // wheel event arrived. Stepping again would spend a slice of a
+            // long notch and then throw that slice away: the pass shows the
+            // carried `smooth_scroll_delta` instead. The remainder stays for
+            // the next frame.
+            if !replaying_discarded_pass {
+                self.wheel.after_events(time, dt);
+            }
 
             let is_zoom = self.wheel.modifiers.matches_any(options.zoom_modifier);
 
@@ -490,7 +564,14 @@ impl InputState {
             focused: new.focused,
             modifiers,
             keys_down,
-            events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
+            // Reuse the previous pass's buffers. The event values are still cloned.
+            events: {
+                let mut events = core::mem::take(&mut self.events);
+                events.clone_from_events(&new.events);
+                events
+            },
+            navigation_id: None,
+            scan_handled_id: None,
             raw: new,
             options,
         }
@@ -712,7 +793,7 @@ impl InputState {
     pub fn count_and_consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> usize {
         let mut count = 0usize;
 
-        self.events.retain(|event| {
+        self.retain_events(|event| {
             let is_match = matches!(
                 event,
                 Event::Key {
@@ -763,22 +844,165 @@ impl InputState {
 
     /// Was the given key pressed this frame?
     ///
-    /// Includes key-repeat events.
+    /// Includes key-repeat events. Modifier keys are ignored: a press of `A`
+    /// and a press of `Ctrl+A` both count.
+    ///
+    /// This only looks. It does not accept the presses, and it does not remove
+    /// them. A later reader this pass still sees them. So does the next pass
+    /// of a discarded frame, until something accepts or consumes them.
+    ///
+    /// egui cannot tell that a caller ran `save()` after a `true` result.
+    /// A handler that acts on the press accepts it with [`Self::accept_key`]
+    /// or removes it with [`Self::consume_key`]. [`Self::consume_key`] matches
+    /// one modifier set. [`Self::accept_key_presses`] accepts every press of
+    /// the key, which is what a check written with this method was looking at.
     pub fn key_pressed(&self, desired_key: Key) -> bool {
         self.num_presses(desired_key) > 0
     }
 
     /// How many times was the given key pressed this frame?
     ///
-    /// Includes key-repeat events.
+    /// Includes key-repeat events. Modifier keys are ignored.
+    ///
+    /// This only counts. It does not accept the presses.
     pub fn num_presses(&self, desired_key: Key) -> usize {
+        self.count_key(desired_key, true)
+    }
+
+    /// Accept one key event.
+    ///
+    /// The event is the first that is not yet accepted, with this logical
+    /// `key`, this `pressed` edge, and exactly these `modifiers`. A second
+    /// identical event stays. The release of a press stays. `A` does not
+    /// accept `Ctrl+A`. A repeat is its own event, so accepting the original
+    /// press leaves the repeat.
+    ///
+    /// The event stays in [`Self::events`] for later readers this pass.
+    /// Returns whether an event was accepted.
+    pub fn accept_key(&self, key: Key, pressed: bool, modifiers: Modifiers) -> bool {
+        self.events.accept_first(|event| {
+            matches!(
+                event,
+                Event::Key {
+                    key: event_key,
+                    pressed: event_pressed,
+                    modifiers: event_modifiers,
+                    ..
+                } if *event_key == key
+                    && *event_pressed == pressed
+                    && *event_modifiers == modifiers
+            )
+        })
+    }
+
+    /// Accept every press of `key`, with any modifiers.
+    ///
+    /// For a handler that treated [`Self::key_pressed`] as "any press of this
+    /// key" and then acted on it. Releases stay available. Prefer
+    /// [`Self::accept_key`] when only one modifier combination was handled.
+    pub fn accept_key_presses(&self, key: Key) {
+        self.events.accept_where(|event| {
+            matches!(
+                event,
+                Event::Key {
+                    key: event_key,
+                    pressed: true,
+                    ..
+                } if *event_key == key
+            )
+        });
+    }
+
+    /// Accept every release of `key`, with any modifiers.
+    ///
+    /// For a handler that treated [`Self::key_released`] as "any release of this
+    /// key" and then acted on it. Presses stay available. Prefer
+    /// [`Self::accept_key`] when only one modifier combination was handled.
+    pub fn accept_key_releases(&self, key: Key) {
+        self.events.accept_where(|event| {
+            matches!(
+                event,
+                Event::Key {
+                    key: event_key,
+                    pressed: false,
+                    ..
+                } if *event_key == key
+            )
+        });
+    }
+
+    /// Accept the event currently at `index`.
+    ///
+    /// The event stays visible to later readers this pass. The next pass of a
+    /// discarded frame does not see it. Later edits of [`Self::events`] keep
+    /// that acceptance on this event. The index is only the position at the
+    /// time of the call.
+    pub fn accept_index(&self, index: usize) {
+        self.events.accept_index(index);
+    }
+
+    /// Remember which event is this pass's navigation key.
+    ///
+    /// `index` is its position while the pass's events are first built.
+    /// Later edits move the id with the event.
+    pub(crate) fn set_navigation_event(&mut self, index: u32) {
+        self.navigation_id = self.events.id_at(index as usize);
+    }
+
+    /// The navigation key's id, if this pass had one and it is still in the list.
+    ///
+    /// The id is returned even when a widget has already removed the event.
+    /// Accepting it then does nothing.
+    pub(crate) fn take_navigation_event(&mut self) -> Option<EventId> {
+        self.navigation_id.take()
+    }
+
+    /// Remember an Escape that already cleared focus during the event scan.
+    pub(crate) fn set_handled_during_scan(&mut self, index: u32) {
+        self.scan_handled_id = self.events.id_at(index as usize);
+    }
+
+    /// The Escape accepted because it already cleared focus.
+    pub(crate) fn take_handled_during_scan(&mut self) -> Option<EventId> {
+        self.scan_handled_id.take()
+    }
+
+    /// Accept the first not-yet-accepted event equal to `event`.
+    ///
+    /// Two identical events can be accepted one at a time. Returns whether an
+    /// event was accepted. Equality does not decide which physical event is
+    /// which after the call: acceptance stays on the one this call marked.
+    pub fn accept_event(&self, event: &Event) -> bool {
+        self.events.accept_first(|candidate| candidate == event)
+    }
+
+    /// Remove one event.
+    ///
+    /// Later readers this pass do not see it, and it is not replayed.
+    /// Acceptance of every other event stays on that event.
+    /// [`Events::remove`] does the same thing.
+    pub fn remove_event(&mut self, index: usize) {
+        if index < self.events.len() {
+            self.events.remove(index);
+        }
+    }
+
+    /// [`Events::retain`]. Kept events keep their acceptance.
+    pub fn retain_events(&mut self, keep: impl FnMut(&Event) -> bool) {
+        self.events.retain(keep);
+    }
+
+    fn count_key(&self, desired_key: Key, pressed: bool) -> usize {
         self.events
             .iter()
             .filter(|event| {
                 matches!(
                     event,
-                    Event::Key { key, pressed: true, .. }
-                    if *key == desired_key
+                    Event::Key {
+                        key,
+                        pressed: event_pressed,
+                        ..
+                    } if *key == desired_key && *event_pressed == pressed
                 )
             })
             .count()
@@ -792,6 +1016,11 @@ impl InputState {
     }
 
     /// Was the given key released this frame?
+    ///
+    /// Modifier keys are ignored. This only looks. It does not accept the
+    /// releases. A handler that acts on the release accepts it with
+    /// [`Self::accept_key`] (for one modifier combination) or
+    /// [`Self::accept_key_releases`] (for any modifiers).
     pub fn key_released(&self, desired_key: Key) -> bool {
         self.events.iter().any(|event| {
             matches!(
@@ -803,6 +1032,17 @@ impl InputState {
                 } if *key == desired_key
             )
         })
+    }
+
+    /// Events the next pass of this frame should see.
+    ///
+    /// [`Event::carried_across_discard`] decides which events are messages.
+    /// An accepted event is left out. Anything else was applied to pointer,
+    /// wheel, zoom, or modifier state while this pass started. Scroll that a
+    /// [`crate::ScrollArea`] did not use is carried separately, as the
+    /// `smooth_scroll_delta` this pass left behind.
+    pub(crate) fn events_for_next_pass(&self) -> Vec<Event> {
+        self.events.carried_unaccepted()
     }
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
@@ -903,7 +1143,7 @@ impl InputState {
         mut consume: impl FnMut(&accesskit::ActionRequest) -> bool,
     ) {
         let accesskit_id = id.accesskit_id();
-        self.events.retain(|event| {
+        self.retain_events(|event| {
             if let Event::AccessKitActionRequest(request) = event
                 && request.target_node == accesskit_id
                 && request.target_tree == accesskit::TreeId::ROOT
@@ -911,6 +1151,39 @@ impl InputState {
                 return !consume(request);
             }
             true
+        });
+    }
+
+    /// Accept every matching action without removing it.
+    ///
+    /// The event stays visible for the rest of this pass, so a later read of
+    /// the same widget still sees it. The next pass of a discarded frame does
+    /// not. [`Self::consume_accesskit_action_requests`] is the call that
+    /// removes an action instead.
+    pub fn accept_accesskit_action(&self, id: crate::Id, action: accesskit::Action) {
+        let accesskit_id = id.accesskit_id();
+        self.events.accept_where(|event| {
+            matches!(
+                event,
+                Event::AccessKitActionRequest(request)
+                    if request.target_node == accesskit_id
+                        && request.target_tree == accesskit::TreeId::ROOT
+                        && request.action == action
+            )
+        });
+    }
+
+    pub(crate) fn accept_accesskit_focus_requests(&self) {
+        self.events.accept_where(|event| {
+            matches!(
+                event,
+                Event::AccessKitActionRequest(accesskit::ActionRequest {
+                    action: accesskit::Action::Focus,
+                    target_tree,
+                    data: None,
+                    ..
+                }) if *target_tree == accesskit::TreeId::ROOT
+            )
         });
     }
 
@@ -1645,6 +1918,8 @@ impl InputState {
             modifiers,
             keys_down,
             events,
+            navigation_id: _,
+            scan_handled_id: _,
             options: _,
         } = self;
 
@@ -1751,5 +2026,330 @@ impl PointerState {
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
         ui.label(format!("last_move_time: {last_move_time:#?}"));
         ui.label(format!("pointer_events: {pointer_events:?}"));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn press(key: Key, modifiers: Modifiers) -> Event {
+        Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers,
+        }
+    }
+
+    fn release(key: Key, modifiers: Modifiers) -> Event {
+        Event::Key {
+            key,
+            physical_key: None,
+            pressed: false,
+            repeat: false,
+            modifiers,
+        }
+    }
+
+    fn text(value: &str) -> Event {
+        Event::Text(value.to_owned())
+    }
+
+    fn input_with(events: Vec<Event>) -> InputState {
+        let mut input = InputState::default();
+        input.events.extend(events);
+        input
+    }
+
+    #[test]
+    fn accept_key_accepts_one_matching_event() {
+        let input = input_with(vec![
+            press(Key::A, Modifiers::NONE),
+            press(Key::A, Modifiers::NONE),
+            press(Key::A, Modifiers::COMMAND),
+        ]);
+        assert!(input.accept_key(Key::A, true, Modifiers::NONE));
+        assert!(input.accept_key(Key::A, true, Modifiers::NONE));
+        assert!(!input.accept_key(Key::A, true, Modifiers::NONE));
+        let next = input.events_for_next_pass();
+        assert_eq!(next, vec![press(Key::A, Modifiers::COMMAND)]);
+    }
+
+    #[test]
+    fn key_queries_do_not_accept() {
+        let input = input_with(vec![
+            press(Key::A, Modifiers::NONE),
+            press(Key::A, Modifiers::COMMAND),
+        ]);
+        assert!(input.key_pressed(Key::A));
+        assert_eq!(input.num_presses(Key::A), 2);
+        assert!(!input.key_released(Key::A));
+        assert_eq!(
+            input.events_for_next_pass(),
+            vec![
+                press(Key::A, Modifiers::NONE),
+                press(Key::A, Modifiers::COMMAND),
+            ]
+        );
+    }
+
+    #[test]
+    fn remove_keeps_acceptance_on_the_same_event() {
+        let mut input = input_with(vec![text("0"), text("0"), text("1")]);
+        input.accept_index(0);
+        input.events.remove(0);
+        assert_eq!(input.events_for_next_pass(), vec![text("0"), text("1")]);
+    }
+
+    #[test]
+    fn insert_swap_sort_replace_and_truncate_follow_the_event() {
+        let mut input = input_with(vec![text("b"), text("a"), text("c")]);
+        input.accept_index(0);
+        input.events.insert(0, text("z"));
+        assert_eq!(
+            input.events_for_next_pass(),
+            vec![text("z"), text("a"), text("c")]
+        );
+
+        input.events.swap(1, 3);
+        assert_eq!(
+            input.events_for_next_pass(),
+            vec![text("z"), text("c"), text("a")]
+        );
+
+        input.events.sort_by_key(|event| match event {
+            Event::Text(value) => value.clone(),
+            _ => String::new(),
+        });
+        let next = input.events_for_next_pass();
+        assert!(next.contains(&text("a")));
+        assert!(next.contains(&text("c")));
+        assert!(next.contains(&text("z")));
+        assert!(!next.contains(&text("b")));
+
+        let mut input = input_with(vec![text("old"), text("keep")]);
+        input.accept_index(0);
+        input.events[0] = text("new");
+        assert_eq!(
+            input.events_for_next_pass(),
+            vec![text("new"), text("keep")]
+        );
+
+        let mut input = input_with(vec![text("0"), text("1"), text("2")]);
+        input.accept_index(2);
+        input.events.truncate(2);
+        assert_eq!(input.events_for_next_pass(), vec![text("0"), text("1")]);
+
+        input.events.clear();
+        input.events.push(text("after"));
+        assert_eq!(input.events_for_next_pass(), vec![text("after")]);
+    }
+
+    #[test]
+    fn retain_reverse_rotate_drain_and_splice_follow_the_event() {
+        let mut input = input_with(vec![text("0"), text("1"), text("1"), text("2")]);
+        input.accept_index(1);
+        input.events.retain(|event| event != &text("0"));
+        assert_eq!(input.events_for_next_pass(), vec![text("1"), text("2")]);
+
+        input.events.reverse();
+        assert_eq!(input.events_for_next_pass(), vec![text("2"), text("1")]);
+
+        input.events.rotate_left(1);
+        assert_eq!(input.events_for_next_pass(), vec![text("1"), text("2")]);
+
+        let drained: Vec<Event> = input.events.drain(0..1).collect();
+        assert_eq!(drained, vec![text("1")]);
+        assert_eq!(input.events_for_next_pass(), vec![text("2")]);
+
+        let removed = input.events.splice(0..0, [text("added")]);
+        assert!(removed.is_empty());
+        assert_eq!(input.events_for_next_pass(), vec![text("added"), text("2")]);
+    }
+
+    #[test]
+    fn navigation_id_follows_the_event_through_edits() {
+        let mut input = input_with(vec![text("0"), text("1"), text("2"), text("3")]);
+        input.set_navigation_event(2);
+        input.set_handled_during_scan(3);
+        input.events.remove(0);
+        input.events.swap(0, 1);
+        let navigation_id = input.navigation_id;
+        let scan_handled_id = input.scan_handled_id;
+        assert!(navigation_id.is_some_and(|id| input.events.accept_id(id)));
+        assert_eq!(input.events_for_next_pass(), vec![text("1"), text("3")]);
+        assert!(scan_handled_id.is_some_and(|id| input.events.accept_id(id)));
+        assert_eq!(input.events_for_next_pass(), vec![text("1")]);
+
+        let mut input = input_with(vec![text("0"), text("1"), text("2")]);
+        input.set_navigation_event(1);
+        input.events.retain(|event| event != &text("1"));
+        let id = input.take_navigation_event();
+        assert!(id.is_some_and(|id| !input.events.accept_id(id)));
+        assert_eq!(input.events_for_next_pass(), vec![text("0"), text("2")]);
+    }
+
+    #[test]
+    fn iter_mut_replaces_every_event() {
+        let mut input = input_with(vec![text("0"), text("1")]);
+        input.accept_index(0);
+        input.events.iter_mut().for_each(|_| {});
+        assert_eq!(input.events_for_next_pass(), vec![text("0"), text("1")]);
+    }
+
+    #[test]
+    fn append_of_a_clone_does_not_accept_both_copies() {
+        let mut input = input_with(vec![text("0"), text("1")]);
+        input.accept_index(0);
+        let mut copy = input.events.clone();
+        input.events.append(&mut copy);
+        assert_eq!(
+            input.events_for_next_pass(),
+            vec![text("1"), text("0"), text("1")]
+        );
+    }
+
+    #[test]
+    fn append_keeps_an_accepted_event_when_the_new_id_would_have_hit_it() {
+        // `left` next id is 2. `right` still holds id 2 on an accepted event.
+        // The colliding event must not be given id 2, or accepting it later
+        // would mark the event that already owned that id.
+        let mut left = input_with(vec![text("keep"), text("gap")]);
+        left.events.remove(1);
+        left.accept_index(0);
+
+        let mut right = input_with(vec![text("moved"), text("skip"), text("held")]);
+        right.events.remove(1);
+        right.accept_index(1);
+
+        left.events.append(&mut right.events);
+        assert_eq!(left.events_for_next_pass(), vec![text("moved")]);
+        assert!(left.events.iter().any(|event| event == &text("held")));
+        assert!(left.events.iter().any(|event| event == &text("keep")));
+    }
+
+    #[test]
+    fn dedup_keeps_the_earlier_events_acceptance() {
+        let mut input = input_with(vec![text("0"), text("0"), text("1")]);
+        input.accept_index(0);
+        input.events.dedup();
+        assert_eq!(input.events_for_next_pass(), vec![text("1")]);
+
+        let mut input = input_with(vec![text("0"), text("0"), text("1")]);
+        input.accept_index(1);
+        input.events.dedup();
+        assert_eq!(input.events_for_next_pass(), vec![text("0"), text("1")]);
+    }
+
+    #[test]
+    fn replaying_a_press_does_not_rewrite_its_repeat_flag() {
+        let held = InputState {
+            keys_down: std::collections::HashSet::from([Key::A]),
+            ..Default::default()
+        };
+        let raw = RawInput {
+            events: vec![press(Key::A, Modifiers::NONE)],
+            time: Some(1.0),
+            ..Default::default()
+        };
+        let replayed =
+            held.clone()
+                .begin_pass_impl(raw.clone(), false, 1.0, InputOptions::default(), true);
+        assert_eq!(key_repeat(&replayed), Some(false));
+
+        let recomputed = held.begin_pass_impl(raw, false, 1.0, InputOptions::default(), false);
+        assert_eq!(key_repeat(&recomputed), Some(true));
+    }
+
+    #[test]
+    fn replaying_partial_key_events_preserves_keys_down() {
+        // Press + release happened on pass 0, release was accepted, only press replays.
+        let released_state = InputState::default();
+        let raw_press = RawInput {
+            events: vec![press(Key::A, Modifiers::NONE)],
+            time: Some(1.0),
+            ..Default::default()
+        };
+        let replayed =
+            released_state.begin_pass_impl(raw_press, false, 1.0, InputOptions::default(), true);
+        assert!(
+            !replayed.key_down(Key::A),
+            "replaying a press whose release was accepted must not stick the key down"
+        );
+        assert_eq!(key_repeat(&replayed), Some(false));
+
+        // Release + press happened on pass 0, press was accepted, only release replays.
+        let held_state = InputState {
+            keys_down: std::collections::HashSet::from([Key::A]),
+            ..Default::default()
+        };
+        let raw_release = RawInput {
+            events: vec![release(Key::A, Modifiers::NONE)],
+            time: Some(1.0),
+            ..Default::default()
+        };
+        let replayed =
+            held_state.begin_pass_impl(raw_release, false, 1.0, InputOptions::default(), true);
+        assert!(
+            replayed.key_down(Key::A),
+            "replaying a release whose subsequent press was accepted must not drop the held key"
+        );
+    }
+
+    #[test]
+    fn replacing_events_collection_prevents_stale_ids_from_matching() {
+        let mut input = input_with(vec![text("0"), text("1")]);
+        input.set_navigation_event(0);
+        input.set_handled_during_scan(1);
+        let nav_id = input.take_navigation_event().expect("navigation id");
+        let scan_id = input.take_handled_during_scan().expect("scan id");
+
+        input.events = Events::from(vec![text("fresh-0"), text("fresh-1")]);
+        assert!(!input.events.accept_id(nav_id));
+        assert!(!input.events.accept_id(scan_id));
+        assert_eq!(
+            input.events_for_next_pass(),
+            vec![text("fresh-0"), text("fresh-1")]
+        );
+
+        let moved: Vec<Event> = core::mem::take(&mut input.events).into_iter().collect();
+        assert_eq!(moved, vec![text("fresh-0"), text("fresh-1")]);
+        input.events.push(text("after-take"));
+        assert!(!input.events.accept_id(nav_id));
+        assert!(!input.events.accept_id(scan_id));
+        assert_eq!(input.events_for_next_pass(), vec![text("after-take")]);
+
+        input.events = [text("collected-0"), text("collected-1")]
+            .into_iter()
+            .collect();
+        assert!(!input.events.accept_id(nav_id));
+        assert_eq!(&input.events[1..2], &[text("collected-1")][..]);
+        assert_eq!(
+            Vec::from(input.events),
+            vec![text("collected-0"), text("collected-1")]
+        );
+    }
+
+    #[test]
+    fn accept_key_releases_accepts_releases_and_keeps_presses() {
+        let input = input_with(vec![
+            press(Key::A, Modifiers::NONE),
+            release(Key::A, Modifiers::NONE),
+            release(Key::A, Modifiers::SHIFT),
+        ]);
+        input.accept_key_releases(Key::A);
+        assert_eq!(
+            input.events_for_next_pass(),
+            vec![press(Key::A, Modifiers::NONE)]
+        );
+    }
+
+    fn key_repeat(input: &InputState) -> Option<bool> {
+        input.events.iter().find_map(|event| match event {
+            Event::Key { repeat, .. } => Some(*repeat),
+            _ => None,
+        })
     }
 }

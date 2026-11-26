@@ -513,12 +513,28 @@ impl ContextImpl {
 
         self.memory.begin_pass(&new_raw_input, &all_viewport_ids);
 
-        viewport.input = core::mem::take(&mut viewport.input).begin_pass(
+        // `run_ui` copies the pass counter onto this output before calling us.
+        // A later pass of the frame is replaying unaccepted events from earlier
+        // passes, so `keys_down`, key `repeat` flags, and wheel smoothing must
+        // stay as pass 0 left them. The first pass of a frame, and a manual
+        // `begin_pass`, still update them. The counter is zero then.
+        let replaying_discarded_pass = viewport.output.num_completed_passes > 0;
+        viewport.input = core::mem::take(&mut viewport.input).begin_pass_impl(
             new_raw_input,
             viewport.repaint.requested_immediate_repaint_prev_pass(),
             pixels_per_point,
             self.memory.options.input_options,
+            replaying_discarded_pass,
         );
+        if let Some(index) = self.memory.navigation_event_index() {
+            viewport.input.set_navigation_event(index);
+        }
+        if let Some(index) = self.memory.scan_handled_event_index() {
+            viewport.input.set_handled_during_scan(index);
+        }
+        if self.memory.accesskit_focus_applied() {
+            viewport.input.accept_accesskit_focus_requests();
+        }
         let repaint_after = viewport.input.wants_repaint_after();
 
         let content_rect = viewport.input.content_rect();
@@ -753,7 +769,7 @@ impl ContextImpl {
 ///
 /// ```
 /// # let ctx = egui::Context::default();
-/// if ctx.input(|i| i.key_pressed(egui::Key::A)) {
+/// if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::A)) {
 ///     ctx.copy_text("Hello!".to_owned());
 /// }
 /// ```
@@ -1095,6 +1111,9 @@ impl Context {
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
         let mut output = FullOutput::default();
+        // Scroll left by the pass that is about to be discarded. Applied after
+        // the next `begin_pass`, which otherwise starts the delta at zero.
+        let mut carried_scroll = None;
         debug_assert_eq!(
             output.platform_output.num_completed_passes, 0,
             "output must be fresh, but had {} passes",
@@ -1112,7 +1131,8 @@ impl Context {
             );
 
             // We must move the `num_passes` (back) to the viewport output so that [`Self::will_discard`]
-            // has access to the latest pass count.
+            // has access to the latest pass count. `begin_pass` also reads it to
+            // decide whether this pass is replaying events from earlier in the frame.
             self.write(|ctx| {
                 let viewport = ctx.viewport_for(viewport_id);
                 viewport.output.num_completed_passes =
@@ -1121,6 +1141,11 @@ impl Context {
             });
 
             self.begin_pass(new_input.take());
+            if let Some(scroll_delta) = carried_scroll.take() {
+                self.input_mut_for(viewport_id, |input| {
+                    input.smooth_scroll_delta = scroll_delta;
+                });
+            }
             run_ui(self);
             output.append(self.end_pass());
             debug_assert!(
@@ -1141,6 +1166,16 @@ impl Context {
 
                 break;
             }
+
+            // `begin_pass` replaces `InputState::events` with this `RawInput`.
+            // Keep message events the pass did not accept, and the scroll delta
+            // it did not consume. Pointer, touch, zoom, modifier, and wheel
+            // events are not replayed.
+            let (events, scroll_delta) = self.input_for(viewport_id, |input| {
+                (input.events_for_next_pass(), input.smooth_scroll_delta)
+            });
+            new_input.events.extend(events);
+            carried_scroll = Some(scroll_delta);
         }
 
         self.write(|ctx| {
@@ -1561,8 +1596,7 @@ impl Context {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
-        #[allow(clippy::allow_attributes, clippy::let_and_return)]
-        let res = self.get_response(w);
+        let res = self.get_response_impl(w, true);
 
         #[cfg(debug_assertions)]
         if res.contains_pointer() {
@@ -1650,6 +1684,9 @@ impl Context {
     ///
     /// This is because widget interaction happens at the start of the pass, using the widget rects from the previous pass.
     ///
+    /// Reading a response does not accept keyboard (`Space`/`Enter`) or AccessKit click activations;
+    /// those are accepted when the widget itself is registered.
+    ///
     /// If the widget was not visible the previous pass (or this pass), this will return `None`.
     ///
     /// If you try to read a [`Ui`]'s response, while still inside, this will return the [`Rect`] from the previous frame.
@@ -1722,8 +1759,13 @@ impl Context {
         })
     }
 
-    /// Do all interaction for an existing widget, without (re-)registering it.
+    /// Do all interaction for an existing widget, without (re-)registering it
+    /// or accepting keyboard/AccessKit click activations.
     pub(crate) fn get_response(&self, widget_rect: WidgetRect) -> Response {
+        self.get_response_impl(widget_rect, false)
+    }
+
+    fn get_response_impl(&self, widget_rect: WidgetRect, accept_activation: bool) -> Response {
         use response::Flags;
 
         let WidgetRect {
@@ -1757,6 +1799,9 @@ impl Context {
         res.flags.set(Flags::HIGHLIGHTED, highlighted);
 
         self.write(|ctx| {
+            // Read focus before borrowing the viewport. A disabled widget does
+            // not ask, and so does not accept the key.
+            let focused = ctx.memory.has_focus(id);
             let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
 
             res.flags.set(
@@ -1764,24 +1809,50 @@ impl Context {
                 viewport.interact_widgets.contains_pointer.contains(&id),
             );
 
+            let activate_on_space = enabled
+                && sense.senses_click()
+                && focused
+                && viewport.input.key_pressed(Key::Space);
+            let activate_on_enter = enabled
+                && sense.senses_click()
+                && focused
+                && !activate_on_space
+                && viewport.input.key_pressed(Key::Enter);
+            if activate_on_space || activate_on_enter {
+                if accept_activation {
+                    // Space or Enter works like a primary click for a focused button.
+                    // `key_pressed` only looked. Accept every press of the key that
+                    // activated this widget, because that is the question it asked.
+                    let key = if activate_on_space {
+                        Key::Space
+                    } else {
+                        Key::Enter
+                    };
+                    viewport.input.accept_key_presses(key);
+                }
+                res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);
+            }
+
+            if enabled
+                && sense.senses_click()
+                && viewport
+                    .input
+                    .has_accesskit_action_request(id, accesskit::Action::Click)
+            {
+                // Do not remove the event: a styling `read_response` runs before
+                // `create_widget` and discards its response, and later readers in
+                // the same pass may still inspect the event. Only widget registration
+                // accepts it so a discarded pass does not replay the click.
+                if accept_activation {
+                    viewport
+                        .input
+                        .accept_accesskit_action(id, accesskit::Action::Click);
+                }
+                res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);
+            }
+
             let input = &viewport.input;
             let memory = &mut ctx.memory;
-
-            if enabled
-                && sense.senses_click()
-                && memory.has_focus(id)
-                && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
-            {
-                // Space/enter works like a primary click for e.g. selected buttons
-                res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);
-            }
-
-            if enabled
-                && sense.senses_click()
-                && input.has_accesskit_action_request(id, accesskit::Action::Click)
-            {
-                res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);
-            }
 
             if enabled && sense.senses_click() && Some(id) == viewport.interact_widgets.long_touched
             {
@@ -2329,6 +2400,36 @@ impl Context {
     /// The given reason should be a human-readable string that explains why `request_discard`
     /// was called. This will be shown in certain debug situations, to help you figure out
     /// why a pass was discarded.
+    ///
+    /// Key, text, IME, copy/paste, and accesskit events that this pass did not
+    /// accept or remove are replayed on the next pass. [`InputState::key_pressed`],
+    /// [`InputState::key_released`], and [`InputState::num_presses`] only look.
+    /// Looking does not accept. egui cannot see a side effect that followed the
+    /// look, so a handler that acts calls [`InputState::accept_key`] or
+    /// [`InputState::consume_key`]. The accepted event stays visible to later
+    /// widgets in the same pass.
+    ///
+    /// [`InputState::events`] keeps acceptance on the event itself. Removing,
+    /// retaining, inserting, reordering, swapping, or truncating that list does
+    /// not move the mark onto a different event. Replacing a value, or editing
+    /// it through a mutable reference, stores a new event.
+    ///
+    /// A loop over the events that changes state has to accept or remove what
+    /// it handled ([`InputState::accept_event`], [`InputState::accept_index`],
+    /// [`InputState::remove_event`]). Otherwise that change runs again on the
+    /// next pass. One navigation key is applied per pass. Earlier arrow or tab
+    /// events in the same batch are replayed only when another pass runs.
+    /// An Escape that already cleared focus is accepted even when a later key
+    /// is the one this pass applies. A later pass of the same frame does not
+    /// step the wheel smoother again; the rest of a long notch belongs to
+    /// later frames.
+    ///
+    /// Pointer, touch, zoom, modifier, and wheel events are not replayed. Scroll
+    /// left unused by a [`crate::ScrollArea`] is carried as
+    /// [`InputState::smooth_scroll_delta`]. A click is hit-tested against the
+    /// previous pass's widgets. An accesskit focus request that matches a known
+    /// widget is applied and accepted; one for a widget not yet known stays for
+    /// the next pass.
     #[track_caller]
     pub fn request_discard(&self, reason: impl Into<Cow<'static, str>>) {
         let cause = RepaintCause::new_reason(reason);
@@ -3174,7 +3275,28 @@ impl ContextImpl {
 
         viewport.repaint.cumulative_pass_nr += 1;
 
-        self.memory.end_pass(&viewport.this_pass.used_ids);
+        // Another pass will run. Keep focus on a widget this pass did not
+        // build, or the arrow that should move to it is consumed by the clear.
+        let preserve_focus = viewport.output.requested_discard()
+            && viewport.output.num_completed_passes + 1 < self.memory.options.max_passes.get();
+        self.memory
+            .end_pass(&viewport.this_pass.used_ids, preserve_focus);
+
+        // Arrow, Tab, and Escape update focus from this pass's events. Accept
+        // the one event that won (the last such key), and only when navigation
+        // used it. A focus change from `request_focus` leaves every key for
+        // the next pass. An earlier identical key is replayed when another
+        // pass runs.
+        if self.memory.take_handled_navigation_press()
+            && let Some(id) = viewport.input.take_navigation_event()
+        {
+            viewport.input.events.accept_id(id);
+        }
+        // Escape clears focus while the events are scanned. A later Tab or
+        // arrow replaces the navigation id, so accept the Escape as well.
+        if let Some(id) = viewport.input.take_handled_during_scan() {
+            viewport.input.events.accept_id(id);
+        }
 
         if let Some(fonts) = self.fonts.as_mut() {
             let tex_mngr = &mut self.tex_manager.0.write();
@@ -5433,6 +5555,1622 @@ mod test {
             );
             output.drop_without_applying_deltas();
         }
+    }
+
+    /// The click from <https://github.com/emilk/egui/issues/8942>.
+    ///
+    /// The button exists on a previous frame. The next frame discards a pass
+    /// that does not build it, then builds it. The click has to land once.
+    #[test]
+    fn unconsumed_accesskit_click_survives_request_discard() {
+        use core::cell::Cell;
+
+        use accesskit::{Action, ActionRequest, TreeId};
+
+        use crate::{Event, Id, Pos2, RawInput, Rect, Sense, Vec2};
+
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+        let id = Id::unique("target-button");
+        let rect = Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(120.0, 24.0));
+        let screen = Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0)));
+
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: screen,
+                time: Some(0.0),
+                ..Default::default()
+            },
+            |ui| {
+                let response = ui.interact(rect, id, Sense::click());
+                assert_eq!(response.id, id);
+            },
+        );
+        output.drop_without_applying_deltas();
+
+        let clicks = Cell::new(0);
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: screen,
+                time: Some(1.0 / 60.0),
+                events: vec![Event::AccessKitActionRequest(ActionRequest {
+                    action: Action::Click,
+                    target_tree: TreeId::ROOT,
+                    target_node: id.accesskit_id(),
+                    data: None,
+                })],
+                ..Default::default()
+            },
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    assert!(ui.ctx().will_discard());
+                    return;
+                }
+                if ui.interact(rect, id, Sense::click()).clicked() {
+                    clicks.set(clicks.get() + 1);
+                }
+            },
+        );
+        assert_eq!(output.platform_output.num_completed_passes, 2);
+        output.drop_without_applying_deltas();
+        assert_eq!(clicks.get(), 1);
+    }
+
+    /// A click the discarded pass already delivered must not fire again.
+    #[test]
+    fn accesskit_click_during_discard_is_not_repeated() {
+        use core::cell::Cell;
+
+        use accesskit::{Action, ActionRequest, TreeId};
+
+        use crate::{Event, Id, Pos2, RawInput, Rect, Sense, Vec2};
+
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+        let id = Id::unique("target-button");
+        let rect = Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(120.0, 24.0));
+        let screen = Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0)));
+
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: screen,
+                time: Some(0.0),
+                ..Default::default()
+            },
+            |ui| {
+                let _ = ui.interact(rect, id, Sense::click());
+            },
+        );
+        output.drop_without_applying_deltas();
+
+        let clicks = Cell::new(0);
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: screen,
+                time: Some(1.0 / 60.0),
+                events: vec![Event::AccessKitActionRequest(ActionRequest {
+                    action: Action::Click,
+                    target_tree: TreeId::ROOT,
+                    target_node: id.accesskit_id(),
+                    data: None,
+                })],
+                ..Default::default()
+            },
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                if ui.interact(rect, id, Sense::click()).clicked() {
+                    clicks.set(clicks.get() + 1);
+                }
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(clicks.get(), 1);
+    }
+
+    /// `Button` asks `widget_style` for the previous pass before it allocates.
+    /// That read goes through `read_response` and must not eat the click the
+    /// response returned to the caller reports.
+    #[test]
+    fn accesskit_click_reaches_a_button_styled_from_the_previous_pass() {
+        use accesskit::{Action, ActionRequest, TreeId};
+
+        use crate::{Event, Id, Pos2, RawInput, Rect, Vec2};
+
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+        let screen = Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0)));
+        let mut id = Id::NULL;
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: screen,
+                time: Some(0.0),
+                ..Default::default()
+            },
+            |ui| {
+                id = ui.button("Undo").id;
+            },
+        );
+        output.drop_without_applying_deltas();
+
+        let mut clicked = false;
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: screen,
+                time: Some(1.0 / 60.0),
+                events: vec![Event::AccessKitActionRequest(ActionRequest {
+                    action: Action::Click,
+                    target_tree: TreeId::ROOT,
+                    target_node: id.accesskit_id(),
+                    data: None,
+                })],
+                ..Default::default()
+            },
+            |ui| {
+                let response = ui.button("Undo");
+                assert_eq!(response.id, id);
+                clicked |= response.clicked();
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert!(
+            clicked,
+            "the style read must not consume the click before the button reports it"
+        );
+    }
+
+    /// A styled `Button` (which calls `read_response` internally) must receive an
+    /// AccessKit click once whether it appears only on the kept pass or on both passes.
+    #[test]
+    fn accesskit_click_on_styled_button_applies_once_across_discard() {
+        use core::cell::Cell;
+
+        use accesskit::{Action, ActionRequest, TreeId};
+
+        use crate::{Event, Id};
+
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+
+        let mut id = Id::NULL;
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            id = ui.button("Undo").id;
+        });
+        output.drop_without_applying_deltas();
+
+        let click_event = || {
+            Event::AccessKitActionRequest(ActionRequest {
+                action: Action::Click,
+                target_tree: TreeId::ROOT,
+                target_node: id.accesskit_id(),
+                data: None,
+            })
+        };
+
+        // Case 1: pass 0 discards before building the button; pass 1 builds it and clicks once.
+        let kept_only_clicks = Cell::new(0);
+        let output = ctx.run_ui(discard_input(1.0 / 60.0, vec![click_event()]), |ui| {
+            if ui.ctx().current_pass_index() == 0 {
+                ui.ctx().request_discard("sizing");
+                return;
+            }
+            let response = ui.button("Undo");
+            assert_eq!(response.id, id);
+            if response.clicked() {
+                kept_only_clicks.set(kept_only_clicks.get() + 1);
+            }
+        });
+        assert_eq!(output.platform_output.num_completed_passes, 2);
+        output.drop_without_applying_deltas();
+        assert_eq!(kept_only_clicks.get(), 1);
+
+        // Case 2: pass 0 builds the button and discards; pass 1 builds it again.
+        // Click fires on pass 0 and is accepted so pass 1 does not fire again.
+        let both_pass_clicks = Cell::new(0);
+        let output = ctx.run_ui(discard_input(2.0 / 60.0, vec![click_event()]), |ui| {
+            if ui.ctx().current_pass_index() == 0 {
+                ui.ctx().request_discard("sizing");
+            }
+            let response = ui.button("Undo");
+            assert_eq!(response.id, id);
+            if response.clicked() {
+                both_pass_clicks.set(both_pass_clicks.get() + 1);
+            }
+        });
+        assert_eq!(output.platform_output.num_completed_passes, 2);
+        output.drop_without_applying_deltas();
+        assert_eq!(both_pass_clicks.get(), 1);
+    }
+
+    fn discard_input(time: f64, events: Vec<crate::Event>) -> crate::RawInput {
+        crate::RawInput {
+            screen_rect: Some(crate::Rect::from_min_size(
+                crate::Pos2::ZERO,
+                crate::vec2(800.0, 600.0),
+            )),
+            time: Some(time),
+            predicted_dt: 1.0 / 60.0,
+            focused: true,
+            events,
+            ..Default::default()
+        }
+    }
+
+    fn key_press(key: crate::Key, modifiers: crate::Modifiers) -> crate::Event {
+        crate::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers,
+        }
+    }
+
+    fn key_release(key: crate::Key, modifiers: crate::Modifiers) -> crate::Event {
+        crate::Event::Key {
+            key,
+            physical_key: None,
+            pressed: false,
+            repeat: false,
+            modifiers,
+        }
+    }
+
+    fn event_kinds(events: &[crate::Event]) -> Vec<&'static str> {
+        events
+            .iter()
+            .map(|event| match event {
+                crate::Event::Text(_) => "text",
+                crate::Event::Key {
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.command => "command",
+                crate::Event::Key { pressed: true, .. } => "press",
+                crate::Event::Key { pressed: false, .. } => "release",
+                crate::Event::AccessKitActionRequest(_) => "accesskit",
+                crate::Event::Ime(_) => "ime",
+                _ => "other",
+            })
+            .collect()
+    }
+
+    fn key_repeats(events: &[crate::Event]) -> Vec<bool> {
+        events
+            .iter()
+            .filter_map(|event| match event {
+                crate::Event::Key { repeat, .. } => Some(*repeat),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn focus_row(count: usize) -> (Vec<crate::Id>, Vec<crate::Rect>) {
+        let ids = (0..count)
+            .map(|index| crate::Id::unique(("discard-focus-row", index)))
+            .collect();
+        let rects = (0..count)
+            .map(|index| {
+                crate::Rect::from_min_size(
+                    crate::pos2(10.0 + index as f32 * 90.0, 10.0),
+                    crate::vec2(40.0, 20.0),
+                )
+            })
+            .collect();
+        (ids, rects)
+    }
+
+    fn show_focus_row(ui: &crate::Ui, ids: &[crate::Id], rects: &[crate::Rect]) {
+        for (id, rect) in core::iter::zip(ids, rects) {
+            let _ = ui.interact(*rect, *id, crate::Sense::click());
+        }
+    }
+
+    /// Looking at a press does not accept it. The pass that is kept still sees it.
+    ///
+    /// A caller that increments a counter after `key_pressed` runs on both passes.
+    /// egui cannot see that increment. Accepting is what stops the replay.
+    #[test]
+    fn key_pressed_does_not_accept_the_press_it_reports() {
+        use core::cell::Cell;
+
+        use crate::{Key, Modifiers};
+
+        let ctx = Context::default();
+        let hits = Cell::new(0);
+        let output = ctx.run_ui(
+            discard_input(0.0, vec![key_press(Key::A, Modifiers::NONE)]),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                if ui.input(|input| input.key_pressed(Key::A)) {
+                    hits.set(hits.get() + 1);
+                }
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(hits.get(), 2);
+    }
+
+    /// Accepting does not remove the event. Later widgets in the same pass still see it.
+    ///
+    /// The next pass does not.
+    #[test]
+    fn accept_key_stays_visible_to_later_widgets_this_pass() {
+        use core::cell::Cell;
+
+        use crate::{Key, Modifiers};
+
+        let ctx = Context::default();
+        let hits = Cell::new(0);
+        let output = ctx.run_ui(
+            discard_input(0.0, vec![key_press(Key::A, Modifiers::NONE)]),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    if ui.input(|input| input.key_pressed(Key::A)) {
+                        hits.set(hits.get() + 1);
+                        ui.input(|input| {
+                            input.accept_key(Key::A, true, Modifiers::NONE);
+                        });
+                    }
+                }
+                if ui.input(|input| input.key_pressed(Key::A)) {
+                    hits.set(hits.get() + 1);
+                }
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(hits.get(), 2);
+    }
+
+    /// `key_pressed` ignores modifiers, and it does not accept any of those presses.
+    #[test]
+    fn key_pressed_leaves_every_chord() {
+        use crate::{Event, Key, Modifiers};
+
+        let ctx = Context::default();
+        let output = ctx.run_ui(
+            discard_input(
+                0.0,
+                vec![
+                    key_press(Key::A, Modifiers::NONE),
+                    key_press(Key::A, Modifiers::COMMAND),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    assert!(ui.input(|input| input.key_pressed(Key::A)));
+                    return;
+                }
+                let presses = ui.input(|input| {
+                    input
+                        .events
+                        .iter()
+                        .filter(|event| {
+                            matches!(
+                                event,
+                                Event::Key {
+                                    key: Key::A,
+                                    pressed: true,
+                                    ..
+                                }
+                            )
+                        })
+                        .count()
+                });
+                assert_eq!(presses, 2);
+            },
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    /// Accepting a plain press leaves the release, and a differently modified press, in place.
+    #[test]
+    fn accepted_press_keeps_release_and_other_chord() {
+        use crate::{Event, Key, Modifiers};
+
+        let ctx = Context::default();
+        let release = Event::Key {
+            key: Key::A,
+            physical_key: None,
+            pressed: false,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+        };
+        let output = ctx.run_ui(
+            discard_input(
+                0.0,
+                vec![
+                    key_press(Key::A, Modifiers::NONE),
+                    release,
+                    key_press(Key::A, Modifiers::COMMAND),
+                    Event::Text("x".to_owned()),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    ui.input(|input| input.accept_key(Key::A, true, Modifiers::NONE));
+                    return;
+                }
+                let kinds = ui.input(|input| event_kinds(&input.events));
+                assert_eq!(
+                    kinds,
+                    vec!["release", "command", "text"],
+                    "the release and the other chord stay, in order"
+                );
+            },
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    /// Counting does not accept. The pass that handles the key still sees it.
+    #[test]
+    fn num_presses_does_not_accept_the_presses_it_counts() {
+        use core::cell::Cell;
+
+        use crate::Key;
+
+        let ctx = Context::default();
+        let hits = Cell::new(0);
+        let counted = Cell::new(0);
+        let output = ctx.run_ui(
+            discard_input(0.0, vec![key_press(Key::A, Default::default())]),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    counted.set(ui.input(|input| input.num_presses(Key::A)));
+                    return;
+                }
+                if ui.input(|input| input.key_pressed(Key::A)) {
+                    hits.set(hits.get() + 1);
+                }
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(counted.get(), 1);
+        assert_eq!(hits.get(), 1);
+    }
+
+    /// A list edit after `accept_index` keeps the mark on that event.
+    ///
+    /// Two identical texts are not interchangeable. Removing the accepted one
+    /// with [`Events::remove`] leaves the other for the next pass.
+    #[test]
+    fn removing_an_accepted_event_does_not_accept_its_identical_neighbor() {
+        use crate::Event;
+
+        let ctx = Context::default();
+        let output = ctx.run_ui(
+            discard_input(
+                0.0,
+                vec![
+                    Event::Text("same".to_owned()),
+                    Event::Text("same".to_owned()),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    ui.input_mut(|input| {
+                        input.accept_index(0);
+                        input.events.remove(0);
+                        input.events.insert(0, Event::Text("added".to_owned()));
+                    });
+                    return;
+                }
+                assert_eq!(
+                    ui.input(|input| event_kinds(&input.events)),
+                    vec!["text", "text"]
+                );
+                let texts: Vec<String> = ui.input(|input| {
+                    input
+                        .events
+                        .iter()
+                        .filter_map(|event| match event {
+                            Event::Text(text) => Some(text.clone()),
+                            _ => None,
+                        })
+                        .collect()
+                });
+                assert_eq!(texts, vec!["added".to_owned(), "same".to_owned()]);
+            },
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    /// `consume_key` still hides the press from later readers in the same pass.
+    #[test]
+    fn consume_key_hides_the_press_from_later_readers() {
+        use crate::{Key, Modifiers};
+
+        let ctx = Context::default();
+        let mut first = false;
+        let mut second = false;
+        let output = ctx.run_ui(
+            discard_input(0.0, vec![key_press(Key::A, Modifiers::NONE)]),
+            |ui| {
+                first = ui.input_mut(|input| input.consume_key(Modifiers::NONE, Key::A));
+                second = ui.input(|input| input.key_pressed(Key::A));
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert!(first);
+        assert!(!second);
+    }
+
+    /// Two presses are two events. Accepting one leaves the other, repeat flag included.
+    #[test]
+    fn accept_key_leaves_the_other_press() {
+        use crate::{Key, Modifiers};
+
+        let ctx = Context::default();
+        let output = ctx.run_ui(
+            discard_input(
+                0.0,
+                vec![
+                    key_press(Key::A, Modifiers::NONE),
+                    key_press(Key::A, Modifiers::NONE),
+                ],
+            ),
+            |ui| {
+                let pass = ui.ctx().current_pass_index();
+                if pass == 0 {
+                    ui.ctx().request_discard("sizing");
+                    assert_eq!(
+                        ui.input(|input| key_repeats(&input.events)),
+                        vec![false, true],
+                        "the second press in one batch is a repeat"
+                    );
+                    assert!(ui.input(|input| input.accept_key(Key::A, true, Modifiers::NONE)));
+                    return;
+                }
+                assert_eq!(ui.input(|input| key_repeats(&input.events)), vec![true]);
+                assert!(ui.input(|input| input.key_pressed(Key::A)));
+            },
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    /// Replaying an original press must not mark it as a repeat.
+    #[test]
+    fn replayed_original_press_keeps_repeat_false() {
+        use crate::{Key, Modifiers};
+
+        let ctx = Context::default();
+        let output = ctx.run_ui(
+            discard_input(
+                0.0,
+                vec![
+                    key_press(Key::A, Modifiers::NONE),
+                    key_press(Key::B, Modifiers::NONE),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    return;
+                }
+                assert_eq!(
+                    ui.input(|input| key_repeats(&input.events)),
+                    vec![false, false]
+                );
+            },
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    /// A repeat that was already a repeat stays one when it is replayed.
+    #[test]
+    fn replayed_batch_keeps_each_repeat_flag() {
+        use crate::Key;
+
+        let ctx = Context::default();
+        let output = ctx.run_ui(
+            discard_input(
+                0.0,
+                vec![
+                    key_press(Key::A, Default::default()),
+                    key_press(Key::A, Default::default()),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    return;
+                }
+                assert_eq!(
+                    ui.input(|input| key_repeats(&input.events)),
+                    vec![false, true]
+                );
+            },
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    /// Walking `events` and changing state, without accepting, runs on every pass.
+    #[test]
+    fn raw_scan_without_accept_runs_on_every_pass() {
+        use core::cell::Cell;
+
+        use crate::Event;
+
+        let ctx = Context::default();
+        let hits = Cell::new(0);
+        let output = ctx.run_ui(
+            discard_input(0.0, vec![Event::Text("a".to_owned())]),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                hits.set(
+                    hits.get()
+                        + ui.input(|input| {
+                            input
+                                .events
+                                .iter()
+                                .filter(|event| matches!(event, Event::Text(_)))
+                                .count()
+                        }),
+                );
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(hits.get(), 2);
+    }
+
+    /// `accept_event` stops that one event. An identical event stays.
+    #[test]
+    fn accept_event_takes_one_of_two_identical_texts() {
+        use crate::Event;
+
+        let ctx = Context::default();
+        let text = Event::Text("a".to_owned());
+        let output = ctx.run_ui(discard_input(0.0, vec![text.clone(), text.clone()]), |ui| {
+            if ui.ctx().current_pass_index() == 0 {
+                ui.ctx().request_discard("sizing");
+                assert!(ui.input(|input| input.accept_event(&text)));
+                return;
+            }
+            assert_eq!(ui.input(|input| event_kinds(&input.events)), vec!["text"]);
+        });
+        output.drop_without_applying_deltas();
+    }
+
+    /// Text, a key, and an accesskit click each apply once, in order, across two discards.
+    #[test]
+    fn text_key_and_accesskit_apply_once_across_two_discards() {
+        use core::cell::{Cell, RefCell};
+
+        use accesskit::{Action, ActionRequest, TreeId};
+
+        use crate::{Event, Id, Key, Modifiers, Pos2, Rect, Sense, Vec2};
+
+        let ctx = Context::default();
+        ctx.options_mut(|options| options.max_passes = 3.try_into().unwrap());
+        ctx.enable_accesskit();
+        let id = Id::unique("discard-mixed-click");
+        let rect = Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(80.0, 24.0));
+        let text = Event::Text("a".to_owned());
+        let click = Event::AccessKitActionRequest(ActionRequest {
+            action: Action::Click,
+            target_tree: TreeId::ROOT,
+            target_node: id.accesskit_id(),
+            data: None,
+        });
+        let seen = RefCell::new(Vec::new());
+        let clicks = Cell::new(0);
+        let output = ctx.run_ui(
+            discard_input(
+                0.0,
+                vec![text.clone(), key_press(Key::A, Modifiers::NONE), click],
+            ),
+            |ui| {
+                let pass = ui.ctx().current_pass_index();
+                seen.borrow_mut()
+                    .push((pass, ui.input(|input| event_kinds(&input.events))));
+                match pass {
+                    0 => {
+                        ui.ctx().request_discard("sizing");
+                        assert!(ui.input(|input| input.accept_event(&text)));
+                    }
+                    1 => {
+                        ui.ctx().request_discard("sizing");
+                        assert!(
+                            ui.input(|input| { input.accept_key(Key::A, true, Modifiers::NONE) })
+                        );
+                    }
+                    _ => {
+                        if ui.interact(rect, id, Sense::click()).clicked() {
+                            clicks.set(clicks.get() + 1);
+                        }
+                    }
+                }
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(
+            seen.into_inner(),
+            vec![
+                (0, vec!["text", "press", "accesskit"]),
+                (1, vec!["press", "accesskit"]),
+                (2, vec!["accesskit"]),
+            ]
+        );
+        assert_eq!(clicks.get(), 1);
+    }
+
+    /// The discarded pass builds no focus targets. Focus stays, and the arrow
+    /// moves once on the pass that builds them.
+    #[test]
+    fn arrow_moves_once_when_only_the_shown_pass_builds_targets() {
+        use crate::{Id, Key, Pos2, Rect, Sense, Vec2};
+
+        let ctx = Context::default();
+        let left = Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(40.0, 20.0));
+        let right = Rect::from_min_size(Pos2::new(200.0, 10.0), Vec2::new(40.0, 20.0));
+        let left_id = Id::unique("discard-focus-left");
+        let right_id = Id::unique("discard-focus-right");
+
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            let _ = ui.interact(left, left_id, Sense::click());
+            let _ = ui.interact(right, right_id, Sense::click());
+            ui.memory_mut(|memory| memory.request_focus(left_id));
+        });
+        output.drop_without_applying_deltas();
+
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![key_press(Key::ArrowRight, Default::default())],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    return;
+                }
+                let _ = ui.interact(left, left_id, Sense::click());
+                let _ = ui.interact(right, right_id, Sense::click());
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(right_id));
+    }
+
+    /// `request_focus` changes focus without using the arrow. The arrow stays.
+    #[test]
+    fn request_focus_does_not_accept_the_arrow() {
+        use core::cell::Cell;
+
+        use crate::{Id, Key, Pos2, Rect, Sense, Vec2};
+
+        let ctx = Context::default();
+        let other = Id::unique("discard-focus-request");
+        let rect = Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(40.0, 20.0));
+        let presses = Cell::new(0);
+        let output = ctx.run_ui(
+            discard_input(0.0, vec![key_press(Key::ArrowRight, Default::default())]),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    ui.memory_mut(|memory| memory.request_focus(other));
+                    return;
+                }
+                // The final pass builds the widget, or the dead-man clears a focus
+                // target that never appeared. One widget gives the arrow nowhere to go.
+                let _ = ui.interact(rect, other, Sense::click());
+                presses.set(ui.input(|input| input.num_presses(Key::ArrowRight)));
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(other));
+        assert_eq!(presses.get(), 1);
+    }
+
+    /// One pass applies one navigation key, whichever came last.
+    #[test]
+    fn one_pass_applies_one_navigation_key() {
+        use crate::Key;
+
+        let ctx = Context::default();
+        let (ids, rects) = focus_row(5);
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            show_focus_row(ui, &ids, &rects);
+            ui.memory_mut(|memory| memory.request_focus(ids[0]));
+        });
+        output.drop_without_applying_deltas();
+
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![
+                    key_press(Key::ArrowRight, Default::default()),
+                    key_press(Key::ArrowRight, Default::default()),
+                ],
+            ),
+            |ui| show_focus_row(ui, &ids, &rects),
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(ids[1]));
+    }
+
+    /// Each arrow moves once when a later pass runs. Three arrows and four passes move three steps.
+    #[test]
+    fn each_navigation_key_moves_once_across_later_passes() {
+        use crate::Key;
+
+        let ctx = Context::default();
+        ctx.options_mut(|options| options.max_passes = 4.try_into().unwrap());
+        let (ids, rects) = focus_row(5);
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            show_focus_row(ui, &ids, &rects);
+            ui.memory_mut(|memory| memory.request_focus(ids[0]));
+        });
+        output.drop_without_applying_deltas();
+
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![key_press(Key::ArrowRight, Default::default()); 3],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() < 3 {
+                    ui.ctx().request_discard("sizing");
+                }
+                show_focus_row(ui, &ids, &rects);
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(ids[3]));
+    }
+
+    /// Arrows the discarded pass could not use all stay, and the shown pass applies one.
+    #[test]
+    fn navigation_keys_wait_for_the_pass_that_builds_targets() {
+        use crate::Key;
+
+        let ctx = Context::default();
+        let (ids, rects) = focus_row(5);
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            show_focus_row(ui, &ids, &rects);
+            ui.memory_mut(|memory| memory.request_focus(ids[0]));
+        });
+        output.drop_without_applying_deltas();
+
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![key_press(Key::ArrowRight, Default::default()); 3],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    return;
+                }
+                show_focus_row(ui, &ids, &rects);
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(ids[1]));
+    }
+
+    /// Shift-Tab that already scheduled a move must not schedule another one
+    /// when the same events are shown again.
+    #[test]
+    fn shift_tab_moves_once_when_the_first_pass_is_discarded() {
+        use crate::{Id, Key, Modifiers, Pos2, Rect, Sense, Vec2};
+
+        let ctx = Context::default();
+        let rects = [
+            Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(40.0, 20.0)),
+            Rect::from_min_size(Pos2::new(10.0, 40.0), Vec2::new(40.0, 20.0)),
+            Rect::from_min_size(Pos2::new(10.0, 70.0), Vec2::new(40.0, 20.0)),
+        ];
+        let ids = [
+            Id::unique("discard-tab-a"),
+            Id::unique("discard-tab-b"),
+            Id::unique("discard-tab-c"),
+        ];
+        let show = |ui: &mut crate::Ui| {
+            for (rect, id) in core::iter::zip(rects, ids) {
+                let _ = ui.interact(rect, id, Sense::click());
+            }
+        };
+
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            show(ui);
+            ui.memory_mut(|memory| memory.request_focus(ids[2]));
+        });
+        output.drop_without_applying_deltas();
+
+        let output = ctx.run_ui(
+            discard_input(1.0 / 60.0, vec![key_press(Key::Tab, Modifiers::SHIFT)]),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                show(ui);
+            },
+        );
+        output.drop_without_applying_deltas();
+
+        let output = ctx.run_ui(discard_input(2.0 / 60.0, Vec::new()), show);
+        output.drop_without_applying_deltas();
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(ids[1]));
+    }
+
+    /// Escape clears focus immediately. A Tab after it must not leave that
+    /// Escape to clear the Tab target on the next pass.
+    #[test]
+    fn escape_that_cleared_focus_is_not_replayed_after_tab() {
+        use crate::{Id, Key, Modifiers, Pos2, Rect, Sense, Vec2};
+
+        let ctx = Context::default();
+        let rects = [
+            Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(40.0, 20.0)),
+            Rect::from_min_size(Pos2::new(10.0, 40.0), Vec2::new(40.0, 20.0)),
+            Rect::from_min_size(Pos2::new(10.0, 70.0), Vec2::new(40.0, 20.0)),
+        ];
+        let ids = [
+            Id::unique("discard-escape-tab-a"),
+            Id::unique("discard-escape-tab-b"),
+            Id::unique("discard-escape-tab-c"),
+        ];
+        let show = |ui: &mut crate::Ui| {
+            for (rect, id) in core::iter::zip(rects, ids) {
+                let _ = ui.interact(rect, id, Sense::click());
+            }
+        };
+
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            show(ui);
+            ui.memory_mut(|memory| memory.request_focus(ids[2]));
+        });
+        output.drop_without_applying_deltas();
+
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![
+                    key_press(Key::Escape, Modifiers::NONE),
+                    key_press(Key::Tab, Modifiers::NONE),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                show(ui);
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(ids[0]));
+    }
+
+    /// Space activates a focused button once. The release of that key stays.
+    #[test]
+    fn focused_button_accepts_space_press_and_keeps_the_release() {
+        use core::cell::Cell;
+
+        use crate::{Event, Id, Key, Pos2, Rect, Sense, Vec2};
+
+        let ctx = Context::default();
+        let id = Id::unique("discard-space-button");
+        let rect = Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(80.0, 24.0));
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            let _ = ui.interact(rect, id, Sense::click());
+            ui.memory_mut(|memory| memory.request_focus(id));
+        });
+        output.drop_without_applying_deltas();
+
+        let clicks = Cell::new(0);
+        let released = Cell::new(false);
+        let release = Event::Key {
+            key: Key::Space,
+            physical_key: None,
+            pressed: false,
+            repeat: false,
+            modifiers: Default::default(),
+        };
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![key_press(Key::Space, Default::default()), release],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                if ui.interact(rect, id, Sense::click()).clicked() {
+                    clicks.set(clicks.get() + 1);
+                }
+                if ui.ctx().current_pass_index() == 1 {
+                    released.set(ui.input(|input| input.key_released(Key::Space)));
+                }
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(clicks.get(), 1);
+        assert!(released.get());
+    }
+
+    /// A vertical scroll area accepts Y and leaves X for the pass that is kept.
+    #[test]
+    fn diagonal_wheel_keeps_the_axis_a_scroll_area_did_not_use() {
+        use core::cell::RefCell;
+
+        use crate::{Event, MouseWheelSource, MouseWheelUnit, Pos2, ScrollArea, TouchPhase, Vec2};
+
+        let ctx = Context::default();
+        ctx.all_styles_mut(|style| {
+            style.spacing.scroll.kinetic.decay_time = 0.0;
+        });
+        let show = |ui: &mut crate::Ui| {
+            ScrollArea::vertical()
+                .id_salt("diagonal-wheel")
+                .max_height(40.0)
+                .animated(false)
+                .show(ui, |ui| {
+                    ui.set_min_size(Vec2::new(200.0, 400.0));
+                })
+                .state
+                .clamped_offset()
+                .y
+        };
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            assert_eq!(show(ui), 0.0);
+        });
+        output.drop_without_applying_deltas();
+
+        let wheel = Event::MouseWheel {
+            unit: MouseWheelUnit::Point,
+            delta: Vec2::new(4.0, -6.0),
+            phase: TouchPhase::Move,
+            source: MouseWheelSource::Wheel,
+            modifiers: Default::default(),
+        };
+        let deltas = RefCell::new(Vec::new());
+        let offsets = RefCell::new(Vec::new());
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![Event::PointerMoved(Pos2::new(20.0, 10.0)), wheel],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                deltas
+                    .borrow_mut()
+                    .push(ui.input(|input| input.smooth_scroll_delta()));
+                offsets.borrow_mut().push(show(ui));
+            },
+        );
+        output.drop_without_applying_deltas();
+        let deltas = deltas.into_inner();
+        let offsets = offsets.into_inner();
+        assert_ne!(deltas[0].x, 0.0);
+        assert_ne!(deltas[0].y, 0.0);
+        assert_ne!(deltas[1].x, 0.0, "the unused axis reaches the shown pass");
+        assert_eq!(deltas[1].y, 0.0, "the accepted axis is not applied again");
+        assert!(offsets[0] > 0.0, "offset {}", offsets[0]);
+        assert_eq!(offsets[1], offsets[0]);
+    }
+
+    /// A discarded pass must not spend a second slice of a smoothed wheel notch.
+    #[test]
+    fn discarded_pass_does_not_spend_a_second_smoothing_step() {
+        use crate::{Event, MouseWheelSource, MouseWheelUnit, TouchPhase, Vec2};
+
+        fn collect(discard: bool) -> Vec2 {
+            let ctx = Context::default();
+            ctx.all_styles_mut(|style| {
+                style.spacing.scroll.kinetic.decay_time = 0.0;
+            });
+            let wheel = Event::MouseWheel {
+                unit: MouseWheelUnit::Line,
+                delta: Vec2::new(0.0, -1.0),
+                phase: TouchPhase::Move,
+                source: MouseWheelSource::Wheel,
+                modifiers: Default::default(),
+            };
+            let mut total = Vec2::ZERO;
+            let mut time = 1.0_f64 / 60.0;
+            let output = ctx.run_ui(discard_input(time, vec![wheel]), |ui| {
+                if discard && ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                if !discard || ui.ctx().current_pass_index() == 1 {
+                    total += ui.input(|input| input.smooth_scroll_delta());
+                }
+            });
+            output.drop_without_applying_deltas();
+            for _ in 0..40 {
+                time += 1.0 / 60.0;
+                let output = ctx.run_ui(discard_input(time, Vec::new()), |ui| {
+                    total += ui.input(|input| input.smooth_scroll_delta());
+                });
+                output.drop_without_applying_deltas();
+            }
+            total
+        }
+
+        let once = collect(false);
+        let discarded = collect(true);
+        assert!(
+            (once - discarded).length() < 0.05,
+            "single pass {once:?}, discarded {discarded:?}"
+        );
+        assert!(once.y.abs() > 1.0, "the notch was smoothed, total {once:?}");
+    }
+
+    fn field_id() -> crate::Id {
+        crate::Id::unique("discard-text-field")
+    }
+
+    fn show_field(ui: &mut crate::Ui, text: &mut String) {
+        ui.add(crate::TextEdit::singleline(text).id(field_id()));
+    }
+
+    /// An empty cut is accepted. Select-all later in that pass must not be cut
+    /// when the pass is discarded.
+    #[test]
+    fn empty_cut_then_select_all_does_not_cut_on_the_next_pass() {
+        use crate::{Event, Key, Modifiers};
+
+        let ctx = Context::default();
+        let mut text = "hello".to_owned();
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            show_field(ui, &mut text);
+            ui.memory_mut(|memory| memory.request_focus(field_id()));
+        });
+        output.drop_without_applying_deltas();
+
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![Event::Cut, key_press(Key::A, Modifiers::COMMAND)],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                show_field(ui, &mut text);
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(text, "hello");
+    }
+
+    /// Undo with no history is still accepted. A later insert in the same pass
+    /// must survive the pass that is kept.
+    #[test]
+    fn undo_without_history_does_not_revert_a_later_insert() {
+        use crate::{Event, Key, Modifiers};
+
+        let ctx = Context::default();
+        let mut text = "hello".to_owned();
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            show_field(ui, &mut text);
+            ui.memory_mut(|memory| memory.request_focus(field_id()));
+        });
+        output.drop_without_applying_deltas();
+
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![
+                    key_press(Key::Z, Modifiers::COMMAND),
+                    Event::Text("!".to_owned()),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                show_field(ui, &mut text);
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(text, "hello!");
+    }
+
+    /// An empty preedit the field ignores is still accepted. A composition
+    /// started later in the pass must still be there afterwards.
+    #[test]
+    fn empty_preedit_does_not_clear_a_later_composition() {
+        use crate::{Event, ImeEvent};
+
+        let ctx = Context::default();
+        let mut text = "hello".to_owned();
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            show_field(ui, &mut text);
+            ui.memory_mut(|memory| memory.request_focus(field_id()));
+        });
+        output.drop_without_applying_deltas();
+
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![
+                    Event::Ime(ImeEvent::Preedit {
+                        text: String::new(),
+                        active_range_chars: None,
+                    }),
+                    Event::Ime(ImeEvent::Preedit {
+                        text: "a".to_owned(),
+                        active_range_chars: None,
+                    }),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                }
+                show_field(ui, &mut text);
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(text, "helloa");
+    }
+
+    /// Replaying a press whose release was accepted on pass 0 must not stick the key down.
+    #[test]
+    fn partial_key_replay_with_accepted_release_does_not_stick_key_down() {
+        use core::cell::Cell;
+
+        use crate::{Key, Modifiers};
+
+        let ctx = Context::default();
+        let saw_press_on_pass_1 = Cell::new(false);
+        let key_down_on_pass_1 = Cell::new(true);
+
+        let output = ctx.run_ui(
+            discard_input(
+                0.0,
+                vec![
+                    key_press(Key::A, Modifiers::NONE),
+                    key_release(Key::A, Modifiers::NONE),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    assert!(!ui.input(|input| input.key_down(Key::A)));
+                    assert!(ui.input(|input| input.accept_key(Key::A, false, Modifiers::NONE)));
+                    return;
+                }
+                saw_press_on_pass_1.set(ui.input(|input| input.key_pressed(Key::A)));
+                key_down_on_pass_1.set(ui.input(|input| input.key_down(Key::A)));
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert!(saw_press_on_pass_1.get());
+        assert!(!key_down_on_pass_1.get());
+
+        let key_down_next_frame = Cell::new(true);
+        let output = ctx.run_ui(discard_input(1.0 / 60.0, Vec::new()), |ui| {
+            key_down_next_frame.set(ui.input(|input| input.key_down(Key::A)));
+        });
+        output.drop_without_applying_deltas();
+        assert!(!key_down_next_frame.get());
+    }
+
+    /// Replaying a release whose subsequent press was accepted on pass 0 must keep the key held.
+    #[test]
+    fn partial_key_replay_with_accepted_press_keeps_held_key_down() {
+        use core::cell::Cell;
+
+        use crate::{Key, Modifiers};
+
+        let ctx = Context::default();
+        let output = ctx.run_ui(
+            discard_input(0.0, vec![key_press(Key::A, Modifiers::NONE)]),
+            |ui| {
+                assert!(ui.input(|input| input.key_down(Key::A)));
+            },
+        );
+        output.drop_without_applying_deltas();
+
+        let saw_release_on_pass_1 = Cell::new(false);
+        let key_down_on_pass_1 = Cell::new(false);
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![
+                    key_release(Key::A, Modifiers::NONE),
+                    key_press(Key::A, Modifiers::NONE),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    assert!(ui.input(|input| input.key_down(Key::A)));
+                    assert!(ui.input(|input| input.accept_key(Key::A, true, Modifiers::NONE)));
+                    return;
+                }
+                saw_release_on_pass_1.set(ui.input(|input| input.key_released(Key::A)));
+                key_down_on_pass_1.set(ui.input(|input| input.key_down(Key::A)));
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert!(saw_release_on_pass_1.get());
+        assert!(key_down_on_pass_1.get());
+
+        let key_down_next_frame = Cell::new(false);
+        let output = ctx.run_ui(discard_input(2.0 / 60.0, Vec::new()), |ui| {
+            key_down_next_frame.set(ui.input(|input| input.key_down(Key::A)));
+        });
+        output.drop_without_applying_deltas();
+        assert!(key_down_next_frame.get());
+    }
+
+    /// A key pressed before `WindowFocused(false)` must stay cleared when replayed.
+    #[test]
+    fn replayed_key_press_after_window_focus_loss_does_not_stick_key_down() {
+        use core::cell::Cell;
+
+        use crate::{Event, Key, Modifiers};
+
+        let ctx = Context::default();
+        let saw_press_on_pass_1 = Cell::new(false);
+        let key_down_on_pass_1 = Cell::new(true);
+
+        let output = ctx.run_ui(
+            discard_input(
+                0.0,
+                vec![
+                    key_press(Key::S, Modifiers::COMMAND),
+                    Event::WindowFocused(false),
+                ],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    assert!(!ui.input(|input| input.key_down(Key::S)));
+                    return;
+                }
+                saw_press_on_pass_1.set(ui.input(|input| input.key_pressed(Key::S)));
+                key_down_on_pass_1.set(ui.input(|input| input.key_down(Key::S)));
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert!(saw_press_on_pass_1.get());
+        assert!(!key_down_on_pass_1.get());
+
+        let key_down_next_frame = Cell::new(true);
+        let output = ctx.run_ui(discard_input(1.0 / 60.0, Vec::new()), |ui| {
+            key_down_next_frame.set(ui.input(|input| input.key_down(Key::S)));
+        });
+        output.drop_without_applying_deltas();
+        assert!(!key_down_next_frame.get());
+    }
+
+    /// Replacing `InputState::events` during a pass must not let stale navigation or
+    /// Escape event ids match unrelated events in the new list.
+    #[test]
+    fn replacing_events_collection_does_not_accept_unrelated_event_from_navigation_or_escape() {
+        use core::cell::RefCell;
+
+        use crate::{Event, Events, Key, Modifiers};
+
+        let ctx = Context::default();
+        let (ids, rects) = focus_row(2);
+
+        // Part 1: Escape clears focus during scan (`scan_handled_id`), then user replaces
+        // `input.events` via `Events::from`.
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            show_focus_row(ui, &ids, &rects);
+            ui.memory_mut(|memory| memory.request_focus(ids[0]));
+        });
+        output.drop_without_applying_deltas();
+
+        let seen_after_escape = RefCell::new(Vec::new());
+        let output = ctx.run_ui(
+            discard_input(1.0 / 60.0, vec![key_press(Key::Escape, Modifiers::NONE)]),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    ui.input_mut(|input| {
+                        input.events = Events::from(vec![Event::Text("after-escape".to_owned())]);
+                    });
+                    return;
+                }
+                seen_after_escape
+                    .borrow_mut()
+                    .extend(ui.input(|input| input.events.to_vec()));
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(
+            seen_after_escape.into_inner(),
+            vec![Event::Text("after-escape".to_owned())]
+        );
+
+        // Part 2: ArrowRight moves focus (`navigation_id`), then user replaces
+        // `input.events` via `core::mem::take` + `push`.
+        let output = ctx.run_ui(discard_input(2.0 / 60.0, Vec::new()), |ui| {
+            show_focus_row(ui, &ids, &rects);
+            ui.memory_mut(|memory| memory.request_focus(ids[0]));
+        });
+        output.drop_without_applying_deltas();
+
+        let seen_after_arrow = RefCell::new(Vec::new());
+        let output = ctx.run_ui(
+            discard_input(
+                3.0 / 60.0,
+                vec![key_press(Key::ArrowRight, Modifiers::NONE)],
+            ),
+            |ui| {
+                show_focus_row(ui, &ids, &rects);
+                if ui.ctx().current_pass_index() == 0 {
+                    ui.ctx().request_discard("sizing");
+                    ui.input_mut(|input| {
+                        let _ = core::mem::take(&mut input.events);
+                        input.events.push(Event::Text("after-arrow".to_owned()));
+                    });
+                    return;
+                }
+                seen_after_arrow
+                    .borrow_mut()
+                    .extend(ui.input(|input| input.events.to_vec()));
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(ids[1]));
+        assert_eq!(
+            seen_after_arrow.into_inner(),
+            vec![Event::Text("after-arrow".to_owned())]
+        );
+    }
+
+    /// `read_response` during a discarded pass must not accept Space/Enter or AccessKit
+    /// clicks before the widget is actually registered on the kept pass.
+    #[test]
+    fn read_response_during_discard_does_not_accept_space_or_accesskit_click() {
+        use core::cell::Cell;
+
+        use accesskit::{Action, ActionRequest, TreeId};
+
+        use crate::{Event, Id, Key, Modifiers, Pos2, Rect, Sense, Vec2};
+
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+        let id = Id::unique("read-response-discard-button");
+        let rect = Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(100.0, 24.0));
+
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            let _ = ui.interact(rect, id, Sense::click());
+            ui.memory_mut(|memory| memory.request_focus(id));
+        });
+        output.drop_without_applying_deltas();
+
+        // Space activation: pass 0 only calls `read_response`, pass 1 builds the widget.
+        let space_clicks = Cell::new(0);
+        let output = ctx.run_ui(
+            discard_input(1.0 / 60.0, vec![key_press(Key::Space, Modifiers::NONE)]),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    let preview = ui.ctx().read_response(id).expect("cached from frame 0");
+                    assert!(preview.clicked());
+                    ui.ctx().request_discard("sizing");
+                    return;
+                }
+                if ui.interact(rect, id, Sense::click()).clicked() {
+                    space_clicks.set(space_clicks.get() + 1);
+                }
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(space_clicks.get(), 1);
+
+        // AccessKit Click: pass 0 only calls `read_response`, pass 1 builds the widget.
+        let accesskit_clicks = Cell::new(0);
+        let output = ctx.run_ui(
+            discard_input(
+                2.0 / 60.0,
+                vec![Event::AccessKitActionRequest(ActionRequest {
+                    action: Action::Click,
+                    target_tree: TreeId::ROOT,
+                    target_node: id.accesskit_id(),
+                    data: None,
+                })],
+            ),
+            |ui| {
+                if ui.ctx().current_pass_index() == 0 {
+                    let preview = ui.ctx().read_response(id).expect("cached from frame 1");
+                    assert!(preview.clicked());
+                    ui.ctx().request_discard("sizing");
+                    return;
+                }
+                if ui.interact(rect, id, Sense::click()).clicked() {
+                    accesskit_clicks.set(accesskit_clicks.get() + 1);
+                }
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(accesskit_clicks.get(), 1);
+    }
+
+    /// An AccessKit `Action::Focus` that already focused a known widget must not replay
+    /// over a later focus change after a discarded pass; one for a widget not yet known
+    /// stays for the next pass.
+    #[test]
+    fn applied_accesskit_focus_is_not_replayed_over_later_focus_change_after_discard() {
+        use accesskit::{Action, ActionRequest, TreeId};
+
+        use crate::{Event, Id, Pos2, Rect, Sense, Vec2};
+
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+        let id_a = Id::unique("accesskit-focus-a");
+        let id_b = Id::unique("accesskit-focus-b");
+        let id_c = Id::unique("accesskit-focus-c");
+        let rect_a = Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(80.0, 24.0));
+        let rect_b = Rect::from_min_size(Pos2::new(100.0, 10.0), Vec2::new(80.0, 24.0));
+        let rect_c = Rect::from_min_size(Pos2::new(190.0, 10.0), Vec2::new(80.0, 24.0));
+
+        // Seed `focus_widgets_cache` with `id_a` and `id_b` (not `id_c`).
+        let output = ctx.run_ui(discard_input(0.0, Vec::new()), |ui| {
+            let _ = ui.interact(rect_a, id_a, Sense::click());
+            let _ = ui.interact(rect_b, id_b, Sense::click());
+        });
+        output.drop_without_applying_deltas();
+
+        // `Action::Focus(id_a)` applies in pass 0; pass 0 then moves focus to `id_b`
+        // and discards. Pass 1 must keep focus on `id_b`.
+        let output = ctx.run_ui(
+            discard_input(
+                1.0 / 60.0,
+                vec![Event::AccessKitActionRequest(ActionRequest {
+                    action: Action::Focus,
+                    target_tree: TreeId::ROOT,
+                    target_node: id_a.accesskit_id(),
+                    data: None,
+                })],
+            ),
+            |ui| {
+                let _ = ui.interact(rect_a, id_a, Sense::click());
+                let _ = ui.interact(rect_b, id_b, Sense::click());
+                if ui.ctx().current_pass_index() == 0 {
+                    assert_eq!(ui.memory(|memory| memory.focused()), Some(id_a));
+                    ui.memory_mut(|memory| memory.request_focus(id_b));
+                    ui.ctx().request_discard("sizing");
+                }
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(id_b));
+
+        // `Action::Focus(id_c)` cannot apply in pass 0 because `id_c` is not in the
+        // focus cache yet. Pass 0 creates `id_c` and discards; pass 1 must apply it.
+        let output = ctx.run_ui(
+            discard_input(
+                2.0 / 60.0,
+                vec![Event::AccessKitActionRequest(ActionRequest {
+                    action: Action::Focus,
+                    target_tree: TreeId::ROOT,
+                    target_node: id_c.accesskit_id(),
+                    data: None,
+                })],
+            ),
+            |ui| {
+                let _ = ui.interact(rect_a, id_a, Sense::click());
+                let _ = ui.interact(rect_b, id_b, Sense::click());
+                let _ = ui.interact(rect_c, id_c, Sense::click());
+                if ui.ctx().current_pass_index() == 0 {
+                    assert_eq!(ui.memory(|memory| memory.focused()), Some(id_b));
+                    ui.ctx().request_discard("sizing");
+                }
+            },
+        );
+        output.drop_without_applying_deltas();
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(id_c));
     }
 
     fn content_rect_after_pass(ctx: &Context, screen_size: crate::Vec2) -> crate::Rect {

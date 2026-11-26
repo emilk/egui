@@ -134,8 +134,12 @@ pub(crate) fn interact(
     let mut dragged = prev_snapshot.dragged;
     let mut long_touched = None;
 
-    if input.key_pressed(Key::Escape) {
-        // Abort dragging on escape
+    if (dragged.is_some() || interaction.potential_drag_id.is_some())
+        && input.key_pressed(Key::Escape)
+    {
+        // Abort dragging on Escape. The query ignores modifiers, so accept
+        // every Escape press. An Escape that was not asked about stays available.
+        input.accept_key_presses(Key::Escape);
         dragged = None;
         interaction.potential_drag_id = None;
     }

@@ -490,19 +490,35 @@ impl Widget for DragValue<'_> {
             }
 
             use accesskit::Action;
-            change += input.num_accesskit_action_requests(id, Action::Increment) as f64
-                - input.num_accesskit_action_requests(id, Action::Decrement) as f64;
+            let mut steps = 0i32;
+            input.consume_accesskit_action_requests(id, |request| match request.action {
+                Action::Increment => {
+                    steps += 1;
+                    true
+                }
+                Action::Decrement => {
+                    steps -= 1;
+                    true
+                }
+                _ => false,
+            });
+            change += steps as f64;
 
             change
         });
 
-        ui.input(|input| {
+        ui.input_mut(|input| {
             use accesskit::{Action, ActionData};
-            for request in input.accesskit_action_requests(id, Action::SetValue) {
-                if let Some(ActionData::NumericValue(new_value)) = request.data {
+            input.consume_accesskit_action_requests(id, |request| {
+                if request.action == Action::SetValue
+                    && let Some(ActionData::NumericValue(new_value)) = request.data
+                {
                     value = new_value;
+                    true
+                } else {
+                    false
                 }
-            }
+            });
         });
 
         if clamp_existing_to_range {
@@ -534,6 +550,9 @@ impl Widget for DragValue<'_> {
             // one more frame, in which Escape is no longer pressed.
             let edit_state = ui.data_mut(|data| data.remove_temp::<EditState>(id));
             let cancelled = ui.input(|i| i.key_pressed(Key::Escape));
+            if cancelled {
+                ui.input(|i| i.accept_key_presses(Key::Escape));
+            }
             // Ignore the text if the value was changed by something else while we were editing it,
             // or we would revert that change.
             if !cancelled
@@ -579,8 +598,12 @@ impl Widget for DragValue<'_> {
                 // Update when the edit content has changed.
                 response.changed()
             } else {
-                // Update only when the edit has lost focus.
-                response.lost_focus() && !ui.input(|i| i.key_pressed(Key::Escape))
+                // Update only when the edit has lost focus, and not when Escape cancelled it.
+                let escape = response.lost_focus() && ui.input(|i| i.key_pressed(Key::Escape));
+                if escape {
+                    ui.input(|i| i.accept_key_presses(Key::Escape));
+                }
+                response.lost_focus() && !escape
             };
             if update {
                 let parsed_value = parse(custom_parser.as_ref(), &value_text);

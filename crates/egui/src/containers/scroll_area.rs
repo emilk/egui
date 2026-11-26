@@ -1366,7 +1366,9 @@ impl Prepared {
                         is_wheel_scrolling = true;
                         rubber_banding[d] = physics.is_rubber_banding(state.offset[d]);
 
-                        // Clear scroll delta so no parent scroll will use it:
+                        // Clear the consumed axis so no parent scroll uses it.
+                        // The wheel events stay. A discarded pass keeps whatever
+                        // delta is left here for the pass that is shown.
                         ui.input_mut(|input| {
                             if always_scroll_enabled_direction {
                                 input.smooth_scroll_delta = Vec2::ZERO;

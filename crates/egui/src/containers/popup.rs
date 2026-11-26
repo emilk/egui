@@ -692,9 +692,15 @@ impl<'a> Popup<'a> {
         // If a submenu is open, the CloseBehavior is handled there
         let is_any_submenu_open = !MenuState::is_deepest_open_sub_menu(&response.response.ctx, id);
 
-        let should_close = (!is_any_submenu_open && closed_by_click)
-            || ctx.input(|i| i.key_pressed(Key::Escape))
-            || response.response.should_close();
+        let closed_without_escape = !is_any_submenu_open && closed_by_click;
+        // Ask only when this popup is the one that would close. Accept the
+        // presses only when that answer is what closes it.
+        let escape_closes = !closed_without_escape && ctx.input(|i| i.key_pressed(Key::Escape));
+        if escape_closes {
+            ctx.input(|i| i.accept_key_presses(Key::Escape));
+        }
+        let should_close =
+            closed_without_escape || escape_closes || response.response.should_close();
 
         if should_close {
             response.response.set_close();

@@ -337,6 +337,8 @@ impl SliderCore<'_> {
     /// Otherwise it moves at the rate the handle would, which on a logarithmic rail depends on
     /// where the handle is.
     pub fn drag_value_speed_at(&self, ui: &Ui, geom: &SliderGeometry, value: f64) -> f64 {
+        // Count only. This slider may not have focus, and focus navigation
+        // still has to see these arrows.
         let arrow_presses = ui.input(|input| {
             input.num_presses(Key::ArrowUp)
                 + input.num_presses(Key::ArrowRight)
@@ -503,15 +505,33 @@ pub fn keyboard_steps(ui: &Ui, response: &Response, geom: &SliderGeometry) -> f3
         ui.input(|input| {
             decrement += input.num_presses(dec_key);
             increment += input.num_presses(inc_key);
+            // The count above only looked. These presses are what moved the handle.
+            if decrement > 0 {
+                input.accept_key_presses(dec_key);
+            }
+            if increment > 0 {
+                input.accept_key_presses(inc_key);
+            }
         });
     }
 
     let arrow_steps = increment as f32 - decrement as f32;
 
-    let value_steps = ui.input(|input| {
+    let value_steps = ui.input_mut(|input| {
         use accesskit::Action;
-        input.num_accesskit_action_requests(response.id, Action::Increment) as f32
-            - input.num_accesskit_action_requests(response.id, Action::Decrement) as f32
+        let mut steps = 0i32;
+        input.consume_accesskit_action_requests(response.id, |request| match request.action {
+            Action::Increment => {
+                steps += 1;
+                true
+            }
+            Action::Decrement => {
+                steps -= 1;
+                true
+            }
+            _ => false,
+        });
+        steps as f32
     });
 
     arrow_steps + value_steps * value_direction(geom)
@@ -530,15 +550,20 @@ fn value_direction(geom: &SliderGeometry) -> f32 {
 ///
 /// The last request of the frame wins, as it did when this was a loop of `set_value` calls.
 pub fn accesskit_set_value_request(ui: &Ui, id: Id) -> Option<f64> {
-    ui.input(|input| {
+    ui.input_mut(|input| {
         use accesskit::{Action, ActionData};
-        input
-            .accesskit_action_requests(id, Action::SetValue)
-            .filter_map(|request| match request.data {
-                Some(ActionData::NumericValue(value)) => Some(value),
-                _ => None,
-            })
-            .last()
+        let mut value = None;
+        input.consume_accesskit_action_requests(id, |request| {
+            if request.action == Action::SetValue
+                && let Some(ActionData::NumericValue(new_value)) = request.data
+            {
+                value = Some(new_value);
+                true
+            } else {
+                false
+            }
+        });
+        value
     })
 }
 

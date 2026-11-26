@@ -415,7 +415,7 @@ impl<'a> CompletionPopup<'a> {
 /// so they still reach the [`TextEdit`].
 fn consume_unmodified_key(input: &mut InputState, key: Key) -> usize {
     let mut count = 0;
-    input.events.retain(|event| {
+    input.retain_events(|event| {
         let is_match = matches!(
             event,
             Event::Key {

@@ -34,6 +34,7 @@ impl eframe::App for Content {
                 });
 
             if ui.input(|i| i.key_pressed(Key::A)) {
+                ui.input(|i| i.accept_key_presses(Key::A));
                 self.text.push_str("\nPressed");
             }
             if ui.input(|i| i.key_down(Key::A)) {
@@ -41,6 +42,7 @@ impl eframe::App for Content {
                 ui.request_repaint(); // make sure we note the holding.
             }
             if ui.input(|i| i.key_released(Key::A)) {
+                ui.input(|i| i.accept_key_releases(Key::A));
                 self.text.push_str("\nReleased");
             }
         });

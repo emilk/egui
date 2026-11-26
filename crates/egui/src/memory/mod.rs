@@ -527,6 +527,29 @@ pub(crate) struct Focus {
     /// Set when looking for widget with navigational keys like arrows, tab, shift+tab.
     focus_direction: FocusDirection,
 
+    /// Index into this pass's events of the key that set [`Self::focus_direction`].
+    ///
+    /// The last arrow, Tab, or Escape wins. Cleared at the end of the pass.
+    /// Accepted only when navigation itself uses it. The index is copied onto
+    /// [`crate::InputState`] as an event id before widgets edit the list.
+    navigation_press: Option<u32>,
+
+    /// [`Self::navigation_press`] moved or cleared focus.
+    navigation_handled: bool,
+
+    /// Index of a key that already changed focus during this scan.
+    ///
+    /// Escape clears focus immediately. A later key replaces
+    /// [`Self::navigation_press`], so this is stored separately and accepted
+    /// even when that later key is the one the pass applies.
+    scan_handled_press: Option<u32>,
+
+    /// Whether an [`accesskit::Action::Focus`] request applied during [`Self::begin_pass`].
+    ///
+    /// When `true`, those requests are accepted so a discarded pass does not
+    /// replay them over a later focus change.
+    accesskit_focus_applied: bool,
+
     /// The top-most modal layer from the previous frame.
     top_modal_layer: Option<LayerId>,
 
@@ -591,10 +614,14 @@ impl Focus {
         let event_filter = self.focused_widget.map(|w| w.filter).unwrap_or_default();
 
         self.focus_direction = FocusDirection::None;
+        self.navigation_press = None;
+        self.navigation_handled = false;
+        self.scan_handled_press = None;
+        self.accesskit_focus_applied = false;
 
         let mut focus_requested_by_accesskit = None;
 
-        for event in &new_input.events {
+        for (index, event) in new_input.events.iter().enumerate() {
             if !event_filter.matches(event)
                 && let crate::Event::Key {
                     key,
@@ -602,24 +629,42 @@ impl Focus {
                     modifiers,
                     ..
                 } = event
-                && let Some(cardinality) = match key {
-                    crate::Key::ArrowUp if !modifiers.any() => Some(FocusDirection::Up),
-                    crate::Key::ArrowRight if !modifiers.any() => Some(FocusDirection::Right),
-                    crate::Key::ArrowDown if !modifiers.any() => Some(FocusDirection::Down),
-                    crate::Key::ArrowLeft if !modifiers.any() => Some(FocusDirection::Left),
+                && let Some((direction, handled)) = match key {
+                    crate::Key::ArrowUp if !modifiers.any() => Some((FocusDirection::Up, false)),
+                    crate::Key::ArrowRight if !modifiers.any() => {
+                        Some((FocusDirection::Right, false))
+                    }
+                    crate::Key::ArrowDown if !modifiers.any() => {
+                        Some((FocusDirection::Down, false))
+                    }
+                    crate::Key::ArrowLeft if !modifiers.any() => {
+                        Some((FocusDirection::Left, false))
+                    }
 
-                    crate::Key::Tab if !modifiers.any() => Some(FocusDirection::Next),
-                    crate::Key::Tab if modifiers.shift_only() => Some(FocusDirection::Previous),
+                    crate::Key::Tab if !modifiers.any() => Some((FocusDirection::Next, false)),
+                    crate::Key::Tab if modifiers.shift_only() => {
+                        Some((FocusDirection::Previous, false))
+                    }
 
                     crate::Key::Escape if !modifiers.any() => {
-                        self.focused_widget = None;
-                        Some(FocusDirection::None)
+                        // Clearing a widget that is already gone is not handling
+                        // the key. A later pass, or another widget, may still want it.
+                        let cleared_focus = self.focused_widget.take().is_some();
+                        Some((FocusDirection::None, cleared_focus))
                     }
 
                     _ => None,
                 }
             {
-                self.focus_direction = cardinality;
+                self.focus_direction = direction;
+                self.navigation_press = u32::try_from(index).ok();
+                self.navigation_handled = handled;
+                // Escape clears focus here, before a later key can replace
+                // `navigation_press`. Remember that index so the clear is not
+                // replayed.
+                if handled {
+                    self.scan_handled_press = u32::try_from(index).ok();
+                }
             }
 
             if let crate::Event::AccessKitActionRequest(accesskit::ActionRequest {
@@ -645,27 +690,59 @@ impl Focus {
             self.focused_widget = Some(FocusWidget::new(id));
             self.give_to_next = false;
             self.reset_focus();
+            self.accesskit_focus_applied = true;
         }
     }
 
-    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>, preserve_focus: bool) {
         if self.focus_direction.is_cardinal()
             && let Some(found_widget) = self.find_widget_in_direction(used_ids)
         {
             self.focused_widget = Some(FocusWidget::new(found_widget).via(self.focus_direction));
+            self.navigation_handled = true;
         }
 
         if let Some(focused_widget) = self.focused_widget {
             // Allow calling `request_focus` one frame and not using it until next frame
             let recently_gained_focus = self.id_previous_frame != Some(focused_widget.id);
 
-            if !recently_gained_focus && !used_ids.contains_key(&focused_widget.id) {
-                // Dead-mans-switch: the widget with focus has disappeared!
+            // A discarded pass may omit every focus target. Clearing focus
+            // here would leave the shown pass with nothing to move from.
+            // This clear does not accept the arrow. The last pass still
+            // drops a widget that is really gone.
+            if !preserve_focus
+                && !recently_gained_focus
+                && !used_ids.contains_key(&focused_widget.id)
+            {
                 self.focused_widget = None;
             }
         }
 
         self.top_modal_layer = self.top_modal_layer_current_frame.take();
+    }
+
+    /// Whether the navigation key this pass actually moved or cleared focus.
+    ///
+    /// Focus can also change because a widget calls [`Memory::request_focus`].
+    /// That does not accept the arrow or tab that happened to be in the same events.
+    fn take_handled_navigation_press(&mut self) -> bool {
+        let press = self.navigation_press.take();
+        press.is_some() && self.navigation_handled
+    }
+
+    /// Index of the navigation key in this pass's events, if there was one.
+    fn navigation_event_index(&self) -> Option<u32> {
+        self.navigation_press
+    }
+
+    /// Index of a key that already changed focus during the scan.
+    fn scan_handled_event_index(&self) -> Option<u32> {
+        self.scan_handled_press
+    }
+
+    /// Whether an [`accesskit::Action::Focus`] request applied during [`Self::begin_pass`].
+    fn accesskit_focus_applied(&self) -> bool {
+        self.accesskit_focus_applied
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
@@ -686,12 +763,14 @@ impl Focus {
                 self.focused_widget = None;
                 self.give_to_next = true;
                 self.reset_focus();
+                self.navigation_handled = true;
             } else if self.focus_direction == FocusDirection::Previous {
                 // frame-delay so gained_focus works
                 self.widget_next_frame = self
                     .last_interested
                     .map(|id| FocusWidget::new(id).via(FocusDirection::Previous));
                 self.reset_focus();
+                self.navigation_handled = self.widget_next_frame.is_some();
             }
         } else if self.focus_direction == FocusDirection::Next
             && self.focused_widget.is_none()
@@ -700,6 +779,7 @@ impl Focus {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
             self.focused_widget = Some(FocusWidget::new(id).via(FocusDirection::Next));
             self.reset_focus();
+            self.navigation_handled = true;
         } else if self.focus_direction == FocusDirection::Previous
             && self.focused_widget.is_none()
             && !self.give_to_next
@@ -709,6 +789,7 @@ impl Focus {
                 .last_interested
                 .map(|id| FocusWidget::new(id).via(FocusDirection::Previous));
             self.reset_focus();
+            self.navigation_handled = self.focused_widget.is_some();
         }
 
         self.last_interested = Some(id);
@@ -829,10 +910,10 @@ impl Memory {
             .begin_pass(new_raw_input);
     }
 
-    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>, preserve_focus: bool) {
         self.caches.update();
         self.areas_mut().end_pass();
-        self.focus_mut().end_pass(used_ids);
+        self.focus_mut().end_pass(used_ids, preserve_focus);
 
         // Clean up abandoned popups.
         if let Some(popup) = self.popups.get_mut(&self.viewport_id) {
@@ -842,6 +923,27 @@ impl Memory {
                 self.popups.remove(&self.viewport_id);
             }
         }
+    }
+
+    pub(crate) fn take_handled_navigation_press(&mut self) -> bool {
+        self.focus_mut().take_handled_navigation_press()
+    }
+
+    /// Index of this pass's navigation key, before widgets remove events.
+    pub(crate) fn navigation_event_index(&self) -> Option<u32> {
+        let focus = self.focus()?;
+        focus.navigation_event_index()
+    }
+
+    /// Index of a key that already changed focus during the event scan.
+    pub(crate) fn scan_handled_event_index(&self) -> Option<u32> {
+        let focus = self.focus()?;
+        focus.scan_handled_event_index()
+    }
+
+    /// Whether an [`accesskit::Action::Focus`] request applied during [`Self::begin_pass`].
+    pub(crate) fn accesskit_focus_applied(&self) -> bool {
+        self.focus().is_some_and(Focus::accesskit_focus_applied)
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {

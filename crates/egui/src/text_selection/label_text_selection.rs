@@ -308,7 +308,11 @@ impl ViewportLabelSelectionState {
             }
         }
 
-        let pressed_escape = ui.input(|i| i.key_pressed(crate::Key::Escape));
+        let has_selection = self.selection.is_some();
+        let pressed_escape = has_selection && ui.input(|i| i.key_pressed(crate::Key::Escape));
+        if pressed_escape {
+            ui.input(|i| i.accept_key_presses(crate::Key::Escape));
+        }
         let clicked_something_else = ui.input(|i| i.pointer.any_pressed()) && !self.any_hovered;
         let delected_everything = pressed_escape || clicked_something_else;
 

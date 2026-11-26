@@ -204,3 +204,35 @@ pub enum Event {
     /// An assistive technology (e.g. screen reader) requested an action.
     AccessKitActionRequest(accesskit::ActionRequest),
 }
+
+impl Event {
+    /// Whether a discarded pass carries this event when nobody accepted it.
+    ///
+    /// Pointer, touch, wheel, zoom, rotation, modifier, and window-focus events
+    /// are already folded into [`crate::InputState`]. Replaying them applies
+    /// them twice. A key stays too, until the pass that handled that exact
+    /// press or release accepts it.
+    pub(crate) fn carried_across_discard(&self) -> bool {
+        match self {
+            Self::Copy
+            | Self::Cut
+            | Self::Paste(_)
+            | Self::PasteImage(_)
+            | Self::MiddleClickPaste { .. }
+            | Self::Text(_)
+            | Self::Key { .. }
+            | Self::Ime(_)
+            | Self::AccessKitActionRequest(_) => true,
+            Self::ModifiersChanged(_)
+            | Self::PointerMoved(_)
+            | Self::MouseMoved(_)
+            | Self::PointerButton { .. }
+            | Self::PointerGone
+            | Self::Zoom(_)
+            | Self::Rotate(_)
+            | Self::Touch { .. }
+            | Self::MouseWheel { .. }
+            | Self::WindowFocused(_) => false,
+        }
+    }
+}

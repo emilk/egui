@@ -38,7 +38,9 @@ type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley
 /// if response.changed() {
 ///     // …
 /// }
-/// if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+/// if response.lost_focus()
+///     && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+/// {
 ///     // …
 /// }
 /// # });
@@ -1236,7 +1238,19 @@ fn events(
 
     let mut any_change = false;
 
-    let events = ui.input(|i| i.filtered_events(&event_filter));
+    // One clone of the events this field may handle, with their index in
+    // `InputState::events`. Claiming an index avoids a second clone and a
+    // search for an equal event.
+    let events = ui.input(|input| {
+        input
+            .events
+            .iter()
+            .enumerate()
+            .filter(|(_, event)| event_filter.matches(event))
+            .map(|(index, event)| (index, event.clone()))
+            .collect::<Vec<_>>()
+    });
+    let mut handled = Vec::new();
 
     enum CursorMutation {
         Selection(CCursorRange),
@@ -1247,18 +1261,27 @@ fn events(
         ImeCompositionCursorRange(CCursorRange),
     }
 
-    for event in &events {
+    for (index, event) in &events {
+        // A no-op this field understood, such as an empty cut, is still claimed.
+        // Leaving it queued lets the next pass apply it to text this pass changed.
+        let mut claimed = false;
+        let mut stop = false;
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
-            event if cursor_range.on_event(os, event, galley, id) => None,
+            event if cursor_range.on_event(os, event, galley, id) => {
+                claimed = true;
+                None
+            }
 
             Event::Copy => {
                 if !cursor_range.is_empty() {
                     copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
                 }
+                claimed = true;
                 None
             }
             Event::Cut => {
+                claimed = true;
                 if cursor_range.is_empty() {
                     None
                 } else {
@@ -1269,6 +1292,7 @@ fn events(
                 }
             }
             Event::Paste(text_to_insert) => {
+                claimed = true;
                 if text_to_insert.is_empty() {
                     None
                 } else {
@@ -1298,7 +1322,8 @@ fn events(
                 Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
             }
             Event::Text(text_to_insert) => {
-                // Newlines are handled by `Key::Enter`.
+                // Newlines are handled by `Key::Enter`. An empty or newline
+                // text event is still ours: the next pass must not insert it.
                 if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
                     let mut ccursor = text.delete_selected(&cursor_range);
 
@@ -1306,6 +1331,7 @@ fn events(
 
                     Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
                 } else {
+                    claimed = true;
                     None
                 }
             }
@@ -1339,8 +1365,11 @@ fn events(
                     // TODO(emilk): if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
                     Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
                 } else {
-                    ui.memory_mut(|mem| mem.surrender_focus(id)); // End input with enter
-                    break;
+                    // Surrender focus, but leave the key for the caller. Submission is
+                    // `lost_focus() && consume_key(Enter)`. `key_pressed` only looks.
+                    ui.memory_mut(|mem| mem.surrender_focus(id));
+                    stop = true;
+                    None
                 }
             }
 
@@ -1353,6 +1382,9 @@ fn events(
                 || (modifiers.matches_logically(Modifiers::SHIFT | Modifiers::COMMAND)
                     && *key == Key::Z) =>
             {
+                // Claim a redo even when there is no history, or the next pass
+                // retries it after this pass has changed the text.
+                claimed = true;
                 if let Some((redo_ccursor_range, redo_txt)) = state
                     .undoer
                     .lock()
@@ -1371,6 +1403,7 @@ fn events(
                 modifiers,
                 ..
             } if modifiers.matches_logically(Modifiers::COMMAND) => {
+                claimed = true;
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
@@ -1391,6 +1424,11 @@ fn events(
             } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key)
                 .map(CursorMutation::Selection),
             Event::Ime(ime_event) if owns_ime_events => {
+                // An ignored empty preedit must not stay queued. Once a later
+                // event in this pass starts a composition, that empty preedit
+                // would clear it on the next pass.
+                claimed = true;
+
                 /// Both `ImeEvent::Preedit("")` and `ImeEvent::Commit("")`
                 /// might be emitted from different integrations to signify that
                 /// the current IME composition should be cleared.
@@ -1499,6 +1537,10 @@ fn events(
             _ => None,
         };
 
+        if claimed || did_mutate_text.is_some() {
+            handled.push(*index);
+        }
+
         if let Some(cursor_mutation) = did_mutate_text {
             any_change = true;
 
@@ -1523,6 +1565,19 @@ fn events(
                 }
             }
         }
+        if stop {
+            break;
+        }
+    }
+
+    if !handled.is_empty() {
+        handled.sort_unstable();
+        handled.dedup();
+        ui.input_mut(|input| {
+            for index in handled.into_iter().rev() {
+                input.remove_event(index);
+            }
+        });
     }
 
     state.cursor.set_char_range(Some(cursor_range));
@@ -1556,15 +1611,22 @@ fn insert_replacing_selection(
 
 /// The text of the last [`accesskit::Action::SetValue`] request for this widget, if any.
 fn accesskit_set_text_request(ui: &Ui, id: Id) -> Option<String> {
-    ui.input(|input| {
+    ui.input_mut(|input| {
         use accesskit::{Action, ActionData};
-        input
-            .accesskit_action_requests(id, Action::SetValue)
-            .filter_map(|request| match &request.data {
-                Some(ActionData::Value(value)) => Some(value.to_string()),
-                _ => None,
-            })
-            .last()
+        let mut value = None;
+        // The last request wins. Each matching request is removed so a later
+        // pass of this frame does not set the text again.
+        input.consume_accesskit_action_requests(id, |request| {
+            if request.action == Action::SetValue
+                && let Some(ActionData::Value(text)) = &request.data
+            {
+                value = Some(text.to_string());
+                true
+            } else {
+                false
+            }
+        });
+        value
     })
 }
 

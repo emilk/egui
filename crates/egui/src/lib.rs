@@ -221,6 +221,9 @@
 //! This is an example of a form of multi-pass immediate mode, where earlier passes are used for sizing,
 //! and later passes for layout.
 //!
+//! Key, text, and accesskit events a discarded pass did not accept are still there on the next pass.
+//! [`InputState::key_pressed`] only looks. A handler that acts on a key accepts or consumes that event.
+//!
 //! See [`Context::request_discard`] and [`Options::max_passes`] for more.
 //!
 //! # Misc
@@ -512,7 +515,9 @@ pub use self::{
     hit_test::WidgetHits,
     id::{Id, IdMap, IdSet},
     id_salt::{AsIdSalt, IdSalt, IdSaltMap, IdSaltSet},
-    input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
+    input_state::{
+        Events, InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn,
+    },
     interaction::InteractionSnapshot,
     layers::{LayerId, Order},
     layout::Layout,
