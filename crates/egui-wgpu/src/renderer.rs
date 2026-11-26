@@ -569,10 +569,6 @@ impl Renderer {
     ) {
         profiling::function_scope!();
 
-        if !self.buffers_ready {
-            return;
-        }
-
         let pixels_per_point = screen_descriptor.pixels_per_point;
         let size_in_pixels = screen_descriptor.size_in_pixels;
 
@@ -588,6 +584,9 @@ impl Renderer {
             primitive,
         } in paint_jobs
         {
+            if !self.buffers_ready && matches!(primitive, Primitive::Mesh(_)) {
+                continue;
+            }
             if needs_reset {
                 render_pass.set_viewport(
                     0.0,
@@ -1082,101 +1081,104 @@ impl Renderer {
             })
         };
 
-        if index_count > 0 {
-            profiling::scope!("indices", index_count.to_string().as_str());
+        // Callbacks can render independently of egui meshes, so keep preparing them if an upload fails.
+        'upload_buffers: {
+            if index_count > 0 {
+                profiling::scope!("indices", index_count.to_string().as_str());
 
-            self.index_buffer.slices.clear();
+                self.index_buffer.slices.clear();
 
-            let required_index_buffer_size = (core::mem::size_of::<u32>() * index_count) as u64;
-            if self.index_buffer.capacity < required_index_buffer_size {
-                // Resize index buffer if needed.
-                self.index_buffer.capacity =
-                    (self.index_buffer.capacity * 2).at_least(required_index_buffer_size);
-                self.index_buffer.buffer = create_index_buffer(device, self.index_buffer.capacity);
-            }
+                let required_index_buffer_size = (core::mem::size_of::<u32>() * index_count) as u64;
+                if self.index_buffer.capacity < required_index_buffer_size {
+                    // Resize index buffer if needed.
+                    self.index_buffer.capacity =
+                        (self.index_buffer.capacity * 2).at_least(required_index_buffer_size);
+                    self.index_buffer.buffer =
+                        create_index_buffer(device, self.index_buffer.capacity);
+                }
 
-            let index_buffer_staging = queue.write_buffer_with(
-                &self.index_buffer.buffer,
-                0,
-                #[expect(clippy::unwrap_used)] // Checked above
-                NonZeroU64::new(required_index_buffer_size).unwrap(),
-            );
-
-            let Some(mut index_buffer_staging) = index_buffer_staging else {
-                log::error!(
-                    "Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)",
-                    self.index_buffer.buffer.size(),
-                    self.index_buffer.capacity
+                let index_buffer_staging = queue.write_buffer_with(
+                    &self.index_buffer.buffer,
+                    0,
+                    #[expect(clippy::unwrap_used)] // Checked above
+                    NonZeroU64::new(required_index_buffer_size).unwrap(),
                 );
-                self.buffers_ready = false;
-                return Vec::new();
-            };
 
-            let mut index_offset = 0;
-            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
-                match primitive {
-                    Primitive::Mesh(mesh) => {
-                        let size = mesh.indices.len() * core::mem::size_of::<u32>();
-                        let slice = index_offset..(size + index_offset);
-                        index_buffer_staging
-                            .slice(slice.clone())
-                            .copy_from_slice(bytemuck::cast_slice(&mesh.indices));
-                        self.index_buffer.slices.push(slice);
-                        index_offset += size;
+                let Some(mut index_buffer_staging) = index_buffer_staging else {
+                    log::error!(
+                        "Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)",
+                        self.index_buffer.buffer.size(),
+                        self.index_buffer.capacity
+                    );
+                    self.buffers_ready = false;
+                    break 'upload_buffers;
+                };
+
+                let mut index_offset = 0;
+                for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
+                    match primitive {
+                        Primitive::Mesh(mesh) => {
+                            let size = mesh.indices.len() * core::mem::size_of::<u32>();
+                            let slice = index_offset..(size + index_offset);
+                            index_buffer_staging
+                                .slice(slice.clone())
+                                .copy_from_slice(bytemuck::cast_slice(&mesh.indices));
+                            self.index_buffer.slices.push(slice);
+                            index_offset += size;
+                        }
+                        Primitive::Callback(_) | Primitive::Clear(_) => {}
                     }
-                    Primitive::Callback(_) | Primitive::Clear(_) => {}
+                }
+            }
+            if vertex_count > 0 {
+                profiling::scope!("vertices", vertex_count.to_string().as_str());
+
+                self.vertex_buffer.slices.clear();
+
+                let required_vertex_buffer_size =
+                    (core::mem::size_of::<Vertex>() * vertex_count) as u64;
+                if self.vertex_buffer.capacity < required_vertex_buffer_size {
+                    // Resize vertex buffer if needed.
+                    self.vertex_buffer.capacity =
+                        (self.vertex_buffer.capacity * 2).at_least(required_vertex_buffer_size);
+                    self.vertex_buffer.buffer =
+                        create_vertex_buffer(device, self.vertex_buffer.capacity);
+                }
+
+                let vertex_buffer_staging = queue.write_buffer_with(
+                    &self.vertex_buffer.buffer,
+                    0,
+                    #[expect(clippy::unwrap_used)] // Checked above
+                    NonZeroU64::new(required_vertex_buffer_size).unwrap(),
+                );
+
+                let Some(mut vertex_buffer_staging) = vertex_buffer_staging else {
+                    log::error!(
+                        "Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)",
+                        self.vertex_buffer.buffer.size(),
+                        self.vertex_buffer.capacity
+                    );
+                    self.buffers_ready = false;
+                    break 'upload_buffers;
+                };
+
+                let mut vertex_offset = 0;
+                for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
+                    match primitive {
+                        Primitive::Mesh(mesh) => {
+                            let size = mesh.vertices.len() * core::mem::size_of::<Vertex>();
+                            let slice = vertex_offset..(size + vertex_offset);
+                            vertex_buffer_staging
+                                .slice(slice.clone())
+                                .copy_from_slice(bytemuck::cast_slice(&mesh.vertices));
+                            self.vertex_buffer.slices.push(slice);
+                            vertex_offset += size;
+                        }
+                        Primitive::Callback(_) | Primitive::Clear(_) => {}
+                    }
                 }
             }
         }
-        if vertex_count > 0 {
-            profiling::scope!("vertices", vertex_count.to_string().as_str());
-
-            self.vertex_buffer.slices.clear();
-
-            let required_vertex_buffer_size =
-                (core::mem::size_of::<Vertex>() * vertex_count) as u64;
-            if self.vertex_buffer.capacity < required_vertex_buffer_size {
-                // Resize vertex buffer if needed.
-                self.vertex_buffer.capacity =
-                    (self.vertex_buffer.capacity * 2).at_least(required_vertex_buffer_size);
-                self.vertex_buffer.buffer =
-                    create_vertex_buffer(device, self.vertex_buffer.capacity);
-            }
-
-            let vertex_buffer_staging = queue.write_buffer_with(
-                &self.vertex_buffer.buffer,
-                0,
-                #[expect(clippy::unwrap_used)] // Checked above
-                NonZeroU64::new(required_vertex_buffer_size).unwrap(),
-            );
-
-            let Some(mut vertex_buffer_staging) = vertex_buffer_staging else {
-                log::error!(
-                    "Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)",
-                    self.vertex_buffer.buffer.size(),
-                    self.vertex_buffer.capacity
-                );
-                self.buffers_ready = false;
-                return Vec::new();
-            };
-
-            let mut vertex_offset = 0;
-            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
-                match primitive {
-                    Primitive::Mesh(mesh) => {
-                        let size = mesh.vertices.len() * core::mem::size_of::<Vertex>();
-                        let slice = vertex_offset..(size + vertex_offset);
-                        vertex_buffer_staging
-                            .slice(slice.clone())
-                            .copy_from_slice(bytemuck::cast_slice(&mesh.vertices));
-                        self.vertex_buffer.slices.push(slice);
-                        vertex_offset += size;
-                    }
-                    Primitive::Callback(_) | Primitive::Clear(_) => {}
-                }
-            }
-        }
-
         let mut user_cmd_bufs = Vec::new();
         {
             profiling::scope!("prepare callbacks");
