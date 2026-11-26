@@ -1,5 +1,6 @@
 // use std::{fmt, str::FromStr};
 use alloc::{fmt, str::FromStr};
+use log::debug;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -57,7 +58,11 @@ impl FromStr for KeyboardType {
             "tel" => Self::Telephone,
             "email" => Self::Email,
             "url" => Self::Url,
-            _ => Self::Text,
+            "text" => Self::Text,
+            unknown => {
+                debug!("Unknown inputmode {unknown}. Defaulting to 'text'.");
+                Self::Text
+            },
         })
     }
 }
