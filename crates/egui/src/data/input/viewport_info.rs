@@ -45,6 +45,11 @@ pub struct ViewportInfo {
     /// Current monitor size in egui points.
     pub monitor_size: Option<Vec2>,
 
+    /// The refresh rate of the current monitor, in Hz.
+    ///
+    /// `None` if unknown, which it always is on the web.
+    pub monitor_refresh_rate: Option<f32>,
+
     /// The inner rectangle of the native window, in monitor space and ui points scale.
     ///
     /// This is the content rectangle of the viewport.
@@ -123,6 +128,7 @@ impl ViewportInfo {
             events: core::mem::take(&mut self.events),
             native_pixels_per_point: self.native_pixels_per_point,
             monitor_size: self.monitor_size,
+            monitor_refresh_rate: self.monitor_refresh_rate,
             inner_rect: self.inner_rect,
             outer_rect: self.outer_rect,
             minimized: self.minimized,
@@ -140,6 +146,7 @@ impl ViewportInfo {
             events,
             native_pixels_per_point,
             monitor_size,
+            monitor_refresh_rate,
             inner_rect,
             outer_rect,
             minimized,
@@ -168,6 +175,10 @@ impl ViewportInfo {
 
             ui.label("Monitor size:");
             ui.label(opt_as_str(monitor_size));
+            ui.end_row();
+
+            ui.label("Monitor refresh rate (Hz):");
+            ui.label(opt_as_str(monitor_refresh_rate));
             ui.end_row();
 
             ui.label("Inner rect:");

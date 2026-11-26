@@ -151,7 +151,7 @@ impl FontCell {
             return None;
         }
 
-        let mut ctx = vello_cpu::RenderContext::new(width, height);
+        let mut ctx = vello_cpu::RenderContext::new_with(width, height, render_settings());
         ctx.set_transform(kurbo::Affine::translate((-bounds.x0, -bounds.y0)));
         ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
         ctx.fill_path(&path);
@@ -225,7 +225,8 @@ impl FontCell {
         );
         let coords: Vec<i16> = location.coords().iter().map(|c| c.to_bits()).collect();
 
-        let mut ctx = vello_cpu::RenderContext::new(canvas_size, canvas_size);
+        let mut ctx =
+            vello_cpu::RenderContext::new_with(canvas_size, canvas_size, render_settings());
         let mut resources = vello_cpu::Resources::new();
         ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
         ctx.glyph_run(&mut resources, &font)
@@ -695,6 +696,18 @@ pub(crate) struct ShapedGlyph {
 
     /// CJK glyphs skip subpixel positioning to save atlas space.
     pub is_cjk: bool,
+}
+
+/// Rasterize glyphs on the calling thread.
+///
+/// If another crate enables the `multithreading` feature of `vello_cpu`,
+/// [`vello_cpu::RenderContext::new`] creates a new thread pool for every glyph,
+/// which is very slow.
+fn render_settings() -> vello_cpu::RenderSettings {
+    vello_cpu::RenderSettings {
+        num_threads: 0,
+        ..Default::default()
+    }
 }
 
 #[cfg(test)]
