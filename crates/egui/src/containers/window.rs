@@ -1338,12 +1338,13 @@ fn title_ui(
 
     let button_size = Vec2::splat(ui.spacing().icon_width);
 
-    // Since the heading height is higher than the button size, we need to allocate the buttons
-    // with the headers height as size, otherwise they'd look slightly off-center.
+    // The heading is usually taller than the buttons, so we allocate the buttons with the
+    // heading's height, otherwise they'd look slightly off-center.
     // The shrink is then used to render the buttons with the right size.
+    // With large icons the allocation must still fit the button, or the button grows the window.
     let heading_font_height =
         ui.fonts_mut(|f| f.row_height(&TextStyle::Heading.resolve(ui.style())));
-    let button_allocation_size = Vec2::splat(heading_font_height);
+    let button_allocation_size = Vec2::splat(heading_font_height.max(button_size.y));
     let button_shrink = (button_allocation_size - button_size) * 0.5;
 
     let collapse_atom_id = IdSalt::new("__window_collapse_button");

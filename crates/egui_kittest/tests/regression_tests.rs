@@ -719,6 +719,34 @@ fn window_fixed_size_is_outer_size() {
     );
 }
 
+/// Regression test for <https://github.com/emilk/egui/issues/8833>:
+/// title bar buttons larger than the heading font must not grow the window past its `default_size`.
+#[test]
+fn window_with_large_title_bar_icons_keeps_default_size() {
+    let default_width = 340.0;
+    let window_id = egui::Id::unique("menu");
+    let mut open = true;
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .with_context_setup(|ctx| ctx.all_styles_mut(|style| style.spacing.icon_width = 64.0))
+        .build_ui(|ui| {
+            Window::new("Menu")
+                .id(window_id)
+                .default_size([default_width, 140.0])
+                .open(&mut open)
+                .show(ui.ctx(), |ui| {
+                    ui.label("Body");
+                });
+        });
+    harness.run();
+
+    let window_rect = harness
+        .ctx
+        .memory(|mem| mem.area_rect(window_id))
+        .expect("The window was not shown");
+    assert_eq!(window_rect.width(), default_width, "{window_rect:?}");
+}
+
 /// Regression test for <https://github.com/emilk/egui/issues/8055>:
 /// when content overflows a `Panel`, the returned response (and the panel's
 /// stored size, resize handle, and separator) must stay clamped to the panel's
