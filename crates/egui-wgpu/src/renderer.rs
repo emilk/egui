@@ -244,6 +244,8 @@ pub struct Renderer {
 
     index_buffer: SlicedBuffer,
     vertex_buffer: SlicedBuffer,
+    // Prevent rendering slices from a frame whose GPU buffer upload failed.
+    buffers_ready: bool,
 
     uniform_buffer: wgpu::Buffer,
     previous_uniform_buffer_content: UniformBuffer,
@@ -535,6 +537,7 @@ impl Renderer {
                 slices: Vec::with_capacity(64),
                 capacity: INDEX_BUFFER_START_CAPACITY,
             },
+            buffers_ready: false,
             uniform_buffer,
             // Buffers on wgpu are zero initialized, so this is indeed its current state!
             previous_uniform_buffer_content: UniformBuffer::zeroed(),
@@ -557,8 +560,7 @@ impl Renderer {
     /// The only consequence of `forget_lifetime` is that any operation on the parent encoder will cause a runtime error
     /// instead of a compile time error.
     ///
-    /// # Panic
-    /// Always ensure that [`Renderer::update_buffers`] has been called otherwise calling [`Renderer::render`] will panic!
+    /// `update_buffers` must be called with the same paint jobs before each call.
     pub fn render(
         &self,
         render_pass: &mut wgpu::RenderPass<'static>,
@@ -566,6 +568,10 @@ impl Renderer {
         screen_descriptor: &ScreenDescriptor,
     ) {
         profiling::function_scope!();
+
+        if !self.buffers_ready {
+            return;
+        }
 
         let pixels_per_point = screen_descriptor.pixels_per_point;
         let size_in_pixels = screen_descriptor.size_in_pixels;
@@ -1032,6 +1038,11 @@ impl Renderer {
     ) -> Vec<wgpu::CommandBuffer> {
         profiling::function_scope!();
 
+        // Clear previous-frame slices before attempting uploads so a failed frame cannot reuse them.
+        self.buffers_ready = true;
+        self.index_buffer.slices.clear();
+        self.vertex_buffer.slices.clear();
+
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
         let uniform_buffer_content = UniformBuffer {
@@ -1092,11 +1103,13 @@ impl Renderer {
             );
 
             let Some(mut index_buffer_staging) = index_buffer_staging else {
-                panic!(
+                log::error!(
                     "Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)",
                     self.index_buffer.buffer.size(),
                     self.index_buffer.capacity
                 );
+                self.buffers_ready = false;
+                return Vec::new();
             };
 
             let mut index_offset = 0;
@@ -1138,11 +1151,13 @@ impl Renderer {
             );
 
             let Some(mut vertex_buffer_staging) = vertex_buffer_staging else {
-                panic!(
+                log::error!(
                     "Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)",
                     self.vertex_buffer.buffer.size(),
                     self.vertex_buffer.capacity
                 );
+                self.buffers_ready = false;
+                return Vec::new();
             };
 
             let mut vertex_offset = 0;
