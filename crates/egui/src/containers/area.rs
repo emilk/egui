@@ -242,6 +242,11 @@ impl Area {
         self.movable && self.enabled
     }
 
+    /// The position set with [`Self::current_pos`] or [`Self::fixed_pos`], if any.
+    pub(crate) fn new_pos(&self) -> Option<Pos2> {
+        self.new_pos
+    }
+
     /// If false, clicks goes straight through to what is behind us.
     ///
     /// Can be used for semi-invisible areas that the user should be able to click through.
