@@ -1236,7 +1236,7 @@ fn tessellate_row(
         add_row_hline(point_scale, row, &mut mesh, |glyph| {
             let format = &job.sections[glyph.section_index as usize].format;
             let stroke = format.underline;
-            let y = glyph.logical_rect().bottom();
+            let y = glyph.font_rect().bottom();
             (stroke, y)
         });
     }
@@ -1245,7 +1245,7 @@ fn tessellate_row(
         add_row_hline(point_scale, row, &mut mesh, |glyph| {
             let format = &job.sections[glyph.section_index as usize].format;
             let stroke = format.strikethrough;
-            let y = glyph.logical_rect().center().y;
+            let y = glyph.font_rect().center().y;
             (stroke, y)
         });
     }
@@ -1321,7 +1321,7 @@ fn add_row_backgrounds(
 
     for glyph in &row.glyphs {
         let format = &job.sections[glyph.section_index as usize].format;
-        let rect = glyph.logical_rect();
+        let rect = glyph.font_rect();
 
         if !has_background(format) {
             end_run(run_start.take(), last_rect.right());
@@ -1698,6 +1698,50 @@ mod tests {
     }
 
     #[test]
+    fn decorations_stay_in_a_row_with_a_tall_line_height() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = fonts.with_pixels_per_point(1.0);
+        let plain = TextFormat {
+            line_height: Some(40.0),
+            ..TextFormat::simple(FontId::monospace(14.0), Color32::WHITE)
+        };
+        let stroke = Stroke::new(1.0, Color32::RED);
+
+        let format = TextFormat {
+            background: Color32::GRAY,
+            underline: stroke,
+            ..plain.clone()
+        };
+        let galley = fonts.layout_job(LayoutJob::single_section("code".to_owned(), format));
+        let (row, painted) = (galley.rect.y_range(), galley.mesh_bounds.y_range());
+        assert!(
+            row.contains(painted.min) && row.contains(painted.max),
+            "the background and the underline {painted:?} are outside the row {row:?}"
+        );
+
+        let format = TextFormat {
+            strikethrough: stroke,
+            ..plain
+        };
+        let galley = fonts.layout_job(LayoutJob::single_section("code".to_owned(), format));
+        let row = &galley.rows[0];
+        let mut strikethrough = Rect::NOTHING;
+        for vertex in &row.visuals.mesh.vertices[row.visuals.glyph_vertex_range.end..] {
+            strikethrough.extend_with(vertex.pos);
+        }
+        let strikethrough_y = strikethrough.center().y;
+        assert!(
+            row.glyphs[0]
+                .font_rect()
+                .y_range()
+                .expand(0.5)
+                .contains(strikethrough_y),
+            "the strikethrough at {strikethrough_y} is outside the font {:?}",
+            row.glyphs[0].font_rect()
+        );
+    }
+
+    #[test]
     fn background_stroke_is_painted_with_or_without_a_fill() {
         let plain = TextFormat::simple(FontId::monospace(14.0), Color32::WHITE);
         let stroke = Stroke::new(1.0, Color32::RED);
@@ -1730,10 +1774,11 @@ mod tests {
             let start = job.text.len();
             job.text += text;
             job.sections.push(LayoutSection {
-                leading_space: 0.0,
                 wrap_indent,
-                byte_range: ByteIndex(start)..ByteIndex(job.text.len()),
-                format: TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+                ..LayoutSection::new(
+                    ByteIndex(start)..ByteIndex(job.text.len()),
+                    TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+                )
             });
         }
         job.wrap.max_width = wrap_width;
