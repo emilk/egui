@@ -2,10 +2,10 @@
 //!
 //! Going outwards from the panel contents, the order is:
 //!
-//! contents | `Frame::inner_margin` | `Frame::stroke` | separator line | `Frame::outer_margin`
+//! contents | `Frame::inner_margin` | `Frame::stroke` | `Frame::outer_margin` | separator line
 //!
-//! i.e. the line is painted _outside_ the frame's outline, in room the panel reserves for it in the
-//! frame's outer margin. A panel that opted out of the separator line must not reserve that room,
+//! The panel reserves room for the line beyond the configured outer margin.
+//! A panel that opted out of the separator line must not reserve that room,
 //! or it ends up with a permanently visible gap along that edge — even though it is `resizable` and
 //! therefore still shows a line while hovered or dragged.
 //!
