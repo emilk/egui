@@ -1225,14 +1225,10 @@ pub struct TableStyle {
     /// Space between the edge of a cell and its contents.
     pub cell_margin: Margin,
 
-    /// Line that shows where a resizable column can be dragged.
+    /// Line that shows where a resizable column can be dragged, when not hovered or dragged.
+    ///
+    /// Pass it to [`crate::Ui::resize_line_stroke`] to highlight it like a panel splitter.
     pub resize_stroke: Stroke,
-
-    /// [`Self::resize_stroke`] when the mouse pointer is on it.
-    pub resize_stroke_hovered: Stroke,
-
-    /// [`Self::resize_stroke`] while it is dragged.
-    pub resize_stroke_dragged: Stroke,
 }
 
 impl Default for TableStyle {
@@ -1257,8 +1253,6 @@ impl TableStyle {
             corner_radius: CornerRadius::ZERO,
             cell_margin: Margin::ZERO,
             resize_stroke: widgets.noninteractive.bg_stroke,
-            resize_stroke_hovered: widgets.hovered.bg_stroke,
-            resize_stroke_dragged: widgets.active.bg_stroke,
         }
     }
 }
@@ -3021,8 +3015,6 @@ impl TableStyle {
             corner_radius,
             cell_margin,
             resize_stroke,
-            resize_stroke_hovered,
-            resize_stroke_dragged,
         } = self;
 
         ui.checkbox(striped, "Striped by default");
@@ -3074,14 +3066,6 @@ impl TableStyle {
 
                 ui.label("Resize stroke");
                 ui.add(resize_stroke);
-                ui.end_row();
-
-                ui.label("Resize stroke (hovered)");
-                ui.add(resize_stroke_hovered);
-                ui.end_row();
-
-                ui.label("Resize stroke (dragged)");
-                ui.add(resize_stroke_dragged);
                 ui.end_row();
             });
     }

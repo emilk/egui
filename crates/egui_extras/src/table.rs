@@ -899,14 +899,11 @@ impl Table<'_> {
                     ui.set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
-                let table_style = &ui.visuals().table;
-                let stroke = if resize_response.dragged() {
-                    table_style.resize_stroke_dragged
-                } else if resize_hover {
-                    table_style.resize_stroke_hovered
-                } else {
-                    table_style.resize_stroke
-                };
+                let stroke = ui.resize_line_stroke(
+                    resize_response.id,
+                    egui::HighlightState::new(resize_hover, resize_response.dragged()),
+                    ui.visuals().table.resize_stroke,
+                );
 
                 ui.painter().line_segment([p0, p1], stroke);
             }
