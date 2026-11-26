@@ -446,7 +446,7 @@ impl Grid {
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
         let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing);
-        if color_picker.is_none() && ui.visuals().table.striped {
+        if color_picker.is_none() && ui.visuals().striped() {
             color_picker = Some(Box::new(striped_row_color));
         }
 

@@ -1382,6 +1382,13 @@ pub struct Visuals {
     /// Draw a vertical line left of indented region, in e.g. [`crate::CollapsingHeader`].
     pub indent_has_left_vline: bool,
 
+    /// Whether or not Grids and Tables should be striped by default
+    /// (have alternating rows differently colored).
+    ///
+    /// Tables are striped if either this or [`TableStyle::striped`] is set.
+    #[deprecated(note = "Use `Visuals::table.striped` instead")]
+    pub striped: bool,
+
     /// Show trailing color behind the circle of a [`Slider`]. Default is OFF.
     ///
     /// Enabling this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::trailing_fill`].
@@ -1878,6 +1885,8 @@ impl Visuals {
             collapsing_header_frame: false,
             indent_has_left_vline: true,
 
+            striped: false,
+
             slider_trailing_fill: false,
             handle_shape: HandleShape::Rect { aspect_ratio: 0.75 },
 
@@ -1939,6 +1948,16 @@ impl Visuals {
 
             ..Self::dark()
         }
+    }
+}
+
+impl Visuals {
+    /// Should grids and tables be striped by default?
+    ///
+    /// True if [`TableStyle::striped`] or the deprecated [`Self::striped`] is set.
+    #[expect(deprecated)]
+    pub fn striped(&self) -> bool {
+        self.table.striped || self.striped
     }
 }
 
@@ -2738,6 +2757,8 @@ impl Visuals {
             button_frame,
             collapsing_header_frame,
             indent_has_left_vline,
+
+            striped: _,
 
             slider_trailing_fill,
             handle_shape,

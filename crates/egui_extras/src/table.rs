@@ -479,7 +479,7 @@ impl<'a> TableBuilder<'a> {
             sense,
         } = self;
 
-        let striped = striped.unwrap_or_else(|| ui.visuals().table.striped);
+        let striped = striped.unwrap_or_else(|| ui.visuals().striped());
 
         let state_id = ui.scope_id().with(id_salt);
 
@@ -550,7 +550,7 @@ impl<'a> TableBuilder<'a> {
             sense,
         } = self;
 
-        let striped = striped.unwrap_or_else(|| ui.visuals().table.striped);
+        let striped = striped.unwrap_or_else(|| ui.visuals().striped());
 
         let state_id = ui.scope_id().with(id_salt);
 
