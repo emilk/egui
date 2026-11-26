@@ -11,7 +11,7 @@ use epaint::{
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, FontPriority, Fonts, FontsView, ViewportKey},
+    text::{FontInsert, FontPriority, Fonts, FontsView, TextOptions, ViewportKey},
     vec2,
 };
 
@@ -592,12 +592,53 @@ impl ContextImpl {
         }
     }
 
-    /// Load fonts unless already loaded.
+    /// Apply queued font changes, and load fonts unless already loaded.
     fn update_fonts_mut(&mut self) {
         profiling::function_scope!();
-        let input = &self.viewport().input;
-        let max_texture_side = input.max_texture_side;
+        self.apply_font_changes();
+        let text_options = self.text_options();
+        let viewport_id = self.viewport_id();
+        let fonts = self.fonts_or_create();
+        {
+            profiling::scope!("Fonts::begin_pass");
+            fonts.begin_pass(text_options, ViewportKey::new(viewport_id.0.value()));
+        }
+    }
 
+    /// The [`Fonts`], created from the current font definitions if there are none yet.
+    ///
+    /// Before the first pass, that applies the queued font changes too.
+    fn fonts_or_create(&mut self) -> &mut Fonts {
+        if self.fonts.is_none() {
+            self.apply_font_changes();
+        }
+        let text_options = self.text_options();
+        self.fonts.get_or_insert_with(|| {
+            log::trace!("Creating new Fonts");
+            profiling::scope!("Fonts::new");
+            let mut fonts = Fonts::new(text_options, self.font_definitions.clone())
+                .with_font_providers(self.font_providers.clone())
+                .with_missing_glyph_policy(self.missing_glyph_policy);
+            fonts.set_glyph_rasterizers(self.glyph_rasterizers.clone());
+            fonts
+        })
+    }
+
+    /// The [`TextOptions`] for the [`Fonts`] of the current viewport.
+    fn text_options(&mut self) -> TextOptions {
+        let max_texture_side = self.viewport().input.max_texture_side;
+        let Visuals {
+            mut text_options, ..
+        } = self.memory.options.style().visuals;
+        text_options.max_texture_side = max_texture_side;
+        text_options
+    }
+
+    /// Apply the font changes queued by [`Context::set_fonts`], [`Context::add_font`], and
+    /// changes to the rasterizers or providers.
+    ///
+    /// The [`Fonts`] are dropped if anything changed, so that they are recreated.
+    fn apply_font_changes(&mut self) {
         if core::mem::take(&mut self.reload_fonts) {
             // The rasterizers or providers changed during the last pass.
             self.fonts = None;
@@ -632,31 +673,6 @@ impl ContextImpl {
             }
 
             log::trace!("Adding new fonts");
-        }
-
-        let Visuals {
-            mut text_options, ..
-        } = self.memory.options.style().visuals;
-        text_options.max_texture_side = max_texture_side;
-
-        let mut is_new = false;
-        let viewport_id = self.viewport_id();
-
-        let fonts = self.fonts.get_or_insert_with(|| {
-            log::trace!("Creating new Fonts");
-
-            is_new = true;
-            profiling::scope!("Fonts::new");
-            let mut fonts = Fonts::new(text_options, self.font_definitions.clone())
-                .with_font_providers(self.font_providers.clone())
-                .with_missing_glyph_policy(self.missing_glyph_policy);
-            fonts.set_glyph_rasterizers(self.glyph_rasterizers.clone());
-            fonts
-        });
-
-        {
-            profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(text_options, ViewportKey::new(viewport_id.0.value()));
         }
     }
 
@@ -1364,43 +1380,34 @@ impl Context {
 
     /// Read-only access to [`Fonts`].
     ///
-    /// Not valid until first call to [`Context::run_ui()`].
-    /// That's because since we don't know the proper `pixels_per_point` until then.
+    /// Before the first pass, this creates the fonts from the font definitions set so far,
+    /// with the `pixels_per_point` that egui knows so far.
     #[inline]
     pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
             let viewport_id = ctx.viewport_id();
-            reader(
-                &ctx.fonts
-                    .as_mut()
-                    .expect("No fonts available until first call to Context::run()")
-                    .with_pixels_per_point_for_viewport(
-                        pixels_per_point,
-                        ViewportKey::new(viewport_id.0.value()),
-                    ),
-            )
+            reader(&ctx.fonts_or_create().with_pixels_per_point_for_viewport(
+                pixels_per_point,
+                ViewportKey::new(viewport_id.0.value()),
+            ))
         })
     }
 
     /// Read-write access to [`Fonts`].
     ///
-    /// Not valid until first call to [`Context::run_ui()`].
-    /// That's because since we don't know the proper `pixels_per_point` until then.
+    /// Before the first pass, this creates the fonts from the font definitions set so far,
+    /// with the `pixels_per_point` that egui knows so far.
     #[inline]
     pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
             let viewport_id = ctx.viewport_id();
             reader(
-                &mut ctx
-                    .fonts
-                    .as_mut()
-                    .expect("No fonts available until first call to Context::run()")
-                    .with_pixels_per_point_for_viewport(
-                        pixels_per_point,
-                        ViewportKey::new(viewport_id.0.value()),
-                    ),
+                &mut ctx.fonts_or_create().with_pixels_per_point_for_viewport(
+                    pixels_per_point,
+                    ViewportKey::new(viewport_id.0.value()),
+                ),
             )
         })
     }
@@ -5199,6 +5206,22 @@ mod test {
             ui.label("before");
             ui.ctx().set_font_providers(vec![]);
             ui.label("after");
+        });
+        output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    fn test_fonts_before_first_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        ctx.fonts(|fonts| assert_eq!(fonts.definitions(), &FontDefinitions::empty()));
+
+        // The fonts exist now, but nothing is laid out with them, so this applies right away.
+        ctx.set_fonts(FontDefinitions::default());
+        ctx.fonts(|fonts| assert_eq!(fonts.definitions(), &FontDefinitions::default()));
+
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.label("text");
         });
         output.drop_without_applying_deltas();
     }
