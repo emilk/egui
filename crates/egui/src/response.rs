@@ -448,7 +448,7 @@ impl Response {
     /// # });
     /// ```
     pub fn lost_focus(&self) -> bool {
-        self.ctx.memory(|mem| mem.lost_focus(self.id))
+        self.ctx.memory_mut(|mem| mem.lost_focus(self.id))
     }
 
     /// Request that this widget get keyboard focus.

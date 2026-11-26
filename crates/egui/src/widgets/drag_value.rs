@@ -529,8 +529,8 @@ impl Widget for DragValue<'_> {
 
         let text_style = ui.style().drag_value_text_style.clone();
 
-        if ui.memory(|mem| mem.lost_focus(id)) {
-            // Forget the text even when the edit was cancelled: `lost_focus` holds for
+        if ui.memory_mut(|mem| mem.lost_focus(id)) {
+            // Forget the text even when the edit was cancelled: `lost_focus` can hold for
             // one more frame, in which Escape is no longer pressed.
             let edit_state = ui.data_mut(|data| data.remove_temp::<EditState>(id));
             let cancelled = ui.input(|i| i.key_pressed(Key::Escape));

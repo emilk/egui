@@ -514,6 +514,10 @@ pub(crate) struct Focus {
     /// the UI later than the currently focused one).
     id_two_frames_ago: Option<Id>,
 
+    /// Did [`Memory::lost_focus`] already report this frame that [`Self::id_previous_frame`]
+    /// lost the focus? Then the [`Self::id_two_frames_ago`] fallback won't report it again.
+    lost_focus_reported: bool,
+
     /// The widget to give the focus to in the next frame.
     widget_next_frame: Option<FocusWidget>,
 
@@ -583,7 +587,12 @@ impl Focus {
     }
 
     fn begin_pass(&mut self, new_input: &crate::data::input::RawInput) {
-        self.id_two_frames_ago = self.id_previous_frame;
+        self.id_two_frames_ago = if self.lost_focus_reported {
+            None
+        } else {
+            self.id_previous_frame
+        };
+        self.lost_focus_reported = false;
         self.id_previous_frame = self.focused();
         if let Some(widget) = self.widget_next_frame.take() {
             self.focused_widget = Some(widget);
@@ -890,12 +899,21 @@ impl Memory {
     /// usually already been rendered by the time another widget
     /// claims focus, so the loss signal can only reach it on its
     /// next render pass.
-    pub(crate) fn lost_focus(&self, id: Id) -> bool {
-        let had_recent_focus = self
-            .focus()
-            .map(|f| f.id_previous_frame == Some(id) || f.id_two_frames_ago == Some(id))
-            .unwrap_or(false);
-        had_recent_focus && !self.has_focus(id)
+    ///
+    /// Once this has returned `true`, it won't return `true` again in the next frame for the same loss.
+    pub(crate) fn lost_focus(&mut self, id: Id) -> bool {
+        if self.has_focus(id) {
+            return false;
+        }
+        let Some(focus) = self.focus.get_mut(&self.viewport_id) else {
+            return false;
+        };
+        if focus.id_previous_frame == Some(id) {
+            focus.lost_focus_reported = true;
+            true
+        } else {
+            focus.id_two_frames_ago == Some(id)
+        }
     }
 
     /// Check if the layer gained focus this frame.

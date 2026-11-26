@@ -719,6 +719,49 @@ fn window_fixed_size_is_outer_size() {
     );
 }
 
+/// Regression test for <https://github.com/emilk/egui/issues/8679>:
+/// `Response::lost_focus` must be true in exactly one frame, however the focus was lost.
+#[test]
+fn lost_focus_fires_once() {
+    #[derive(Default)]
+    struct State {
+        text: String,
+        lost_focus_frames: usize,
+    }
+
+    let mut harness = Harness::new_ui_state(
+        |ui, state| {
+            let response = ui.add(egui::TextEdit::singleline(&mut state.text).hint_text("Name"));
+            if response.lost_focus() {
+                state.lost_focus_frames += 1;
+            }
+            ui.add_space(50.0);
+            let _ = ui.button("Elsewhere");
+        },
+        State::default(),
+    );
+
+    let leave_text_edit: [(&str, fn(&mut Harness<'_, State>)); 2] = [
+        ("click elsewhere", |harness| {
+            harness.get_by_label("Elsewhere").click();
+        }),
+        ("enter", |harness| harness.key_press(egui::Key::Enter)),
+    ];
+    for (how, leave) in leave_text_edit {
+        harness.state_mut().lost_focus_frames = 0;
+        harness.get_by_role(Role::TextInput).click();
+        harness.run();
+        assert!(harness.get_by_role(Role::TextInput).is_focused());
+
+        leave(&mut harness);
+        harness.run();
+        for _ in 0..3 {
+            harness.step();
+        }
+        assert_eq!(harness.state().lost_focus_frames, 1, "{how}");
+    }
+}
+
 /// Regression test for <https://github.com/emilk/egui/issues/8055>:
 /// when content overflows a `Panel`, the returned response (and the panel's
 /// stored size, resize handle, and separator) must stay clamped to the panel's
