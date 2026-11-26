@@ -321,7 +321,7 @@ impl RenderState {
                         }
                         Err(WgpuError::AdapterInitializationError(failures.join("; ")))?
                     } else if let Some(error) = adapter_request_error {
-                        return Err(error.into());
+                        return Err(error);
                     } else {
                         return Err(WgpuError::AdapterInitializationError(
                             "No surface-compatible adapters were available".to_owned(),
