@@ -585,7 +585,6 @@ impl State {
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
-            | WindowEvent::Moved(_)
             | WindowEvent::TouchpadPressure { .. }
             | WindowEvent::CloseRequested => EventResponse {
                 repaint: true,
@@ -594,6 +593,8 @@ impl State {
 
             // Things we completely ignore:
             WindowEvent::ActivationTokenDone { .. }
+            // No new frame needed: the compositor shows the last frame at the new position.
+            | WindowEvent::Moved(_)
             | WindowEvent::AxisMotion { .. }
             | WindowEvent::DoubleTapGesture { .. } => EventResponse {
                 repaint: false,
