@@ -359,7 +359,7 @@ pub fn circular_in(t: f32) -> f32 {
 /// <https://easings.net/#easeOutCirc>
 #[inline]
 pub fn circular_out(t: f32) -> f32 {
-    (2. - t).sqrt() * t
+    ((2. - t) * t).sqrt()
 }
 
 /// Ease in and out: very slow at both ends, with a steep jump in the middle.
@@ -506,7 +506,7 @@ pub fn bounce_in_out(t: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::Easing;
+    use super::*;
 
     #[test]
     fn endpoints() {
@@ -528,6 +528,33 @@ mod tests {
                 let y = easing.apply(t);
                 assert!((-1e-5..=1.0 + 1e-5).contains(&y), "{easing:?}({t}) = {y}");
             }
+        }
+    }
+
+    /// The sine and circular easings must match the easings.net curves they link to.
+    ///
+    /// `endpoints` and `stays_in_unit_range` both pass on a curve that is wrong in
+    /// between, which is how `circular_out` shipped as `(2. - t).sqrt() * t`: correct at
+    /// t=0 and t=1, inside [0, 1] throughout, and off by 0.25 at the midpoint.
+    #[test]
+    fn sine_and_circular_match_reference() {
+        for i in 0..=1000 {
+            let t = i as f32 / 1000.0;
+            let ref_in_sine = 1.0 - (t * PI / 2.0).cos();
+            let ref_out_sine = (t * PI / 2.0).sin();
+            let ref_out_circ = (1.0 - (t - 1.0).powi(2)).sqrt();
+            assert!(
+                (sin_in(t) - ref_in_sine).abs() < 1e-4,
+                "sin_in mismatch at {t}"
+            );
+            assert!(
+                (sin_out(t) - ref_out_sine).abs() < 1e-4,
+                "sin_out mismatch at {t}"
+            );
+            assert!(
+                (circular_out(t) - ref_out_circ).abs() < 1e-4,
+                "circular_out mismatch at {t}"
+            );
         }
     }
 }
