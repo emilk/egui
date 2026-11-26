@@ -130,7 +130,7 @@ impl<'l> StripLayout<'l> {
             self.ui.painter().rect_filled(
                 gapless_rect,
                 egui::CornerRadius::ZERO,
-                self.ui.visuals().faint_bg_color,
+                self.ui.visuals().table.stripe_fill,
             );
         }
 
@@ -138,7 +138,7 @@ impl<'l> StripLayout<'l> {
             self.ui.painter().rect_filled(
                 gapless_rect,
                 egui::CornerRadius::ZERO,
-                self.ui.visuals().selection.bg_fill,
+                self.ui.visuals().table.selected_row_fill,
             );
         }
 
@@ -146,7 +146,7 @@ impl<'l> StripLayout<'l> {
             self.ui.painter().rect_filled(
                 gapless_rect,
                 egui::CornerRadius::ZERO,
-                self.ui.visuals().widgets.hovered.bg_fill,
+                self.ui.visuals().table.hovered_row_fill,
             );
         }
 

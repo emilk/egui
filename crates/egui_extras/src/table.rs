@@ -297,7 +297,7 @@ impl<'a> TableBuilder<'a> {
 
     /// Enable striped row background for improved readability.
     ///
-    /// Default is whatever is in [`egui::Visuals::striped`].
+    /// Default is whatever is in [`egui::style::TableStyle::striped`].
     #[inline]
     pub fn striped(mut self, striped: bool) -> Self {
         self.striped = Some(striped);
@@ -479,7 +479,7 @@ impl<'a> TableBuilder<'a> {
             sense,
         } = self;
 
-        let striped = striped.unwrap_or_else(|| ui.visuals().striped);
+        let striped = striped.unwrap_or_else(|| ui.visuals().table.striped);
 
         let state_id = ui.scope_id().with(id_salt);
 
@@ -550,7 +550,7 @@ impl<'a> TableBuilder<'a> {
             sense,
         } = self;
 
-        let striped = striped.unwrap_or_else(|| ui.visuals().striped);
+        let striped = striped.unwrap_or_else(|| ui.visuals().table.striped);
 
         let state_id = ui.scope_id().with(id_salt);
 
@@ -899,13 +899,13 @@ impl Table<'_> {
                     ui.set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
+                let table_style = &ui.visuals().table;
                 let stroke = if resize_response.dragged() {
-                    ui.style().visuals.widgets.active.bg_stroke
+                    table_style.resize_stroke_dragged
                 } else if resize_hover {
-                    ui.style().visuals.widgets.hovered.bg_stroke
+                    table_style.resize_stroke_hovered
                 } else {
-                    // ui.visuals().widgets.inactive.bg_stroke
-                    ui.visuals().widgets.noninteractive.bg_stroke
+                    table_style.resize_stroke
                 };
 
                 ui.painter().line_segment([p0, p1], stroke);

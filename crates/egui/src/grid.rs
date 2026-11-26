@@ -371,13 +371,13 @@ impl Grid {
     /// If `true`, add a subtle background color to every other row.
     ///
     /// This can make a table easier to read.
-    /// Default is whatever is in [`crate::Visuals::striped`].
+    /// Default is whatever is in [`crate::style::TableStyle::striped`].
     pub fn striped(self, striped: bool) -> Self {
         if striped {
             self.with_row_color(striped_row_color)
         } else {
             // Explicitly set the row color to nothing.
-            // Needed so that when the style.visuals.striped value is checked later on,
+            // Needed so that when the style.visuals.table.striped value is checked later on,
             // it is clear that the user does not want stripes on this specific Grid.
             self.with_row_color(|_row: usize, _style: &Style| None)
         }
@@ -446,7 +446,7 @@ impl Grid {
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
         let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing);
-        if color_picker.is_none() && ui.visuals().striped {
+        if color_picker.is_none() && ui.visuals().table.striped {
             color_picker = Some(Box::new(striped_row_color));
         }
 
@@ -504,7 +504,7 @@ impl Grid {
 
 fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
     if row % 2 == 1 {
-        return Some(style.visuals.faint_bg_color);
+        return Some(style.visuals.table.stripe_fill);
     }
     None
 }
