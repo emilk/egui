@@ -118,6 +118,7 @@ impl Ui {
             accessibility_parent,
             accessibility_label,
             accessibility_role,
+            language,
             classes,
         } = ui_builder;
 
@@ -150,6 +151,7 @@ impl Ui {
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
             classes,
+            language: language.clone(),
         };
 
         let mut ui = Ui {
@@ -205,6 +207,9 @@ impl Ui {
             if let Some(label) = accessibility_label {
                 node.set_label(label);
             }
+            if let Some(language) = language {
+                node.set_language(language);
+            }
         });
 
         ui
@@ -234,6 +239,7 @@ impl Ui {
             accessibility_parent,
             accessibility_label,
             accessibility_role,
+            language,
             classes,
         } = ui_builder;
 
@@ -286,6 +292,7 @@ impl Ui {
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
             classes,
+            language: language.clone(),
         };
 
         let mut child_ui = Ui {
@@ -340,6 +347,9 @@ impl Ui {
                 node.set_role(role);
                 if let Some(label) = accessibility_label {
                     node.set_label(label);
+                }
+                if let Some(language) = language {
+                    node.set_language(language);
                 }
             });
 
@@ -483,6 +493,16 @@ impl Ui {
     #[inline]
     pub fn stack(&self) -> &Arc<UiStack> {
         &self.stack
+    }
+
+    /// The language of this `Ui`'s content, as a BCP 47 tag:
+    /// the nearest [`UiBuilder::language`] up the stack, or else the
+    /// language of the user interface ([`Context::language`]).
+    pub fn language(&self) -> Option<String> {
+        match self.stack.language() {
+            Some(language) => Some(language.to_owned()),
+            None => self.ctx().language(),
+        }
     }
 
     /// Get a reference to the parent [`Context`].
