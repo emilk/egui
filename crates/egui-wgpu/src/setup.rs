@@ -190,6 +190,12 @@ pub struct WgpuSetupCreateNew {
     pub display_handle: Option<Box<dyn EguiDisplayHandle>>,
 
     /// Power preference for the adapter if [`Self::native_adapter_selector`] is not set or targeting web.
+    ///
+    /// Defaults to [`wgpu::PowerPreference::None`], which means the OS and graphics drivers
+    /// pick the GPU. This avoids unnecessarily waking a dedicated GPU on hybrid laptops
+    /// (see [#8907](https://github.com/emilk/egui/issues/8907)).
+    /// Set it to [`wgpu::PowerPreference::HighPerformance`] if you need the fastest adapter,
+    /// or use the `WGPU_POWER_PREF` environment variable (`low`, `high` or `none`).
     pub power_preference: wgpu::PowerPreference,
 
     /// Optional selector for native adapters.
@@ -252,8 +258,9 @@ impl WgpuSetupCreateNew {
 
             display_handle: None,
 
+            // Don't force a dedicated GPU - let the OS and drivers choose instead (#8907).
             power_preference: wgpu::PowerPreference::from_env()
-                .unwrap_or(wgpu::PowerPreference::HighPerformance),
+                .unwrap_or(wgpu::PowerPreference::None),
 
             native_adapter_selector: None,
 
