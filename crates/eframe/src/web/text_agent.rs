@@ -2,10 +2,12 @@
 //! IME and mobile keyboard input events.
 
 use core::cell::RefCell;
-use std::rc::Rc;
+use std::{rc::Rc, str::FromStr};
 
 use egui::KeyboardType;
-use wasm_bindgen::prelude::*;
+use log::debug;
+use wasm_bindgen::{convert::OptionIntoWasmAbi, prelude::*};
+use web_sys::{HtmlInputElement, InputEvent, KeyboardEvent, console::debug};
 
 use super::{AppRunner, WebRunner};
 
@@ -16,6 +18,7 @@ pub(crate) struct TextAgent {
 
 impl TextAgent {
     /// Attach the agent to the document.
+    ///
     pub fn attach(
         runner_ref: &WebRunner,
         canvas: &web_sys::HtmlCanvasElement,
@@ -29,6 +32,7 @@ impl TextAgent {
             .dyn_into::<web_sys::HtmlInputElement>()?;
         input.set_type("text");
         input.set_attribute("autocapitalize", "off")?;
+        let keyboard_type = KeyboardType::from_str(&input.get_attribute("inputmode").unwrap_or_default());
         let input_state = Rc::new(RefCell::new(InputState::new(input.clone())));
 
         // Hide the element, and park it over the top-left corner of the canvas
@@ -49,7 +53,6 @@ impl TextAgent {
         style.set_property("left", &format!("{}px", canvas.offset_left()))?;
         // Prevent auto-zoom on mobile browsers (requires at least 16px).
         style.set_property("font-size", "16px")?;
-
         // Insert the input as a sibling of the canvas, so that its
         // `position: absolute` resolves against the same containing block
         // as the canvas' `offset_top`/`offset_left`.
@@ -76,6 +79,7 @@ impl TextAgent {
             &input,
             "compositionstart",
             move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
+                debug!("compositionstart");
                 // Repaint moves the text agent into place,
                 // see `AppRunner::handle_platform_output`, which calls
                 // `TextAgent::update`.
@@ -83,15 +87,40 @@ impl TextAgent {
             },
         )?;
 
+
+        for event_name in [
+            "keydown",
+            "keyup",
+            "beforeinput",
+            "input",
+            "compositionstart",
+            "compositionupdate",
+            "compositionend",
+            "change",
+            "select",
+            "focus",
+            "blur",
+        ] {
+            // Register listener and log event details.
+            runner_ref.add_event_listener(&input, event_name, {
+                    move |_event: web_sys::InputEvent, _runner: &mut AppRunner| {
+                        debug!("Firing Key event {event_name}");
+                    }
+                })?;
+        }
+
         runner_ref.add_event_listener(&input, "input", {
             let input_state = Rc::clone(&input_state);
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
+                debug!("Firing Key event 'input'");
                 input_state.borrow_mut().handle_input_event(&event, runner);
             }
         })?;
         runner_ref.add_event_listener(&input, "compositionend", {
             let input_state = Rc::clone(&input_state);
             move |_event: web_sys::CompositionEvent, runner: &mut AppRunner| {
+                debug!("Firing Key event 'compositionend'");
+
                 input_state
                     .borrow_mut()
                     .handle_composition_end_event(runner);
@@ -101,7 +130,11 @@ impl TextAgent {
         runner_ref.add_event_listener(&input, "keydown", {
             let input_state = Rc::clone(&input_state);
             move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
-                let is_consumed = InputState::handle_keydown_event(&input_state, &event);
+
+                debug!("Firing Key event 'keydown'");
+                let keyboard_type = KeyboardType::from_str(&input_state.borrow().input.get_attribute("inputmode").unwrap_or_default()).unwrap_or_default();
+
+                let is_consumed = InputState::handle_keydown_event(&input_state, &event, keyboard_type, runner);
                 if !is_consumed {
                     // The canvas doesn't get keydown/keyup events when the text agent is focused,
                     // so we need to forward them to the runner:
@@ -111,8 +144,13 @@ impl TextAgent {
         })?;
         runner_ref.add_event_listener(&input, "keyup", {
             let input_state = Rc::clone(&input_state);
-            move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
-                let is_consumed = InputState::handle_keyup_event(&input_state, &event);
+
+            move |event: web_sys::KeyboardEvent, runner: &mut AppRunner, | {
+                debug!("Firing Key event 'keyup'");
+                let keyboard_type = KeyboardType::from_str(&input_state.borrow().input.get_attribute("inputmode").unwrap_or_default()).unwrap_or_default();
+                debug!("Firing Key event 'keyup', keyboard_type: {keyboard_type}");
+
+                let is_consumed = InputState::handle_keyup_event(&input_state, &event, keyboard_type, runner);
                 if !is_consumed {
                     // The canvas doesn't get keydown/keyup events when the text agent is focused,
                     // so we need to forward them to the runner:
@@ -158,7 +196,7 @@ impl TextAgent {
             return;
         }
 
-        log::trace!("Focusing text agent");
+        log::debug!("Focusing text agent");
 
         if let Err(err) = super::focus_without_scroll(&self.input) {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
@@ -170,7 +208,7 @@ impl TextAgent {
             return;
         }
 
-        log::trace!("Blurring text agent");
+        log::debug!("Blurring text agent");
 
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
@@ -192,11 +230,13 @@ impl Drop for TextAgent {
 struct InputState {
     input: web_sys::HtmlInputElement,
     last_text: String,
+    last_input_type: Option<String>,
     ime_output: Option<egui::output::IMEOutput>,
+    pending_insert: bool,
     keydown_special_case: KeydownSpecialCase,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 enum KeydownSpecialCase {
     None,
 
@@ -230,7 +270,9 @@ impl InputState {
         Self {
             input,
             last_text: String::new(),
+            last_input_type: None,
             ime_output: None,
+            pending_insert: false,
             keydown_special_case: KeydownSpecialCase::None,
         }
     }
@@ -241,7 +283,7 @@ impl InputState {
     // with the new attributes.
     fn update_keyboard_type(&self, keyboard_type: KeyboardType) -> Result<bool, JsValue> {
         let mut did_update = false;
-
+        // Self::print_field_debug("Before Update", &self.input);
         let requested_type = if matches!(keyboard_type, KeyboardType::None) {
             if self
                 .input
@@ -250,7 +292,6 @@ impl InputState {
             {
                 did_update = true;
             }
-
             self.input.set_attribute("autocapitalize", "off")?;
             self.input.set_attribute("autocomplete", "off")?;
             self.input.set_attribute("autocorrect", "off")?;
@@ -264,10 +305,6 @@ impl InputState {
                 .input
                 .get_attribute("inputmode")
                 .is_none_or(|inputmode| inputmode != format!("{keyboard_type}"))
-                || self
-                    .input
-                    .get_attribute("autocomplete")
-                    .is_none_or(|autocomplete| autocomplete != "on")
             {
                 did_update = true;
             }
@@ -282,6 +319,12 @@ impl InputState {
         };
 
         let _ = self.input.set_attribute("inputmode", requested_type);
+
+        if did_update
+        {
+            debug!("Update Keyboard type to {keyboard_type}");
+            Self::print_field_debug("After Update", &self.input);
+        }
 
         Ok(did_update)
     }
@@ -304,10 +347,8 @@ impl InputState {
         // `ime.purpose`, because that would confuse some password managers.
         // For example, Chrome's password manager will always think the last
         // letter typed in the password field is the password.
-
         let style = self.input.style();
         let native_ppp = super::native_pixels_per_point();
-
         // The input is a sibling of the canvas (see `attach`), so we position
         // it relative to the same containing block using the canvas offset.
         // Unlike `get_bounding_client_rect`, the offset is unaffected by page
@@ -325,34 +366,45 @@ impl InputState {
         let clamped_y = visible_y.clamp(0.0, logical_canvas_height);
 
         // This is where the IME input will point to:
+        let left = format!("{}px", canvas.offset_left() as f32 + clamped_x);
+        let top = format!("{}px", canvas.offset_top() as f32 + clamped_y);
         style.set_property(
             "left",
-            &format!("{}px", canvas.offset_left() as f32 + clamped_x),
+            &left,
         )?;
         style.set_property(
             "top",
-            &format!("{}px", canvas.offset_top() as f32 + clamped_y),
+            &top,
         )?;
-
         Ok(())
     }
 
     fn clear(&mut self) {
+        debug!("Key log clear event");
         self.input.set_value("");
+        self.last_input_type = None;
+        self.pending_insert = false;
         self.last_text.clear();
     }
 
     fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
+
+
         if self
-            .ime_output
-            .as_ref()
-            .is_some_and(|ime| ime.purpose == egui::IMEPurpose::Password)
+        .ime_output
+        .as_ref()
+        .is_some_and(|ime| ime.purpose == egui::IMEPurpose::Password)
         {
+
             self.handle_input_event_password(event, runner);
             return;
         }
 
         let input_type = event.input_type();
+        debug!("Key InputState::handle_input_event: is_composing: {}. InputType Event: {input_type}" ,event.is_composing());
+
+
+        self.last_input_type = Some(input_type.clone());
 
         if !event.is_composing()
             && input_type != "insertText"
@@ -366,7 +418,7 @@ impl InputState {
 
             return;
         }
-
+        self.pending_insert = true;
         let text = self.input.value();
 
         let prefix_len = longest_common_prefix_length(&text, &self.last_text);
@@ -466,29 +518,64 @@ impl InputState {
         runner.needs_repaint.repaint_asap();
     }
 
+    fn print_field_debug (description: &str, input: &HtmlInputElement)
+    {
+        debug!("Key [{}], Input_Mode: {}, Autocomplete: {}, Spellcheck: {:?}, Value: {}, Owner active element: {:?}",
+                description,
+                &input.input_mode(),
+                &input.autocomplete(),
+                &JsValue::from_bool(input.spellcheck()),
+                &input.value(),
+                &JsValue::from_bool(
+                    input.owner_document()
+                        .and_then(|d| d.active_element())
+                        .map(|e| e == input.clone().unchecked_into())
+                        .unwrap_or(false)
+                ),
+            );
+    }
+
     /// ## Returns
     /// Whether the event is consumed. If `true`, the caller should not do
     /// further processing for this event.
-    fn handle_keydown_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
+    fn handle_keydown_event(input_ref: &RefCell<Self>, event: &web_sys::KeyboardEvent, keyboard_type: KeyboardType, runner: &mut AppRunner) -> bool {
+        let input_state = &mut input_ref.borrow_mut();
+
         // Platform-sniffing methods are unreliable, so they are not used as
         // guards here.
-        let special_case = match event.key_code() {
+        let key_name = &event.key();
+        let key_code = &event.key_code();
+        // let input = &input_state.borrow().input.input_mode();
+
+        let special_case = match key_code {
+            // 229 == IME Event handling
             229 => KeydownSpecialCase::AndroidKeycode229,
             0 => KeydownSpecialCase::IosKeycode0,
             _ => KeydownSpecialCase::None,
         };
-        input_state.borrow_mut().keydown_special_case = special_case;
+
+        input_state.keydown_special_case = special_case;
+
+        input_state.pending_insert = false;
+        let input = &input_state.input;
+
+        Self::print_field_debug("handle_keydown_event", &input.clone());
+
+
 
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
         if event.is_composing() || !matches!(special_case, KeydownSpecialCase::None) {
+            debug!("Consume keydown event: {event:?}. Key name: {key_name} Code: {key_code}. Composing: {}", event.is_composing());
             true
         } else {
+            debug!("Dont Consume keydown event: {event:?}. Key name: {key_name} Code: {key_code}. Composing: {}", event.is_composing());
+
             if event.key().chars().count() > 1
                 || event.ctrl_key()
                 || event.alt_key()
                 || event.meta_key()
             {
-                input_state.borrow_mut().clear();
+                input_state.clear();
             }
             false
         }
@@ -497,8 +584,44 @@ impl InputState {
     /// ## Returns
     /// Whether the event is consumed. If `true`, the caller should not do
     /// further processing for this event.
-    fn handle_keyup_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
-        input_state.borrow_mut().keydown_special_case = KeydownSpecialCase::None;
+    fn handle_keyup_event(input_ref: &RefCell<Self>, event: &web_sys::KeyboardEvent, keyboard_type: KeyboardType, runner: &mut AppRunner) -> bool {
+        let input_state = &mut input_ref.borrow_mut();
+        let input = &input_state.input;
+
+        let special_case = input_state.keydown_special_case;
+        let key_name = &event.key();
+        let key_code = &event.key_code();
+        let last_input_type = input_state.last_input_type.clone().unwrap_or_default();
+
+        debug!("Got Handle_Keyup_event. Special case is = {special_case:?}. Event Composing {}, Pending insert: {}, Last Event: {:?}", event.is_composing(), input_state.pending_insert, last_input_type);
+
+        Self::print_field_debug("Handle_Keyup_event: ", input);
+
+        // Works as backspace
+        if matches!(special_case,KeydownSpecialCase::AndroidKeycode229)
+            && !matches!(keyboard_type, KeyboardType::Text) && (input.value().is_empty() && !input_state.pending_insert)
+            && !event.is_composing()
+        {
+            debug!("Android 229 interpreted as Backspace Key, {key_name}");
+            input_state.keydown_special_case = KeydownSpecialCase::None;
+            input_state.last_input_type = None;
+            input_state.pending_insert = false;
+
+            runner.input.raw.events.push(
+                egui::Event::Key {
+                    key: egui::Key::Backspace,
+                    physical_key: Some(egui::Key::Backspace),
+                    pressed: true,
+                    repeat: false,
+                    modifiers: Default::default(),
+                }
+            );
+
+            runner.needs_repaint.repaint_asap();
+            return true;
+        }
+
+        input_state.keydown_special_case = KeydownSpecialCase::None;
 
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
         event.is_composing() || event.key_code() == 229
