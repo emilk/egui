@@ -244,12 +244,23 @@ impl WgpuSetupCreateNew {
     ///
     /// `eframe` 's winit & web integrations will attempt to fill the display handle automatically if it is left empty.
     pub fn without_display_handle() -> Self {
+        let backends = wgpu::Backends::from_env()
+            .filter(|backends| !backends.is_empty())
+            .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL);
+        let power_preference = wgpu::PowerPreference::from_env().unwrap_or_else(|| {
+            // On hybrid laptops, prefer the high-performance Vulkan adapter to avoid the integrated-GPU startup issue observed here.
+            if backends.contains(wgpu::Backends::VULKAN) {
+                wgpu::PowerPreference::HighPerformance
+            } else {
+                wgpu::PowerPreference::None
+            }
+        });
+
         Self {
             instance_descriptor: wgpu::InstanceDescriptor {
                 // Add GL backend, primarily because WebGPU is not stable enough yet.
                 // (note however, that the GL backend needs to be opted-in via the wgpu feature flag "webgl")
-                backends: wgpu::Backends::from_env()
-                    .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
+                backends,
                 flags: wgpu::InstanceFlags::from_build_config().with_env(),
                 backend_options: wgpu::BackendOptions::from_env_or_default(),
                 memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
@@ -258,9 +269,8 @@ impl WgpuSetupCreateNew {
 
             display_handle: None,
 
-            // Don't force a dedicated GPU - let the OS and drivers choose instead (#8907).
-            power_preference: wgpu::PowerPreference::from_env()
-                .unwrap_or(wgpu::PowerPreference::None),
+            // This is only a preference; the adapter request may still select another GPU.
+            power_preference,
 
             native_adapter_selector: None,
 
