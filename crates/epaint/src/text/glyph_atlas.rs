@@ -3,7 +3,7 @@ use nohash_hasher::IntMap;
 use skrifa::GlyphId;
 
 use crate::{
-    FontColorTransferFunction, ImageDelta, TextOptions, TextureAtlas,
+    Color32, ImageDelta, TextOptions, TextureAtlas,
     text::{
         FontFamily, FontPriority, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest,
         MAX_GLYPH_SIZE, RasterizedGlyph,
@@ -301,12 +301,13 @@ impl GlyphAtlas {
             outline_glyphs,
             ..
         } = self;
+        let subpixel_order = atlas.options().subpixel_order;
         let allocation = *outline_glyphs.entry(key).or_insert_with(|| {
-            face.rasterize_glyph(metrics, glyph_id, bin)
+            face.rasterize_glyph(metrics, glyph_id, bin, subpixel_order)
                 .and_then(|bitmap| {
-                    let transfer = Self::transfer_function(atlas, bitmap.is_color);
+                    let texel = Self::atlas_texel(atlas, bitmap.is_color, subpixel_order.is_some());
                     let mut uv_rect =
-                        Self::allocate_bitmap(atlas, &bitmap, metrics.pixels_per_point, transfer)?;
+                        Self::allocate_bitmap(atlas, &bitmap, metrics.pixels_per_point, texel)?;
                     uv_rect.offset.y += metrics.y_offset_in_points;
                     Some(GlyphAllocation {
                         uv_rect,
@@ -352,9 +353,10 @@ impl GlyphAtlas {
             .find_map(|rasterizer| (rasterizer.rasterize)(&request))
             .and_then(|RasterizedGlyph { bitmap, advance_px }| {
                 let is_color = bitmap.is_color;
-                let transfer = Self::transfer_function(&self.atlas, is_color);
+                // Rasterizers hand over grayscale coverage, never subpixel coverage.
+                let texel = Self::atlas_texel(&self.atlas, is_color, false);
                 let uv_rect =
-                    Self::allocate_bitmap(&mut self.atlas, &bitmap, pixels_per_point, transfer)?;
+                    Self::allocate_bitmap(&mut self.atlas, &bitmap, pixels_per_point, texel)?;
                 Some(RasterGlyphAllocation {
                     allocation: GlyphAllocation { uv_rect, is_color },
                     advance_px,
@@ -364,13 +366,41 @@ impl GlyphAtlas {
         allocation
     }
 
+    /// How a bitmap's pixels become atlas texels.
+    ///
     /// The transfer function assumes white coverage glyphs and discards color,
-    /// so color glyphs (e.g. emoji) must skip it.
-    fn transfer_function(atlas: &TextureAtlas, is_color: bool) -> FontColorTransferFunction {
-        if is_color {
-            FontColorTransferFunction::Off
-        } else {
-            atlas.options().color_transfer_function
+    /// so color glyphs (e.g. emoji) skip it. Subpixel coverage goes through it per channel.
+    ///
+    /// In a subpixel atlas, a channel above alpha marks subpixel coverage,
+    /// so color glyphs are clamped to valid premultiplied colors.
+    fn atlas_texel(
+        atlas: &TextureAtlas,
+        is_color: bool,
+        subpixel: bool,
+    ) -> impl Fn(Color32) -> Color32 + use<> {
+        let transfer = atlas.options().color_transfer_function;
+        let subpixel_atlas = atlas.options().subpixel_order.is_some();
+        move |px: Color32| {
+            if is_color {
+                if subpixel_atlas {
+                    let [r, g, b, a] = px.to_array();
+                    Color32::from_rgba_premultiplied(r.min(a), g.min(a), b.min(a), a)
+                } else {
+                    px
+                }
+            } else if subpixel {
+                let channel = |coverage: u8| {
+                    ecolor::linear_u8_from_linear_f32(
+                        transfer.alpha_from_coverage(coverage as f32 / 255.0),
+                    )
+                };
+                let [r, g, b, _] = px.to_array();
+                let [r, g, b] = [channel(r), channel(g), channel(b)];
+                // The transfer function is increasing, so the smallest channel stays alpha.
+                Color32::from_rgba_premultiplied(r, g, b, r.min(g).min(b))
+            } else {
+                transfer.to_atlas_color(px)
+            }
         }
     }
 
@@ -386,7 +416,7 @@ impl GlyphAtlas {
         atlas: &mut TextureAtlas,
         bitmap: &GlyphBitmap,
         pixels_per_point: f32,
-        transfer: FontColorTransferFunction,
+        texel: impl Fn(Color32) -> Color32,
     ) -> Option<UvRect> {
         let [width, height] = bitmap.image.resolution();
         if width == 0 || height == 0 || MAX_GLYPH_SIZE < width || MAX_GLYPH_SIZE < height {
@@ -395,8 +425,7 @@ impl GlyphAtlas {
         let (glyph_pos, image) = atlas.allocate((width, height));
         for y in 0..height {
             for x in 0..width {
-                image[(glyph_pos.0 + x, glyph_pos.1 + y)] =
-                    transfer.to_atlas_color(bitmap.image[(x, y)]);
+                image[(glyph_pos.0 + x, glyph_pos.1 + y)] = texel(bitmap.image[(x, y)]);
             }
         }
         Some(UvRect {
@@ -405,5 +434,35 @@ impl GlyphAtlas {
             min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
             max: [(glyph_pos.0 + width) as u16, (glyph_pos.1 + height) as u16],
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GlyphAtlas;
+    use crate::{Color32, TextOptions, TextureAtlas, text::SubpixelOrder};
+
+    fn atlas(subpixel_order: Option<SubpixelOrder>) -> TextureAtlas {
+        let options = TextOptions {
+            subpixel_order,
+            ..Default::default()
+        };
+        TextureAtlas::new([1024, 64], options)
+    }
+
+    /// A color glyph never has a channel above its alpha in a subpixel atlas,
+    /// where that would mark subpixel coverage.
+    #[test]
+    fn color_glyphs_are_clamped_in_a_subpixel_atlas() {
+        let invalid = Color32::from_rgba_premultiplied(255, 40, 0, 128);
+        let valid = Color32::from_rgba_premultiplied(100, 40, 0, 128);
+
+        let texel = GlyphAtlas::atlas_texel(&atlas(Some(SubpixelOrder::Rgb)), true, false);
+        assert_eq!(texel(invalid).to_array(), [128, 40, 0, 128]);
+        assert_eq!(texel(valid), valid);
+
+        // Without subpixel text, color glyphs are copied as they are.
+        let texel = GlyphAtlas::atlas_texel(&atlas(None), true, false);
+        assert_eq!(texel(invalid), invalid);
     }
 }

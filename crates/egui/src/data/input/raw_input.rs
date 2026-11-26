@@ -44,6 +44,10 @@ pub struct RawInput {
     /// The default is a very small (but very portable) 2048.
     pub max_texture_side: Option<usize>,
 
+    /// Whether the renderer can draw subpixel (LCD) text, see
+    /// [`epaint::TextOptions::subpixel_order`]. Until a renderer says so, text is grayscale.
+    pub subpixel_text: Option<bool>,
+
     /// Monotonically increasing time, in seconds. Relative to whatever. Used for animations.
     /// If `None` is provided, egui will assume a time delta of `predicted_dt` (default 1/60 seconds).
     pub time: Option<f64>,
@@ -98,6 +102,7 @@ impl Default for RawInput {
             viewports: core::iter::once((ViewportId::ROOT, Default::default())).collect(),
             screen_rect: None,
             max_texture_side: None,
+            subpixel_text: None,
             time: None,
             predicted_dt: 1.0 / 60.0,
             events: vec![],
@@ -132,6 +137,7 @@ impl RawInput {
             screen_rect: self.screen_rect.take(),
             safe_area_insets: self.safe_area_insets.take(),
             max_texture_side: self.max_texture_side.take(),
+            subpixel_text: self.subpixel_text.take(),
             time: self.time,
             predicted_dt: self.predicted_dt,
             events: core::mem::take(&mut self.events),
@@ -149,6 +155,7 @@ impl RawInput {
             viewports,
             screen_rect,
             max_texture_side,
+            subpixel_text,
             time,
             predicted_dt,
             mut events,
@@ -163,6 +170,7 @@ impl RawInput {
         self.viewports = viewports;
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
+        self.subpixel_text = subpixel_text.or(self.subpixel_text);
         self.time = time; // use latest time
         self.predicted_dt = predicted_dt; // use latest dt
         self.events.append(&mut events);
@@ -181,6 +189,7 @@ impl RawInput {
             viewports,
             screen_rect,
             max_texture_side,
+            subpixel_text,
             time,
             predicted_dt,
             events,
@@ -207,6 +216,7 @@ impl RawInput {
         ui.label(format!("screen_rect: {screen_rect:?} points"));
 
         ui.label(format!("max_texture_side: {max_texture_side:?}"));
+        ui.label(format!("subpixel_text: {subpixel_text:?}"));
         if let Some(time) = time {
             ui.label(format!("time: {time:.3} s"));
         } else {
