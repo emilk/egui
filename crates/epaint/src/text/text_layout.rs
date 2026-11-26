@@ -1774,10 +1774,11 @@ mod tests {
             let start = job.text.len();
             job.text += text;
             job.sections.push(LayoutSection {
-                leading_space: 0.0,
                 wrap_indent,
-                byte_range: ByteIndex(start)..ByteIndex(job.text.len()),
-                format: TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+                ..LayoutSection::new(
+                    ByteIndex(start)..ByteIndex(job.text.len()),
+                    TextFormat::simple(FontId::proportional(14.0), Color32::WHITE),
+                )
             });
         }
         job.wrap.max_width = wrap_width;

@@ -125,12 +125,10 @@ impl LayoutJob {
     #[inline]
     pub fn simple(text: String, font_id: FontId, color: Color32, wrap_width: f32) -> Self {
         Self {
-            sections: vec![LayoutSection {
-                leading_space: 0.0,
-                wrap_indent: 0.0,
-                byte_range: ByteRange::full(&text),
-                format: TextFormat::simple(font_id, color),
-            }],
+            sections: vec![LayoutSection::new(
+                ByteRange::full(&text),
+                TextFormat::simple(font_id, color),
+            )],
             text,
             wrap: TextWrapping {
                 max_width: wrap_width,
@@ -145,12 +143,7 @@ impl LayoutJob {
     #[inline]
     pub fn simple_format(text: String, format: TextFormat) -> Self {
         Self {
-            sections: vec![LayoutSection {
-                leading_space: 0.0,
-                wrap_indent: 0.0,
-                byte_range: ByteRange::full(&text),
-                format,
-            }],
+            sections: vec![LayoutSection::new(ByteRange::full(&text), format)],
             text,
             break_on_newline: true,
             ..Default::default()
@@ -161,12 +154,10 @@ impl LayoutJob {
     #[inline]
     pub fn simple_singleline(text: String, font_id: FontId, color: Color32) -> Self {
         Self {
-            sections: vec![LayoutSection {
-                leading_space: 0.0,
-                wrap_indent: 0.0,
-                byte_range: ByteRange::full(&text),
-                format: TextFormat::simple(font_id, color),
-            }],
+            sections: vec![LayoutSection::new(
+                ByteRange::full(&text),
+                TextFormat::simple(font_id, color),
+            )],
             text,
             wrap: Default::default(),
             break_on_newline: false,
@@ -177,12 +168,7 @@ impl LayoutJob {
     #[inline]
     pub fn single_section(text: String, format: TextFormat) -> Self {
         Self {
-            sections: vec![LayoutSection {
-                leading_space: 0.0,
-                wrap_indent: 0.0,
-                byte_range: ByteRange::full(&text),
-                format,
-            }],
+            sections: vec![LayoutSection::new(ByteRange::full(&text), format)],
             text,
             wrap: Default::default(),
             break_on_newline: true,
@@ -218,9 +204,7 @@ impl LayoutJob {
 
         self.sections.push(LayoutSection {
             leading_space,
-            wrap_indent: 0.0,
-            byte_range,
-            format,
+            ..LayoutSection::new(byte_range, format)
         });
     }
 
@@ -370,6 +354,19 @@ pub struct LayoutSection {
 
     /// How to format the text in this section (font, color, etc).
     pub format: TextFormat,
+}
+
+impl LayoutSection {
+    /// A section with no [`Self::leading_space`] and no [`Self::wrap_indent`].
+    #[inline]
+    pub fn new(byte_range: ByteRange, format: TextFormat) -> Self {
+        Self {
+            leading_space: 0.0,
+            wrap_indent: 0.0,
+            byte_range,
+            format,
+        }
+    }
 }
 
 impl core::hash::Hash for LayoutSection {
