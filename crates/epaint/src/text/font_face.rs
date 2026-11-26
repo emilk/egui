@@ -71,6 +71,9 @@ struct DependentFontData<'a> {
     outline_glyphs: skrifa::outline::OutlineGlyphCollection<'a>,
     metrics: skrifa::metrics::Metrics,
     hinting_instance: Option<skrifa::outline::HintingInstance>,
+
+    /// Set together with `hinting_instance`. See [`hinting_engine`].
+    hinting_engine: Option<skrifa::outline::Engine>,
 }
 
 self_cell! {
@@ -121,14 +124,20 @@ impl FontCell {
         self.with_dependent_mut(|_, font_data| {
             let outline = font_data.outline_glyphs.get(glyph_id)?;
 
-            if let Some(hinting_instance) = &mut font_data.hinting_instance {
+            if let (Some(hinting_instance), Some(engine)) =
+                (&mut font_data.hinting_instance, &font_data.hinting_engine)
+            {
                 let size = skrifa::instance::Size::new(metrics.scale);
                 if hinting_instance.size() != size
                     || !same_location(hinting_instance.location(), location)
                     || hinting_instance.target() != hinting_target
                 {
+                    let options = skrifa::outline::HintingOptions {
+                        engine: engine.clone(),
+                        target: hinting_target,
+                    };
                     hinting_instance
-                        .reconfigure(&font_data.outline_glyphs, size, location, hinting_target)
+                        .reconfigure(&font_data.outline_glyphs, size, location, options)
                         .ok()?;
                 }
                 let draw_settings = skrifa::outline::DrawSettings::hinted(hinting_instance, false);
@@ -288,6 +297,45 @@ impl FontCell {
     }
 }
 
+/// Create the hinting instance and engine for a font, or `None`s if hinting is off.
+fn new_hinting(
+    hinting_enabled: bool,
+    outlines: &skrifa::outline::OutlineGlyphCollection<'_>,
+) -> (
+    Option<skrifa::outline::HintingInstance>,
+    Option<skrifa::outline::Engine>,
+) {
+    if !hinting_enabled {
+        return (None, None);
+    }
+    let engine = hinting_engine(outlines);
+
+    // The size is `unscaled()`, so the first glyph we draw always reconfigures this with the real size and target.
+    let instance = skrifa::outline::HintingInstance::new(
+        outlines,
+        skrifa::instance::Size::unscaled(),
+        skrifa::instance::LocationRef::default(),
+        engine.clone(),
+    )
+    .ok();
+    (instance, Some(engine))
+}
+
+/// Pick the hinting engine for a font, the same way [`skrifa::outline::Engine::AutoFallback`] does.
+///
+/// For the auto-hinter, this also computes the font's glyph styles.
+/// Without them, skrifa computes them again on every `reconfigure`, and that scans the whole font.
+/// We reconfigure every time the text size changes, so a screen that mixes text sizes would pay this over and over.
+fn hinting_engine(
+    outlines: &skrifa::outline::OutlineGlyphCollection<'_>,
+) -> skrifa::outline::Engine {
+    if outlines.prefer_interpreter() {
+        skrifa::outline::Engine::Interpreter
+    } else {
+        skrifa::outline::Engine::Auto(Some(skrifa::outline::GlyphStyles::new(outlines)))
+    }
+}
+
 /// Do `a` and `b` describe the same point in variation space?
 ///
 /// [`skrifa::outline::HintingInstance::location`] returns the default location as no
@@ -388,19 +436,7 @@ impl FontFace {
             );
 
             let hinting_enabled = tweak.hinting.unwrap_or(options.font_hinting);
-            let hinting_instance = hinting_enabled
-                .then(|| {
-                    // It doesn't really matter what we put here for options. Since the size is `unscaled()`, we will
-                    // always reconfigure this hinting instance with the real options when rendering for the first time.
-                    skrifa::outline::HintingInstance::new(
-                        &glyphs,
-                        skrifa::instance::Size::unscaled(),
-                        skrifa::instance::LocationRef::default(),
-                        skrifa::outline::Target::default(),
-                    )
-                    .ok()
-                })
-                .flatten();
+            let (hinting_instance, hinting_engine) = new_hinting(hinting_enabled, &glyphs);
 
             #[cfg(feature = "color_fonts")]
             let has_color_glyphs = {
@@ -421,6 +457,7 @@ impl FontFace {
                 outline_glyphs: glyphs,
                 metrics,
                 hinting_instance,
+                hinting_engine,
             })
         })?;
 
@@ -450,17 +487,8 @@ impl FontFace {
         *subpixel_binning = tweak.subpixel_binning.unwrap_or(options.subpixel_binning);
         let hinting_enabled = tweak.hinting.unwrap_or(options.font_hinting);
         font.with_dependent_mut(|_, font_data| {
-            font_data.hinting_instance = hinting_enabled
-                .then(|| {
-                    skrifa::outline::HintingInstance::new(
-                        &font_data.outline_glyphs,
-                        skrifa::instance::Size::unscaled(),
-                        skrifa::instance::LocationRef::default(),
-                        skrifa::outline::Target::default(),
-                    )
-                    .ok()
-                })
-                .flatten();
+            (font_data.hinting_instance, font_data.hinting_engine) =
+                new_hinting(hinting_enabled, &font_data.outline_glyphs);
         });
     }
 
