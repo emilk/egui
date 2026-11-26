@@ -413,7 +413,16 @@ impl Widget for Image<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let tlr = self.load_for_size(ui.ctx(), ui.available_size());
         let image_source_size = tlr.as_ref().ok().and_then(|t| t.size());
-        let ui_size = self.calc_size(ui.available_size(), image_source_size);
+        let ui_size = if tlr.is_err() && !matches!(self.size.fit, ImageFit::Exact(_)) {
+            // Scaling the fallback size up to fit the available space would leave a big empty
+            // area around the error message, so take only the space the message needs.
+            let max_size = ui.available_size().min(self.size.max_size);
+            error_galley(ui, self.alt_text.as_deref(), max_size.x)
+                .size()
+                .min(max_size)
+        } else {
+            self.calc_size(ui.available_size(), image_source_size)
+        };
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
         response.widget_info(|| {
@@ -689,25 +698,7 @@ pub fn paint_texture_load_result(
             }
         }
         Err(_) => {
-            let font_id = TextStyle::Body.resolve(ui.style());
-            let mut job = LayoutJob {
-                wrap: TextWrapping::truncate_at_width(rect.width()),
-                halign: Align::Center,
-                ..Default::default()
-            };
-            job.append(
-                "⚠️",
-                0.0,
-                TextFormat::simple(font_id.clone(), ui.visuals().error_fg_color),
-            );
-            if let Some(alt_text) = alt_text {
-                job.append(
-                    alt_text,
-                    ui.spacing().item_spacing.x,
-                    TextFormat::simple(font_id, ui.visuals().text_color()),
-                );
-            }
-            let galley = ui.painter().layout_job(job);
+            let galley = error_galley(ui, alt_text, rect.width());
             ui.painter().galley(
                 rect.center() - Vec2::Y * galley.size().y * 0.5,
                 galley,
@@ -715,6 +706,30 @@ pub fn paint_texture_load_result(
             );
         }
     }
+}
+
+/// A warning sign followed by the `alt_text`, truncated to `max_width`, which shows in place of an image
+/// that failed to load.
+fn error_galley(ui: &Ui, alt_text: Option<&str>, max_width: f32) -> Arc<epaint::Galley> {
+    let font_id = TextStyle::Body.resolve(ui.style());
+    let mut job = LayoutJob {
+        wrap: TextWrapping::truncate_at_width(max_width),
+        halign: Align::Center,
+        ..Default::default()
+    };
+    job.append(
+        "⚠️",
+        0.0,
+        TextFormat::simple(font_id.clone(), ui.visuals().error_fg_color),
+    );
+    if let Some(alt_text) = alt_text {
+        job.append(
+            alt_text,
+            ui.spacing().item_spacing.x,
+            TextFormat::simple(font_id, ui.visuals().text_color()),
+        );
+    }
+    ui.painter().layout_job(job)
 }
 
 /// Attach tooltips like "Loading…" or "Failed loading: …".
@@ -971,4 +986,31 @@ fn is_animated_image_uri(uri: &str) -> bool {
 
 fn are_animated_image_bytes(bytes: &[u8]) -> bool {
     has_gif_magic_header(bytes) || has_webp_header(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_image_that_fails_to_load_takes_only_the_space_of_its_error_message() {
+        crate::__run_test_ui(|ui| {
+            let available_width = ui.available_width();
+            let response = ui.add(
+                Image::new("does-not-exist.png")
+                    .alt_text("alt text")
+                    .max_width(available_width),
+            );
+            let size = response.rect.size();
+            assert!(size.x < available_width / 2.0, "{size:?}");
+            assert!(
+                size.y < 2.0 * ui.text_style_height(&TextStyle::Body),
+                "{size:?}"
+            );
+
+            let exact_size = Vec2::splat(100.0);
+            let response = ui.add(Image::new("does-not-exist.png").fit_to_exact_size(exact_size));
+            assert_eq!(response.rect.size(), exact_size);
+        });
+    }
 }
