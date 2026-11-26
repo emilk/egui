@@ -44,3 +44,28 @@ fn code_background() {
         results.extend_harness(&mut harness);
     }
 }
+
+#[test]
+fn code_background_tall_line_height() {
+    let mut harness = Harness::builder()
+        .with_size(vec2(240.0, 160.0))
+        .build_ui(|ui| {
+            *ui.visuals_mut() = Visuals::dark();
+            egui::CentralPanel::default().show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    let text = |s: &str| egui::RichText::new(s).line_height(Some(28.0));
+                    ui.label(text("Call "));
+                    ui.label(text("foo()").code());
+                    ui.label(text(" and "));
+                    ui.label(text("underline").underline());
+                    ui.label(text(" or "));
+                    ui.label(text("strike").strikethrough());
+                    ui.label(text(", then wrap "));
+                    ui.label(text("some_long_code_on_the_next_row").code());
+                });
+            });
+        });
+    harness.fit_contents();
+    harness.snapshot("code_background_tall_line_height");
+}
