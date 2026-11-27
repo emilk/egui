@@ -1,10 +1,12 @@
 use raw_window_handle::RawDisplayHandle;
 
-/// Handles interfacing with the OS clipboard.
+use super::{ClipboardContent, ClipboardKind};
+
+/// The platform's clipboard. Only the [`Worker`](super::worker::Worker) uses it.
 ///
-/// If the "clipboard" feature is off, or we cannot connect to the OS clipboard,
-/// then a fallback clipboard that just works within the same app is used instead.
-pub struct Clipboard {
+/// What its functions do is documented on [`Clipboard`](super::Clipboard), which has the same
+/// ones.
+pub struct Backend {
     #[cfg(all(
         not(any(target_os = "android", target_os = "ios")),
         feature = "arboard",
@@ -27,13 +29,11 @@ pub struct Clipboard {
     clipboard: String,
 }
 
-impl Clipboard {
-    /// Construct a new instance.
-    ///
+impl Backend {
     /// # Safety
     ///
     /// If `raw_display_handle` is `Some`, the display handle must remain valid for the
-    /// entire lifetime of the returned `Clipboard` instance.
+    /// entire lifetime of the returned `Backend` instance.
     #[expect(unsafe_code)]
     pub unsafe fn new(_raw_display_handle: Option<RawDisplayHandle>) -> Self {
         Self {
@@ -60,10 +60,7 @@ impl Clipboard {
         }
     }
 
-    #[cfg_attr(
-        not(feature = "clipboard"),
-        expect(clippy::needless_pass_by_ref_mut, clippy::unnecessary_wraps)
-    )]
+    #[cfg_attr(not(feature = "clipboard"), expect(clippy::unnecessary_wraps))]
     pub fn get(&mut self) -> Option<String> {
         #[cfg(all(
             any(
@@ -140,15 +137,7 @@ impl Clipboard {
         self.clipboard = text;
     }
 
-    /// Get an image from the clipboard, if there is one and the platform backend supports it.
-    ///
-    /// This mirrors [`Self::set_image`] for the opposite direction, so that a Ctrl+V/Cmd+V
-    /// paste can carry an image (e.g. a screenshot or a copied image) instead of text — see
-    /// [`egui::Event::PasteImage`].
-    #[cfg_attr(
-        not(feature = "clipboard"),
-        expect(clippy::needless_pass_by_ref_mut, clippy::unused_self)
-    )]
+    #[cfg_attr(not(feature = "clipboard"), expect(clippy::unused_self))]
     pub fn get_image(&mut self) -> Option<egui::ColorImage> {
         #[cfg(all(
             not(any(target_os = "android", target_os = "ios")),
@@ -194,6 +183,17 @@ impl Clipboard {
         );
         _ = image;
     }
+
+    /// What [`Clipboard::read`](super::Clipboard::read) reads.
+    pub fn read(&mut self, kind: ClipboardKind) -> Option<ClipboardContent> {
+        match kind {
+            ClipboardKind::Clipboard => self
+                .get()
+                .map(ClipboardContent::Text)
+                .or_else(|| self.get_image().map(ClipboardContent::Image)),
+            ClipboardKind::Primary => self.get_primary_text().map(ClipboardContent::Text),
+        }
+    }
 }
 
 // The X11/Wayland PRIMARY selection: filled in by selecting text, pasted with the middle mouse button.
@@ -214,8 +214,7 @@ cfg_select! {
                 reason = "no backend to use"
             )
         )]
-        impl Clipboard {
-            /// Read the PRIMARY selection, if there is one.
+        impl Backend {
             pub fn get_primary_text(&mut self) -> Option<String> {
                 #[cfg(feature = "smithay-clipboard")]
                 if let Some(clipboard) = &mut self.smithay {
@@ -239,7 +238,6 @@ cfg_select! {
                 None
             }
 
-            /// Set the PRIMARY selection.
             pub fn set_primary_text(&mut self, text: String) {
                 #[cfg(feature = "smithay-clipboard")]
                 if let Some(clipboard) = &mut self.smithay {
@@ -270,13 +268,11 @@ cfg_select! {
             clippy::needless_pass_by_ref_mut,
             reason = "there is no PRIMARY selection on this platform"
         )]
-        impl Clipboard {
-            /// Read the PRIMARY selection. Always `None` on this platform.
+        impl Backend {
             pub fn get_primary_text(&mut self) -> Option<String> {
                 None
             }
 
-            /// Set the PRIMARY selection. Does nothing on this platform.
             pub fn set_primary_text(&mut self, _text: String) {}
         }
     }

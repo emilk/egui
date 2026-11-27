@@ -921,22 +921,7 @@ impl GlowWinitRunning<'_> {
                         ActionRequested::Copy => {
                             egui_winit.egui_input_mut().events.push(egui::Event::Copy);
                         }
-                        ActionRequested::Paste => {
-                            if let Some(contents) = egui_winit.clipboard_text() {
-                                let contents = contents.replace("\r\n", "\n");
-                                if !contents.is_empty() {
-                                    egui_winit
-                                        .egui_input_mut()
-                                        .events
-                                        .push(egui::Event::Paste(contents));
-                                }
-                            } else if let Some(image) = egui_winit.clipboard_image() {
-                                egui_winit
-                                    .egui_input_mut()
-                                    .events
-                                    .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
-                            }
-                        }
+                        ActionRequested::Paste => egui_winit.paste(),
                     }
                 }
 

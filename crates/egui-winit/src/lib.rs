@@ -83,6 +83,42 @@ pub struct EventResponse {
 
 // ----------------------------------------------------------------------------
 
+/// Where a paste goes.
+#[derive(Clone, Copy)]
+enum PasteTarget {
+    /// The paste shortcut: the clipboard goes to the focused widget.
+    Focus,
+
+    /// A middle-click: the PRIMARY selection goes to where the user clicked.
+    MiddleClick { pos: egui::Pos2 },
+}
+
+/// The event that pastes `content`, if there is something to paste.
+fn paste_event(
+    target: PasteTarget,
+    content: Option<clipboard::ClipboardContent>,
+) -> Option<egui::Event> {
+    use clipboard::ClipboardContent;
+
+    match (target, content?) {
+        (PasteTarget::Focus, ClipboardContent::Text(text)) => {
+            let text = text.replace("\r\n", "\n");
+            (!text.is_empty()).then_some(egui::Event::Paste(text))
+        }
+        // No usable text on the clipboard (e.g. an image was copied with
+        // mspaint/Snipping Tool, which never puts a text representation
+        // alongside it) — fall back to an image paste rather than doing
+        // nothing, mirroring `Event::Copy`/`OutputCommand::CopyImage`.
+        (PasteTarget::Focus, ClipboardContent::Image(image)) => {
+            Some(egui::Event::PasteImage(std::sync::Arc::new(image)))
+        }
+        (PasteTarget::MiddleClick { pos }, ClipboardContent::Text(text)) => {
+            (!text.is_empty()).then_some(egui::Event::MiddleClickPaste { pos, text })
+        }
+        (PasteTarget::MiddleClick { .. }, ClipboardContent::Image(_)) => None,
+    }
+}
+
 /// Handles the integration between egui and a winit Window.
 ///
 /// Instantiate one of these per viewport/window.
@@ -113,6 +149,11 @@ pub struct State {
     current_custom_cursor: Option<(usize, CustomCursor)>,
 
     clipboard: clipboard::Clipboard,
+
+    /// The pastes whose clipboard read is still underway, oldest first.
+    ///
+    /// See [`clipboard::ClipboardRead::Pending`].
+    late_pastes: std::collections::VecDeque<PasteTarget>,
 
     /// If `true`, mouse inputs will be treated as touches.
     /// Useful for debugging touch support in egui.
@@ -189,6 +230,7 @@ impl State {
             current_custom_cursor: None,
 
             clipboard,
+            late_pastes: Default::default(),
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
@@ -242,17 +284,27 @@ impl State {
     }
 
     /// Fetches text from the clipboard and returns it.
+    ///
+    /// This waits for the app that owns the clipboard. On X11 and Wayland that can take long.
+    #[deprecated = "It can block the event loop on X11 and Wayland. Use `State::paste` instead."]
     pub fn clipboard_text(&mut self) -> Option<String> {
+        #[expect(deprecated)]
         self.clipboard.get()
     }
 
     /// Fetches an image from the clipboard and returns it, if there is one and the platform
     /// backend supports it. Mirrors [`Self::clipboard_text`] for images.
+    ///
+    /// This waits for the app that owns the clipboard. On X11 and Wayland that can take long.
+    #[deprecated = "It can block the event loop on X11 and Wayland. Use `State::paste` instead."]
     pub fn clipboard_image(&mut self) -> Option<egui::ColorImage> {
+        #[expect(deprecated)]
         self.clipboard.get_image()
     }
 
     /// Places the text onto the clipboard.
+    ///
+    /// On Linux and the BSDs this returns right away, and the clipboard is set a moment later.
     pub fn set_clipboard_text(&mut self, text: String) {
         self.clipboard.set_text(text);
     }
@@ -345,7 +397,49 @@ impl State {
             .or_default()
             .native_pixels_per_point = Some(window.scale_factor() as f32);
 
+        self.finish_late_pastes();
+
         self.egui_input.take()
+    }
+
+    /// Paste the clipboard into the focused widget, like the paste shortcut does.
+    ///
+    /// This doesn't wait long for the clipboard. If the content takes longer to arrive,
+    /// the paste happens in a later frame.
+    pub fn paste(&mut self) {
+        self.paste_to(PasteTarget::Focus);
+    }
+
+    /// Reads the clipboard, and pastes what is there. See [`Self::paste`].
+    fn paste_to(&mut self, target: PasteTarget) {
+        let kind = match target {
+            PasteTarget::Focus => clipboard::ClipboardKind::Clipboard,
+            PasteTarget::MiddleClick { .. } => clipboard::ClipboardKind::Primary,
+        };
+        let egui_ctx = self.egui_ctx.clone();
+        let viewport_id = self.viewport_id;
+        let wake = move || egui_ctx.request_repaint_of(viewport_id);
+        match self.clipboard.read(kind, wake) {
+            clipboard::ClipboardRead::Done(content) => {
+                self.egui_input.events.extend(paste_event(target, content));
+            }
+            clipboard::ClipboardRead::Pending => self.late_pastes.push_back(target),
+        }
+    }
+
+    /// Pastes what has arrived for [`Self::late_pastes`].
+    fn finish_late_pastes(&mut self) {
+        // These pastes are older than the events we have, so they go first.
+        let mut index = 0;
+        while let Some(&target) = self.late_pastes.front()
+            && let clipboard::ClipboardRead::Done(content) = self.clipboard.poll_read()
+        {
+            self.late_pastes.pop_front();
+            if let Some(event) = paste_event(target, content) {
+                self.egui_input.events.insert(index, event);
+                index += 1;
+            }
+        }
     }
 
     /// Call this when there is a new event.
@@ -897,14 +991,8 @@ impl State {
             });
 
             // Middle-click pastes the PRIMARY selection on X11 and Wayland:
-            if pressed
-                && button == egui::PointerButton::Middle
-                && let Some(text) = self.clipboard.get_primary_text()
-                && !text.is_empty()
-            {
-                self.egui_input
-                    .events
-                    .push(egui::Event::MiddleClickPaste { pos, text });
+            if pressed && button == egui::PointerButton::Middle {
+                self.paste_to(PasteTarget::MiddleClick { pos });
             }
 
             if self.simulate_touch_screen {
@@ -1146,20 +1234,7 @@ impl State {
                     self.egui_input.events.push(egui::Event::Copy);
                     return;
                 } else if is_paste_command(self.modifiers, active_key) {
-                    if let Some(contents) = self.clipboard.get() {
-                        let contents = contents.replace("\r\n", "\n");
-                        if !contents.is_empty() {
-                            self.egui_input.events.push(egui::Event::Paste(contents));
-                        }
-                    } else if let Some(image) = self.clipboard.get_image() {
-                        // No usable text on the clipboard (e.g. an image was copied with
-                        // mspaint/Snipping Tool, which never puts a text representation
-                        // alongside it) — fall back to an image paste rather than doing
-                        // nothing, mirroring `Event::Copy`/`OutputCommand::CopyImage`.
-                        self.egui_input
-                            .events
-                            .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
-                    }
+                    self.paste();
                     return;
                 }
             }
