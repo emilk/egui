@@ -48,12 +48,9 @@ impl State {
         self.row_heights.get(row).copied()
     }
 
-    /// The width of all columns, including their cell margins and the spacing between them.
-    fn full_width(&self, margin_x: f32, x_spacing: f32) -> f32 {
-        let num_columns = self.col_widths.len();
-        self.col_widths.iter().sum::<f32>()
-            + num_columns as f32 * margin_x
-            + (num_columns.at_least(1) - 1) as f32 * x_spacing
+    /// The width of all columns, including their cell margins.
+    fn full_width(&self, margin_x: f32) -> f32 {
+        self.col_widths.iter().sum::<f32>() + self.col_widths.len() as f32 * margin_x
     }
 }
 
@@ -85,9 +82,6 @@ pub(crate) struct GridLayout {
 
     // Options:
     num_columns: Option<usize>,
-
-    /// Extra space between cells, on top of [`Self::cell_margin`].
-    spacing: Vec2,
 
     /// Space around the contents of each cell.
     cell_margin: Margin,
@@ -131,7 +125,6 @@ impl GridLayout {
             sizing_pass,
 
             num_columns: None,
-            spacing: Vec2::ZERO,
             cell_margin: ui.visuals().table.cell_margin,
             min_cell_size: ui.spacing().interact_size,
             max_cell_size: Vec2::INFINITY,
@@ -271,7 +264,7 @@ impl GridLayout {
         self.curr_state
             .set_min_row_height(self.row, widget_rect.height().max(self.min_cell_size.y));
 
-        cursor.min.x += self.prev_col_width(self.col) + self.cell_margin.sum().x + self.spacing.x;
+        cursor.min.x += self.prev_col_width(self.col) + self.cell_margin.sum().x;
         self.col += 1;
     }
 
@@ -288,19 +281,15 @@ impl GridLayout {
         };
         // Paint background for coming row:
         let margin = self.cell_margin.sum();
-        let size = Vec2::new(
-            self.prev_state.full_width(margin.x, self.spacing.x),
-            height + margin.y,
-        );
+        let size = Vec2::new(self.prev_state.full_width(margin.x), height + margin.y);
         let rect = Rect::from_min_size(cursor.min, size);
-        let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
 
         painter.rect_filled(rect, 2.0, row_color);
     }
 
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
         cursor.min.x = self.initial_available.min.x;
-        cursor.min.y += self.spacing.y + self.cell_margin.sum().y;
+        cursor.min.y += self.cell_margin.sum().y;
         cursor.min.y += self
             .curr_state
             .row_height(self.row)
@@ -357,7 +346,6 @@ pub struct Grid {
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
     max_cell_size: Vec2,
-    spacing: Option<Vec2>,
     cell_margin: Option<Margin>,
     edge_margin: Vec2b,
     start_row: usize,
@@ -373,7 +361,6 @@ impl Grid {
             min_col_width: None,
             min_row_height: None,
             max_cell_size: Vec2::INFINITY,
-            spacing: None,
             cell_margin: None,
             edge_margin: Vec2b::new(false, true),
             start_row: 0,
@@ -436,14 +423,13 @@ impl Grid {
         self
     }
 
-    /// Set extra spacing between columns/rows, on top of the cell margins.
+    /// Set the spacing between the contents of neighboring cells.
     ///
-    /// Default: zero.
-    #[deprecated = "Use `Grid::cell_margin` or `TableStyle::cell_margin` instead"]
+    /// This sets [`Self::cell_margin`] to half of `spacing` on each side.
+    #[deprecated = "Use `Grid::cell_margin` instead"]
     #[inline]
-    pub fn spacing(mut self, spacing: impl Into<Vec2>) -> Self {
-        self.spacing = Some(spacing.into());
-        self
+    pub fn spacing(self, spacing: impl Into<Vec2>) -> Self {
+        self.cell_margin(0.5 * spacing.into())
     }
 
     /// Set the space around the contents of each cell.
@@ -492,7 +478,6 @@ impl Grid {
             min_col_width,
             min_row_height,
             max_cell_size,
-            spacing,
             cell_margin,
             edge_margin,
             start_row,
@@ -500,7 +485,6 @@ impl Grid {
         } = self;
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
-        let spacing = spacing.unwrap_or(Vec2::ZERO);
         let cell_margin = cell_margin.unwrap_or_else(|| ui.visuals().table.cell_margin);
         if color_picker.is_none() && ui.visuals().striped() {
             color_picker = Some(Box::new(striped_row_color));
@@ -552,7 +536,6 @@ impl Grid {
                         color_picker,
                         min_cell_size: vec2(min_col_width, min_row_height),
                         max_cell_size,
-                        spacing,
                         cell_margin,
                         row: start_row,
                         ..GridLayout::new(ui, id, prev_state)
