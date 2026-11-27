@@ -179,3 +179,89 @@ fn strip_sizing_respects_clipping_in_both_directions() {
         }
     }
 }
+
+#[test]
+fn column_resize_cursor_persists_on_press_before_drag() {
+    let ctx = Context::default();
+
+    let frame = |events| {
+        let mut col0_rect = egui::Rect::NOTHING;
+        let mut col1_rect = egui::Rect::NOTHING;
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                vec2(400.0, 200.0),
+            )),
+            events,
+            ..Default::default()
+        };
+        let output = ctx.run_ui(input, |ui| {
+            TableBuilder::new(ui)
+                .resizable(true)
+                .column(Column::initial(100.0))
+                .column(Column::remainder())
+                .vscroll(false)
+                .body(|mut body| {
+                    body.row(20.0, |mut row| {
+                        row.col(|ui| {
+                            col0_rect = ui.max_rect();
+                            ui.label("Col 0");
+                        });
+                        row.col(|ui| {
+                            col1_rect = ui.max_rect();
+                            ui.label("Col 1");
+                        });
+                    });
+                });
+        });
+        let cursor = output.platform_output.cursor_icon;
+        output.drop_without_applying_deltas();
+        (cursor, col0_rect, col1_rect)
+    };
+
+    // Stabilize layout
+    frame(vec![]);
+    let (_, col0_rect, col1_rect) = frame(vec![]);
+
+    let divider_pos = egui::pos2(
+        0.5 * (col0_rect.right() + col1_rect.left()),
+        col0_rect.center().y,
+    );
+
+    // 1. Hovering the divider shows ResizeColumn
+    let (cursor, _, _) = frame(vec![egui::Event::PointerMoved(divider_pos)]);
+    assert_eq!(cursor, egui::CursorIcon::ResizeColumn);
+
+    // 2. Pressing without dragging past the threshold must keep ResizeColumn
+    let (cursor, _, _) = frame(vec![egui::Event::PointerButton {
+        pos: divider_pos,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: egui::Modifiers::NONE,
+    }]);
+    assert_eq!(cursor, egui::CursorIcon::ResizeColumn);
+
+    // 3. Holding pointer down without moving still keeps ResizeColumn
+    let (cursor, _, _) = frame(vec![]);
+    assert_eq!(cursor, egui::CursorIcon::ResizeColumn);
+
+    // Release
+    frame(vec![egui::Event::PointerButton {
+        pos: divider_pos,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::NONE,
+    }]);
+
+    // 4. Pressing elsewhere and dragging over the divider must NOT show ResizeColumn
+    let elsewhere = egui::pos2(col0_rect.left() + 5.0, col0_rect.center().y);
+    frame(vec![egui::Event::PointerMoved(elsewhere)]);
+    frame(vec![egui::Event::PointerButton {
+        pos: elsewhere,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: egui::Modifiers::NONE,
+    }]);
+    let (cursor, _, _) = frame(vec![egui::Event::PointerMoved(divider_pos)]);
+    assert_ne!(cursor, egui::CursorIcon::ResizeColumn);
+}

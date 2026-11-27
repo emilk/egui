@@ -880,8 +880,9 @@ impl Table<'_> {
                     *column_width = new_width;
                 }
 
-                let dragging_something_else =
-                    ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
+                let dragging_something_else = ui
+                    .input(|i| i.pointer.any_down() || i.pointer.any_pressed())
+                    && !resize_response.is_pointer_button_down_on();
                 let resize_hover = resize_response.hovered() && !dragging_something_else;
 
                 if resize_hover || resize_response.dragged() {
