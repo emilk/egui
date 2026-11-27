@@ -93,7 +93,7 @@ fn grid_stripes_stay_inside_the_grid() {
         output.drop_without_applying_deltas();
     }
 
-    let stripe_fill = ctx.global_style().visuals.table.stripe_fill;
+    let stripe_fill = ctx.global_style().visuals.table_stripe_fill();
     let stripes: Vec<egui::Rect> = shapes
         .iter()
         .filter_map(|clipped| match &clipped.shape {
@@ -108,4 +108,31 @@ fn grid_stripes_stay_inside_the_grid() {
             "{stripe:?} sticks out of {grid_rect:?}"
         );
     }
+}
+
+/// The deprecated `Grid::spacing` keeps the total space between cells, also when it is odd.
+#[test]
+#[expect(deprecated)]
+fn grid_spacing_keeps_odd_totals() {
+    let ctx = egui::Context::default();
+    let mut size = egui::Vec2::ZERO;
+    for _ in 0..2 {
+        let output = ctx.run_ui(Default::default(), |ui| {
+            let top_left = ui.cursor().min;
+            egui::Grid::new("grid")
+                .spacing(egui::vec2(9.0, 3.0))
+                .min_col_width(0.0)
+                .min_row_height(0.0)
+                .show(ui, |ui| {
+                    ui.allocate_space(egui::vec2(30.0, 10.0));
+                    ui.allocate_space(egui::vec2(30.0, 10.0));
+                    ui.end_row();
+                    ui.allocate_space(egui::vec2(30.0, 10.0));
+                    ui.end_row();
+                });
+            size = ui.min_rect().max - top_left;
+        });
+        output.drop_without_applying_deltas();
+    }
+    assert_eq!(size, egui::vec2(30.0 + 9.0 + 30.0, 10.0 + 3.0 + 10.0));
 }

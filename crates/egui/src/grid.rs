@@ -299,7 +299,7 @@ impl GridLayout {
             rect.min.y += f32::from(self.outside.top);
         }
 
-        painter.rect_filled(rect, 2.0, row_color);
+        painter.rect_filled(rect, 0.0, row_color);
     }
 
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
@@ -444,7 +444,15 @@ impl Grid {
     #[deprecated = "Use `Grid::cell_margin` instead"]
     #[inline]
     pub fn spacing(self, spacing: impl Into<Vec2>) -> Self {
-        self.cell_margin(0.5 * spacing.into())
+        // Split odd spacings so that the total stays the same:
+        let spacing = spacing.into().round();
+        let half = (0.5 * spacing).floor();
+        self.cell_margin(Margin {
+            left: half.x as i8,
+            right: (spacing.x - half.x) as i8,
+            top: half.y as i8,
+            bottom: (spacing.y - half.y) as i8,
+        })
     }
 
     /// Set the space around the contents of each cell.
@@ -520,12 +528,7 @@ impl Grid {
         };
 
         // The outer margins of the edge cells that stick out of the grid:
-        let outside = Margin {
-            left: if edge_margin.x { 0 } else { cell_margin.left },
-            right: if edge_margin.x { 0 } else { cell_margin.right },
-            top: if edge_margin.y { 0 } else { cell_margin.top },
-            bottom: if edge_margin.y { 0 } else { cell_margin.bottom },
-        };
+        let outside = crate::style::TableStyle::outside_margin(cell_margin, edge_margin);
 
         let mut ui_builder = UiBuilder::new().max_rect(max_rect + outside);
         if prev_state.is_none() {
@@ -578,7 +581,7 @@ impl Grid {
 
 fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
     if row % 2 == 1 {
-        return Some(style.visuals.table.stripe_fill);
+        return Some(style.visuals.table_stripe_fill());
     }
     None
 }

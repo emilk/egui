@@ -2,7 +2,7 @@
 
 use alloc::{collections::BTreeMap, sync::Arc};
 use core::ops::RangeInclusive;
-use emath::{Align, NumExt as _, easing::Easing};
+use emath::{Align, NumExt as _, Vec2b, easing::Easing};
 use epaint::{
     CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
     text::{FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
@@ -1187,26 +1187,40 @@ impl Default for TextCursorStyle {
 ///
 /// `egui_extras::Table` uses all fields.
 /// [`crate::Grid`] only uses [`Self::striped`], [`Self::stripe_fill`], and [`Self::cell_margin`].
+///
+/// Use the accessors on [`Visuals`], like [`Visuals::table_stripe_fill`],
+/// to read the fields that fall back to other colors.
+///
+/// ## For table widgets
+/// The lines are inside the cells, outside [`Self::cell_margin`], so their widths take up space.
+/// There is no column line next to a resizable column, which has [`Self::resize_stroke`] instead.
+/// The outline is outside all cells.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TableStyle {
     /// Give every other row the [`Self::stripe_fill`] background?
     ///
-    /// Individual tables can override this.
+    /// Some table widgets can override this per table.
     pub striped: bool,
 
     /// Background of every other row in a striped table.
-    pub stripe_fill: Color32,
+    ///
+    /// Defaults to [`Visuals::faint_bg_color`].
+    pub stripe_fill: Option<Color32>,
 
     /// Background of the header row.
     pub header_fill: Color32,
 
-    /// Background of the row under the mouse pointer, in a table that senses the pointer.
-    pub hovered_row_fill: Color32,
+    /// Background of the row under the mouse pointer, in a table that highlights it.
+    ///
+    /// Defaults to the hovered [`WidgetVisuals::bg_fill`].
+    pub hovered_row_fill: Option<Color32>,
 
     /// Background of selected rows.
-    pub selected_row_fill: Color32,
+    ///
+    /// Defaults to [`Selection::bg_fill`].
+    pub selected_row_fill: Option<Color32>,
 
     /// The width and color of the outline around the whole table.
     ///
@@ -1216,9 +1230,11 @@ pub struct TableStyle {
     pub outer_stroke: Stroke,
 
     /// Corner radius of [`Self::outer_stroke`].
+    ///
+    /// The fills in the corner cells are rounded to match.
     pub corner_radius: CornerRadius,
 
-    /// Line between the header row and the body.
+    /// Line between the header and the body.
     ///
     /// Like all the lines of a table, its width takes up space:
     /// it is inside the cells, and the cell contents don't overlap it.
@@ -1233,41 +1249,39 @@ pub struct TableStyle {
     ///
     /// The width takes up space, like [`Self::header_stroke`].
     ///
-    /// If the column is resizable, this is ignored and [`Self::resize_stroke`] is used instead.
+    /// If the column to the left of the line is resizable,
+    /// this is ignored and [`Self::resize_stroke`] is used instead.
     pub column_stroke: Stroke,
+
+    /// Line that shows where a resizable column can be dragged, when not hovered or dragged.
+    ///
+    /// Unlike the other lines, its width takes up no space.
+    /// Pass it to [`crate::Ui::resize_line_stroke`] to highlight it like a panel splitter.
+    ///
+    /// Defaults to the non-interactive [`WidgetVisuals::bg_stroke`].
+    pub resize_stroke: Option<Stroke>,
 
     /// Space between the edge of a cell and its contents.
     ///
     /// Tables and grids put no other space between their cells,
     /// so this is also the space between the contents of neighboring cells.
     pub cell_margin: Margin,
-
-    /// Line that shows where a resizable column can be dragged, when not hovered or dragged.
-    ///
-    /// Pass it to [`crate::Ui::resize_line_stroke`] to highlight it like a panel splitter.
-    pub resize_stroke: Stroke,
 }
 
 impl Default for TableStyle {
     fn default() -> Self {
-        Visuals::dark().table
-    }
-}
-
-impl TableStyle {
-    /// Derive the colors from the given widget and selection colors.
-    fn from_visuals(widgets: &Widgets, selection: &Selection, stripe_fill: Color32) -> Self {
         Self {
             striped: false,
-            stripe_fill,
+            stripe_fill: None,
             header_fill: Color32::TRANSPARENT,
-            hovered_row_fill: widgets.hovered.bg_fill,
-            selected_row_fill: selection.bg_fill,
+            hovered_row_fill: None,
+            selected_row_fill: None,
             outer_stroke: Stroke::NONE,
             corner_radius: CornerRadius::ZERO,
             header_stroke: Stroke::NONE,
             row_stroke: Stroke::NONE,
             column_stroke: Stroke::NONE,
+            resize_stroke: None,
             // Same total as the default `Spacing::item_spacing` of (8, 3), which tables used before:
             cell_margin: Margin {
                 left: 4,
@@ -1275,7 +1289,19 @@ impl TableStyle {
                 top: 1,
                 bottom: 2,
             },
-            resize_stroke: widgets.noninteractive.bg_stroke,
+        }
+    }
+}
+
+impl TableStyle {
+    /// The parts of `cell_margin` on the outside of the edge cells
+    /// that stick out of a table, on the axes where `edge_margin` is `false`.
+    pub fn outside_margin(margin: Margin, edge_margin: Vec2b) -> Margin {
+        Margin {
+            left: if edge_margin.x { 0 } else { margin.left },
+            right: if edge_margin.x { 0 } else { margin.right },
+            top: if edge_margin.y { 0 } else { margin.top },
+            bottom: if edge_margin.y { 0 } else { margin.bottom },
         }
     }
 }
@@ -1339,7 +1365,6 @@ pub struct Visuals {
     pub hyperlink_color: Color32,
 
     /// Something just barely different from the background color.
-    /// Faint background, e.g. for small accents.
     ///
     /// The default [`TableStyle::stripe_fill`].
     pub faint_bg_color: Color32,
@@ -1409,7 +1434,7 @@ pub struct Visuals {
     /// (have alternating rows differently colored).
     ///
     /// Tables are striped if either this or [`TableStyle::striped`] is set.
-    #[deprecated(note = "Use `Visuals::table.striped` instead")]
+    #[deprecated = "Use `Visuals::table` and `TableStyle::striped` instead"]
     pub striped: bool,
 
     /// Show trailing color behind the circle of a [`Slider`]. Default is OFF.
@@ -1464,6 +1489,32 @@ impl Visuals {
     /// The background color of [`crate::TextEdit`].
     pub fn text_edit_bg_color(&self) -> Color32 {
         self.text_edit_bg_color.unwrap_or(self.extreme_bg_color)
+    }
+
+    /// [`TableStyle::stripe_fill`], or its default.
+    pub fn table_stripe_fill(&self) -> Color32 {
+        self.table.stripe_fill.unwrap_or(self.faint_bg_color)
+    }
+
+    /// [`TableStyle::hovered_row_fill`], or its default.
+    pub fn table_hovered_row_fill(&self) -> Color32 {
+        self.table
+            .hovered_row_fill
+            .unwrap_or(self.widgets.hovered.bg_fill)
+    }
+
+    /// [`TableStyle::selected_row_fill`], or its default.
+    pub fn table_selected_row_fill(&self) -> Color32 {
+        self.table
+            .selected_row_fill
+            .unwrap_or(self.selection.bg_fill)
+    }
+
+    /// [`TableStyle::resize_stroke`], or its default.
+    pub fn table_resize_stroke(&self) -> Stroke {
+        self.table
+            .resize_stroke
+            .unwrap_or(self.widgets.noninteractive.bg_stroke)
     }
 
     /// Window background color.
@@ -1851,10 +1902,6 @@ impl Visuals {
     /// Default dark theme.
     #[expect(deprecated)]
     pub fn dark() -> Self {
-        let widgets = Widgets::default();
-        let selection = Selection::default();
-        let faint_bg_color = Color32::from_additive_luminance(5); // visible, but barely so
-        let table = TableStyle::from_visuals(&widgets, &selection, faint_bg_color);
         Self {
             dark_mode: true,
             text_options: TextOptions {
@@ -1864,13 +1911,13 @@ impl Visuals {
             override_text_color: None,
             weak_text_alpha: 0.6,
             weak_text_color: None,
-            widgets,
-            selection,
+            widgets: Widgets::default(),
+            selection: Selection::default(),
             ime_composition: ImeComposition::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
-            faint_bg_color,
-            extreme_bg_color: Color32::from_gray(10), // e.g. TextEdit background
-            text_edit_bg_color: None,                 // use `extreme_bg_color` by default
+            faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
+            extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
+            text_edit_bg_color: None, // use `extreme_bg_color` by default
             code: CodeVisuals::dark(),
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
@@ -1901,7 +1948,7 @@ impl Visuals {
 
             text_cursor: Default::default(),
 
-            table,
+            table: TableStyle::default(),
 
             clip_rect_margin: 0.0,
             button_frame: true,
@@ -1924,22 +1971,18 @@ impl Visuals {
 
     /// Default light theme.
     pub fn light() -> Self {
-        let widgets = Widgets::light();
-        let selection = Selection::light();
-        let faint_bg_color = Color32::from_additive_luminance(5); // visible, but barely so
-        let table = TableStyle::from_visuals(&widgets, &selection, faint_bg_color);
         Self {
             dark_mode: false,
             text_options: TextOptions {
                 color_transfer_function: FontColorTransferFunction::LIGHT_MODE_DEFAULT,
                 ..Default::default()
             },
-            widgets,
-            selection,
+            widgets: Widgets::light(),
+            selection: Selection::light(),
             ime_composition: ImeComposition::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
-            faint_bg_color,
-            extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
+            faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
+            extreme_bg_color: Color32::from_gray(255),           // e.g. TextEdit background
             code: CodeVisuals::light(),
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
@@ -1966,8 +2009,6 @@ impl Visuals {
                 stroke: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
                 ..Default::default()
             },
-
-            table,
 
             ..Self::dark()
         }
@@ -3046,6 +3087,8 @@ fn color_transfer_function_ui(
 
 impl TableStyle {
     /// Show an editor for the style, e.g. to try out different looks.
+    ///
+    /// The fields that fall back to other colors show those colors while unset.
     pub fn ui(&mut self, ui: &mut Ui) {
         let Self {
             striped,
@@ -3058,19 +3101,41 @@ impl TableStyle {
             header_stroke,
             row_stroke,
             column_stroke,
-            cell_margin,
             resize_stroke,
+            cell_margin,
         } = self;
+
+        fn optional<T: Copy>(
+            ui: &mut Ui,
+            value: &mut Option<T>,
+            default_value: T,
+            edit: impl FnOnce(&mut Ui, &mut T),
+        ) {
+            ui.horizontal(|ui| {
+                let mut set = value.is_some();
+                ui.checkbox(&mut set, "")
+                    .on_hover_text("Unchecked: use the default");
+                if set {
+                    edit(ui, value.get_or_insert(default_value));
+                } else {
+                    *value = None;
+                    ui.add_enabled_ui(false, |ui| edit(ui, &mut default_value.clone()));
+                }
+            });
+        }
+
+        let visuals = ui.visuals().clone();
 
         ui.checkbox(striped, "Striped by default");
 
         Grid::new("table_style")
             .num_columns(2)
-            .cell_margin(crate::Margin::symmetric(6, 4))
             .striped(true)
             .show(ui, |ui| {
                 ui.label("Stripe fill");
-                ui.color_edit_button_srgba(stripe_fill);
+                optional(ui, stripe_fill, visuals.faint_bg_color, |ui, c| {
+                    ui.color_edit_button_srgba(c);
+                });
                 ui.end_row();
 
                 ui.label("Header fill");
@@ -3078,11 +3143,20 @@ impl TableStyle {
                 ui.end_row();
 
                 ui.label("Hovered row fill");
-                ui.color_edit_button_srgba(hovered_row_fill);
+                optional(
+                    ui,
+                    hovered_row_fill,
+                    visuals.widgets.hovered.bg_fill,
+                    |ui, c| {
+                        ui.color_edit_button_srgba(c);
+                    },
+                );
                 ui.end_row();
 
                 ui.label("Selected row fill");
-                ui.color_edit_button_srgba(selected_row_fill);
+                optional(ui, selected_row_fill, visuals.selection.bg_fill, |ui, c| {
+                    ui.color_edit_button_srgba(c);
+                });
                 ui.end_row();
 
                 ui.label("Outer stroke");
@@ -3105,12 +3179,19 @@ impl TableStyle {
                 ui.add(column_stroke);
                 ui.end_row();
 
-                ui.label("Cell margin");
-                ui.add(cell_margin);
+                ui.label("Resize stroke");
+                optional(
+                    ui,
+                    resize_stroke,
+                    visuals.widgets.noninteractive.bg_stroke,
+                    |ui, stroke| {
+                        ui.add(stroke);
+                    },
+                );
                 ui.end_row();
 
-                ui.label("Resize stroke");
-                ui.add(resize_stroke);
+                ui.label("Cell margin");
+                ui.add(cell_margin);
                 ui.end_row();
             });
     }
