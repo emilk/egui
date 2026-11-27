@@ -2,8 +2,11 @@
 //! IME and mobile keyboard input events.
 
 use core::cell::RefCell;
+use core::str::FromStr as _;
 use std::rc::Rc;
 
+use egui::KeyboardType;
+use log::trace;
 use wasm_bindgen::prelude::*;
 
 use super::{AppRunner, WebRunner};
@@ -15,6 +18,7 @@ pub(crate) struct TextAgent {
 
 impl TextAgent {
     /// Attach the agent to the document.
+    ///
     pub fn attach(
         runner_ref: &WebRunner,
         canvas: &web_sys::HtmlCanvasElement,
@@ -48,7 +52,6 @@ impl TextAgent {
         style.set_property("left", &format!("{}px", canvas.offset_left()))?;
         // Prevent auto-zoom on mobile browsers (requires at least 16px).
         style.set_property("font-size", "16px")?;
-
         // Insert the input as a sibling of the canvas, so that its
         // `position: absolute` resolves against the same containing block
         // as the canvas' `offset_top`/`offset_left`.
@@ -110,8 +113,9 @@ impl TextAgent {
         })?;
         runner_ref.add_event_listener(&input, "keyup", {
             let input_state = Rc::clone(&input_state);
+
             move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
-                let is_consumed = InputState::handle_keyup_event(&input_state, &event);
+                let is_consumed = InputState::handle_keyup_event(&input_state, &event, runner);
                 if !is_consumed {
                     // The canvas doesn't get keydown/keyup events when the text agent is focused,
                     // so we need to forward them to the runner:
@@ -121,6 +125,12 @@ impl TextAgent {
         })?;
 
         Ok(Self { input, input_state })
+    }
+
+    pub fn update_keyboard_type(&self, keyboard_type: KeyboardType) -> Result<bool, JsValue> {
+        self.input_state
+            .borrow_mut()
+            .update_keyboard_type(keyboard_type)
     }
 
     pub fn update(
@@ -185,11 +195,13 @@ impl Drop for TextAgent {
 struct InputState {
     input: web_sys::HtmlInputElement,
     last_text: String,
+    last_input_type: Option<String>,
     ime_output: Option<egui::output::IMEOutput>,
+    pending_insert: bool,
     keydown_special_case: KeydownSpecialCase,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 enum KeydownSpecialCase {
     None,
 
@@ -223,9 +235,56 @@ impl InputState {
         Self {
             input,
             last_text: String::new(),
+            last_input_type: None,
             ime_output: None,
+            pending_insert: false,
             keydown_special_case: KeydownSpecialCase::None,
         }
+    }
+
+    // Checks if it was or wasn't updated because immediately switching between keyboard_type TextEdits
+    // 'Password'/'None' <-> 'Normal' doesn't have immediate affect on the virtual keyboard attributes.
+    // Therefore we have special handling to switch the input field to trigger loading a new keyboard
+    // with the new attributes.
+    fn update_keyboard_type(&self, keyboard_type: KeyboardType) -> Result<bool, JsValue> {
+        let mut did_update = false;
+        let requested_type = if matches!(keyboard_type, KeyboardType::None) {
+            if self
+                .input
+                .get_attribute("autocomplete")
+                .is_none_or(|autocomplete| autocomplete != "off")
+            {
+                did_update = true;
+            }
+            self.input.set_attribute("autocapitalize", "off")?;
+            self.input.set_attribute("autocomplete", "off")?;
+            self.input.set_attribute("autocorrect", "off")?;
+            self.input.set_attribute("spellcheck", "false")?;
+            self.input.set_attribute("writingsuggestions", "false")?;
+
+            // Work around because the input gets stuck when immediately switching between TextEdits
+            if did_update { "email" } else { "text" }
+        } else {
+            if self
+                .input
+                .get_attribute("inputmode")
+                .is_none_or(|inputmode| inputmode != format!("{keyboard_type}"))
+            {
+                did_update = true;
+            }
+
+            self.input.set_attribute("autocapitalize", "off")?;
+            self.input.set_attribute("autocomplete", "on")?;
+            self.input.set_attribute("autocorrect", "on")?;
+            self.input.set_attribute("spellcheck", "true")?;
+            self.input.set_attribute("writingsuggestions", "true")?;
+
+            &keyboard_type.to_string()
+        };
+
+        let _ = self.input.set_attribute("inputmode", requested_type);
+
+        Ok(did_update)
     }
 
     fn update(
@@ -281,20 +340,14 @@ impl InputState {
 
     fn clear(&mut self) {
         self.input.set_value("");
+        self.last_input_type = None;
+        self.pending_insert = false;
         self.last_text.clear();
     }
 
     fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
-        if self
-            .ime_output
-            .as_ref()
-            .is_some_and(|ime| ime.purpose == egui::IMEPurpose::Password)
-        {
-            self.handle_input_event_password(event, runner);
-            return;
-        }
-
         let input_type = event.input_type();
+        self.last_input_type = Some(input_type.clone());
 
         if !event.is_composing()
             && input_type != "insertText"
@@ -308,7 +361,7 @@ impl InputState {
 
             return;
         }
-
+        self.pending_insert = true;
         let text = self.input.value();
 
         let prefix_len = longest_common_prefix_length(&text, &self.last_text);
@@ -345,9 +398,15 @@ impl InputState {
         runner.needs_repaint.repaint_asap();
     }
 
-    fn handle_input_event_password(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
+    #[deprecated(
+        note = "Don't need to use this, we've already got better handling elsewhere. @See handle_input_event."
+    )]
+    fn _handle_input_event_password(
+        &mut self,
+        event: &web_sys::InputEvent,
+        runner: &mut AppRunner,
+    ) {
         let input_type = event.input_type();
-
         if input_type != "insertText" {
             return;
         }
@@ -411,15 +470,22 @@ impl InputState {
     /// ## Returns
     /// Whether the event is consumed. If `true`, the caller should not do
     /// further processing for this event.
-    fn handle_keydown_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
+    fn handle_keydown_event(input_ref: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
+        let input_state = &mut input_ref.borrow_mut();
+
         // Platform-sniffing methods are unreliable, so they are not used as
         // guards here.
-        let special_case = match event.key_code() {
+        let key_code = &event.key_code();
+
+        let special_case = match key_code {
             229 => KeydownSpecialCase::AndroidKeycode229,
             0 => KeydownSpecialCase::IosKeycode0,
             _ => KeydownSpecialCase::None,
         };
-        input_state.borrow_mut().keydown_special_case = special_case;
+
+        input_state.keydown_special_case = special_case;
+
+        input_state.pending_insert = false;
 
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
         if event.is_composing() || !matches!(special_case, KeydownSpecialCase::None) {
@@ -430,7 +496,7 @@ impl InputState {
                 || event.alt_key()
                 || event.meta_key()
             {
-                input_state.borrow_mut().clear();
+                input_state.clear();
             }
             false
         }
@@ -439,8 +505,45 @@ impl InputState {
     /// ## Returns
     /// Whether the event is consumed. If `true`, the caller should not do
     /// further processing for this event.
-    fn handle_keyup_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
-        input_state.borrow_mut().keydown_special_case = KeydownSpecialCase::None;
+    fn handle_keyup_event(
+        input_ref: &RefCell<Self>,
+        event: &web_sys::KeyboardEvent,
+        runner: &mut AppRunner,
+    ) -> bool {
+        let input_state = &mut input_ref.borrow_mut();
+
+        let input = &input_state.input;
+        let keyboard_type =
+            KeyboardType::from_str(&input.get_attribute("inputmode").unwrap_or_default())
+                .unwrap_or_default();
+
+        let special_case = input_state.keydown_special_case;
+
+        // Interpret AndroidKeycode229 as a backspace in a very specific case. Pressing backspace on the virtual keyboard
+        // does not fire the normal 'input' event chain that you would see when typing in any other special character.
+        // @See https://github.com/emilk/egui/pull/8888#issuecomment-7202967974
+        if matches!(special_case, KeydownSpecialCase::AndroidKeycode229)
+            && (input.value().is_empty() && !input_state.pending_insert)
+            && !event.is_composing()
+        {
+            trace!("AndroidKeycode229 interpreted as Backspace on non 'text' keyboard_type.");
+            input_state.keydown_special_case = KeydownSpecialCase::None;
+            input_state.last_input_type = None;
+            input_state.pending_insert = false;
+
+            runner.input.raw.events.push(egui::Event::Key {
+                key: egui::Key::Backspace,
+                physical_key: Some(egui::Key::Backspace),
+                pressed: true,
+                repeat: false,
+                modifiers: Default::default(),
+            });
+
+            runner.needs_repaint.repaint_asap();
+            return true;
+        }
+
+        input_state.keydown_special_case = KeydownSpecialCase::None;
 
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
         event.is_composing() || event.key_code() == 229

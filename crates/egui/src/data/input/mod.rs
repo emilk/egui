@@ -6,6 +6,7 @@ mod event_filter;
 mod hovered_file;
 mod ime_event;
 mod keyboard_shortcut;
+mod keyboard_type;
 mod modifier_names;
 mod modifiers;
 mod mouse_wheel_source;
@@ -23,6 +24,7 @@ pub use self::{
     hovered_file::HoveredFile,
     ime_event::ImeEvent,
     keyboard_shortcut::KeyboardShortcut,
+    keyboard_type::KeyboardType,
     modifier_names::ModifierNames,
     modifiers::Modifiers,
     mouse_wheel_source::MouseWheelSource,

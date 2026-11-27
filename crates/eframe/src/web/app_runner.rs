@@ -486,6 +486,16 @@ impl AppRunner {
                 if ime.should_interrupt_composition {
                     self.text_agent.interrupt_ime_composition();
                 }
+
+                // Set the virtual keyboard type before getting focus so we don't start accepting the wrong type
+                let _ = self.text_agent.update_keyboard_type(
+                    if ime.purpose == egui::IMEPurpose::Password {
+                        egui::KeyboardType::None
+                    } else {
+                        ime.keyboard_type
+                    },
+                );
+
                 // We are editing text: give the focus to the text agent.
                 self.text_agent.focus();
             } else {
