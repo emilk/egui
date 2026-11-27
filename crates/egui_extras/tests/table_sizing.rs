@@ -179,3 +179,71 @@ fn strip_sizing_respects_clipping_in_both_directions() {
         }
     }
 }
+
+#[test]
+fn double_clicking_column_separator_auto_sizes_column() {
+    for header in [false, true] {
+        for clip in [false, true] {
+            for content_width in [60.0, 300.0] {
+                let ctx = Context::default();
+                let mut cell_rect = egui::Rect::NOTHING;
+                let mut frame = |events| {
+                    let input = egui::RawInput {
+                        events,
+                        ..Default::default()
+                    };
+                    ctx.run_ui(input, |ui| {
+                        let builder = TableBuilder::new(ui)
+                            .column(Column::initial(150.0).clip(clip).resizable(true))
+                            .column(Column::remainder())
+                            .vscroll(false);
+                        let add_body = |mut body: egui_extras::TableBody<'_>| {
+                            body.row(20.0, |mut row| {
+                                row.col(|ui| {
+                                    cell_rect = ui.max_rect();
+                                    ui.allocate_space(vec2(content_width, 20.0));
+                                });
+                                row.col(|_| {});
+                            });
+                        };
+                        if header {
+                            builder
+                                .header(20.0, |mut header| {
+                                    header.col(|_| {});
+                                    header.col(|_| {});
+                                })
+                                .body(add_body);
+                        } else {
+                            builder.body(add_body);
+                        }
+                    })
+                    .drop_without_applying_deltas();
+                    cell_rect
+                };
+                let button = |pos, pressed| egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::NONE,
+                };
+
+                for _ in 0..3 {
+                    frame(vec![]);
+                }
+                let cell_rect = frame(vec![]);
+                let spacing_x = ctx.global_style().spacing.item_spacing.x;
+                let separator =
+                    egui::pos2(cell_rect.right() + 0.5 * spacing_x, cell_rect.center().y);
+                frame(vec![egui::Event::PointerMoved(separator)]);
+                for pressed in [true, false, true, false] {
+                    frame(vec![button(separator, pressed)]);
+                }
+                assert_eq!(
+                    frame(vec![]).width(),
+                    content_width,
+                    "header={header}, clip={clip}, content_width={content_width}"
+                );
+            }
+        }
+    }
+}
