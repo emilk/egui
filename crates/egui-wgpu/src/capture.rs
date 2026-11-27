@@ -198,12 +198,27 @@ impl CaptureState {
         let format = self.texture.format();
         let tex_extent = self.texture.size();
         let padding = self.padding;
-        let to_rgba = match format {
-            wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
-            wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
+        let to_color: fn(&[u8]) -> epaint::Color32 = match format {
+            wgpu::TextureFormat::Rgba8Unorm => {
+                |c| epaint::Color32::from_rgba_premultiplied(c[0], c[1], c[2], c[3])
+            }
+            wgpu::TextureFormat::Bgra8Unorm => {
+                |c| epaint::Color32::from_rgba_premultiplied(c[2], c[1], c[0], c[3])
+            }
+            // The capture is 8-bit, so the 10-bit channels are rounded to 8 bits.
+            wgpu::TextureFormat::Rgb10a2Unorm => |c| {
+                let p = u32::from_le_bytes([c[0], c[1], c[2], c[3]]);
+                let ch = |shift: u32| ((((p >> shift) & 1023) * 255 + 511) / 1023) as u8;
+                epaint::Color32::from_rgba_premultiplied(
+                    ch(0),
+                    ch(10),
+                    ch(20),
+                    ((p >> 30) * 85) as u8,
+                )
+            },
             _ => {
                 log::error!(
-                    "Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {format:?}"
+                    "Screen can't be captured unless the surface format is Rgba8Unorm, Bgra8Unorm or Rgb10a2Unorm. Current surface format is {format:?}"
                 );
                 return;
             }
@@ -225,14 +240,7 @@ impl CaptureState {
             };
             for padded_row in mapped_range.chunks(padding.padded_bytes_per_row as usize) {
                 let row = &padded_row[..padding.unpadded_bytes_per_row as usize];
-                for color in row.chunks(4) {
-                    pixels.push(epaint::Color32::from_rgba_premultiplied(
-                        color[to_rgba[0]],
-                        color[to_rgba[1]],
-                        color[to_rgba[2]],
-                        color[to_rgba[3]],
-                    ));
-                }
+                pixels.extend(row.chunks(4).map(to_color));
             }
             drop(mapped_range);
             buffer.unmap();

@@ -429,6 +429,25 @@ pub struct NativeOptions {
     /// Defaults to true.
     pub dithering: bool,
 
+    /// Ask for a window with 10 bits per color channel instead of 8 (`RGB10_A2` with glow,
+    /// `Rgb10a2Unorm` with wgpu).
+    ///
+    /// The picture stays SDR, so the UI looks the same, but gradients from vertex colors,
+    /// texture interpolation and paint callbacks get 4 times finer steps.
+    ///
+    /// If the GPU driver offers no such framebuffer, or the window is transparent (these
+    /// framebuffers have 2 bits of alpha or none), the window gets the usual 8-bit framebuffer and
+    /// nothing fails. [`Frame::is_10_bit_color`] tells which one the window got.
+    /// [`Self::dithering`] is off in a 10-bit window.
+    ///
+    /// A 10-bit framebuffer doesn't guarantee 10 bits on screen: the OS compositor, the GPU output
+    /// and the display must support them too.
+    ///
+    /// All viewports use what the root window got.
+    ///
+    /// Defaults to false.
+    pub prefer_10_bit_color: bool,
+
     /// Should the platform clipboard keyboard shortcuts
     /// (e.g. <kbd>Cmd/Ctrl</kbd>+<kbd>X</kbd>/<kbd>C</kbd>/<kbd>V</kbd>)
     /// be translated into [`egui::Event::Cut`], [`egui::Event::Copy`] and [`egui::Event::Paste`]?
@@ -524,6 +543,8 @@ impl Default for NativeOptions {
             persistence_path: None,
 
             dithering: true,
+
+            prefer_10_bit_color: false,
 
             clipboard_shortcuts: true,
 
@@ -723,6 +744,9 @@ pub struct Frame {
     /// Information about the integration.
     pub(crate) info: IntegrationInfo,
 
+    /// See [`Self::is_10_bit_color`].
+    pub(crate) ten_bit_color: bool,
+
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub(crate) storage: Option<Box<dyn Storage>>,
 
@@ -802,6 +826,7 @@ impl Frame {
             #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
             glow_register_native_texture: None,
             info: IntegrationInfo::mock(),
+            ten_bit_color: false,
             #[cfg(not(target_arch = "wasm32"))]
             raw_display_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
@@ -958,6 +983,12 @@ impl Frame {
     #[cfg(feature = "glow")]
     pub fn gl(&self) -> Option<&std::sync::Arc<glow::Context>> {
         self.gl.as_ref()
+    }
+
+    /// Whether the window's framebuffer has 10 bits per color channel, as asked for with
+    /// `NativeOptions::prefer_10_bit_color`. Always `false` on the web.
+    pub fn is_10_bit_color(&self) -> bool {
+        self.ten_bit_color
     }
 
     /// Register your own [`glow::Texture`],

@@ -140,6 +140,7 @@ impl AppRunner {
 
         let frame = epi::Frame {
             info,
+            ten_bit_color: false,
             storage: Some(Box::new(storage)),
 
             #[cfg(feature = "glow")]

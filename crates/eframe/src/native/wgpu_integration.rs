@@ -234,10 +234,13 @@ impl<'app> WgpuWinitApp<'app> {
         {
             create_new.display_handle = Some(Box::new(event_loop.owned_display_handle()));
         }
+        let transparent = self.native_options.viewport.transparent.unwrap_or(false);
+        // A 10-bit surface has only 2 bits of alpha: not for a transparent window.
+        wgpu_options.prefer_10_bit |= self.native_options.prefer_10_bit_color && !transparent;
         let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
             wgpu_options,
-            self.native_options.viewport.transparent.unwrap_or(false),
+            transparent,
             egui_wgpu::RendererOptions {
                 msaa_samples: self.native_options.multisampling as _,
                 depth_stencil_format: egui_wgpu::depth_format_from_bits(
@@ -274,7 +277,7 @@ impl<'app> WgpuWinitApp<'app> {
 
         let wgpu_render_state = painter.render_state();
 
-        let integration = EpiIntegration::new(
+        let mut integration = EpiIntegration::new(
             egui_ctx.clone(),
             &window,
             &self.app_name,
@@ -286,6 +289,9 @@ impl<'app> WgpuWinitApp<'app> {
             None,
             wgpu_render_state.clone(),
         );
+        integration.frame.ten_bit_color = wgpu_render_state
+            .as_ref()
+            .is_some_and(|rs| rs.target_format == egui_wgpu::wgpu::TextureFormat::Rgb10a2Unorm);
 
         {
             let event_loop_proxy = Arc::clone(&self.repaint_proxy);

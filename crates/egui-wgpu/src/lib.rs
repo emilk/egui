@@ -268,7 +268,13 @@ impl RenderState {
                 |s| s.get_capabilities(&adapter).formats,
             )
         };
-        let target_format = crate::preferred_framebuffer_format(&surface_formats)?;
+        // A surface lists a format only if it works in the sRGB color space (`SurfaceColorSpace::Auto`).
+        let ten_bit = wgpu::TextureFormat::Rgb10a2Unorm;
+        let target_format = if config.prefer_10_bit && surface_formats.contains(&ten_bit) {
+            ten_bit
+        } else {
+            crate::preferred_framebuffer_format(&surface_formats)?
+        };
 
         let renderer = Renderer::new(&device, target_format, options);
 
@@ -340,6 +346,20 @@ pub struct WgpuConfiguration {
     /// in that case either.
     pub on_surface_status:
         Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
+
+    /// Prefer a surface with 10 bits per color channel ([`wgpu::TextureFormat::Rgb10a2Unorm`]).
+    ///
+    /// If the surface offers that format, it becomes [`RenderState::target_format`]; if not, the
+    /// usual 8-bit format is used and nothing fails. The output stays SDR, so the UI looks the same,
+    /// but gradients from vertex colors, texture interpolation and paint callbacks get 4 times finer
+    /// steps. Dithering is off on such a surface.
+    ///
+    /// The format has only 2 bits of alpha, so don't use it for a transparent window.
+    /// A 10-bit surface doesn't guarantee 10 bits on screen: the OS compositor, the GPU output and
+    /// the display must support them too.
+    ///
+    /// Chosen once, when the [`RenderState`] is created. Default: `false`.
+    pub prefer_10_bit: bool,
 }
 
 // Compile-time check that `WgpuConfiguration` is `Send + Sync`.
@@ -364,10 +384,12 @@ impl core::fmt::Debug for WgpuConfiguration {
             surface,
             wgpu_setup,
             on_surface_status: _,
+            prefer_10_bit,
         } = self;
         f.debug_struct("WgpuConfiguration")
             .field("surface", &surface)
             .field("wgpu_setup", &wgpu_setup)
+            .field("prefer_10_bit", &prefer_10_bit)
             .finish_non_exhaustive()
     }
 }
@@ -411,6 +433,7 @@ impl Default for WgpuConfiguration {
                     SurfaceErrorAction::SkipFrame
                 }
             }),
+            prefer_10_bit: false,
         }
     }
 }

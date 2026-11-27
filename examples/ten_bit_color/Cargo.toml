@@ -1,0 +1,16 @@
+[package]
+name = "ten_bit_color"
+version = "0.1.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[lints]
+workspace = true
+
+
+[dependencies]
+eframe = { workspace = true, features = ["default", "glow", "wgpu"] }
+env_logger = { workspace = true, features = ["auto-color", "humantime"] }
