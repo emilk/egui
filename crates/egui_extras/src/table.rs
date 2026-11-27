@@ -29,6 +29,9 @@ enum InitialColumnSize {
 }
 
 /// Specifies the properties of a column, like its width range.
+///
+/// All widths are of the cell contents. They exclude [`egui::style::TableStyle::cell_margin`]
+/// and the column lines, which the table adds around them.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Column {
     initial_width: InitialColumnSize,
@@ -474,7 +477,10 @@ impl<'a> TableBuilder<'a> {
         TableState::reset(self.ui, state_id);
     }
 
-    /// Create a header row which always stays visible and at the top
+    /// Create a header row which always stays visible and at the top.
+    ///
+    /// `height` is of the cell contents, like the row heights of the body.
+    /// It excludes [`egui::style::TableStyle::cell_margin`] and the header line.
     pub fn header(self, height: f32, add_header_row: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
         let Self {
             ui: parent,
@@ -1107,6 +1113,9 @@ impl<'a> TableBody<'a> {
     }
 
     /// Add a single row with the given height.
+    ///
+    /// All row heights are of the cell contents. They exclude
+    /// [`egui::style::TableStyle::cell_margin`] and the row lines, which the table adds around them.
     ///
     /// ⚠️ It is much more performant to use [`Self::rows`] or [`Self::heterogeneous_rows`],
     /// as those functions will only render the visible rows.
