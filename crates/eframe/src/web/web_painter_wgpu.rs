@@ -6,6 +6,7 @@ use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
 use super::web_painter::WebPainter;
+use crate::pending_screenshots::PendingScreenshots;
 
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
@@ -17,6 +18,7 @@ pub(crate) struct WebPainterWgpu {
     depth_stencil_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
+    pending_screenshots: PendingScreenshots,
     ctx: egui::Context,
     needs_reconfigure: bool,
     needs_recreate: bool,
@@ -132,10 +134,24 @@ impl WebPainterWgpu {
             depth_texture_view: None,
             on_surface_status: Arc::clone(&wgpu_options.on_surface_status) as _,
             screen_capture_state: None,
+            pending_screenshots: PendingScreenshots::default(),
             ctx,
             needs_reconfigure: false,
             needs_recreate: false,
         })
+    }
+
+    fn poll_screen_captures(&self, device: &wgpu::Device) -> Result<(), JsValue> {
+        if self.pending_screenshots.is_pending() {
+            // WebGL needs polling to deliver map_async callbacks, even when the UI is idle.
+            device.poll(wgpu::PollType::Poll).map_err(|err| {
+                JsValue::from_str(&format!("Failed to poll screenshot readback: {err}"))
+            })?;
+            if self.pending_screenshots.is_pending() {
+                self.ctx.request_repaint();
+            }
+        }
+        Ok(())
     }
 }
 
@@ -167,6 +183,7 @@ impl WebPainter for WebPainterWgpu {
                 "Can't paint, wgpu renderer was already disposed",
             ));
         };
+        self.poll_screen_captures(&render_state.device)?;
 
         // If the previous frame produced `CurrentSurfaceTexture::Lost`, drop and recreate the
         // surface from the canvas before re-borrowing `self.render_state` for the rest of paint.
@@ -370,11 +387,18 @@ impl WebPainter for WebPainterWgpu {
             if let Some(capture_buffer) = capture_buffer
                 && let Some(capture_state) = &self.screen_capture_state
             {
-                capture_state.read_screen_rgba(capture_buffer, capture_data);
+                // WebGPU delivers callbacks through the browser event loop without repainting.
+                let callbacks = if render_state.adapter.get_info().backend == wgpu::Backend::Gl {
+                    vec![self.pending_screenshots.track(capture_data)]
+                } else {
+                    capture_data
+                };
+                capture_state.read_screen_rgba(capture_buffer, callbacks);
             }
 
             render_state.queue.present(frame);
         }
+        self.poll_screen_captures(&render_state.device)?;
 
         // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.
         // Calling `wgpu::Texture::destroy` on a texture that is still in use would invalidate the command buffer(s) it is used in.
