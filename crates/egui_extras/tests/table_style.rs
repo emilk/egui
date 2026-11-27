@@ -51,3 +51,38 @@ fn table_ui(ui: &mut egui::Ui) {
             });
         });
 }
+
+/// The outer cell margins only take up space on the axes where `edge_margin` is on.
+#[test]
+fn table_edge_margin() {
+    let size = |edge_margin: egui::Vec2b| {
+        let ctx = egui::Context::default();
+        let mut size = egui::Vec2::ZERO;
+        let output = ctx.run_ui(Default::default(), |ui| {
+            let top_left = ui.cursor().min;
+            TableBuilder::new(ui)
+                .edge_margin(edge_margin)
+                .column(Column::exact(100.0))
+                .vscroll(false)
+                .body(|mut body| {
+                    body.row(20.0, |mut row| {
+                        row.col(|ui| {
+                            ui.label("x");
+                        });
+                    });
+                });
+            size = ui.min_rect().max - top_left;
+        });
+        output.drop_without_applying_deltas();
+        size
+    };
+
+    let margin = egui::style::TableStyle::default().cell_margin.sum();
+    let cells = vec2(100.0, 20.0);
+    assert_eq!(size(egui::Vec2b::TRUE), cells + margin);
+    assert_eq!(size(egui::Vec2b::FALSE), cells);
+    assert_eq!(
+        size(egui::Vec2b::new(false, true)),
+        cells + vec2(0.0, margin.y)
+    );
+}

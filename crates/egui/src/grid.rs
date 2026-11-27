@@ -4,7 +4,7 @@ use emath::GuiRounding as _;
 
 use crate::{
     Align2, AsIdSalt, Color32, Context, Id, IdSalt, InnerResponse, Margin, NumExt as _, Painter,
-    Rect, Region, Style, Ui, UiBuilder, Vec2, vec2,
+    Rect, Region, Style, Ui, UiBuilder, Vec2, Vec2b, vec2,
 };
 
 #[cfg(debug_assertions)]
@@ -359,6 +359,7 @@ pub struct Grid {
     max_cell_size: Vec2,
     spacing: Option<Vec2>,
     cell_margin: Option<Margin>,
+    edge_margin: Vec2b,
     start_row: usize,
     color_picker: Option<ColorPickerFn>,
 }
@@ -374,6 +375,7 @@ impl Grid {
             max_cell_size: Vec2::INFINITY,
             spacing: None,
             cell_margin: None,
+            edge_margin: Vec2b::new(false, true),
             start_row: 0,
             color_picker: None,
         }
@@ -453,6 +455,18 @@ impl Grid {
         self
     }
 
+    /// Should the grid make room for the cell margins on its outside edges?
+    ///
+    /// If `false` on an axis, the outer margins of the edge cells stick out of the grid,
+    /// so that the cell contents line up with the content around the grid.
+    ///
+    /// Default: `[false, true]`, so that the columns line up with the content above and below.
+    #[inline]
+    pub fn edge_margin(mut self, edge_margin: impl Into<Vec2b>) -> Self {
+        self.edge_margin = edge_margin.into();
+        self
+    }
+
     /// Change which row number the grid starts on.
     /// This can be useful when you have a large [`crate::Grid`] inside of [`crate::ScrollArea::show_rows`].
     #[inline]
@@ -480,6 +494,7 @@ impl Grid {
             max_cell_size,
             spacing,
             cell_margin,
+            edge_margin,
             start_row,
             mut color_picker,
         } = self;
@@ -505,7 +520,15 @@ impl Grid {
             ui.cursor().intersect(ui.max_rect())
         };
 
-        let mut ui_builder = UiBuilder::new().max_rect(max_rect);
+        // The outer margins of the edge cells that stick out of the grid:
+        let outside = Margin {
+            left: if edge_margin.x { 0 } else { cell_margin.left },
+            right: if edge_margin.x { 0 } else { cell_margin.right },
+            top: if edge_margin.y { 0 } else { cell_margin.top },
+            bottom: if edge_margin.y { 0 } else { cell_margin.bottom },
+        };
+
+        let mut ui_builder = UiBuilder::new().max_rect(max_rect + outside);
         if prev_state.is_none() {
             // The initial frame will be glitchy, because we don't know the sizes of things to come.
 
@@ -518,34 +541,38 @@ impl Grid {
             ui_builder = ui_builder.sizing_pass().invisible();
         }
 
-        ui.scope_builder(ui_builder, |ui| {
-            ui.horizontal(|ui| {
-                let is_color = color_picker.is_some();
-                let grid = GridLayout {
-                    num_columns,
-                    color_picker,
-                    min_cell_size: vec2(min_col_width, min_row_height),
-                    max_cell_size,
-                    spacing,
-                    cell_margin,
-                    row: start_row,
-                    ..GridLayout::new(ui, id, prev_state)
-                };
+        ui.scope_dyn_shrunk(
+            ui_builder,
+            outside,
+            Box::new(|ui| {
+                ui.horizontal(|ui| {
+                    let is_color = color_picker.is_some();
+                    let grid = GridLayout {
+                        num_columns,
+                        color_picker,
+                        min_cell_size: vec2(min_col_width, min_row_height),
+                        max_cell_size,
+                        spacing,
+                        cell_margin,
+                        row: start_row,
+                        ..GridLayout::new(ui, id, prev_state)
+                    };
 
-                // paint first incoming row
-                if is_color {
-                    let cursor = ui.cursor();
-                    let painter = ui.painter();
-                    grid.paint_row(&cursor, painter);
-                }
+                    // paint first incoming row
+                    if is_color {
+                        let cursor = ui.cursor();
+                        let painter = ui.painter();
+                        grid.paint_row(&cursor, painter);
+                    }
 
-                ui.set_grid(grid);
-                let r = add_contents(ui);
-                ui.save_grid();
-                r
-            })
-            .inner
-        })
+                    ui.set_grid(grid);
+                    let r = add_contents(ui);
+                    ui.save_grid();
+                    r
+                })
+                .inner
+            }),
+        )
     }
 }
 

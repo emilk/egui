@@ -4,7 +4,8 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    Align, AsIdSalt, IdSalt, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    Align, AsIdSalt, IdSalt, Margin, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2,
+    Vec2b,
     scroll_area::{DragScroll, ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
@@ -269,6 +270,7 @@ pub struct TableBuilder<'a> {
     cell_layout: egui::Layout,
     scroll_options: TableScrollOptions,
     sense: egui::Sense,
+    edge_margin: Vec2b,
 }
 
 impl<'a> TableBuilder<'a> {
@@ -283,6 +285,7 @@ impl<'a> TableBuilder<'a> {
             cell_layout,
             scroll_options: Default::default(),
             sense: egui::Sense::hover(),
+            edge_margin: Vec2b::TRUE,
         }
     }
 
@@ -308,6 +311,19 @@ impl<'a> TableBuilder<'a> {
     #[inline]
     pub fn sense(mut self, sense: egui::Sense) -> Self {
         self.sense = sense;
+        self
+    }
+
+    /// Should the table make room for the cell margins on its outside edges?
+    ///
+    /// If `false` on an axis, the outer margins of the edge cells
+    /// (and their fills and lines) stick out of the table,
+    /// so that the cell contents line up with the content around the table.
+    ///
+    /// Default: `true` on both axes.
+    #[inline]
+    pub fn edge_margin(mut self, edge_margin: impl Into<Vec2b>) -> Self {
+        self.edge_margin = edge_margin.into();
         self
     }
 
@@ -469,9 +485,10 @@ impl<'a> TableBuilder<'a> {
             cell_layout,
             scroll_options,
             sense,
+            edge_margin,
         } = self;
 
-        let (mut table_ui, inset) = new_table_ui(parent);
+        let (mut table_ui, inset, outside) = new_table_ui(parent, edge_margin);
         let ui = &mut table_ui;
         let available_width = available_width(ui, &scroll_options);
 
@@ -517,6 +534,7 @@ impl<'a> TableBuilder<'a> {
             parent,
             ui: table_ui,
             inset,
+            outside,
             table_top,
             has_header: true,
             state_id,
@@ -547,9 +565,10 @@ impl<'a> TableBuilder<'a> {
             cell_layout,
             scroll_options,
             sense,
+            edge_margin,
         } = self;
 
-        let (mut table_ui, inset) = new_table_ui(parent);
+        let (mut table_ui, inset, outside) = new_table_ui(parent, edge_margin);
         let ui = &mut table_ui;
         let available_width = available_width(ui, &scroll_options);
 
@@ -570,6 +589,7 @@ impl<'a> TableBuilder<'a> {
             parent,
             ui: table_ui,
             inset,
+            outside,
             table_top,
             has_header: false,
             state_id,
@@ -592,15 +612,23 @@ impl<'a> TableBuilder<'a> {
 ///
 /// It is inset to make room for [`egui::style::TableStyle::outer_stroke`] outside the cells,
 /// and has the same [`Ui::scope_id`] as `parent`, so the table state keeps its id.
-fn new_table_ui(parent: &mut Ui) -> (Ui, Vec2) {
-    let inset = Vec2::splat(parent.visuals().table.outer_stroke.width);
+fn new_table_ui(parent: &mut Ui, edge_margin: Vec2b) -> (Ui, Vec2, Margin) {
+    let table_style = parent.visuals().table;
+    let inset = Vec2::splat(table_style.outer_stroke.width);
+    let cell_margin = table_style.cell_margin;
+    let outside = Margin {
+        left: if edge_margin.x { 0 } else { cell_margin.left },
+        right: if edge_margin.x { 0 } else { cell_margin.right },
+        top: if edge_margin.y { 0 } else { cell_margin.top },
+        bottom: if edge_margin.y { 0 } else { cell_margin.bottom },
+    };
     let table_ui = parent.new_child(
         egui::UiBuilder::new()
             .scope_id(parent.scope_id())
-            .max_rect(parent.available_rect_before_wrap().shrink2(inset))
+            .max_rect(parent.available_rect_before_wrap().shrink2(inset) + outside)
             .layout(*parent.layout()),
     );
-    (table_ui, inset)
+    (table_ui, inset, outside)
 }
 
 /// The widths of the columns, not including their cell margins.
@@ -736,6 +764,10 @@ pub struct Table<'a> {
     /// Room for [`egui::style::TableStyle::outer_stroke`] on each side.
     inset: Vec2,
 
+    /// The outer margins of the edge cells that stick out of the table,
+    /// from [`TableBuilder::edge_margin`].
+    outside: Margin,
+
     table_top: f32,
     has_header: bool,
     state_id: egui::Id,
@@ -787,6 +819,7 @@ impl Table<'_> {
             cell_layout,
             scroll_options,
             sense,
+            outside,
         } = self;
         let ui = &mut table_ui;
 
@@ -990,7 +1023,7 @@ impl Table<'_> {
         state.store(ui, state_id);
 
         // Make room for the outline in the parent:
-        parent.advance_cursor_after_rect(table_ui.min_rect().expand2(inset));
+        parent.advance_cursor_after_rect((table_ui.min_rect() - outside).expand2(inset));
 
         scroll_area_out
     }

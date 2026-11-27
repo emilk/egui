@@ -2453,12 +2453,24 @@ impl Ui {
         ui_builder: UiBuilder,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
+        self.scope_dyn_shrunk(ui_builder, Margin::ZERO, add_contents)
+    }
+
+    /// Like [`Self::scope_dyn`], but allocate the used rect shrunk by `shrink`.
+    ///
+    /// Used for contents that may stick out of the space they take up.
+    pub(crate) fn scope_dyn_shrunk<'c, R>(
+        &mut self,
+        ui_builder: UiBuilder,
+        shrink: Margin,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let next_auto_id_salt = self.next_auto_id_salt;
         let mut child_ui = self.new_child(ui_builder);
         self.next_auto_id_salt = next_auto_id_salt; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = child_ui.remember_min_rect();
-        self.advance_cursor_after_rect(child_ui.min_rect());
+        self.advance_cursor_after_rect(child_ui.min_rect() - shrink);
         InnerResponse::new(ret, response)
     }
 
