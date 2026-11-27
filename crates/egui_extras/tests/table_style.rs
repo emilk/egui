@@ -19,9 +19,7 @@ fn styled_table() {
             table.column_stroke = Stroke::new(1.0, Color32::LIGHT_BLUE);
             table.corner_radius = CornerRadius::same(4);
             table.cell_margin = Margin::symmetric(6, 2);
-
-            // Room for the outer stroke, which is outside the table:
-            egui::Frame::new().inner_margin(8).show(ui, table_ui);
+            table_ui(ui);
         });
     harness.snapshot("table_style");
 }

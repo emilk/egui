@@ -1208,7 +1208,11 @@ pub struct TableStyle {
     /// Background of selected rows.
     pub selected_row_fill: Color32,
 
-    /// Line around the whole table.
+    /// The width and color of the outline around the whole table.
+    ///
+    /// Like [`crate::Frame::stroke`], the width of the stroke takes up space in the parent [`Ui`],
+    /// so a thicker stroke makes the table take up more space.
+    #[doc(alias = "border")]
     pub outer_stroke: Stroke,
 
     /// Line between the header row and the body.

@@ -452,12 +452,6 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    fn available_width(&self) -> f32 {
-        self.ui.available_rect_before_wrap().width()
-            - (self.scroll_options.vscroll as i32 as f32)
-                * self.ui.spacing().scroll.allocated_width()
-    }
-
     /// Reset all column widths.
     pub fn reset(&self) {
         let state_id = self.ui.scope_id().with(self.id_salt);
@@ -466,10 +460,8 @@ impl<'a> TableBuilder<'a> {
 
     /// Create a header row which always stays visible and at the top
     pub fn header(self, height: f32, add_header_row: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
-        let available_width = self.available_width();
-
         let Self {
-            ui,
+            ui: parent,
             id_salt,
             mut columns,
             striped,
@@ -478,6 +470,10 @@ impl<'a> TableBuilder<'a> {
             scroll_options,
             sense,
         } = self;
+
+        let (mut table_ui, inset) = new_table_ui(parent);
+        let ui = &mut table_ui;
+        let available_width = available_width(ui, &scroll_options);
 
         let striped = striped.unwrap_or_else(|| ui.visuals().striped());
         resolve_resizable(&mut columns, resizable);
@@ -518,7 +514,9 @@ impl<'a> TableBuilder<'a> {
         });
 
         Table {
-            ui,
+            parent,
+            ui: table_ui,
+            inset,
             table_top,
             has_header: true,
             state_id,
@@ -540,10 +538,8 @@ impl<'a> TableBuilder<'a> {
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
-        let available_width = self.available_width();
-
         let Self {
-            ui,
+            ui: parent,
             id_salt,
             mut columns,
             striped,
@@ -552,6 +548,10 @@ impl<'a> TableBuilder<'a> {
             scroll_options,
             sense,
         } = self;
+
+        let (mut table_ui, inset) = new_table_ui(parent);
+        let ui = &mut table_ui;
+        let available_width = available_width(ui, &scroll_options);
 
         let striped = striped.unwrap_or_else(|| ui.visuals().striped());
         resolve_resizable(&mut columns, resizable);
@@ -567,7 +567,9 @@ impl<'a> TableBuilder<'a> {
         let table_top = ui.cursor().top();
 
         Table {
-            ui,
+            parent,
+            ui: table_ui,
+            inset,
             table_top,
             has_header: false,
             state_id,
@@ -584,6 +586,32 @@ impl<'a> TableBuilder<'a> {
         }
         .body(add_body_contents)
     }
+}
+
+/// The [`Ui`] to lay out a table in.
+///
+/// It is inset to make room for [`egui::style::TableStyle::outer_stroke`] outside the cells,
+/// and has the same [`Ui::scope_id`] as `parent`, so the table state keeps its id.
+fn new_table_ui(parent: &mut Ui) -> (Ui, Vec2) {
+    let border_width = parent.visuals().table.outer_stroke.width;
+    let inset = if 0.0 < border_width {
+        Vec2::splat(border_width) + 0.5 * parent.spacing().item_spacing
+    } else {
+        Vec2::ZERO
+    };
+    let table_ui = parent.new_child(
+        egui::UiBuilder::new()
+            .scope_id(parent.scope_id())
+            .max_rect(parent.available_rect_before_wrap().shrink2(inset))
+            .layout(*parent.layout()),
+    );
+    (table_ui, inset)
+}
+
+/// The width available to the columns.
+fn available_width(ui: &Ui, scroll_options: &TableScrollOptions) -> f32 {
+    ui.available_rect_before_wrap().width()
+        - (scroll_options.vscroll as i32 as f32) * ui.spacing().scroll.allocated_width()
 }
 
 /// Replace [`Column::resizable`] `None` with the table-wide default.
@@ -694,7 +722,14 @@ impl TableState {
 ///
 /// Is created by [`TableBuilder`] by either calling [`TableBuilder::body`] or after creating a header row with [`TableBuilder::header`].
 pub struct Table<'a> {
-    ui: &'a mut Ui,
+    parent: &'a mut Ui,
+
+    /// Inside [`Self::parent`], inset by [`Self::inset`].
+    ui: Ui,
+
+    /// Room for [`egui::style::TableStyle::outer_stroke`] on each side.
+    inset: Vec2,
+
     table_top: f32,
     has_header: bool,
     state_id: egui::Id,
@@ -721,7 +756,7 @@ impl Table<'_> {
     ///
     /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
     pub fn ui_mut(&mut self) -> &mut egui::Ui {
-        self.ui
+        &mut self.ui
     }
 
     /// Create table body after adding a header row
@@ -730,7 +765,9 @@ impl Table<'_> {
         F: for<'b> FnOnce(TableBody<'b>),
     {
         let Table {
-            ui,
+            parent,
+            ui: mut table_ui,
+            inset,
             table_top,
             has_header,
             state_id,
@@ -745,6 +782,7 @@ impl Table<'_> {
             scroll_options,
             sense,
         } = self;
+        let ui = &mut table_ui;
 
         let TableScrollOptions {
             vscroll,
@@ -940,6 +978,10 @@ impl Table<'_> {
         state.max_used_widths = max_used_widths;
 
         state.store(ui, state_id);
+
+        // Make room for the outline in the parent:
+        parent.advance_cursor_after_rect(table_ui.min_rect().expand2(inset));
+
         scroll_area_out
     }
 }
