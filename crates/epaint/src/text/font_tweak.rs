@@ -1,4 +1,4 @@
-use crate::text::VariationCoords;
+use crate::text::{FontFeatures, VariationCoords};
 
 /// Tweaks to how one font face is laid out and rendered.
 ///
@@ -80,6 +80,12 @@ pub struct FontTweak {
     /// [`font-variation-settings`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/font-variation-settings).
     pub coords: VariationCoords,
 
+    /// OpenType features applied to every run of text shaped with this font.
+    ///
+    /// For example, `FontFeatures::new([("tnum", 1)])` enables tabular figures.
+    /// Empty uses the font's default shaping.
+    pub features: FontFeatures,
+
     /// Width of a thin space (`\u{2009}`) and narrow no-break space (`\u{202F}`),
     /// as a fraction of the normal space width.
     ///
@@ -108,6 +114,7 @@ impl Default for FontTweak {
             hinting_target: HintingTarget::default(),
             subpixel_binning: None,
             coords: VariationCoords::default(),
+            features: FontFeatures::default(),
             thin_space_width: 0.5,
             tab_size: 4.0,
         }

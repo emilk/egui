@@ -409,21 +409,21 @@ impl IntoTag for u32 {
 impl IntoTag for [u8; 4] {
     #[inline(always)]
     fn into_tag(self) -> font_types::Tag {
-        font_types::Tag::new_checked(&self).expect("Invalid variation axis tag")
+        font_types::Tag::new_checked(&self).expect("Invalid OpenType tag")
     }
 }
 
 impl IntoTag for &[u8; 4] {
     #[inline(always)]
     fn into_tag(self) -> font_types::Tag {
-        font_types::Tag::new_checked(self).expect("Invalid variation axis tag")
+        font_types::Tag::new_checked(self).expect("Invalid OpenType tag")
     }
 }
 
 impl IntoTag for &str {
     #[inline(always)]
     fn into_tag(self) -> font_types::Tag {
-        font_types::Tag::from_str(self).expect("Invalid variation axis tag")
+        font_types::Tag::from_str(self).expect("Invalid OpenType tag")
     }
 }
 
@@ -485,6 +485,68 @@ impl core::hash::Hash for VariationCoords {
             tag.hash(state);
             OrderedFloat(*coord).hash(state);
         }
+    }
+}
+
+/// List of OpenType feature settings by feature tag. If more than one setting for a given feature
+/// is provided, the last one added is used.
+///
+/// A value of zero disables a feature and one enables it. Some features, such as stylistic
+/// alternates, use larger values to select among alternatives. Features that the font does not
+/// support have no effect.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct FontFeatures(SmallVec<[(font_types::Tag, u32); 2]>);
+
+impl FontFeatures {
+    /// Create a list of feature settings from a sequence of (tag, value) pairs.
+    ///
+    /// ## Example:
+    /// ```
+    /// use epaint::text::FontFeatures;
+    ///
+    /// // Tabular figures, and no kerning:
+    /// let features = FontFeatures::new([
+    ///     ("tnum", 1),
+    ///     ("kern", 0),
+    /// ]);
+    /// ```
+    pub fn new<T: IntoTag>(values: impl IntoIterator<Item = (T, u32)>) -> Self {
+        Self(values.into_iter().map(|(t, v)| (t.into_tag(), v)).collect())
+    }
+
+    /// Add a feature setting to the list.
+    #[inline(always)]
+    pub fn push(&mut self, tag: impl IntoTag, value: u32) {
+        self.0.push((tag.into_tag(), value));
+    }
+
+    /// Remove the setting at the given index.
+    pub fn remove(&mut self, index: usize) {
+        self.0.remove(index);
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    /// `true` if there are no settings, which leaves the font's default shaping unchanged.
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl AsRef<[(font_types::Tag, u32)]> for FontFeatures {
+    #[inline(always)]
+    fn as_ref(&self) -> &[(font_types::Tag, u32)] {
+        &self.0
+    }
+}
+
+impl AsMut<[(font_types::Tag, u32)]> for FontFeatures {
+    fn as_mut(&mut self) -> &mut [(font_types::Tag, u32)] {
+        &mut self.0
     }
 }
 
