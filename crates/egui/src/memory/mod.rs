@@ -1459,11 +1459,22 @@ impl Areas {
             ..
         } = self;
 
+        order.sort_by_key(|layer| {
+            let wants_to_be_on_top = wants_to_be_on_top.contains(layer);
+            // A layer that appeared this frame goes above one that was already visible,
+            // e.g. a popup opened by a click on the window or modal that holds it:
+            let appeared = visible_areas_current_frame.contains(layer)
+                && !visible_areas_last_frame.contains(layer);
+            (
+                layer.order,
+                wants_to_be_on_top,
+                wants_to_be_on_top && appeared,
+            )
+        });
+        wants_to_be_on_top.clear();
+
         core::mem::swap(visible_areas_last_frame, visible_areas_current_frame);
         visible_areas_current_frame.clear();
-
-        order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
-        wants_to_be_on_top.clear();
 
         // For all layers with sublayers, put the sublayers directly after the parent layer:
         // (it doesn't matter in which order we replace parents with their children)

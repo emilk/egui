@@ -379,3 +379,71 @@ fn popup_stays_open_when_dragging_outside() {
         "dragging outside the popup should not close it"
     );
 }
+
+/// Regression test for <https://github.com/emilk/egui/issues/8914>:
+/// a `ComboBox` popup in a `Modal` must be clickable after the modal is closed and reopened,
+/// also when a click's press and release arrive in the same frame (e.g. a tap on a touchpad).
+#[test]
+fn combo_box_in_reopened_modal_receives_clicks() {
+    struct State {
+        show_modal: bool,
+        language: &'static str,
+    }
+
+    /// Press and release in a single frame.
+    fn quick_click(harness: &mut Harness<'_, State>, pos: Pos2) {
+        harness.input_mut().events.extend([
+            egui::Event::PointerMoved(pos),
+            egui::Event::PointerButton {
+                pos,
+                button: PointerButton::Primary,
+                pressed: true,
+                modifiers: Modifiers::NONE,
+            },
+            egui::Event::PointerButton {
+                pos,
+                button: PointerButton::Primary,
+                pressed: false,
+                modifiers: Modifiers::NONE,
+            },
+        ]);
+        harness.run();
+    }
+
+    let mut harness = Harness::new_ui_state(
+        |ui, state| {
+            if state.show_modal {
+                egui::Modal::new(egui::Id::unique("modal")).show(ui.ctx(), |ui| {
+                    egui::ComboBox::from_label("Language")
+                        .selected_text(state.language)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut state.language, "it", "Italiano");
+                            ui.selectable_value(&mut state.language, "en", "English");
+                        });
+                });
+            }
+        },
+        State {
+            show_modal: true,
+            language: "it",
+        },
+    );
+
+    for session in 0..2 {
+        harness.state_mut().show_modal = true;
+        harness.state_mut().language = "it";
+        harness.run();
+
+        let combo_box = harness
+            .get_by_role_and_label(egui::accesskit::Role::ComboBox, "Language")
+            .rect()
+            .center();
+        quick_click(&mut harness, combo_box);
+        let english = harness.get_by_label("English").rect().center();
+        quick_click(&mut harness, english);
+        assert_eq!(harness.state().language, "en", "modal session {session}");
+
+        harness.state_mut().show_modal = false;
+        harness.run();
+    }
+}
