@@ -3025,7 +3025,8 @@ fn color_transfer_function_ui(
 }
 
 impl TableStyle {
-    fn ui(&mut self, ui: &mut Ui) {
+    /// Show an editor for the style, e.g. to try out different looks.
+    pub fn ui(&mut self, ui: &mut Ui) {
         let Self {
             striped,
             stripe_fill,
