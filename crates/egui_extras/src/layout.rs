@@ -35,6 +35,8 @@ pub(crate) enum CellDirection {
 pub(crate) struct TableCellPosition {
     pub(crate) header: bool,
     pub(crate) first_row: bool,
+    pub(crate) first_col: bool,
+    pub(crate) last_col: bool,
 
     /// Paint [`egui::style::TableStyle::column_stroke`] on the left edge?
     ///
@@ -146,12 +148,18 @@ impl<'l> StripLayout<'l> {
         let item_spacing = self.ui.spacing().item_spacing;
         let gapless_rect = max_rect.expand2(0.5 * item_spacing).round_ui();
 
-        if flags.table_cell.is_some_and(|cell| cell.header) {
-            self.ui.painter().rect_filled(
-                gapless_rect,
-                egui::CornerRadius::ZERO,
-                table_style.header_fill,
-            );
+        if let Some(cell) = flags.table_cell.filter(|cell| cell.header) {
+            // Round the top corners of the table, inside the outline:
+            let radius = table_style.corner_radius;
+            let corner_radius = egui::CornerRadius {
+                nw: if cell.first_col { radius.nw } else { 0 },
+                ne: if cell.last_col { radius.ne } else { 0 },
+                sw: 0,
+                se: 0,
+            };
+            self.ui
+                .painter()
+                .rect_filled(gapless_rect, corner_radius, table_style.header_fill);
         }
 
         if flags.striped {

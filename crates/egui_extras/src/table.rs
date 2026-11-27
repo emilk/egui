@@ -1387,6 +1387,8 @@ impl TableRow<'_, '_> {
             table_cell: Some(TableCellPosition {
                 header: self.is_header,
                 first_row: self.row_index == 0,
+                first_col: col_index == 0,
+                last_col: col_index + 1 == self.columns.len(),
                 column_line: col_index
                     .checked_sub(1)
                     .and_then(|prev| self.columns.get(prev))
