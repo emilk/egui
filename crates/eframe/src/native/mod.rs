@@ -10,6 +10,7 @@ pub(crate) mod macos;
 #[cfg(feature = "persistence")]
 pub mod file_storage;
 
+pub(crate) mod viewport_windows;
 pub(crate) mod winit_integration;
 
 #[cfg(feature = "glow")]

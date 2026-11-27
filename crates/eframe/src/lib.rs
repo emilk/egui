@@ -208,6 +208,10 @@ pub use native::run::EframePumpStatus;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+pub use native::viewport_windows::viewport_winit_window;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 #[cfg(feature = "persistence")]
 pub use native::file_storage::storage_dir;
 

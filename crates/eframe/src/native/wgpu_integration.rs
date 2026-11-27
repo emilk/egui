@@ -348,6 +348,7 @@ impl<'app> WgpuWinitApp<'app> {
 
         let mut viewport_from_window = HashMap::default();
         viewport_from_window.insert(window.id(), ViewportId::ROOT);
+        super::viewport_windows::register(&egui_ctx, ViewportId::ROOT, &window);
 
         let mut viewports = Viewports::default();
         viewports.insert(
@@ -795,7 +796,13 @@ impl WgpuWinitRunning<'_> {
 
         pending_deltas.append(textures_delta);
 
-        remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
+        remove_viewports_not_in(
+            egui_ctx,
+            viewports,
+            painter,
+            viewport_from_window,
+            &viewport_output,
+        );
 
         // Synchronization between the integration layer and the painter layer
         if let Some(surface_config) = integration.frame.wgpu_surface_config {
@@ -906,6 +913,9 @@ impl WgpuWinitRunning<'_> {
         viewports.retain(|id, _| active_viewports_ids.contains(id));
         viewport_from_window.retain(|_, id| active_viewports_ids.contains(id));
         painter.gc_viewports(&active_viewports_ids);
+        super::viewport_windows::retain(&integration.egui_ctx, |id| {
+            active_viewports_ids.contains(id)
+        });
 
         let window = viewport_from_window
             .get(&window_id)
@@ -1166,6 +1176,7 @@ impl Viewport {
                 self.egui_winit = Some(egui_winit);
 
                 egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window, true);
+                super::viewport_windows::register(egui_ctx, viewport_id, &window);
                 self.window = Some(window);
             }
             Err(err) => {
@@ -1354,6 +1365,7 @@ fn render_immediate_viewport(
 }
 
 pub(crate) fn remove_viewports_not_in(
+    egui_ctx: &egui::Context,
     viewports: &mut Viewports,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
@@ -1365,6 +1377,7 @@ pub(crate) fn remove_viewports_not_in(
     viewports.retain(|id, _| active_viewports_ids.contains(id));
     viewport_from_window.retain(|_, id| active_viewports_ids.contains(id));
     painter.gc_viewports(&active_viewports_ids);
+    super::viewport_windows::retain(egui_ctx, |id| active_viewports_ids.contains(id));
 }
 
 /// Add new viewports, and update existing ones:
@@ -1413,7 +1426,13 @@ fn handle_viewport_output(
         }
     }
 
-    remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
+    remove_viewports_not_in(
+        egui_ctx,
+        viewports,
+        painter,
+        viewport_from_window,
+        viewport_output,
+    );
 }
 
 fn initialize_or_update_viewport<'a>(
