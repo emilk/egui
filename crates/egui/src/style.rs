@@ -1185,7 +1185,8 @@ impl Default for TextCursorStyle {
 
 /// How tables look, e.g. [`crate::Grid`] and `egui_extras::Table`.
 ///
-/// Table widgets paint only the parts they support, so not every widget uses every field.
+/// `egui_extras::Table` uses all fields.
+/// [`crate::Grid`] only uses [`Self::striped`] and [`Self::stripe_fill`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]

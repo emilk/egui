@@ -10,7 +10,7 @@ use egui::{
 
 use crate::{
     StripLayout,
-    layout::{CellDirection, CellSize, StripLayoutFlags},
+    layout::{CellDirection, CellSize, StripLayoutFlags, TableCellPosition},
 };
 
 // -----------------------------------------------------------------=----------
@@ -505,6 +505,7 @@ impl<'a> TableBuilder<'a> {
                 max_used_widths: &mut max_used_widths,
                 row_index: 0,
                 col_index: 0,
+                is_header: true,
                 height,
                 striped: false,
                 hovered: false,
@@ -518,6 +519,7 @@ impl<'a> TableBuilder<'a> {
         Table {
             ui,
             table_top,
+            has_header: true,
             state_id,
             columns,
             available_width,
@@ -565,6 +567,7 @@ impl<'a> TableBuilder<'a> {
         Table {
             ui,
             table_top,
+            has_header: false,
             state_id,
             columns,
             available_width,
@@ -684,6 +687,7 @@ impl TableState {
 pub struct Table<'a> {
     ui: &'a mut Ui,
     table_top: f32,
+    has_header: bool,
     state_id: egui::Id,
     columns: Vec<Column>,
     available_width: f32,
@@ -719,6 +723,7 @@ impl Table<'_> {
         let Table {
             ui,
             table_top,
+            has_header,
             state_id,
             columns,
             resizable,
@@ -815,6 +820,18 @@ impl Table<'_> {
         let bottom = ui.min_rect().bottom();
 
         let spacing_x = ui.spacing().item_spacing.x;
+
+        let table_width = state.column_widths.iter().sum::<f32>()
+            + spacing_x * state.column_widths.len().saturating_sub(1) as f32;
+        let visible_body = scroll_area_out.inner_rect;
+        let body_bottom = visible_body.top() - scroll_area_out.state.clamped_offset().y
+            + scroll_area_out.content_size.y;
+        let table_rect = Rect::from_x_y_ranges(
+            cursor_position.x..=cursor_position.x + table_width,
+            table_top..=body_bottom.at_most(visible_body.bottom()),
+        );
+        StripLayout::paint_table_outline(ui, table_rect, has_header.then_some(cursor_position.y));
+
         let mut x = cursor_position.x - spacing_x * 0.5;
         for (i, column_width) in state.column_widths.iter_mut().enumerate() {
             let column = &columns[i];
@@ -991,6 +1008,7 @@ impl<'a> TableBody<'a> {
             max_used_widths: self.max_used_widths,
             row_index: self.row_index,
             col_index: 0,
+            is_header: false,
             height,
             striped: self.striped && self.row_index.is_multiple_of(2),
             hovered: self.hovered_row_index == Some(self.row_index),
@@ -1073,6 +1091,7 @@ impl<'a> TableBody<'a> {
                 max_used_widths: self.max_used_widths,
                 row_index,
                 col_index: 0,
+                is_header: false,
                 height: row_height_sans_spacing,
                 striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                 hovered: self.hovered_row_index == Some(row_index),
@@ -1155,6 +1174,7 @@ impl<'a> TableBody<'a> {
                     max_used_widths: self.max_used_widths,
                     row_index,
                     col_index: 0,
+                    is_header: false,
                     height: row_height,
                     striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                     hovered: self.hovered_row_index == Some(row_index),
@@ -1178,6 +1198,7 @@ impl<'a> TableBody<'a> {
                 max_used_widths: self.max_used_widths,
                 row_index,
                 col_index: 0,
+                is_header: false,
                 height: row_height,
                 striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                 hovered: self.hovered_row_index == Some(row_index),
@@ -1266,6 +1287,7 @@ pub struct TableRow<'a, 'b> {
     col_index: usize,
     height: f32,
 
+    is_header: bool,
     striped: bool,
     hovered: bool,
     selected: bool,
@@ -1308,6 +1330,11 @@ impl TableRow<'_, '_> {
             hovered: self.hovered,
             selected: self.selected,
             overline: self.overline,
+            table_cell: Some(TableCellPosition {
+                header: self.is_header,
+                first_row: self.row_index == 0,
+                first_col: col_index == 0,
+            }),
             sizing_pass: auto_size_this_frame || self.layout.ui.is_sizing_pass(),
         };
 

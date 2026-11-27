@@ -1,4 +1,6 @@
-use egui::{IdSalt, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
+use egui::{
+    IdSalt, Margin, Pos2, Rect, Response, Sense, StrokeKind, Ui, UiBuilder, emath::GuiRounding as _,
+};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -26,6 +28,16 @@ pub(crate) enum CellDirection {
     Vertical,
 }
 
+/// Where a cell is in a [`crate::Table`].
+///
+/// Decides which lines of [`egui::style::TableStyle`] the cell paints.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct TableCellPosition {
+    pub(crate) header: bool,
+    pub(crate) first_row: bool,
+    pub(crate) first_col: bool,
+}
+
 /// Flags used by [`StripLayout::add`].
 #[derive(Clone, Copy, Default)]
 pub(crate) struct StripLayoutFlags {
@@ -34,6 +46,9 @@ pub(crate) struct StripLayoutFlags {
     pub(crate) hovered: bool,
     pub(crate) selected: bool,
     pub(crate) overline: bool,
+
+    /// Set for table cells, which are styled with [`egui::style::TableStyle`].
+    pub(crate) table_cell: Option<TableCellPosition>,
 
     /// Used when we want to accurately measure the size of this cell.
     pub(crate) sizing_pass: bool,
@@ -121,16 +136,25 @@ impl<'l> StripLayout<'l> {
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
+        let table_style = self.ui.visuals().table;
 
         // Make sure we don't have a gap in the stripe/frame/selection background:
         let item_spacing = self.ui.spacing().item_spacing;
         let gapless_rect = max_rect.expand2(0.5 * item_spacing).round_ui();
 
+        if flags.table_cell.is_some_and(|cell| cell.header) {
+            self.ui.painter().rect_filled(
+                gapless_rect,
+                egui::CornerRadius::ZERO,
+                table_style.header_fill,
+            );
+        }
+
         if flags.striped {
             self.ui.painter().rect_filled(
                 gapless_rect,
                 egui::CornerRadius::ZERO,
-                self.ui.visuals().table.stripe_fill,
+                table_style.stripe_fill,
             );
         }
 
@@ -138,7 +162,7 @@ impl<'l> StripLayout<'l> {
             self.ui.painter().rect_filled(
                 gapless_rect,
                 egui::CornerRadius::ZERO,
-                self.ui.visuals().table.selected_row_fill,
+                table_style.selected_row_fill,
             );
         }
 
@@ -146,16 +170,32 @@ impl<'l> StripLayout<'l> {
             self.ui.painter().rect_filled(
                 gapless_rect,
                 egui::CornerRadius::ZERO,
-                self.ui.visuals().table.hovered_row_fill,
+                table_style.hovered_row_fill,
             );
         }
 
-        let mut child_ui = self.cell(flags, max_rect, child_ui_id_salt, add_cell_contents);
+        let cell_margin = if let Some(cell) = flags.table_cell {
+            self.paint_table_lines(cell, gapless_rect);
+            table_style.cell_margin
+        } else {
+            Margin::ZERO
+        };
 
-        let used_rect = child_ui.min_rect();
+        let mut child_ui = self.cell(
+            flags,
+            max_rect,
+            cell_margin,
+            child_ui_id_salt,
+            add_cell_contents,
+        );
 
-        // Make sure we catch clicks etc on the _whole_ cell:
-        child_ui.set_min_size(max_rect.size());
+        let used_rect = child_ui.min_rect() + cell_margin;
+
+        // Make sure we catch clicks etc on the _whole_ cell, including its margin:
+        child_ui.set_min_size(child_ui.max_rect().size());
+        if cell_margin != Margin::ZERO {
+            child_ui.expand_to_include_rect(max_rect);
+        }
 
         let allocation_rect = if self.ui.is_sizing_pass() {
             if flags.clip {
@@ -177,6 +217,49 @@ impl<'l> StripLayout<'l> {
         let response = child_ui.response();
 
         (used_rect, response)
+    }
+
+    /// Paint the lines of [`egui::style::TableStyle`] on the edges of a table cell.
+    ///
+    /// Each cell paints the lines on its top and left edges,
+    /// so that the fill of the next cell does not cover them.
+    fn paint_table_lines(&self, cell: TableCellPosition, gapless_rect: Rect) {
+        let table_style = &self.ui.visuals().table;
+        let painter = self.ui.painter();
+
+        if !cell.header && !cell.first_row {
+            let y = painter.round_to_pixel_center(gapless_rect.top());
+            painter.hline(gapless_rect.x_range(), y, table_style.row_stroke);
+        }
+
+        if !cell.first_col {
+            let x = painter.round_to_pixel_center(gapless_rect.left());
+            painter.vline(x, gapless_rect.y_range(), table_style.column_stroke);
+        }
+    }
+
+    /// Paint [`egui::style::TableStyle::outer_stroke`] around the table,
+    /// and [`egui::style::TableStyle::header_stroke`] under the header.
+    ///
+    /// Painted after the body, so that the body fills do not cover them.
+    pub(crate) fn paint_table_outline(ui: &Ui, table_rect: Rect, body_top: Option<f32>) {
+        let table_style = &ui.visuals().table;
+        let painter = ui.painter();
+        let rect = table_rect
+            .expand2(0.5 * ui.spacing().item_spacing)
+            .round_ui();
+
+        if let Some(body_top) = body_top {
+            let y = painter.round_to_pixel_center(body_top - 0.5 * ui.spacing().item_spacing.y);
+            painter.hline(rect.x_range(), y, table_style.header_stroke);
+        }
+
+        painter.rect_stroke(
+            rect,
+            table_style.corner_radius,
+            table_style.outer_stroke,
+            StrokeKind::Middle,
+        );
     }
 
     /// only needed for layouts with multiple lines, like [`Table`](crate::Table).
@@ -206,6 +289,7 @@ impl<'l> StripLayout<'l> {
         &mut self,
         flags: StripLayoutFlags,
         max_rect: Rect,
+        cell_margin: Margin,
         child_ui_id_salt: IdSalt,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
@@ -213,7 +297,7 @@ impl<'l> StripLayout<'l> {
         let mut ui_builder = UiBuilder::new()
             .scope_id(child_ui_id)
             .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::TableCell))
-            .max_rect(max_rect)
+            .max_rect(max_rect - cell_margin)
             .layout(self.cell_layout)
             .sense(self.sense);
         if flags.sizing_pass {
