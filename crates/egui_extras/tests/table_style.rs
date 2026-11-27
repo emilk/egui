@@ -12,7 +12,7 @@ fn styled_table() {
             let table = &mut ui.visuals_mut().table;
             table.striped = true;
             table.header_fill = Color32::from_rgb(40, 40, 80);
-            table.selected_row_fill = Color32::from_rgb(0, 80, 0);
+            table.selected_row_fill = Some(Color32::from_rgb(0, 80, 0));
             table.outer_stroke = Stroke::new(1.0, Color32::RED);
             table.corner_radius = CornerRadius::same(4);
             table.header_stroke = Stroke::new(1.0, Color32::YELLOW);

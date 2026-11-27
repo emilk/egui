@@ -72,6 +72,13 @@ impl CellLines {
 #[derive(Clone, Copy, Default)]
 pub(crate) struct TableCellPosition {
     pub(crate) header: bool,
+
+    /// The header, or the first row of the body if there is no header.
+    pub(crate) top_row: bool,
+
+    /// The last row of the body, if known.
+    pub(crate) bottom_row: bool,
+
     pub(crate) first_col: bool,
     pub(crate) last_col: bool,
     pub(crate) lines: CellLines,
@@ -218,55 +225,56 @@ impl<'l> StripLayout<'l> {
         // Make sure we don't have a gap in the stripe/frame/selection background:
         let mut gapless_rect = max_rect.expand2(0.5 * self.spacing).round_ui();
 
-        // Don't paint the margins that stick out of the table:
+        let mut corner_radius = egui::CornerRadius::ZERO;
         if let Some(cell) = flags.table_cell {
+            // Don't paint the margins that stick out of the table:
             if cell.first_col {
                 gapless_rect.min.x += f32::from(self.outside.left);
             }
             if cell.last_col {
                 gapless_rect.max.x -= f32::from(self.outside.right);
             }
-            if cell.header {
+            if cell.top_row {
                 gapless_rect.min.y += f32::from(self.outside.top);
+            }
+            if cell.bottom_row {
+                gapless_rect.max.y -= f32::from(self.outside.bottom);
+            }
+
+            // Round the corners of the table, inside the outline:
+            let radius = table_style.corner_radius;
+            let corner = |is_corner: bool, r: u8| if is_corner { r } else { 0 };
+            corner_radius = egui::CornerRadius {
+                nw: corner(cell.top_row && cell.first_col, radius.nw),
+                ne: corner(cell.top_row && cell.last_col, radius.ne),
+                sw: corner(cell.bottom_row && cell.first_col, radius.sw),
+                se: corner(cell.bottom_row && cell.last_col, radius.se),
+            };
+
+            if cell.header {
+                self.ui
+                    .painter()
+                    .rect_filled(gapless_rect, corner_radius, table_style.header_fill);
             }
         }
 
-        if let Some(cell) = flags.table_cell.filter(|cell| cell.header) {
-            // Round the top corners of the table, inside the outline:
-            let radius = table_style.corner_radius;
-            let corner_radius = egui::CornerRadius {
-                nw: if cell.first_col { radius.nw } else { 0 },
-                ne: if cell.last_col { radius.ne } else { 0 },
-                sw: 0,
-                se: 0,
-            };
+        let visuals = self.ui.visuals();
+        let fill = if flags.selected {
+            Some(visuals.table_selected_row_fill())
+        } else if flags.hovered && self.sense.interactive() {
+            Some(visuals.table_hovered_row_fill())
+        } else {
+            None
+        };
+        if flags.striped {
             self.ui
                 .painter()
-                .rect_filled(gapless_rect, corner_radius, table_style.header_fill);
+                .rect_filled(gapless_rect, corner_radius, visuals.table_stripe_fill());
         }
-
-        if flags.striped {
-            self.ui.painter().rect_filled(
-                gapless_rect,
-                egui::CornerRadius::ZERO,
-                table_style.stripe_fill,
-            );
-        }
-
-        if flags.selected {
-            self.ui.painter().rect_filled(
-                gapless_rect,
-                egui::CornerRadius::ZERO,
-                table_style.selected_row_fill,
-            );
-        }
-
-        if flags.hovered && !flags.selected && self.sense.interactive() {
-            self.ui.painter().rect_filled(
-                gapless_rect,
-                egui::CornerRadius::ZERO,
-                table_style.hovered_row_fill,
-            );
+        if let Some(fill) = fill {
+            self.ui
+                .painter()
+                .rect_filled(gapless_rect, corner_radius, fill);
         }
 
         self.paint_table_lines(lines, gapless_rect);

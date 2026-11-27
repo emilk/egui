@@ -319,9 +319,9 @@ impl<'a> TableBuilder<'a> {
 
     /// Should the table make room for the cell margins on its outside edges?
     ///
-    /// If `false` on an axis, the outer margins of the edge cells
-    /// (and their fills and lines) stick out of the table,
+    /// If `false` on an axis, the outer margins of the edge cells stick out of the table,
     /// so that the cell contents line up with the content around the table.
+    /// Nothing is painted in the margins that stick out.
     ///
     /// Default: `true` on both axes.
     #[inline]
@@ -505,8 +505,7 @@ impl<'a> TableBuilder<'a> {
 
         auto_size_double_clicked_columns(ui, state_id, &mut columns);
 
-        let (is_sizing_pass, state) =
-            TableState::load(ui, state_id, resizable, &columns, available_width);
+        let (is_sizing_pass, state) = TableState::load(ui, state_id, &columns, available_width);
 
         let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
@@ -526,6 +525,8 @@ impl<'a> TableBuilder<'a> {
                 row_index: 0,
                 col_index: 0,
                 is_header: true,
+                top_row: true,
+                bottom_row: false,
                 height,
                 striped: false,
                 hovered: false,
@@ -541,6 +542,7 @@ impl<'a> TableBuilder<'a> {
             ui: table_ui,
             inset,
             outside,
+            has_header: true,
             table_top,
             state_id,
             columns,
@@ -548,7 +550,6 @@ impl<'a> TableBuilder<'a> {
             state,
             max_used_widths,
             is_sizing_pass,
-            resizable,
             striped,
             cell_layout,
             scroll_options,
@@ -584,8 +585,7 @@ impl<'a> TableBuilder<'a> {
 
         auto_size_double_clicked_columns(ui, state_id, &mut columns);
 
-        let (is_sizing_pass, state) =
-            TableState::load(ui, state_id, resizable, &columns, available_width);
+        let (is_sizing_pass, state) = TableState::load(ui, state_id, &columns, available_width);
 
         let max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
@@ -595,6 +595,7 @@ impl<'a> TableBuilder<'a> {
             ui: table_ui,
             inset,
             outside,
+            has_header: false,
             table_top,
             state_id,
             columns,
@@ -602,7 +603,6 @@ impl<'a> TableBuilder<'a> {
             state,
             max_used_widths,
             is_sizing_pass,
-            resizable,
             striped,
             cell_layout,
             scroll_options,
@@ -620,12 +620,7 @@ fn new_table_ui(parent: &mut Ui, edge_margin: Vec2b) -> (Ui, Vec2, Margin) {
     let table_style = parent.visuals().table;
     let inset = Vec2::splat(table_style.outer_stroke.width);
     let cell_margin = table_style.cell_margin;
-    let outside = Margin {
-        left: if edge_margin.x { 0 } else { cell_margin.left },
-        right: if edge_margin.x { 0 } else { cell_margin.right },
-        top: if edge_margin.y { 0 } else { cell_margin.top },
-        bottom: if edge_margin.y { 0 } else { cell_margin.bottom },
-    };
+    let outside = egui::style::TableStyle::outside_margin(cell_margin, edge_margin);
     let table_ui = parent.new_child(
         egui::UiBuilder::new()
             .scope_id(parent.scope_id())
@@ -694,13 +689,7 @@ struct TableState {
 
 impl TableState {
     /// Return true if we should do a sizing pass.
-    fn load(
-        ui: &Ui,
-        state_id: egui::Id,
-        resizable: bool,
-        columns: &[Column],
-        available_width: f32,
-    ) -> (bool, Self) {
+    fn load(ui: &Ui, state_id: egui::Id, columns: &[Column], available_width: f32) -> (bool, Self) {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
@@ -733,7 +722,8 @@ impl TableState {
             {
                 use crate::Size;
 
-                let column_resizable = column.resizable.unwrap_or(resizable);
+                // `resolve_resizable` has set all of them:
+                let column_resizable = column.resizable == Some(true);
                 let size = if column_resizable {
                     // Resiable columns keep their width:
                     Size::exact(*prev_width)
@@ -792,6 +782,8 @@ pub struct Table<'a> {
     /// from [`TableBuilder::edge_margin`].
     outside: Margin,
 
+    has_header: bool,
+
     table_top: f32,
     state_id: egui::Id,
     columns: Vec<Column>,
@@ -803,7 +795,6 @@ pub struct Table<'a> {
 
     /// During the sizing pass we calculate the width of columns with [`Column::auto`].
     is_sizing_pass: bool,
-    resizable: bool,
     striped: bool,
     cell_layout: egui::Layout,
 
@@ -832,7 +823,6 @@ impl Table<'_> {
             table_top,
             state_id,
             columns,
-            resizable,
             mut available_width,
             mut state,
             mut max_used_widths,
@@ -842,6 +832,7 @@ impl Table<'_> {
             scroll_options,
             sense,
             outside,
+            has_header,
         } = self;
         let ui = &mut table_ui;
 
@@ -899,6 +890,7 @@ impl Table<'_> {
 
                 add_body_contents(TableBody {
                     layout,
+                    has_header,
                     columns: columns_ref,
                     widths: widths_ref,
                     max_used_widths: max_used_widths_ref,
@@ -941,12 +933,13 @@ impl Table<'_> {
             cursor_position.x..=cursor_position.x + table_width,
             table_top..=body_bottom.at_most(visible_body.bottom()),
         );
-        StripLayout::paint_table_outline(ui, table_rect);
+        // Around the space the table takes up, inside the margins that stick out:
+        StripLayout::paint_table_outline(ui, table_rect - outside);
 
         let mut x = cursor_position.x;
         for (i, column_width) in state.column_widths.iter_mut().enumerate() {
             let column = &columns[i];
-            let column_is_resizable = column.resizable.unwrap_or(resizable);
+            let column_is_resizable = column.resizable == Some(true);
             let width_range = column.width_range;
 
             let is_last_column = i + 1 == columns.len();
@@ -1033,7 +1026,7 @@ impl Table<'_> {
                         resize_hover,
                         resize_response.is_pointer_button_down_on(),
                     ),
-                    ui.visuals().table.resize_stroke,
+                    ui.visuals().table_resize_stroke(),
                 );
 
                 ui.painter().line_segment([p0, p1], stroke);
@@ -1058,6 +1051,8 @@ impl Table<'_> {
 /// Is created by calling `body` on a [`Table`] (after adding a header row) or [`TableBuilder`] (without a header row).
 pub struct TableBody<'a> {
     layout: StripLayout<'a>,
+
+    has_header: bool,
 
     columns: &'a [Column],
 
@@ -1130,6 +1125,8 @@ impl<'a> TableBody<'a> {
             row_index: self.row_index,
             col_index: 0,
             is_header: false,
+            top_row: !self.has_header && self.row_index == 0,
+            bottom_row: false,
             height,
             striped: self.striped && self.row_index.is_multiple_of(2),
             hovered: self.hovered_row_index == Some(self.row_index),
@@ -1222,6 +1219,8 @@ impl<'a> TableBody<'a> {
                 row_index,
                 col_index: 0,
                 is_header: false,
+                top_row: !self.has_header && row_index == 0,
+                bottom_row: row_index + 1 == total_rows,
                 height: row_height_sans_spacing,
                 striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                 hovered: self.hovered_row_index == Some(row_index),
@@ -1276,7 +1275,7 @@ impl<'a> TableBody<'a> {
         // Every row but the first has a line on top:
         let row_spacing =
             |row_index: usize| margin_y + if row_index == 0 { 0.0 } else { line_width };
-        let mut enumerated_heights = heights.enumerate();
+        let mut enumerated_heights = heights.enumerate().peekable();
 
         let max_height = self.y_range.span();
         let scroll_offset_y = self.scroll_offset_y() as f64;
@@ -1286,7 +1285,7 @@ impl<'a> TableBody<'a> {
         let mut cursor_y: f64 = 0.0;
 
         // Skip the invisible rows, and populate the first non-virtual row.
-        for (row_index, row_height) in &mut enumerated_heights {
+        while let Some((row_index, row_height)) = enumerated_heights.next() {
             let old_cursor_y = cursor_y;
             cursor_y += (row_height + row_spacing(row_index)) as f64;
 
@@ -1309,6 +1308,8 @@ impl<'a> TableBody<'a> {
                     row_index,
                     col_index: 0,
                     is_header: false,
+                    top_row: !self.has_header && row_index == 0,
+                    bottom_row: enumerated_heights.peek().is_none(),
                     height: row_height,
                     striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                     hovered: self.hovered_row_index == Some(row_index),
@@ -1322,7 +1323,7 @@ impl<'a> TableBody<'a> {
         }
 
         // populate visible rows:
-        for (row_index, row_height) in &mut enumerated_heights {
+        while let Some((row_index, row_height)) = enumerated_heights.next() {
             let top_y = cursor_y;
             let mut response: Option<Response> = None;
             add_row_content(TableRow {
@@ -1333,6 +1334,8 @@ impl<'a> TableBody<'a> {
                 row_index,
                 col_index: 0,
                 is_header: false,
+                top_row: !self.has_header && row_index == 0,
+                bottom_row: enumerated_heights.peek().is_none(),
                 height: row_height,
                 striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                 hovered: self.hovered_row_index == Some(row_index),
@@ -1422,6 +1425,13 @@ pub struct TableRow<'a, 'b> {
     height: f32,
 
     is_header: bool,
+
+    /// The header, or the first row of the body if there is no header.
+    top_row: bool,
+
+    /// The last row of the body, if known.
+    bottom_row: bool,
+
     striped: bool,
     hovered: bool,
     selected: bool,
@@ -1466,6 +1476,8 @@ impl TableRow<'_, '_> {
             overline: self.overline,
             table_cell: Some(TableCellPosition {
                 header: self.is_header,
+                top_row: self.top_row,
+                bottom_row: self.bottom_row,
                 first_col: col_index == 0,
                 last_col: col_index + 1 == self.columns.len(),
                 lines: self.cell_lines(col_index),
