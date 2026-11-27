@@ -377,7 +377,7 @@ impl Grid {
             min_row_height: None,
             max_cell_size: Vec2::INFINITY,
             cell_margin: None,
-            edge_margin: Vec2b::new(false, true),
+            edge_margin: Vec2b::FALSE,
             start_row: 0,
             color_picker: None,
         }
@@ -461,7 +461,7 @@ impl Grid {
     /// If `false` on an axis, the outer margins of the edge cells stick out of the grid,
     /// so that the cell contents line up with the content around the grid.
     ///
-    /// Default: `[false, true]`, so that the columns line up with the content above and below.
+    /// Default: `false` on both axes, so that the grid lines up with the content around it.
     #[inline]
     pub fn edge_margin(mut self, edge_margin: impl Into<Vec2b>) -> Self {
         self.edge_margin = edge_margin.into();

@@ -59,8 +59,12 @@ fn grid_edge_margin() {
     let cells = egui::vec2(60.0, 10.0);
     let inner = egui::vec2(margin.x, 0.0); // Between the two columns
     let default = size(None);
-    assert_eq!(default, cells + egui::vec2(inner.x, margin.y));
-    assert_eq!(size(Some(egui::Vec2b::new(false, true))), default);
+    assert_eq!(default, cells + inner);
+    assert_eq!(size(Some(egui::Vec2b::FALSE)), default);
+    assert_eq!(
+        size(Some(egui::Vec2b::new(false, true))),
+        cells + egui::vec2(inner.x, margin.y)
+    );
     assert_eq!(size(Some(egui::Vec2b::TRUE)), cells + inner + margin);
     assert_eq!(size(Some(egui::Vec2b::FALSE)), cells + inner);
 }
