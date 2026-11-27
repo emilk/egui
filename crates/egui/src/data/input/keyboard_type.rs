@@ -62,7 +62,7 @@ impl FromStr for KeyboardType {
             unknown => {
                 debug!("Unknown inputmode {unknown}. Defaulting to 'text'.");
                 Self::Text
-            },
+            }
         })
     }
 }
