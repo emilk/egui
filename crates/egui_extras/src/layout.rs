@@ -29,20 +29,52 @@ pub(crate) enum CellDirection {
     Vertical,
 }
 
+/// The widths of the lines on the edges of a table cell.
+///
+/// The lines are inside the cell, outside its margin, so they take up space.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct CellLines {
+    /// [`egui::style::TableStyle::column_stroke`]
+    pub(crate) left: f32,
+
+    /// [`egui::style::TableStyle::row_stroke`]
+    pub(crate) top: f32,
+
+    /// [`egui::style::TableStyle::header_stroke`]
+    pub(crate) bottom: f32,
+}
+
+impl CellLines {
+    fn sum(self) -> Vec2 {
+        Vec2::new(self.left, self.top + self.bottom)
+    }
+
+    /// Shrink a cell rect to the part inside the lines.
+    fn inside(self, rect: Rect) -> Rect {
+        Rect::from_min_max(
+            rect.min + Vec2::new(self.left, self.top),
+            rect.max - Vec2::new(0.0, self.bottom),
+        )
+    }
+
+    /// Grow a rect inside the lines to the whole cell.
+    fn outside(self, rect: Rect) -> Rect {
+        Rect::from_min_max(
+            rect.min - Vec2::new(self.left, self.top),
+            rect.max + Vec2::new(0.0, self.bottom),
+        )
+    }
+}
+
 /// Where a cell is in a [`crate::Table`].
 ///
 /// Decides which lines of [`egui::style::TableStyle`] the cell paints.
 #[derive(Clone, Copy, Default)]
 pub(crate) struct TableCellPosition {
     pub(crate) header: bool,
-    pub(crate) first_row: bool,
     pub(crate) first_col: bool,
     pub(crate) last_col: bool,
-
-    /// Paint [`egui::style::TableStyle::column_stroke`] on the left edge?
-    ///
-    /// Not for the first column, nor after a resizable column, which has a resize line there.
-    pub(crate) column_line: bool,
+    pub(crate) lines: CellLines,
 }
 
 /// Flags used by [`StripLayout::add`].
@@ -117,9 +149,9 @@ impl<'l> StripLayout<'l> {
         }
     }
 
-    /// The rect of the next cell, including [`Self::cell_margin`].
-    fn cell_rect(&self, width: &CellSize, height: &CellSize) -> Rect {
-        let margin = self.cell_margin.sum();
+    /// The rect of the next cell, including [`Self::cell_margin`] and `lines`.
+    fn cell_rect(&self, width: &CellSize, height: &CellSize, lines: CellLines) -> Rect {
+        let margin = self.cell_margin.sum() + lines.sum();
         Rect {
             min: self.cursor,
             max: Pos2 {
@@ -150,7 +182,7 @@ impl<'l> StripLayout<'l> {
     }
 
     pub(crate) fn empty(&mut self, width: CellSize, height: CellSize) {
-        self.set_pos(self.cell_rect(&width, &height));
+        self.set_pos(self.cell_rect(&width, &height, CellLines::default()));
     }
 
     /// This is the innermost part of [`crate::Table`] and [`crate::Strip`].
@@ -164,7 +196,10 @@ impl<'l> StripLayout<'l> {
         child_ui_id_salt: IdSalt,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
-        let max_rect = self.cell_rect(&width, &height);
+        let lines = flags
+            .table_cell
+            .map_or_else(CellLines::default, |cell| cell.lines);
+        let max_rect = self.cell_rect(&width, &height, lines);
         let table_style = self.ui.visuals().table;
 
         // Make sure we don't have a gap in the stripe/frame/selection background:
@@ -208,25 +243,24 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        if let Some(cell) = flags.table_cell {
-            self.paint_table_lines(cell, gapless_rect);
-        }
+        self.paint_table_lines(lines, gapless_rect);
         let cell_margin = self.cell_margin;
 
+        let content_rect = lines.inside(max_rect) - cell_margin;
         let mut child_ui = self.cell(
             flags,
             max_rect,
-            cell_margin,
+            content_rect,
             child_ui_id_salt,
             add_cell_contents,
         );
 
         let used_rect = child_ui.min_rect();
-        let used_rect_with_margin = used_rect + cell_margin;
+        let used_rect_with_margin = lines.outside(used_rect + cell_margin);
 
         // Make sure we catch clicks etc on the _whole_ cell, including its margin:
         child_ui.set_min_size(child_ui.max_rect().size());
-        if cell_margin != Margin::ZERO {
+        if content_rect != max_rect {
             child_ui.expand_to_include_rect(max_rect);
         }
 
@@ -252,38 +286,33 @@ impl<'l> StripLayout<'l> {
         (used_rect, response)
     }
 
-    /// Paint the lines of [`egui::style::TableStyle`] on the edges of a table cell.
-    ///
-    /// Each cell paints the lines on its top and left edges,
-    /// so that the fill of the next cell does not cover them.
-    fn paint_table_lines(&self, cell: TableCellPosition, gapless_rect: Rect) {
+    /// Paint the lines of [`egui::style::TableStyle`] on the edges of a table cell,
+    /// inside the cell.
+    fn paint_table_lines(&self, lines: CellLines, rect: Rect) {
         let table_style = &self.ui.visuals().table;
         let painter = self.ui.painter();
 
-        if !cell.header && !cell.first_row {
-            let y = painter.round_to_pixel_center(gapless_rect.top());
-            painter.hline(gapless_rect.x_range(), y, table_style.row_stroke);
+        if 0.0 < lines.top {
+            let y = rect.top() + 0.5 * lines.top;
+            painter.hline(rect.x_range(), y, table_style.row_stroke);
         }
-
-        if cell.column_line {
-            let x = painter.round_to_pixel_center(gapless_rect.left());
-            painter.vline(x, gapless_rect.y_range(), table_style.column_stroke);
+        if 0.0 < lines.bottom {
+            let y = rect.bottom() - 0.5 * lines.bottom;
+            painter.hline(rect.x_range(), y, table_style.header_stroke);
+        }
+        if 0.0 < lines.left {
+            let x = rect.left() + 0.5 * lines.left;
+            painter.vline(x, rect.y_range(), table_style.column_stroke);
         }
     }
 
-    /// Paint [`egui::style::TableStyle::outer_stroke`] around the table,
-    /// and [`egui::style::TableStyle::header_stroke`] under the header.
+    /// Paint [`egui::style::TableStyle::outer_stroke`] around the table.
     ///
-    /// Painted after the body, so that the body fills do not cover them.
-    pub(crate) fn paint_table_outline(ui: &Ui, table_rect: Rect, body_top: Option<f32>) {
+    /// Painted after the body, so that the body fills do not cover it.
+    pub(crate) fn paint_table_outline(ui: &Ui, table_rect: Rect) {
         let table_style = &ui.visuals().table;
         let painter = ui.painter();
         let rect = table_rect.round_ui();
-
-        if let Some(body_top) = body_top {
-            let y = painter.round_to_pixel_center(body_top);
-            painter.hline(rect.x_range(), y, table_style.header_stroke);
-        }
 
         // Outside the cells, so that the lines between them stop at the outline:
         painter.rect_stroke(
@@ -321,7 +350,7 @@ impl<'l> StripLayout<'l> {
         &mut self,
         flags: StripLayoutFlags,
         max_rect: Rect,
-        cell_margin: Margin,
+        content_rect: Rect,
         child_ui_id_salt: IdSalt,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
@@ -329,7 +358,7 @@ impl<'l> StripLayout<'l> {
         let mut ui_builder = UiBuilder::new()
             .scope_id(child_ui_id)
             .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::TableCell))
-            .max_rect(max_rect - cell_margin)
+            .max_rect(content_rect)
             .layout(self.cell_layout)
             .sense(self.sense);
         if flags.sizing_pass {

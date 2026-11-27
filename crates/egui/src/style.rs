@@ -1219,12 +1219,19 @@ pub struct TableStyle {
     pub corner_radius: CornerRadius,
 
     /// Line between the header row and the body.
+    ///
+    /// Like all the lines of a table, its width takes up space:
+    /// it is inside the cells, and the cell contents don't overlap it.
     pub header_stroke: Stroke,
 
     /// Lines between the rows of the body.
+    ///
+    /// The width takes up space, like [`Self::header_stroke`].
     pub row_stroke: Stroke,
 
     /// Lines between the columns.
+    ///
+    /// The width takes up space, like [`Self::header_stroke`].
     ///
     /// If the column is resizable, this is ignored and [`Self::resize_stroke`] is used instead.
     pub column_stroke: Stroke,
