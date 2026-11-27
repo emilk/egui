@@ -56,6 +56,8 @@ pub enum WgpuError {
     #[error(transparent)]
     RequestDeviceError(#[from] wgpu::RequestDeviceError),
 
+    #[error("Adapter initialization failed: {0}")]
+    AdapterInitializationError(String),
     #[error(transparent)]
     CreateSurfaceError(#[from] wgpu::CreateSurfaceError),
 
@@ -222,31 +224,109 @@ impl RenderState {
                 native_adapter_selector: _native_adapter_selector,
                 device_descriptor,
             }) => {
-                let adapter = {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        request_adapter(instance, power_preference, compatible_surface, &[]).await
-                    }
-                    #[cfg(not(target_arch = "wasm32"))]
+                #[cfg(target_arch = "wasm32")]
+                let (adapter, device, queue) = {
+                    let adapter =
+                        request_adapter(instance, power_preference, compatible_surface, &[])
+                            .await?;
+                    log_adapter_info(&adapter.get_info());
+                    let (device, queue) = {
+                        profiling::scope!("request_device");
+                        adapter
+                            .request_device(&(*device_descriptor)(&adapter))
+                            .await?
+                    };
+                    (adapter, device, queue)
+                };
+
+                #[cfg(not(target_arch = "wasm32"))]
+                let (adapter, device, queue) = {
+                    let mut candidates = Vec::new();
+                    let mut adapter_request_error = None;
+                    let has_custom_selector = _native_adapter_selector.is_some();
+
                     if let Some(native_adapter_selector) = _native_adapter_selector {
-                        native_adapter_selector(&available_adapters, compatible_surface)
-                            .map_err(WgpuError::CustomNativeAdapterSelectionError)
+                        candidates.push(
+                            native_adapter_selector(&available_adapters, compatible_surface)
+                                .map_err(WgpuError::CustomNativeAdapterSelectionError)?,
+                        );
                     } else {
-                        request_adapter(
+                        match request_adapter(
                             instance,
                             power_preference,
                             compatible_surface,
                             &available_adapters,
                         )
                         .await
+                        {
+                            Ok(adapter) => candidates.push(adapter),
+                            Err(error) => {
+                                log::warn!("Preferred wgpu adapter request failed: {error}");
+                                adapter_request_error = Some(error);
+                            }
+                        }
                     }
-                }?;
 
-                let (device, queue) = {
-                    profiling::scope!("request_device");
-                    adapter
-                        .request_device(&(*device_descriptor)(&adapter))
-                        .await?
+                    if !has_custom_selector {
+                        for candidate in &available_adapters {
+                            let surface_compatible = compatible_surface
+                                .is_none_or(|surface| candidate.is_surface_supported(surface));
+                            if surface_compatible && !candidates.contains(candidate) {
+                                candidates.push(candidate.clone());
+                            }
+                        }
+                    }
+
+                    let mut failures = Vec::new();
+                    let mut initialized = None;
+                    for (index, candidate) in candidates.into_iter().enumerate() {
+                        let info = candidate.get_info();
+                        log::info!(
+                            "Trying wgpu adapter {}: {}",
+                            index + 1,
+                            adapter_info_summary(&info)
+                        );
+
+                        let result = {
+                            profiling::scope!("request_device");
+                            candidate
+                                .request_device(&(*device_descriptor)(&candidate))
+                                .await
+                        };
+                        match result {
+                            Ok((device, queue)) => {
+                                log::info!(
+                                    "Initialized wgpu adapter: {}",
+                                    adapter_info_summary(&info)
+                                );
+                                initialized = Some((candidate, device, queue));
+                                break;
+                            }
+                            Err(error) => {
+                                let summary = adapter_info_summary(&info);
+                                log::warn!(
+                                    "Failed to create device for wgpu adapter {summary}: {error}"
+                                );
+                                failures.push(format!("{summary}: {error}"));
+                            }
+                        }
+                    }
+
+                    if let Some(initialized) = initialized {
+                        initialized
+                    } else if !failures.is_empty() {
+                        if let Some(error) = adapter_request_error {
+                            failures
+                                .insert(0, format!("Preferred adapter request failed: {error}"));
+                        }
+                        Err(WgpuError::AdapterInitializationError(failures.join("; ")))?
+                    } else if let Some(error) = adapter_request_error {
+                        return Err(error);
+                    } else {
+                        return Err(WgpuError::AdapterInitializationError(
+                            "No surface-compatible adapters were available".to_owned(),
+                        ));
+                    }
                 };
 
                 (instance.clone(), adapter, device, queue)
