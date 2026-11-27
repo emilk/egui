@@ -258,11 +258,12 @@ impl<'l> StripLayout<'l> {
             painter.hline(rect.x_range(), y, table_style.header_stroke);
         }
 
+        // Outside the cells, so that the lines between them stop at the outline:
         painter.rect_stroke(
             rect,
             table_style.corner_radius,
             table_style.outer_stroke,
-            StrokeKind::Middle,
+            StrokeKind::Outside,
         );
     }
 
