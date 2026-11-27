@@ -20,7 +20,7 @@ fn rotated_rect() {
         let cell_rect = Rect::from_center_size(cell_center, rect_size);
 
         Grid::new("rotated_rect_grid")
-            .spacing(Vec2::new(30.0, 30.0))
+            .cell_margin(egui::Margin::same(15))
             .show(ui, |ui| {
                 for (label, angle, pivot) in [
                     ("0°", 0.0, None),
@@ -69,7 +69,7 @@ fn rotated_ellipse() {
         let radius = rect_size * 0.5;
 
         Grid::new("rotated_ellipse_grid")
-            .spacing(Vec2::new(30.0, 30.0))
+            .cell_margin(egui::Margin::same(15))
             .show(ui, |ui| {
                 for (label, angle, pivot) in [
                     ("0°", 0.0, None),

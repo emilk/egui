@@ -181,7 +181,10 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
                 .default_open(false)
                 .show(ui, |ui| {
                     egui::Grid::new("response_headers")
-                        .spacing(egui::vec2(ui.spacing().item_spacing.x * 2.0, 0.0))
+                        .cell_margin(egui::Margin::symmetric(
+                            ui.spacing().item_spacing.x as i8,
+                            0,
+                        ))
                         .show(ui, |ui| {
                             for (k, v) in &response.headers {
                                 ui.label(k);

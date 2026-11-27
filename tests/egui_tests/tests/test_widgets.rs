@@ -255,7 +255,7 @@ fn test_widget_layout(
                     TextWrapMode::Wrap,
                 ];
                 Grid::new("wrapping")
-                    .spacing(Vec2::new(test_size.x * 0.5, 4.0))
+                    .cell_margin(egui::Margin::from(Vec2::new(test_size.x * 0.25, 2.0)))
                     .show(ui, |ui| {
                         for mode in &modes {
                             ui.label(format!("{mode:?}"));
