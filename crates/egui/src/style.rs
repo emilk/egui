@@ -1215,6 +1215,9 @@ pub struct TableStyle {
     #[doc(alias = "border")]
     pub outer_stroke: Stroke,
 
+    /// Corner radius of [`Self::outer_stroke`].
+    pub corner_radius: CornerRadius,
+
     /// Line between the header row and the body.
     pub header_stroke: Stroke,
 
@@ -1225,9 +1228,6 @@ pub struct TableStyle {
     ///
     /// If the column is resizable, this is ignored and [`Self::resize_stroke`] is used instead.
     pub column_stroke: Stroke,
-
-    /// Corner radius of [`Self::outer_stroke`].
-    pub corner_radius: CornerRadius,
 
     /// Space between the edge of a cell and its contents.
     pub cell_margin: Margin,
@@ -1254,10 +1254,10 @@ impl TableStyle {
             hovered_row_fill: widgets.hovered.bg_fill,
             selected_row_fill: selection.bg_fill,
             outer_stroke: Stroke::NONE,
+            corner_radius: CornerRadius::ZERO,
             header_stroke: Stroke::NONE,
             row_stroke: Stroke::NONE,
             column_stroke: Stroke::NONE,
-            corner_radius: CornerRadius::ZERO,
             cell_margin: Margin::ZERO,
             resize_stroke: widgets.noninteractive.bg_stroke,
         }
@@ -3038,10 +3038,10 @@ impl TableStyle {
             hovered_row_fill,
             selected_row_fill,
             outer_stroke,
+            corner_radius,
             header_stroke,
             row_stroke,
             column_stroke,
-            corner_radius,
             cell_margin,
             resize_stroke,
         } = self;
@@ -3073,6 +3073,10 @@ impl TableStyle {
                 ui.add(outer_stroke);
                 ui.end_row();
 
+                ui.label("Corner radius");
+                ui.add(corner_radius);
+                ui.end_row();
+
                 ui.label("Header stroke");
                 ui.add(header_stroke);
                 ui.end_row();
@@ -3083,10 +3087,6 @@ impl TableStyle {
 
                 ui.label("Column stroke");
                 ui.add(column_stroke);
-                ui.end_row();
-
-                ui.label("Corner radius");
-                ui.add(corner_radius);
                 ui.end_row();
 
                 ui.label("Cell margin");
