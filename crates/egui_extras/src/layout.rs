@@ -1,5 +1,6 @@
 use egui::{
-    IdSalt, Margin, Pos2, Rect, Response, Sense, StrokeKind, Ui, UiBuilder, emath::GuiRounding as _,
+    IdSalt, Margin, Pos2, Rect, Response, Sense, StrokeKind, Ui, UiBuilder, Vec2,
+    emath::GuiRounding as _,
 };
 
 #[derive(Clone, Copy)]
@@ -73,6 +74,12 @@ pub struct StripLayout<'l> {
 
     cell_layout: egui::Layout,
     sense: Sense,
+
+    /// Space between cells. Zero in tables, which use [`Self::cell_margin`] instead.
+    spacing: Vec2,
+
+    /// Space inside each cell, around its contents. Only used in tables.
+    cell_margin: Margin,
 }
 
 impl<'l> StripLayout<'l> {
@@ -84,6 +91,7 @@ impl<'l> StripLayout<'l> {
     ) -> Self {
         let rect = ui.available_rect_before_wrap();
         let pos = rect.left_top();
+        let spacing = ui.spacing().item_spacing;
 
         Self {
             ui,
@@ -93,19 +101,34 @@ impl<'l> StripLayout<'l> {
             max: pos,
             cell_layout,
             sense,
+            spacing,
+            cell_margin: Margin::ZERO,
         }
     }
 
+    /// A row of a [`crate::Table`]: the cells touch,
+    /// and [`egui::style::TableStyle::cell_margin`] is added around the size of each cell.
+    pub(crate) fn new_table_row(ui: &'l mut Ui, cell_layout: egui::Layout, sense: Sense) -> Self {
+        let cell_margin = ui.visuals().table.cell_margin;
+        Self {
+            spacing: Vec2::ZERO,
+            cell_margin,
+            ..Self::new(ui, CellDirection::Horizontal, cell_layout, sense)
+        }
+    }
+
+    /// The rect of the next cell, including [`Self::cell_margin`].
     fn cell_rect(&self, width: &CellSize, height: &CellSize) -> Rect {
+        let margin = self.cell_margin.sum();
         Rect {
             min: self.cursor,
             max: Pos2 {
                 x: match width {
-                    CellSize::Absolute(width) => self.cursor.x + width,
+                    CellSize::Absolute(width) => self.cursor.x + width + margin.x,
                     CellSize::Remainder => self.rect.right(),
                 },
                 y: match height {
-                    CellSize::Absolute(height) => self.cursor.y + height,
+                    CellSize::Absolute(height) => self.cursor.y + height + margin.y,
                     CellSize::Remainder => self.rect.bottom(),
                 },
             },
@@ -118,10 +141,10 @@ impl<'l> StripLayout<'l> {
 
         match self.direction {
             CellDirection::Horizontal => {
-                self.cursor.x = rect.right() + self.ui.spacing().item_spacing.x;
+                self.cursor.x = rect.right() + self.spacing.x;
             }
             CellDirection::Vertical => {
-                self.cursor.y = rect.bottom() + self.ui.spacing().item_spacing.y;
+                self.cursor.y = rect.bottom() + self.spacing.y;
             }
         }
     }
@@ -145,8 +168,7 @@ impl<'l> StripLayout<'l> {
         let table_style = self.ui.visuals().table;
 
         // Make sure we don't have a gap in the stripe/frame/selection background:
-        let item_spacing = self.ui.spacing().item_spacing;
-        let gapless_rect = max_rect.expand2(0.5 * item_spacing).round_ui();
+        let gapless_rect = max_rect.expand2(0.5 * self.spacing).round_ui();
 
         if let Some(cell) = flags.table_cell.filter(|cell| cell.header) {
             // Round the top corners of the table, inside the outline:
@@ -186,12 +208,10 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        let cell_margin = if let Some(cell) = flags.table_cell {
+        if let Some(cell) = flags.table_cell {
             self.paint_table_lines(cell, gapless_rect);
-            table_style.cell_margin
-        } else {
-            Margin::ZERO
-        };
+        }
+        let cell_margin = self.cell_margin;
 
         let mut child_ui = self.cell(
             flags,
@@ -201,7 +221,8 @@ impl<'l> StripLayout<'l> {
             add_cell_contents,
         );
 
-        let used_rect = child_ui.min_rect() + cell_margin;
+        let used_rect = child_ui.min_rect();
+        let used_rect_with_margin = used_rect + cell_margin;
 
         // Make sure we catch clicks etc on the _whole_ cell, including its margin:
         child_ui.set_min_size(child_ui.max_rect().size());
@@ -212,14 +233,14 @@ impl<'l> StripLayout<'l> {
         let allocation_rect = if self.ui.is_sizing_pass() {
             if flags.clip {
                 // Clipped content must not increase the parent's measured minimum size.
-                used_rect.intersect(max_rect)
+                used_rect_with_margin.intersect(max_rect)
             } else {
-                used_rect
+                used_rect_with_margin
             }
         } else if flags.clip {
             max_rect
         } else {
-            max_rect | used_rect
+            max_rect | used_rect_with_margin
         };
 
         self.set_pos(allocation_rect);
@@ -257,12 +278,10 @@ impl<'l> StripLayout<'l> {
     pub(crate) fn paint_table_outline(ui: &Ui, table_rect: Rect, body_top: Option<f32>) {
         let table_style = &ui.visuals().table;
         let painter = ui.painter();
-        let rect = table_rect
-            .expand2(0.5 * ui.spacing().item_spacing)
-            .round_ui();
+        let rect = table_rect.round_ui();
 
         if let Some(body_top) = body_top {
-            let y = painter.round_to_pixel_center(body_top - 0.5 * ui.spacing().item_spacing.y);
+            let y = painter.round_to_pixel_center(body_top);
             painter.hline(rect.x_range(), y, table_style.header_stroke);
         }
 
@@ -279,11 +298,11 @@ impl<'l> StripLayout<'l> {
     pub fn end_line(&mut self) {
         match self.direction {
             CellDirection::Horizontal => {
-                self.cursor.y = self.max.y + self.ui.spacing().item_spacing.y;
+                self.cursor.y = self.max.y + self.spacing.y;
                 self.cursor.x = self.rect.left();
             }
             CellDirection::Vertical => {
-                self.cursor.x = self.max.x + self.ui.spacing().item_spacing.x;
+                self.cursor.x = self.max.x + self.spacing.x;
                 self.cursor.y = self.rect.top();
             }
         }

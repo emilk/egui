@@ -1186,7 +1186,7 @@ impl Default for TextCursorStyle {
 /// How tables look, e.g. [`crate::Grid`] and `egui_extras::Table`.
 ///
 /// `egui_extras::Table` uses all fields.
-/// [`crate::Grid`] only uses [`Self::striped`] and [`Self::stripe_fill`].
+/// [`crate::Grid`] only uses [`Self::striped`], [`Self::stripe_fill`], and [`Self::cell_margin`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -1230,6 +1230,9 @@ pub struct TableStyle {
     pub column_stroke: Stroke,
 
     /// Space between the edge of a cell and its contents.
+    ///
+    /// Tables and grids put no other space between their cells,
+    /// so this is also the space between the contents of neighboring cells.
     pub cell_margin: Margin,
 
     /// Line that shows where a resizable column can be dragged, when not hovered or dragged.
@@ -1258,7 +1261,13 @@ impl TableStyle {
             header_stroke: Stroke::NONE,
             row_stroke: Stroke::NONE,
             column_stroke: Stroke::NONE,
-            cell_margin: Margin::ZERO,
+            // Same total as the default `Spacing::item_spacing` of (8, 3), which tables used before:
+            cell_margin: Margin {
+                left: 4,
+                right: 4,
+                top: 1,
+                bottom: 2,
+            },
             resize_stroke: widgets.noninteractive.bg_stroke,
         }
     }
@@ -2365,7 +2374,7 @@ impl Spacing {
 
         Grid::new("spacing")
             .num_columns(2)
-            .spacing([12.0, 8.0])
+            .cell_margin(crate::Margin::symmetric(6, 4))
             .striped(true)
             .show(ui, |ui| {
                 ui.label("Item spacing");
@@ -2689,7 +2698,7 @@ impl WidgetVisuals {
 
         Grid::new("widget")
             .num_columns(2)
-            .spacing([12.0, 8.0])
+            .cell_margin(crate::Margin::symmetric(6, 4))
             .striped(true)
             .show(ui, |ui| {
                 ui.label("Optional background fill")
@@ -2893,7 +2902,7 @@ impl Visuals {
         ui.collapsing("Window", |ui| {
             Grid::new("window")
                 .num_columns(2)
-                .spacing([12.0, 8.0])
+                .cell_margin(crate::Margin::symmetric(6, 4))
                 .striped(true)
                 .show(ui, |ui| {
                     ui.label("Fill");
@@ -2919,7 +2928,7 @@ impl Visuals {
         ui.collapsing("Menus and popups", |ui| {
             Grid::new("menus_and_popups")
                 .num_columns(2)
-                .spacing([12.0, 8.0])
+                .cell_margin(crate::Margin::symmetric(6, 4))
                 .striped(true)
                 .show(ui, |ui| {
                     ui.label("Corner radius");
@@ -3050,7 +3059,7 @@ impl TableStyle {
 
         Grid::new("table_style")
             .num_columns(2)
-            .spacing([12.0, 8.0])
+            .cell_margin(crate::Margin::symmetric(6, 4))
             .striped(true)
             .show(ui, |ui| {
                 ui.label("Stripe fill");
@@ -3506,7 +3515,7 @@ impl Widget for &mut crate::Frame {
 
         crate::Grid::new("frame")
             .num_columns(2)
-            .spacing([12.0, 8.0])
+            .cell_margin(crate::Margin::symmetric(6, 4))
             .striped(true)
             .show(ui, |ui| {
                 ui.label("Inner margin");

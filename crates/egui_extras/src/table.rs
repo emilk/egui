@@ -10,7 +10,7 @@ use egui::{
 
 use crate::{
     StripLayout,
-    layout::{CellDirection, CellSize, StripLayoutFlags, TableCellPosition},
+    layout::{CellSize, StripLayoutFlags, TableCellPosition},
 };
 
 // -----------------------------------------------------------------=----------
@@ -493,7 +493,7 @@ impl<'a> TableBuilder<'a> {
             ui_builder = ui_builder.sizing_pass();
         }
         ui.scope_builder(ui_builder, |ui| {
-            let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
+            let mut layout = StripLayout::new_table_row(ui, cell_layout, sense);
             let mut response: Option<Response> = None;
             add_header_row(TableRow {
                 layout: &mut layout,
@@ -593,12 +593,7 @@ impl<'a> TableBuilder<'a> {
 /// It is inset to make room for [`egui::style::TableStyle::outer_stroke`] outside the cells,
 /// and has the same [`Ui::scope_id`] as `parent`, so the table state keeps its id.
 fn new_table_ui(parent: &mut Ui) -> (Ui, Vec2) {
-    let border_width = parent.visuals().table.outer_stroke.width;
-    let inset = if 0.0 < border_width {
-        Vec2::splat(border_width) + 0.5 * parent.spacing().item_spacing
-    } else {
-        Vec2::ZERO
-    };
+    let inset = Vec2::splat(parent.visuals().table.outer_stroke.width);
     let table_ui = parent.new_child(
         egui::UiBuilder::new()
             .scope_id(parent.scope_id())
@@ -606,6 +601,17 @@ fn new_table_ui(parent: &mut Ui) -> (Ui, Vec2) {
             .layout(*parent.layout()),
     );
     (table_ui, inset)
+}
+
+/// The widths of the columns, not including their cell margins.
+fn column_widths(
+    ui: &Ui,
+    sizing: &crate::sizing::Sizing,
+    num_columns: usize,
+    available_width: f32,
+) -> Vec<f32> {
+    let margin_x = ui.visuals().table.cell_margin.sum().x;
+    sizing.to_lengths(available_width - margin_x * num_columns as f32, 0.0)
 }
 
 /// The width available to the columns.
@@ -658,7 +664,7 @@ impl TableState {
 
         let mut state = state.unwrap_or_else(|| {
             let initial_widths =
-                to_sizing(columns).to_lengths(available_width, ui.spacing().item_spacing.x);
+                column_widths(ui, &to_sizing(columns), columns.len(), available_width);
             Self {
                 column_widths: initial_widths,
                 max_used_widths: Default::default(),
@@ -694,7 +700,7 @@ impl TableState {
                 };
                 sizing.add(size);
             }
-            state.column_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
+            state.column_widths = column_widths(ui, &sizing, columns.len(), available_width);
         }
 
         (is_sizing_pass, state)
@@ -834,7 +840,7 @@ impl Table<'_> {
                 let hovered_row_index =
                     ui.data_mut(|data| data.remove_temp::<usize>(hovered_row_index_id));
 
-                let layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
+                let layout = StripLayout::new_table_row(ui, cell_layout, sense);
 
                 add_body_contents(TableBody {
                     layout,
@@ -866,10 +872,11 @@ impl Table<'_> {
 
         let bottom = ui.min_rect().bottom();
 
-        let spacing_x = ui.spacing().item_spacing.x;
+        // The column widths don't include the cell margins:
+        let margin_x = ui.visuals().table.cell_margin.sum().x;
 
-        let table_width = state.column_widths.iter().sum::<f32>()
-            + spacing_x * state.column_widths.len().saturating_sub(1) as f32;
+        let table_width =
+            state.column_widths.iter().sum::<f32>() + margin_x * state.column_widths.len() as f32;
         let visible_body = scroll_area_out.inner_rect;
         let body_bottom = visible_body.top() - scroll_area_out.state.clamped_offset().y
             + scroll_area_out.content_size.y;
@@ -879,7 +886,7 @@ impl Table<'_> {
         );
         StripLayout::paint_table_outline(ui, table_rect, has_header.then_some(cursor_position.y));
 
-        let mut x = cursor_position.x - spacing_x * 0.5;
+        let mut x = cursor_position.x;
         for (i, column_width) in state.column_widths.iter_mut().enumerate() {
             let column = &columns[i];
             let column_is_resizable = column.resizable.unwrap_or(resizable);
@@ -914,7 +921,7 @@ impl Table<'_> {
             }
             *column_width = width_range.clamp(*column_width);
 
-            x += *column_width + spacing_x;
+            x += *column_width + margin_x;
 
             if column.is_auto() && (is_sizing_pass || !column_is_resizable) {
                 *column_width = width_range.clamp(max_used_widths[i]);
@@ -975,7 +982,7 @@ impl Table<'_> {
                 ui.painter().line_segment([p0, p1], stroke);
             }
 
-            available_width -= *column_width + spacing_x;
+            available_width -= *column_width + margin_x;
         }
 
         state.max_used_widths = max_used_widths;
@@ -1110,8 +1117,8 @@ impl<'a> TableBody<'a> {
         total_rows: usize,
         mut add_row_content: impl FnMut(TableRow<'_, '_>),
     ) {
-        let spacing = self.layout.ui.spacing().item_spacing;
-        let row_height_with_spacing = row_height_sans_spacing + spacing.y;
+        let margin_y = self.layout.ui.visuals().table.cell_margin.sum().y;
+        let row_height_with_spacing = row_height_sans_spacing + margin_y;
 
         if let Some(scroll_to_row) = self.scroll_to_row {
             let scroll_to_row = scroll_to_row.at_most(total_rows.saturating_sub(1)) as f32;
@@ -1158,7 +1165,7 @@ impl<'a> TableBody<'a> {
 
         if total_rows - max_row > 0 {
             let skip_height = (total_rows - max_row) as f32 * row_height_with_spacing;
-            self.add_buffer(skip_height - spacing.y);
+            self.add_buffer(skip_height);
         }
     }
 
@@ -1195,7 +1202,7 @@ impl<'a> TableBody<'a> {
         heights: impl Iterator<Item = f32>,
         mut add_row_content: impl FnMut(TableRow<'_, '_>),
     ) {
-        let spacing = self.layout.ui.spacing().item_spacing;
+        let margin_y = self.layout.ui.visuals().table.cell_margin.sum().y;
         let mut enumerated_heights = heights.enumerate();
 
         let max_height = self.y_range.span();
@@ -1208,7 +1215,7 @@ impl<'a> TableBody<'a> {
         // Skip the invisible rows, and populate the first non-virtual row.
         for (row_index, row_height) in &mut enumerated_heights {
             let old_cursor_y = cursor_y;
-            cursor_y += (row_height + spacing.y) as f64;
+            cursor_y += (row_height + margin_y) as f64;
 
             if Some(row_index) == self.scroll_to_row {
                 *self.scroll_to_y_range = Some(Rangef::new(
@@ -1261,7 +1268,7 @@ impl<'a> TableBody<'a> {
                 response: &mut response,
             });
             self.capture_hover_state(response.as_ref(), row_index);
-            cursor_y += (row_height + spacing.y) as f64;
+            cursor_y += (row_height + margin_y) as f64;
 
             if Some(row_index) == self.scroll_to_row {
                 *self.scroll_to_y_range = Some(Rangef::new(
@@ -1278,10 +1285,10 @@ impl<'a> TableBody<'a> {
         // calculate height below the visible table range:
         let mut height_below_visible: f64 = 0.0;
         for (row_index, row_height) in enumerated_heights {
-            height_below_visible += (row_height + spacing.y) as f64;
+            height_below_visible += (row_height + margin_y) as f64;
 
             let top_y = cursor_y;
-            cursor_y += (row_height + spacing.y) as f64;
+            cursor_y += (row_height + margin_y) as f64;
             if Some(row_index) == self.scroll_to_row {
                 *self.scroll_to_y_range = Some(Rangef::new(
                     (scroll_to_y_range_offset + top_y) as f32,

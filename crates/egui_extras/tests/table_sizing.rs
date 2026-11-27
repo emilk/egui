@@ -24,7 +24,8 @@ fn clipped_table_sizing_pass() {
             measured_width = ui.min_size().x;
         });
         output.drop_without_applying_deltas();
-        assert_eq!(measured_width, if clip { 100.0 } else { 400.0 });
+        let margin_x = egui::style::TableStyle::default().cell_margin.sum().x;
+        assert_eq!(measured_width, margin_x + if clip { 100.0 } else { 400.0 });
     }
 }
 
@@ -51,12 +52,14 @@ fn window_with_clipped_table_can_shrink() {
                         .min_width(100.0)
                         .show(ui, |ui| {
                             content_width = ui.available_width();
+                            // The cell margin is added around the column width:
+                            let margin_x = ui.visuals().table.cell_margin.sum().x;
                             TableBuilder::new(ui)
                                 .cell_layout(Layout::left_to_right(Align::Center))
                                 .column(if remainder {
                                     Column::remainder().clip(clip)
                                 } else {
-                                    Column::exact(content_width).clip(clip)
+                                    Column::exact(content_width - margin_x).clip(clip)
                                 })
                                 .auto_shrink([false, false])
                                 .body(|mut body| {
