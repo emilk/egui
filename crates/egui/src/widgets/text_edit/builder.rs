@@ -876,6 +876,12 @@ impl<'t> TextEdit<'t> {
                 is_being_dragged,
             );
 
+            if did_interact && cursor_range.is_some() {
+                // The pointer moved the cursor after the key events were handled,
+                // so pick that up too (e.g. to report a selection made by dragging):
+                cursor_range = state.cursor.range(&galley);
+            }
+
             if did_interact || response.clicked() {
                 // A new press moves the caret, so it ends any composition even when this
                 // widget already has focus. The frames of a drag that follows must not:
