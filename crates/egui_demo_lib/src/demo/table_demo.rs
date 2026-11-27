@@ -29,7 +29,7 @@ impl Default for TableDemo {
         Self {
             demo: DemoType::Manual,
             striped: true,
-            overline: true,
+            overline: false,
             resizable: true,
             clickable: true,
             num_rows: 10_000,
