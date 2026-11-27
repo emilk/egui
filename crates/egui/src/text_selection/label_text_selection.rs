@@ -710,16 +710,27 @@ impl ViewportLabelSelectionState {
             }
         }
 
+        let mut paged = false;
+
         if let Some(mut cursor_range) = cursor_state.range(galley) {
             let galley_rect = global_from_galley * Rect::from_min_size(Pos2::ZERO, galley.size());
             self.selection_bbox_this_frame |= galley_rect;
 
             if let Some(selection) = &self.selection
                 && selection.primary.widget_id == response.id
-                && process_selection_key_events(ui.ctx(), galley, response.id, &mut cursor_range)
             {
-                // The keyboard changed the selection, so forget any double- or triple-clicked word/line:
-                self.granular_drag = None;
+                let key_events = process_selection_key_events(
+                    ui.ctx(),
+                    galley,
+                    response.id,
+                    &mut cursor_range,
+                    ui.clip_rect().height(),
+                );
+                if key_events.changed {
+                    // The keyboard changed the selection, so forget any double- or triple-clicked word/line:
+                    self.granular_drag = None;
+                }
+                paged = key_events.paged;
             }
 
             if got_copy_event(ui.ctx()) || self.report_selection {
@@ -795,7 +806,12 @@ impl ViewportLabelSelectionState {
                         let row_height = estimate_row_height(galley);
                         let primary_cursor_rect =
                             global_from_galley * cursor_rect(galley, &range.primary, row_height);
-                        ui.scroll_to_rect(primary_cursor_rect, None);
+                        let paged_from = old_primary
+                            .filter(|old| paged && old.widget_id == widget_id)
+                            .map(|old| {
+                                global_from_galley * cursor_rect(galley, &old.ccursor, row_height)
+                            });
+                        super::scroll_to_cursor(ui, primary_cursor_rect, paged_from);
                     }
                 }
             }
@@ -834,26 +850,43 @@ fn got_copy_event(ctx: &Context) -> bool {
     })
 }
 
-/// Returns true if the cursor changed
+struct KeyEventsResult {
+    changed: bool,
+    paged: bool, // moved by `PageUp`/`PageDown`
+}
+
 fn process_selection_key_events(
     ctx: &Context,
     galley: &Galley,
     widget_id: Id,
     cursor_range: &mut CCursorRange,
-) -> bool {
+    page_height: f32,
+) -> KeyEventsResult {
     let os = ctx.os();
 
-    let mut changed = false;
+    let mut result = KeyEventsResult {
+        changed: false,
+        paged: false,
+    };
 
     ctx.input(|i| {
         // NOTE: we have a lock on ui/ctx here,
         // so be careful to not call into `ui` or `ctx` again.
         for event in &i.events {
-            changed |= cursor_range.on_event(os, event, galley, widget_id);
+            if cursor_range.on_event(os, event, galley, widget_id, page_height) {
+                result.changed = true;
+                if let Event::Key {
+                    key: crate::Key::PageUp | crate::Key::PageDown,
+                    ..
+                } = event
+                {
+                    result.paged = true;
+                }
+            }
         }
     });
 
-    changed
+    result
 }
 
 fn selected_text(galley: &Galley, cursor_range: &CCursorRange) -> String {
