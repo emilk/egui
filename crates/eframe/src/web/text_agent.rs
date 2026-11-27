@@ -388,18 +388,6 @@ impl InputState {
     }
 
     fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
-
-
-        if self
-        .ime_output
-        .as_ref()
-        .is_some_and(|ime| ime.purpose == egui::IMEPurpose::Password)
-        {
-
-            self.handle_input_event_password(event, runner);
-            return;
-        }
-
         let input_type = event.input_type();
         debug!("Key InputState::handle_input_event: is_composing: {}. InputType Event: {input_type}" ,event.is_composing());
 
@@ -455,9 +443,9 @@ impl InputState {
         runner.needs_repaint.repaint_asap();
     }
 
+    // Don't need to use this, we've already got better handling elsewhere
     fn handle_input_event_password(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
         let input_type = event.input_type();
-
         if input_type != "insertText" {
             return;
         }
