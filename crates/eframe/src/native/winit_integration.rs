@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use winit::{
-    event_loop::ActiveEventLoop,
+    event_loop::{ActiveEventLoop, EventLoopProxy},
     window::{Window, WindowId},
 };
 
@@ -97,6 +97,17 @@ pub enum UserEvent {
         cumulative_pass_nr: u64,
     },
 
+    /// Run a callback on the UI thread, without a pass and without repainting.
+    ///
+    /// See [`egui::Context::run_on_ui_thread_after`].
+    UiThreadCallback {
+        /// When to run the callback.
+        when: Instant,
+
+        /// What to run.
+        callback: egui::UiThreadCallback,
+    },
+
     /// A request related to [`accesskit`](https://accesskit.dev/).
     #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit_winit::Event),
@@ -107,6 +118,22 @@ impl From<accesskit_winit::Event> for UserEvent {
     fn from(inner: accesskit_winit::Event) -> Self {
         Self::AccessKitActionRequest(inner)
     }
+}
+
+/// Makes the event loop run the callbacks of [`egui::Context::run_on_ui_thread_after`].
+pub fn schedule_ui_thread_callbacks(
+    egui_ctx: &egui::Context,
+    event_loop_proxy: EventLoopProxy<UserEvent>,
+) {
+    // The scheduler must be `Sync`, and the proxy isn't on every platform:
+    let event_loop_proxy = egui::mutex::Mutex::new(event_loop_proxy);
+    egui_ctx.set_ui_thread_callback_scheduler(move |callback| {
+        let when = Instant::now() + callback.delay;
+        event_loop_proxy
+            .lock()
+            .send_event(UserEvent::UiThreadCallback { when, callback })
+            .ok();
+    });
 }
 
 pub trait WinitApp {

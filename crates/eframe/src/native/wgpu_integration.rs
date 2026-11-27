@@ -304,6 +304,11 @@ impl<'app> WgpuWinitApp<'app> {
                     })
                     .ok();
             });
+
+            winit_integration::schedule_ui_thread_callbacks(
+                &egui_ctx,
+                self.repaint_proxy.lock().clone(),
+            );
         }
 
         let mut egui_winit = egui_winit::State::new(
