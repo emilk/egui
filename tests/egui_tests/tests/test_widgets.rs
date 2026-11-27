@@ -5,7 +5,7 @@ use egui::load::SizedTexture;
 use egui::{
     Align, AtomExt as _, Button, Color32, ColorImage, Direction, DragValue, Event, Grid,
     IntoAtoms as _, Layout, PointerButton, RangeSlider, Response, RichText, Slider, Stroke,
-    StrokeKind, TextEdit, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
+    StrokeKind, Tab, TextEdit, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
     Widget as _, WidgetAtom, include_image,
 };
 use egui_kittest::kittest::{Queryable as _, by};
@@ -60,6 +60,13 @@ fn widget_tests() {
     test_widget(
         "selectable_value_selected",
         |ui| ui.selectable_label(true, "Selectable"),
+        &mut results,
+    );
+
+    test_widget("tab", |ui| Tab::new(false, "Tab").ui(ui), &mut results);
+    test_widget(
+        "tab_selected",
+        |ui| Tab::new(true, "Tab").ui(ui),
         &mut results,
     );
 

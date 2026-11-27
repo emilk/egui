@@ -485,7 +485,7 @@ fn combo_box_dyn<'c, R>(
     }
 }
 
-fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
+pub(super) fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
     let rect = Rect::from_center_size(
         rect.center(),
         vec2(rect.width() * 0.7, rect.height() * 0.45),

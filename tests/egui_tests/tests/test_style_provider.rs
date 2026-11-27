@@ -1,12 +1,12 @@
 use core::fmt::Debug;
 use egui::theme::{DefaultStyle, StyleProvider};
 use egui::widget_style::{
-    AtomLayoutStyle, ButtonStyle, CheckboxStyle, SeparatorStyle, StyleArgs, TextEditStyle,
-    TextVisuals,
+    AtomLayoutStyle, ButtonStyle, CheckboxStyle, SeparatorStyle, StyleArgs, TabStyle,
+    TextEditStyle, TextVisuals,
 };
 use egui::{
     Align, Align2, Atom, AtomExt as _, Button, Checkbox, Color32, CornerRadius, FontFamily, FontId,
-    Frame, Margin, Separator, Stroke, TextEdit, Ui, Vec2, include_image,
+    Frame, Margin, Separator, Stroke, Tab, TextEdit, Ui, Vec2, include_image,
 };
 use egui_kittest::Harness;
 
@@ -232,6 +232,29 @@ fn ensure_all_checkbox_style_args_used() {
             // Checked, so `check_size` and `check_stroke` paint something.
             let mut checked = true;
             ui.add(Checkbox::new(&mut checked, (image_atom(), "On")));
+        },
+    );
+}
+
+#[test]
+fn ensure_all_tab_style_args_used() {
+    test_harness_variants(
+        Vec2::new(300.0, 150.0),
+        |variant| {
+            let frame = frame_variants(variant);
+            TabStyle {
+                atom_layout: atom_layout_variants(variant, AtomLayoutFields::default(), frame),
+                indicator: Stroke::new(
+                    // Has to be more than 0.0 or the color variant below will fail
+                    variant.get(2.0, 6.0),
+                    variant.get(Color32::YELLOW, Color32::BLACK),
+                ),
+            }
+        },
+        |ui, variant| {
+            egui_extras::install_image_loaders(ui.ctx());
+            ui.replace_widget_theme(FixedStyleProvider(variant));
+            ui.add(Tab::new(true, (image_atom(), "Image Tab")));
         },
     );
 }

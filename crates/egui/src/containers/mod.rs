@@ -17,6 +17,7 @@ mod scene;
 pub mod scroll_area;
 mod scroll_physics;
 mod sides;
+mod tab_bar;
 mod tooltip;
 pub(crate) mod window;
 
@@ -34,6 +35,7 @@ pub use {
     scene::{DragPanButtons, Scene},
     scroll_area::ScrollArea,
     sides::Sides,
+    tab_bar::TabBar,
     tooltip::*,
     window::{Window, WindowDrag},
 };
