@@ -23,7 +23,7 @@ pub struct FontData {
     /// When in doubt, use `0`.
     pub index: u32,
 
-    /// Extra scale and vertical tweak to apply to all text of this font.
+    /// Tweaks to how this font face is laid out and rendered.
     pub tweak: FontTweak,
 }
 

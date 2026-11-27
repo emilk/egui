@@ -1,19 +1,44 @@
 use crate::text::VariationCoords;
 
-/// Extra scale and vertical tweak to apply to all text of a certain font.
+/// Tweaks to how one font face is laid out and rendered.
+///
+/// A tweak belongs to a single font face ([`FontData`](crate::text::FontData)),
+/// not to a font family. Glyphs that come from another face of the same family
+/// (e.g. a fallback font for emojis) use the tweak of that face.
+///
+/// This is similar to the descriptors of a CSS `@font-face` rule.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontTweak {
-    /// Scale the font's glyphs by this much.
-    /// this is only a visual effect and does not affect the text layout.
+    /// Scale the whole font face by this much.
+    ///
+    /// The face is used as if the font size was multiplied by this factor.
+    /// So this scales the glyphs, their advance widths, and the ascent, descent,
+    /// and line gap of the face.
+    ///
+    /// This affects the text layout:
+    /// * Text of this face gets wider or narrower.
+    /// * If this is the first font of its family, then the default row height
+    ///   of the family scales too. Set [`TextFormat::line_height`](crate::text::TextFormat::line_height)
+    ///   to control the row height separately.
+    ///
+    /// Use this to make fonts look the same size next to each other,
+    /// e.g. to shrink a fallback emoji font, or a monospace font that looks
+    /// larger than the proportional font at the same font size.
+    ///
+    /// This is the same as the CSS `@font-face` descriptor
+    /// [`size-adjust`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@font-face/size-adjust).
     ///
     /// Default: `1.0` (no scaling).
     pub scale: f32,
 
     /// Shift font's glyphs downwards by this fraction of the font size (in points).
-    /// this is only a visual effect and does not affect the text layout.
     ///
-    /// Affects larger font sizes more.
+    /// This is only a visual effect and does not affect the text layout:
+    /// the row height and the baseline of other fonts stay the same.
+    /// It is like the CSS `position: relative; top: 0.2em`.
+    ///
+    /// The font size here includes [`Self::scale`], so this affects larger font sizes more.
     ///
     /// A positive value shifts the text downwards.
     /// A negative value shifts it upwards.
@@ -22,7 +47,10 @@ pub struct FontTweak {
     pub y_offset_factor: f32,
 
     /// Shift font's glyphs downwards by this amount of logical points.
-    /// this is only a visual effect and does not affect the text layout.
+    ///
+    /// This is only a visual effect and does not affect the text layout:
+    /// the row height and the baseline of other fonts stay the same.
+    /// It is like the CSS `position: relative; top: 2px`.
     ///
     /// Affects all font sizes equally.
     ///
@@ -45,6 +73,11 @@ pub struct FontTweak {
     pub subpixel_binning: Option<bool>,
 
     /// Override the font's default variation coordinates for its axes ("wght", etc.).
+    ///
+    /// The coordinates of a [`TextFormat`](crate::text::TextFormat) take precedence over these.
+    ///
+    /// This is like the CSS property
+    /// [`font-variation-settings`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/font-variation-settings).
     pub coords: VariationCoords,
 
     /// Width of a thin space (`\u{2009}`) and narrow no-break space (`\u{202F}`),
@@ -56,6 +89,10 @@ pub struct FontTweak {
     pub thin_space_width: f32,
 
     /// Width of a tab character (`\t`), measured in number of space widths.
+    ///
+    /// This is like the CSS property
+    /// [`tab-size`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/tab-size),
+    /// except that every tab has this width: there are no tab stops.
     ///
     /// Default: `4.0`.
     pub tab_size: f32,
