@@ -542,7 +542,7 @@ impl<'a> TableBuilder<'a> {
         let Self {
             ui,
             id_salt,
-            columns,
+            mut columns,
             striped,
             resizable,
             cell_layout,
@@ -553,6 +553,8 @@ impl<'a> TableBuilder<'a> {
         let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
         let state_id = ui.scope_id().with(id_salt);
+
+        auto_size_double_clicked_columns(ui, state_id, &mut columns);
 
         let (is_sizing_pass, state) =
             TableState::load(ui, state_id, resizable, &columns, available_width);
