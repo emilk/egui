@@ -959,13 +959,16 @@ impl Table<'_> {
                     ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
                 let resize_hover = resize_response.hovered() && !dragging_something_else;
 
-                if resize_hover || resize_response.dragged() {
+                if resize_hover || resize_response.is_pointer_button_down_on() {
                     ui.set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
                 let stroke = ui.resize_line_stroke(
                     resize_response.id,
-                    egui::HighlightState::new(resize_hover, resize_response.dragged()),
+                    egui::HighlightState::new(
+                        resize_hover,
+                        resize_response.is_pointer_button_down_on(),
+                    ),
                     ui.visuals().table.resize_stroke,
                 );
 

@@ -35,8 +35,9 @@ impl HighlightState {
 }
 
 impl From<&Response> for HighlightState {
-    /// [`Self::Active`] while dragged.
+    /// [`Self::Active`] from the moment the pointer is pressed on it,
+    /// before egui knows whether it is a click or a drag.
     fn from(response: &Response) -> Self {
-        Self::new(response.hovered(), response.dragged())
+        Self::new(response.hovered(), response.is_pointer_button_down_on())
     }
 }
