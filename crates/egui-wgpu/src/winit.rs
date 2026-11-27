@@ -239,6 +239,7 @@ impl Painter {
         let SurfaceConfig {
             present_mode,
             desired_maximum_frame_latency,
+            prefer_hdr: _,
         } = *config;
 
         // Transaction presentation can hold a drawable until the transaction commits. Keep the
