@@ -14,10 +14,10 @@ fn styled_table() {
             table.header_fill = Color32::from_rgb(40, 40, 80);
             table.selected_row_fill = Color32::from_rgb(0, 80, 0);
             table.outer_stroke = Stroke::new(1.0, Color32::RED);
+            table.corner_radius = CornerRadius::same(4);
             table.header_stroke = Stroke::new(1.0, Color32::YELLOW);
             table.row_stroke = Stroke::new(1.0, Color32::GRAY);
             table.column_stroke = Stroke::new(1.0, Color32::LIGHT_BLUE);
-            table.corner_radius = CornerRadius::same(4);
             table.cell_margin = Margin::symmetric(6, 2);
             table_ui(ui);
         });
