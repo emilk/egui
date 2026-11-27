@@ -450,6 +450,17 @@ impl EpiIntegration {
             if let Some(window_settings) = &self.restored_window_settings {
                 window_settings.before_first_show(window);
             }
+
+            // Give the window egui's theme before it appears: on Windows, a theme set right
+            // after showing a focused window often leaves the title bar in the system theme.
+            if self.egui_ctx.options(|o| o.sync_window_theme) {
+                window.set_theme(match self.egui_ctx.options(|o| o.theme_preference) {
+                    egui::ThemePreference::Dark => Some(winit::window::Theme::Dark),
+                    egui::ThemePreference::Light => Some(winit::window::Theme::Light),
+                    egui::ThemePreference::System => None,
+                });
+            }
+
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
             if let Some(window_settings) = &self.restored_window_settings {
