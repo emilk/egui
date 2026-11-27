@@ -523,7 +523,6 @@ impl InputState {
         // does not fire the normal 'input' event chain that you would see when typing in any other special character.
         // @See https://github.com/emilk/egui/pull/8888#issuecomment-7202967974
         if matches!(special_case, KeydownSpecialCase::AndroidKeycode229)
-            && !matches!(keyboard_type, KeyboardType::Text)
             && (input.value().is_empty() && !input_state.pending_insert)
             && !event.is_composing()
         {
