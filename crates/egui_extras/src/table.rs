@@ -4,13 +4,14 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    Align, AsIdSalt, IdSalt, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    Align, AsIdSalt, IdSalt, Margin, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2,
+    Vec2b,
     scroll_area::{DragScroll, ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
 use crate::{
     StripLayout,
-    layout::{CellDirection, CellSize, StripLayoutFlags},
+    layout::{CellLines, CellSize, StripLayoutFlags, TableCellPosition},
 };
 
 // -----------------------------------------------------------------=----------
@@ -28,6 +29,9 @@ enum InitialColumnSize {
 }
 
 /// Specifies the properties of a column, like its width range.
+///
+/// All widths are of the cell contents. They exclude [`egui::style::TableStyle::cell_margin`]
+/// and the column lines, which the table adds around them.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Column {
     initial_width: InitialColumnSize,
@@ -269,6 +273,7 @@ pub struct TableBuilder<'a> {
     cell_layout: egui::Layout,
     scroll_options: TableScrollOptions,
     sense: egui::Sense,
+    edge_margin: Vec2b,
 }
 
 impl<'a> TableBuilder<'a> {
@@ -283,6 +288,7 @@ impl<'a> TableBuilder<'a> {
             cell_layout,
             scroll_options: Default::default(),
             sense: egui::Sense::hover(),
+            edge_margin: Vec2b::TRUE,
         }
     }
 
@@ -297,7 +303,7 @@ impl<'a> TableBuilder<'a> {
 
     /// Enable striped row background for improved readability.
     ///
-    /// Default is whatever is in [`egui::Visuals::striped`].
+    /// Default is whatever is in [`egui::style::TableStyle::striped`].
     #[inline]
     pub fn striped(mut self, striped: bool) -> Self {
         self.striped = Some(striped);
@@ -308,6 +314,19 @@ impl<'a> TableBuilder<'a> {
     #[inline]
     pub fn sense(mut self, sense: egui::Sense) -> Self {
         self.sense = sense;
+        self
+    }
+
+    /// Should the table make room for the cell margins on its outside edges?
+    ///
+    /// If `false` on an axis, the outer margins of the edge cells stick out of the table,
+    /// so that the cell contents line up with the content around the table.
+    /// Nothing is painted in the margins that stick out.
+    ///
+    /// Default: `true` on both axes.
+    #[inline]
+    pub fn edge_margin(mut self, edge_margin: impl Into<Vec2b>) -> Self {
+        self.edge_margin = edge_margin.into();
         self
     }
 
@@ -452,24 +471,19 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    fn available_width(&self) -> f32 {
-        self.ui.available_rect_before_wrap().width()
-            - (self.scroll_options.vscroll as i32 as f32)
-                * self.ui.spacing().scroll.allocated_width()
-    }
-
     /// Reset all column widths.
     pub fn reset(&self) {
         let state_id = self.ui.scope_id().with(self.id_salt);
         TableState::reset(self.ui, state_id);
     }
 
-    /// Create a header row which always stays visible and at the top
+    /// Create a header row which always stays visible and at the top.
+    ///
+    /// `height` is of the cell contents, like the row heights of the body.
+    /// It excludes [`egui::style::TableStyle::cell_margin`] and the header line.
     pub fn header(self, height: f32, add_header_row: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
-        let available_width = self.available_width();
-
         let Self {
-            ui,
+            ui: parent,
             id_salt,
             mut columns,
             striped,
@@ -477,16 +491,21 @@ impl<'a> TableBuilder<'a> {
             cell_layout,
             scroll_options,
             sense,
+            edge_margin,
         } = self;
 
-        let striped = striped.unwrap_or_else(|| ui.visuals().striped);
+        let (mut table_ui, inset, outside) = new_table_ui(parent, edge_margin);
+        let ui = &mut table_ui;
+        let available_width = available_width(ui, &scroll_options);
+
+        let striped = striped.unwrap_or_else(|| ui.visuals().striped());
+        resolve_resizable(&mut columns, resizable);
 
         let state_id = ui.scope_id().with(id_salt);
 
         auto_size_double_clicked_columns(ui, state_id, &mut columns);
 
-        let (is_sizing_pass, state) =
-            TableState::load(ui, state_id, resizable, &columns, available_width);
+        let (is_sizing_pass, state) = TableState::load(ui, state_id, &columns, available_width);
 
         let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
@@ -496,7 +515,7 @@ impl<'a> TableBuilder<'a> {
             ui_builder = ui_builder.sizing_pass();
         }
         ui.scope_builder(ui_builder, |ui| {
-            let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
+            let mut layout = StripLayout::new_table_row(ui, cell_layout, sense, outside);
             let mut response: Option<Response> = None;
             add_header_row(TableRow {
                 layout: &mut layout,
@@ -505,6 +524,9 @@ impl<'a> TableBuilder<'a> {
                 max_used_widths: &mut max_used_widths,
                 row_index: 0,
                 col_index: 0,
+                is_header: true,
+                top_row: true,
+                bottom_row: false,
                 height,
                 striped: false,
                 hovered: false,
@@ -516,7 +538,11 @@ impl<'a> TableBuilder<'a> {
         });
 
         Table {
-            ui,
+            parent,
+            ui: table_ui,
+            inset,
+            outside,
+            has_header: true,
             table_top,
             state_id,
             columns,
@@ -524,7 +550,6 @@ impl<'a> TableBuilder<'a> {
             state,
             max_used_widths,
             is_sizing_pass,
-            resizable,
             striped,
             cell_layout,
             scroll_options,
@@ -537,10 +562,8 @@ impl<'a> TableBuilder<'a> {
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
-        let available_width = self.available_width();
-
         let Self {
-            ui,
+            ui: parent,
             id_salt,
             mut columns,
             striped,
@@ -548,22 +571,31 @@ impl<'a> TableBuilder<'a> {
             cell_layout,
             scroll_options,
             sense,
+            edge_margin,
         } = self;
 
-        let striped = striped.unwrap_or_else(|| ui.visuals().striped);
+        let (mut table_ui, inset, outside) = new_table_ui(parent, edge_margin);
+        let ui = &mut table_ui;
+        let available_width = available_width(ui, &scroll_options);
+
+        let striped = striped.unwrap_or_else(|| ui.visuals().striped());
+        resolve_resizable(&mut columns, resizable);
 
         let state_id = ui.scope_id().with(id_salt);
 
         auto_size_double_clicked_columns(ui, state_id, &mut columns);
 
-        let (is_sizing_pass, state) =
-            TableState::load(ui, state_id, resizable, &columns, available_width);
+        let (is_sizing_pass, state) = TableState::load(ui, state_id, &columns, available_width);
 
         let max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
         Table {
-            ui,
+            parent,
+            ui: table_ui,
+            inset,
+            outside,
+            has_header: false,
             table_top,
             state_id,
             columns,
@@ -571,13 +603,75 @@ impl<'a> TableBuilder<'a> {
             state,
             max_used_widths,
             is_sizing_pass,
-            resizable,
             striped,
             cell_layout,
             scroll_options,
             sense,
         }
         .body(add_body_contents)
+    }
+}
+
+/// The [`Ui`] to lay out a table in.
+///
+/// It is inset to make room for [`egui::style::TableStyle::outer_stroke`] outside the cells,
+/// and has the same [`Ui::scope_id`] as `parent`, so the table state keeps its id.
+fn new_table_ui(parent: &mut Ui, edge_margin: Vec2b) -> (Ui, Vec2, Margin) {
+    let table_style = parent.visuals().table;
+    let inset = Vec2::splat(table_style.outer_stroke.width);
+    let cell_margin = table_style.cell_margin;
+    let outside = egui::style::TableStyle::outside_margin(cell_margin, edge_margin);
+    let table_ui = parent.new_child(
+        egui::UiBuilder::new()
+            .scope_id(parent.scope_id())
+            .max_rect(parent.available_rect_before_wrap().shrink2(inset) + outside)
+            .layout(*parent.layout()),
+    );
+    (table_ui, inset, outside)
+}
+
+/// The widths of the columns, not including their cell margins.
+fn column_widths(
+    ui: &Ui,
+    sizing: &crate::sizing::Sizing,
+    columns: &[Column],
+    available_width: f32,
+) -> Vec<f32> {
+    let margin_x = ui.visuals().table.cell_margin.sum().x;
+    let lines: f32 = column_line_widths(ui, columns).iter().sum();
+    sizing.to_lengths(
+        available_width - margin_x * columns.len() as f32 - lines,
+        0.0,
+    )
+}
+
+/// The width of [`egui::style::TableStyle::column_stroke`] on the left of each column.
+///
+/// There is no line before the first column, nor after a resizable column,
+/// which has a resize line there instead.
+fn column_line_widths(ui: &Ui, columns: &[Column]) -> Vec<f32> {
+    let width = ui.visuals().table.column_stroke.width;
+    (0..columns.len())
+        .map(|i| {
+            if 0 < i && columns[i - 1].resizable != Some(true) {
+                width
+            } else {
+                0.0
+            }
+        })
+        .collect()
+}
+
+/// The width available to the columns.
+fn available_width(ui: &Ui, scroll_options: &TableScrollOptions) -> f32 {
+    ui.available_rect_before_wrap().width()
+        - (scroll_options.vscroll as i32 as f32) * ui.spacing().scroll.allocated_width()
+}
+
+/// Replace [`Column::resizable`] `None` with the table-wide default.
+fn resolve_resizable(columns: &mut [Column], resizable: bool) {
+    for column in columns {
+        column.resizable = Some(column.resizable.unwrap_or(resizable));
     }
 }
 
@@ -595,13 +689,7 @@ struct TableState {
 
 impl TableState {
     /// Return true if we should do a sizing pass.
-    fn load(
-        ui: &Ui,
-        state_id: egui::Id,
-        resizable: bool,
-        columns: &[Column],
-        available_width: f32,
-    ) -> (bool, Self) {
+    fn load(ui: &Ui, state_id: egui::Id, columns: &[Column], available_width: f32) -> (bool, Self) {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
@@ -617,8 +705,7 @@ impl TableState {
             ui.is_sizing_pass() || state.is_none() && columns.iter().any(|c| c.is_auto());
 
         let mut state = state.unwrap_or_else(|| {
-            let initial_widths =
-                to_sizing(columns).to_lengths(available_width, ui.spacing().item_spacing.x);
+            let initial_widths = column_widths(ui, &to_sizing(columns), columns, available_width);
             Self {
                 column_widths: initial_widths,
                 max_used_widths: Default::default(),
@@ -635,7 +722,8 @@ impl TableState {
             {
                 use crate::Size;
 
-                let column_resizable = column.resizable.unwrap_or(resizable);
+                // `resolve_resizable` has set all of them:
+                let column_resizable = column.resizable == Some(true);
                 let size = if column_resizable {
                     // Resiable columns keep their width:
                     Size::exact(*prev_width)
@@ -654,7 +742,7 @@ impl TableState {
                 };
                 sizing.add(size);
             }
-            state.column_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
+            state.column_widths = column_widths(ui, &sizing, columns, available_width);
         }
 
         (is_sizing_pass, state)
@@ -682,7 +770,20 @@ impl TableState {
 ///
 /// Is created by [`TableBuilder`] by either calling [`TableBuilder::body`] or after creating a header row with [`TableBuilder::header`].
 pub struct Table<'a> {
-    ui: &'a mut Ui,
+    parent: &'a mut Ui,
+
+    /// Inside [`Self::parent`], inset by [`Self::inset`].
+    ui: Ui,
+
+    /// Room for [`egui::style::TableStyle::outer_stroke`] on each side.
+    inset: Vec2,
+
+    /// The outer margins of the edge cells that stick out of the table,
+    /// from [`TableBuilder::edge_margin`].
+    outside: Margin,
+
+    has_header: bool,
+
     table_top: f32,
     state_id: egui::Id,
     columns: Vec<Column>,
@@ -694,7 +795,6 @@ pub struct Table<'a> {
 
     /// During the sizing pass we calculate the width of columns with [`Column::auto`].
     is_sizing_pass: bool,
-    resizable: bool,
     striped: bool,
     cell_layout: egui::Layout,
 
@@ -708,7 +808,7 @@ impl Table<'_> {
     ///
     /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
     pub fn ui_mut(&mut self) -> &mut egui::Ui {
-        self.ui
+        &mut self.ui
     }
 
     /// Create table body after adding a header row
@@ -717,11 +817,12 @@ impl Table<'_> {
         F: for<'b> FnOnce(TableBody<'b>),
     {
         let Table {
-            ui,
+            parent,
+            ui: mut table_ui,
+            inset,
             table_top,
             state_id,
             columns,
-            resizable,
             mut available_width,
             mut state,
             mut max_used_widths,
@@ -730,7 +831,10 @@ impl Table<'_> {
             cell_layout,
             scroll_options,
             sense,
+            outside,
+            has_header,
         } = self;
+        let ui = &mut table_ui;
 
         let TableScrollOptions {
             vscroll,
@@ -782,10 +886,11 @@ impl Table<'_> {
                 let hovered_row_index =
                     ui.data_mut(|data| data.remove_temp::<usize>(hovered_row_index_id));
 
-                let layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
+                let layout = StripLayout::new_table_row(ui, cell_layout, sense, outside);
 
                 add_body_contents(TableBody {
                     layout,
+                    has_header,
                     columns: columns_ref,
                     widths: widths_ref,
                     max_used_widths: max_used_widths_ref,
@@ -814,11 +919,27 @@ impl Table<'_> {
 
         let bottom = ui.min_rect().bottom();
 
-        let spacing_x = ui.spacing().item_spacing.x;
-        let mut x = cursor_position.x - spacing_x * 0.5;
+        // The column widths don't include the cell margins and column lines:
+        let margin_x = ui.visuals().table.cell_margin.sum().x;
+        let line_widths = column_line_widths(ui, &columns);
+
+        let table_width = state.column_widths.iter().sum::<f32>()
+            + margin_x * state.column_widths.len() as f32
+            + line_widths.iter().sum::<f32>();
+        let visible_body = scroll_area_out.inner_rect;
+        let body_bottom = visible_body.top() - scroll_area_out.state.clamped_offset().y
+            + scroll_area_out.content_size.y;
+        let table_rect = Rect::from_x_y_ranges(
+            cursor_position.x..=cursor_position.x + table_width,
+            table_top..=body_bottom.at_most(visible_body.bottom()),
+        );
+        // Around the space the table takes up, inside the margins that stick out:
+        StripLayout::paint_table_outline(ui, table_rect - outside);
+
+        let mut x = cursor_position.x;
         for (i, column_width) in state.column_widths.iter_mut().enumerate() {
             let column = &columns[i];
-            let column_is_resizable = column.resizable.unwrap_or(resizable);
+            let column_is_resizable = column.resizable == Some(true);
             let width_range = column.width_range;
 
             let is_last_column = i + 1 == columns.len();
@@ -850,7 +971,7 @@ impl Table<'_> {
             }
             *column_width = width_range.clamp(*column_width);
 
-            x += *column_width + spacing_x;
+            x += line_widths[i] + *column_width + margin_x;
 
             if column.is_auto() && (is_sizing_pass || !column_is_resizable) {
                 *column_width = width_range.clamp(max_used_widths[i]);
@@ -895,28 +1016,32 @@ impl Table<'_> {
                     ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
                 let resize_hover = resize_response.hovered() && !dragging_something_else;
 
-                if resize_hover || resize_response.dragged() {
+                if resize_hover || resize_response.is_pointer_button_down_on() {
                     ui.set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
-                let stroke = if resize_response.dragged() {
-                    ui.style().visuals.widgets.active.bg_stroke
-                } else if resize_hover {
-                    ui.style().visuals.widgets.hovered.bg_stroke
-                } else {
-                    // ui.visuals().widgets.inactive.bg_stroke
-                    ui.visuals().widgets.noninteractive.bg_stroke
-                };
+                let stroke = ui.resize_line_stroke(
+                    resize_response.id,
+                    egui::HighlightState::new(
+                        resize_hover,
+                        resize_response.is_pointer_button_down_on(),
+                    ),
+                    ui.visuals().table_resize_stroke(),
+                );
 
                 ui.painter().line_segment([p0, p1], stroke);
             }
 
-            available_width -= *column_width + spacing_x;
+            available_width -= line_widths[i] + *column_width + margin_x;
         }
 
         state.max_used_widths = max_used_widths;
 
         state.store(ui, state_id);
+
+        // Make room for the outline in the parent:
+        parent.advance_cursor_after_rect((table_ui.min_rect() - outside).expand2(inset));
+
         scroll_area_out
     }
 }
@@ -926,6 +1051,8 @@ impl Table<'_> {
 /// Is created by calling `body` on a [`Table`] (after adding a header row) or [`TableBuilder`] (without a header row).
 pub struct TableBody<'a> {
     layout: StripLayout<'a>,
+
+    has_header: bool,
 
     columns: &'a [Column],
 
@@ -982,6 +1109,9 @@ impl<'a> TableBody<'a> {
 
     /// Add a single row with the given height.
     ///
+    /// All row heights are of the cell contents. They exclude
+    /// [`egui::style::TableStyle::cell_margin`] and the row lines, which the table adds around them.
+    ///
     /// ⚠️ It is much more performant to use [`Self::rows`] or [`Self::heterogeneous_rows`],
     /// as those functions will only render the visible rows.
     pub fn row(&mut self, height: f32, add_row_content: impl FnOnce(TableRow<'a, '_>)) {
@@ -994,6 +1124,9 @@ impl<'a> TableBody<'a> {
             max_used_widths: self.max_used_widths,
             row_index: self.row_index,
             col_index: 0,
+            is_header: false,
+            top_row: !self.has_header && self.row_index == 0,
+            bottom_row: false,
             height,
             striped: self.striped && self.row_index.is_multiple_of(2),
             hovered: self.hovered_row_index == Some(self.row_index),
@@ -1041,26 +1174,35 @@ impl<'a> TableBody<'a> {
         total_rows: usize,
         mut add_row_content: impl FnMut(TableRow<'_, '_>),
     ) {
-        let spacing = self.layout.ui.spacing().item_spacing;
-        let row_height_with_spacing = row_height_sans_spacing + spacing.y;
+        let table_style = &self.layout.ui.visuals().table;
+        let line_width = table_style.row_stroke.width;
+        let row_height_with_spacing =
+            row_height_sans_spacing + table_style.cell_margin.sum().y + line_width;
+
+        // Every row but the first has a line on top:
+        let row_top = |row: usize| {
+            if row == 0 {
+                0.0
+            } else {
+                row as f32 * row_height_with_spacing - line_width
+            }
+        };
 
         if let Some(scroll_to_row) = self.scroll_to_row {
-            let scroll_to_row = scroll_to_row.at_most(total_rows.saturating_sub(1)) as f32;
+            let scroll_to_row = scroll_to_row.at_most(total_rows.saturating_sub(1));
             *self.scroll_to_y_range = Some(Rangef::new(
-                self.layout.cursor.y + scroll_to_row * row_height_with_spacing,
-                self.layout.cursor.y + (scroll_to_row + 1.0) * row_height_with_spacing,
+                self.layout.cursor.y + row_top(scroll_to_row),
+                self.layout.cursor.y + row_top(scroll_to_row + 1),
             ));
         }
 
-        let scroll_offset_y = self
-            .scroll_offset_y()
-            .min(total_rows as f32 * row_height_with_spacing);
+        let scroll_offset_y = self.scroll_offset_y().min(row_top(total_rows));
         let max_height = self.y_range.span();
         let mut min_row = 0;
 
         if scroll_offset_y > 0.0 {
             min_row = (scroll_offset_y / row_height_with_spacing).floor() as usize;
-            self.add_buffer(min_row as f32 * row_height_with_spacing);
+            self.add_buffer(row_top(min_row));
         }
 
         let max_row =
@@ -1076,6 +1218,9 @@ impl<'a> TableBody<'a> {
                 max_used_widths: self.max_used_widths,
                 row_index,
                 col_index: 0,
+                is_header: false,
+                top_row: !self.has_header && row_index == 0,
+                bottom_row: row_index + 1 == total_rows,
                 height: row_height_sans_spacing,
                 striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                 hovered: self.hovered_row_index == Some(row_index),
@@ -1087,8 +1232,7 @@ impl<'a> TableBody<'a> {
         }
 
         if total_rows - max_row > 0 {
-            let skip_height = (total_rows - max_row) as f32 * row_height_with_spacing;
-            self.add_buffer(skip_height - spacing.y);
+            self.add_buffer(row_top(total_rows) - row_top(max_row));
         }
     }
 
@@ -1125,8 +1269,13 @@ impl<'a> TableBody<'a> {
         heights: impl Iterator<Item = f32>,
         mut add_row_content: impl FnMut(TableRow<'_, '_>),
     ) {
-        let spacing = self.layout.ui.spacing().item_spacing;
-        let mut enumerated_heights = heights.enumerate();
+        let table_style = &self.layout.ui.visuals().table;
+        let margin_y = table_style.cell_margin.sum().y;
+        let line_width = table_style.row_stroke.width;
+        // Every row but the first has a line on top:
+        let row_spacing =
+            |row_index: usize| margin_y + if row_index == 0 { 0.0 } else { line_width };
+        let mut enumerated_heights = heights.enumerate().peekable();
 
         let max_height = self.y_range.span();
         let scroll_offset_y = self.scroll_offset_y() as f64;
@@ -1136,9 +1285,9 @@ impl<'a> TableBody<'a> {
         let mut cursor_y: f64 = 0.0;
 
         // Skip the invisible rows, and populate the first non-virtual row.
-        for (row_index, row_height) in &mut enumerated_heights {
+        while let Some((row_index, row_height)) = enumerated_heights.next() {
             let old_cursor_y = cursor_y;
-            cursor_y += (row_height + spacing.y) as f64;
+            cursor_y += (row_height + row_spacing(row_index)) as f64;
 
             if Some(row_index) == self.scroll_to_row {
                 *self.scroll_to_y_range = Some(Rangef::new(
@@ -1158,6 +1307,9 @@ impl<'a> TableBody<'a> {
                     max_used_widths: self.max_used_widths,
                     row_index,
                     col_index: 0,
+                    is_header: false,
+                    top_row: !self.has_header && row_index == 0,
+                    bottom_row: enumerated_heights.peek().is_none(),
                     height: row_height,
                     striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                     hovered: self.hovered_row_index == Some(row_index),
@@ -1171,7 +1323,7 @@ impl<'a> TableBody<'a> {
         }
 
         // populate visible rows:
-        for (row_index, row_height) in &mut enumerated_heights {
+        while let Some((row_index, row_height)) = enumerated_heights.next() {
             let top_y = cursor_y;
             let mut response: Option<Response> = None;
             add_row_content(TableRow {
@@ -1181,6 +1333,9 @@ impl<'a> TableBody<'a> {
                 max_used_widths: self.max_used_widths,
                 row_index,
                 col_index: 0,
+                is_header: false,
+                top_row: !self.has_header && row_index == 0,
+                bottom_row: enumerated_heights.peek().is_none(),
                 height: row_height,
                 striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                 hovered: self.hovered_row_index == Some(row_index),
@@ -1189,7 +1344,7 @@ impl<'a> TableBody<'a> {
                 response: &mut response,
             });
             self.capture_hover_state(response.as_ref(), row_index);
-            cursor_y += (row_height + spacing.y) as f64;
+            cursor_y += (row_height + row_spacing(row_index)) as f64;
 
             if Some(row_index) == self.scroll_to_row {
                 *self.scroll_to_y_range = Some(Rangef::new(
@@ -1206,10 +1361,10 @@ impl<'a> TableBody<'a> {
         // calculate height below the visible table range:
         let mut height_below_visible: f64 = 0.0;
         for (row_index, row_height) in enumerated_heights {
-            height_below_visible += (row_height + spacing.y) as f64;
+            height_below_visible += (row_height + row_spacing(row_index)) as f64;
 
             let top_y = cursor_y;
-            cursor_y += (row_height + spacing.y) as f64;
+            cursor_y += (row_height + row_spacing(row_index)) as f64;
             if Some(row_index) == self.scroll_to_row {
                 *self.scroll_to_y_range = Some(Rangef::new(
                     (scroll_to_y_range_offset + top_y) as f32,
@@ -1269,6 +1424,14 @@ pub struct TableRow<'a, 'b> {
     col_index: usize,
     height: f32,
 
+    is_header: bool,
+
+    /// The header, or the first row of the body if there is no header.
+    top_row: bool,
+
+    /// The last row of the body, if known.
+    bottom_row: bool,
+
     striped: bool,
     hovered: bool,
     selected: bool,
@@ -1311,6 +1474,14 @@ impl TableRow<'_, '_> {
             hovered: self.hovered,
             selected: self.selected,
             overline: self.overline,
+            table_cell: Some(TableCellPosition {
+                header: self.is_header,
+                top_row: self.top_row,
+                bottom_row: self.bottom_row,
+                first_col: col_index == 0,
+                last_col: col_index + 1 == self.columns.len(),
+                lines: self.cell_lines(col_index),
+            }),
             sizing_pass: auto_size_this_frame || self.layout.ui.is_sizing_pass(),
         };
 
@@ -1333,6 +1504,32 @@ impl TableRow<'_, '_> {
         );
 
         (used_rect, response)
+    }
+
+    /// The lines on the edges of the cell in this row and the given column.
+    fn cell_lines(&self, col_index: usize) -> CellLines {
+        let table_style = &self.layout.ui.visuals().table;
+        let after_line_column = col_index
+            .checked_sub(1)
+            .and_then(|prev| self.columns.get(prev))
+            .is_some_and(|prev| prev.resizable != Some(true));
+        CellLines {
+            left: if after_line_column {
+                table_style.column_stroke.width
+            } else {
+                0.0
+            },
+            top: if !self.is_header && 0 < self.row_index {
+                table_style.row_stroke.width
+            } else {
+                0.0
+            },
+            bottom: if self.is_header {
+                table_style.header_stroke.width
+            } else {
+                0.0
+            },
+        }
     }
 
     /// Set the selection highlight state for cells added after a call to this function.

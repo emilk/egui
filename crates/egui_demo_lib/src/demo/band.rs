@@ -47,7 +47,7 @@ impl crate::View for BandDemo {
 
         egui::Grid::new("band_controls")
             .num_columns(2)
-            .spacing([12.0, 8.0])
+            .cell_margin(egui::Margin::symmetric(6, 4))
             .striped(true)
             .show(ui, |ui| {
                 ui.label("Angle");

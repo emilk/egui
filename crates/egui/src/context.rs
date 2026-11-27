@@ -4032,7 +4032,7 @@ impl Context {
                     Grid::new("textures")
                         .striped(true)
                         .num_columns(4)
-                        .spacing(vec2(16.0, 2.0))
+                        .cell_margin(crate::Margin::symmetric(8, 1))
                         .min_row_height(max_preview_size.y)
                         .show(ui, |ui| {
                             for (&texture_id, meta) in textures {

@@ -523,7 +523,8 @@ pub use self::{
     response::{InnerResponse, Response},
     sense::Sense,
     style::{
-        CodeVisuals, DelayedHighlight, FadeOut, FontSelection, Spacing, Style, TextStyle, Visuals,
+        CodeVisuals, DelayedHighlight, FadeOut, FontSelection, Spacing, Style, TableStyle,
+        TextStyle, Visuals,
     },
     text::{Galley, TextFormat},
     ui::Ui,

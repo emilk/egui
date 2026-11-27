@@ -83,7 +83,7 @@ impl eframe::App for MyApp {
 
             egui::Grid::new("variation_sliders")
                 .num_columns(2)
-                .spacing([16.0, 8.0])
+                .cell_margin(egui::Margin::symmetric(8, 4))
                 .show(ui, |ui| {
                     ui.label("Weight (wght):");
                     ui.add(egui::Slider::new(&mut self.weight, 300.0..=1000.0));

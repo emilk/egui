@@ -94,7 +94,7 @@ impl crate::View for WidgetGallery {
 
             egui::Grid::new("my_grid")
                 .num_columns(2)
-                .spacing([40.0, 4.0])
+                .cell_margin(egui::Margin::symmetric(20, 2))
                 .striped(true)
                 .show(ui, |ui| {
                     self.gallery_grid_contents(ui);

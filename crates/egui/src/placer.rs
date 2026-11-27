@@ -175,8 +175,10 @@ impl Placer {
         );
         self.region.sanity_check();
 
-        if let Some(grid) = &mut self.grid {
+        let frame_rect = if let Some(grid) = &mut self.grid {
             grid.advance(&mut self.region.cursor, frame_rect, widget_rect);
+            // Include the margin of the cell:
+            grid.cell_rect_with_margin(frame_rect)
         } else {
             self.layout.advance_after_rects(
                 &mut self.region.cursor,
@@ -184,7 +186,8 @@ impl Placer {
                 widget_rect,
                 item_spacing,
             );
-        }
+            frame_rect
+        };
 
         self.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
 

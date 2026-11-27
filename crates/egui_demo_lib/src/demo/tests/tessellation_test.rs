@@ -175,7 +175,7 @@ impl crate::View for TessellationTest {
 
             egui::Grid::new("TessellationOptions")
                 .num_columns(2)
-                .spacing([12.0, 8.0])
+                .cell_margin(egui::Margin::symmetric(6, 4))
                 .striped(true)
                 .show(ui, |ui| {
                     let label = ui.label("Magnification");
@@ -309,7 +309,7 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
 
     egui::Grid::new("RectShape")
         .num_columns(2)
-        .spacing([12.0, 8.0])
+        .cell_margin(egui::Margin::symmetric(6, 4))
         .striped(true)
         .show(ui, |ui| {
             ui.label("Size");

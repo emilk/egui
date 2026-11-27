@@ -3,8 +3,8 @@ use alloc::sync::Arc;
 use emath::GuiRounding as _;
 
 use crate::{
-    Align2, AsIdSalt, Color32, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Rect,
-    Region, Style, Ui, UiBuilder, Vec2, vec2,
+    Align2, AsIdSalt, Color32, Context, Id, IdSalt, InnerResponse, Margin, NumExt as _, Painter,
+    Rect, Region, Style, Ui, UiBuilder, Vec2, Vec2b, vec2,
 };
 
 #[cfg(debug_assertions)]
@@ -48,9 +48,9 @@ impl State {
         self.row_heights.get(row).copied()
     }
 
-    fn full_width(&self, x_spacing: f32) -> f32 {
-        self.col_widths.iter().sum::<f32>()
-            + (self.col_widths.len().at_least(1) - 1) as f32 * x_spacing
+    /// The width of all columns, including their cell margins.
+    fn full_width(&self, margin_x: f32) -> f32 {
+        self.col_widths.iter().sum::<f32>() + self.col_widths.len() as f32 * margin_x
     }
 }
 
@@ -82,7 +82,16 @@ pub(crate) struct GridLayout {
 
     // Options:
     num_columns: Option<usize>,
-    spacing: Vec2,
+
+    /// Space around the contents of each cell.
+    cell_margin: Margin,
+
+    /// The margins of the edge cells that stick out of the grid, from [`Grid::edge_margin`].
+    outside: Margin,
+
+    /// The first row, from [`Grid::start_row`].
+    start_row: usize,
+
     min_cell_size: Vec2,
     max_cell_size: Vec2,
     color_picker: Option<ColorPickerFn>,
@@ -122,7 +131,9 @@ impl GridLayout {
             sizing_pass,
 
             num_columns: None,
-            spacing: ui.spacing().item_spacing,
+            cell_margin: ui.visuals().table.cell_margin,
+            outside: Margin::ZERO,
+            start_row: 0,
             min_cell_size: ui.spacing().interact_size,
             max_cell_size: Vec2::INFINITY,
             color_picker: None,
@@ -181,12 +192,20 @@ impl GridLayout {
 
         let available = region.max_rect.intersect(region.cursor);
 
-        let height = region.max_rect.max.y - available.top();
+        let margin = self.cell_margin;
+        let width = if is_last_column && !self.is_first_frame {
+            // The available width above includes the margins of the last column:
+            width - margin.sum().x
+        } else {
+            width
+        };
+
+        let height = region.max_rect.max.y - available.top() - margin.sum().y;
         let height = height
             .at_least(self.min_cell_size.y)
             .at_most(self.max_cell_size.y);
 
-        Rect::from_min_size(available.min, vec2(width, height))
+        Rect::from_min_size(available.min + margin.left_top(), vec2(width, height))
     }
 
     pub(crate) fn next_cell(&self, cursor: Rect, child_size: Vec2) -> Rect {
@@ -197,7 +216,12 @@ impl GridLayout {
         };
         let height = self.prev_row_height(self.row);
         let size = child_size.max(vec2(width, height));
-        Rect::from_min_size(cursor.min, size).round_ui()
+        Rect::from_min_size(cursor.min + self.cell_margin.left_top(), size).round_ui()
+    }
+
+    /// The whole cell around `frame_rect`, including its margin.
+    pub(crate) fn cell_rect_with_margin(&self, frame_rect: Rect) -> Rect {
+        frame_rect + self.cell_margin
     }
 
     #[expect(clippy::unused_self)]
@@ -248,7 +272,7 @@ impl GridLayout {
         self.curr_state
             .set_min_row_height(self.row, widget_rect.height().max(self.min_cell_size.y));
 
-        cursor.min.x += self.prev_col_width(self.col) + self.spacing.x;
+        cursor.min.x += self.prev_col_width(self.col) + self.cell_margin.sum().x;
         self.col += 1;
     }
 
@@ -264,17 +288,23 @@ impl GridLayout {
             return;
         };
         // Paint background for coming row:
-        let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
-        let rect = Rect::from_min_size(cursor.min, size);
-        let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
-        let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
+        let margin = self.cell_margin.sum();
+        let size = Vec2::new(self.prev_state.full_width(margin.x), height + margin.y);
+        let mut rect = Rect::from_min_size(cursor.min, size);
 
-        painter.rect_filled(rect, 2.0, row_color);
+        // Don't paint the margins that stick out of the grid:
+        rect.min.x += f32::from(self.outside.left);
+        rect.max.x -= f32::from(self.outside.right);
+        if self.row == self.start_row {
+            rect.min.y += f32::from(self.outside.top);
+        }
+
+        painter.rect_filled(rect, 0.0, row_color);
     }
 
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
         cursor.min.x = self.initial_available.min.x;
-        cursor.min.y += self.spacing.y;
+        cursor.min.y += self.cell_margin.sum().y;
         cursor.min.y += self
             .curr_state
             .row_height(self.row)
@@ -331,7 +361,8 @@ pub struct Grid {
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
     max_cell_size: Vec2,
-    spacing: Option<Vec2>,
+    cell_margin: Option<Margin>,
+    edge_margin: Vec2b,
     start_row: usize,
     color_picker: Option<ColorPickerFn>,
 }
@@ -345,7 +376,8 @@ impl Grid {
             min_col_width: None,
             min_row_height: None,
             max_cell_size: Vec2::INFINITY,
-            spacing: None,
+            cell_margin: None,
+            edge_margin: Vec2b::FALSE,
             start_row: 0,
             color_picker: None,
         }
@@ -371,13 +403,13 @@ impl Grid {
     /// If `true`, add a subtle background color to every other row.
     ///
     /// This can make a table easier to read.
-    /// Default is whatever is in [`crate::Visuals::striped`].
+    /// Default is whatever is in [`crate::style::TableStyle::striped`].
     pub fn striped(self, striped: bool) -> Self {
         if striped {
             self.with_row_color(striped_row_color)
         } else {
             // Explicitly set the row color to nothing.
-            // Needed so that when the style.visuals.striped value is checked later on,
+            // Needed so that when the style.visuals.table.striped value is checked later on,
             // it is clear that the user does not want stripes on this specific Grid.
             self.with_row_color(|_row: usize, _style: &Style| None)
         }
@@ -406,11 +438,41 @@ impl Grid {
         self
     }
 
-    /// Set spacing between columns/rows.
-    /// Default: [`crate::style::Spacing::item_spacing`].
+    /// Set the spacing between the contents of neighboring cells.
+    ///
+    /// This sets [`Self::cell_margin`] to half of `spacing` on each side.
+    #[deprecated = "Use `Grid::cell_margin` instead"]
     #[inline]
-    pub fn spacing(mut self, spacing: impl Into<Vec2>) -> Self {
-        self.spacing = Some(spacing.into());
+    pub fn spacing(self, spacing: impl Into<Vec2>) -> Self {
+        // Split odd spacings so that the total stays the same:
+        let spacing = spacing.into().round();
+        let half = (0.5 * spacing).floor();
+        self.cell_margin(Margin {
+            left: half.x as i8,
+            right: (spacing.x - half.x) as i8,
+            top: half.y as i8,
+            bottom: (spacing.y - half.y) as i8,
+        })
+    }
+
+    /// Set the space around the contents of each cell.
+    ///
+    /// Default: [`crate::style::TableStyle::cell_margin`].
+    #[inline]
+    pub fn cell_margin(mut self, cell_margin: impl Into<Margin>) -> Self {
+        self.cell_margin = Some(cell_margin.into());
+        self
+    }
+
+    /// Should the grid make room for the cell margins on its outside edges?
+    ///
+    /// If `false` on an axis, the outer margins of the edge cells stick out of the grid,
+    /// so that the cell contents line up with the content around the grid.
+    ///
+    /// Default: `false` on both axes, so that the grid lines up with the content around it.
+    #[inline]
+    pub fn edge_margin(mut self, edge_margin: impl Into<Vec2b>) -> Self {
+        self.edge_margin = edge_margin.into();
         self
     }
 
@@ -439,14 +501,15 @@ impl Grid {
             min_col_width,
             min_row_height,
             max_cell_size,
-            spacing,
+            cell_margin,
+            edge_margin,
             start_row,
             mut color_picker,
         } = self;
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
-        let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing);
-        if color_picker.is_none() && ui.visuals().striped {
+        let cell_margin = cell_margin.unwrap_or_else(|| ui.visuals().table.cell_margin);
+        if color_picker.is_none() && ui.visuals().striped() {
             color_picker = Some(Box::new(striped_row_color));
         }
 
@@ -457,9 +520,17 @@ impl Grid {
         // If somebody wants to wrap more things inside a cell,
         // then we should pick a default layout that matches that alignment,
         // which we do here:
-        let max_rect = ui.cursor().intersect(ui.max_rect());
+        let max_rect = if ui.is_grid() {
+            // In a cell of a parent grid, `cursor` is outside the cell margin:
+            ui.available_rect_before_wrap()
+        } else {
+            ui.cursor().intersect(ui.max_rect())
+        };
 
-        let mut ui_builder = UiBuilder::new().max_rect(max_rect);
+        // The outer margins of the edge cells that stick out of the grid:
+        let outside = crate::style::TableStyle::outside_margin(cell_margin, edge_margin);
+
+        let mut ui_builder = UiBuilder::new().max_rect(max_rect + outside);
         if prev_state.is_none() {
             // The initial frame will be glitchy, because we don't know the sizes of things to come.
 
@@ -472,39 +543,45 @@ impl Grid {
             ui_builder = ui_builder.sizing_pass().invisible();
         }
 
-        ui.scope_builder(ui_builder, |ui| {
-            ui.horizontal(|ui| {
-                let is_color = color_picker.is_some();
-                let grid = GridLayout {
-                    num_columns,
-                    color_picker,
-                    min_cell_size: vec2(min_col_width, min_row_height),
-                    max_cell_size,
-                    spacing,
-                    row: start_row,
-                    ..GridLayout::new(ui, id, prev_state)
-                };
+        ui.scope_dyn_shrunk(
+            ui_builder,
+            outside,
+            Box::new(|ui| {
+                ui.horizontal(|ui| {
+                    let is_color = color_picker.is_some();
+                    let grid = GridLayout {
+                        num_columns,
+                        color_picker,
+                        min_cell_size: vec2(min_col_width, min_row_height),
+                        max_cell_size,
+                        cell_margin,
+                        outside,
+                        start_row,
+                        row: start_row,
+                        ..GridLayout::new(ui, id, prev_state)
+                    };
 
-                // paint first incoming row
-                if is_color {
-                    let cursor = ui.cursor();
-                    let painter = ui.painter();
-                    grid.paint_row(&cursor, painter);
-                }
+                    // paint first incoming row
+                    if is_color {
+                        let cursor = ui.cursor();
+                        let painter = ui.painter();
+                        grid.paint_row(&cursor, painter);
+                    }
 
-                ui.set_grid(grid);
-                let r = add_contents(ui);
-                ui.save_grid();
-                r
-            })
-            .inner
-        })
+                    ui.set_grid(grid);
+                    let r = add_contents(ui);
+                    ui.save_grid();
+                    r
+                })
+                .inner
+            }),
+        )
     }
 }
 
 fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
     if row % 2 == 1 {
-        return Some(style.visuals.faint_bg_color);
+        return Some(style.visuals.table_stripe_fill());
     }
     None
 }
