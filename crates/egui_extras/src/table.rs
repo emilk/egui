@@ -111,6 +111,9 @@ impl Column {
     /// and you don't want it too take up too much space.
     /// If you turn on clipping you should also consider calling [`Self::at_least`].
     ///
+    /// A clipped cell is also clipped vertically: it keeps the height that
+    /// [`crate::TableBody::row`] was given instead of growing the row.
+    ///
     /// Default: `false`.
     #[inline]
     pub fn clip(mut self, clip: bool) -> Self {
@@ -969,7 +972,15 @@ impl<'a> TableBody<'a> {
         self.widths
     }
 
-    /// Add a single row with the given height.
+    /// Add a single row with the given minimum height.
+    ///
+    /// A cell that is taller than `height` grows the row,
+    /// pushing the following rows down. The row background follows.
+    /// The exception is a cell in a [`Column::clip`] column,
+    /// which is cut off at `height` instead.
+    ///
+    /// [`Self::rows`] and [`Self::heterogeneous_rows`] cannot do this:
+    /// they need to know the row heights up front in order to virtualize.
     ///
     /// ⚠️ It is much more performant to use [`Self::rows`] or [`Self::heterogeneous_rows`],
     /// as those functions will only render the visible rows.
@@ -1005,6 +1016,9 @@ impl<'a> TableBody<'a> {
     /// Is a lot more performant than adding each individual row as non visible rows must not be rendered.
     ///
     /// If you need many rows with different heights, use [`Self::heterogeneous_rows`] instead.
+    ///
+    /// Unlike [`Self::row`], `height` is exact: the rows are placed by arithmetic so that
+    /// the off-screen ones need not be rendered, so a taller cell will overflow its row.
     ///
     /// ### Example
     /// ```
@@ -1088,6 +1102,8 @@ impl<'a> TableBody<'a> {
     /// visible region, but it is many orders of magnitude more performant than adding individual
     /// heterogeneously-sized rows using [`TableBody::row`] at the cost of the additional complexity
     /// that comes with pre-calculating row heights and representing them as an iterator.
+    ///
+    /// As with [`Self::rows`], the given heights are exact: a taller cell will overflow its row.
     ///
     /// ### Example
     /// ```
@@ -1296,8 +1312,6 @@ impl TableRow<'_, '_> {
 
         let flags = StripLayoutFlags {
             clip,
-            striped: self.striped,
-            hovered: self.hovered,
             selected: self.selected,
             overline: self.overline,
             sizing_pass: auto_size_this_frame || self.layout.ui.is_sizing_pass(),
@@ -1324,13 +1338,19 @@ impl TableRow<'_, '_> {
         (used_rect, response)
     }
 
-    /// Set the selection highlight state for cells added after a call to this function.
+    /// Set the selection highlight state of this row.
+    ///
+    /// The highlight covers the whole row, however tall it ends up,
+    /// so it does not matter where in the row you call this.
     #[inline]
     pub fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
     }
 
-    /// Set the hovered highlight state for cells added after a call to this function.
+    /// Set the hovered highlight state of this row.
+    ///
+    /// The highlight covers the whole row, however tall it ends up,
+    /// so it does not matter where in the row you call this.
     #[inline]
     pub fn set_hovered(&mut self, hovered: bool) {
         self.hovered = hovered;
@@ -1366,8 +1386,32 @@ impl TableRow<'_, '_> {
 }
 
 impl Drop for TableRow<'_, '_> {
-    #[inline]
     fn drop(&mut self) {
-        self.layout.end_line();
+        let Self {
+            layout,
+            striped,
+            hovered,
+            selected,
+            ..
+        } = self;
+
+        let visuals = layout.ui.visuals();
+        let fill = if *selected {
+            Some(visuals.selection.bg_fill)
+        } else if *hovered && layout.sense.interactive() {
+            Some(visuals.widgets.hovered.bg_fill)
+        } else if *striped {
+            Some(visuals.faint_bg_color)
+        } else {
+            None
+        };
+
+        if let Some(fill) = fill {
+            // One gapless rect for the whole row, so that a row that grew
+            // past its requested height is covered in full:
+            layout.paint_line_background(fill);
+        }
+
+        layout.end_line();
     }
 }
