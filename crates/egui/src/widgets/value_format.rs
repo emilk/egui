@@ -41,6 +41,9 @@ pub struct ValueFormat<'a> {
 
     /// Apply each keystroke while typing, rather than on enter.
     pub update_while_editing: bool,
+
+    /// The most characters that can be entered when text-editing. Default: `usize::MAX`, no limit.
+    pub char_limit: usize,
 }
 
 impl Default for ValueFormat<'_> {
@@ -53,6 +56,7 @@ impl Default for ValueFormat<'_> {
             custom_formatter: None,
             custom_parser: None,
             update_while_editing: true,
+            char_limit: usize::MAX,
         }
     }
 }
@@ -234,6 +238,15 @@ impl<'a> ValueFormat<'a> {
     #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
         self.update_while_editing = update;
+        self
+    }
+
+    /// The most characters that can be entered when text-editing the value.
+    ///
+    /// Default: `usize::MAX`, meaning no limit. See [`crate::DragValue::char_limit`].
+    #[inline]
+    pub fn char_limit(mut self, char_limit: usize) -> Self {
+        self.char_limit = char_limit;
         self
     }
 

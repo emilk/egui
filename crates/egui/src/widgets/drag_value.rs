@@ -386,9 +386,29 @@ impl<'a> DragValue<'a> {
     /// Default: `false`, which lets the widget widen to fit whatever has been typed, carrying the
     /// surrounding layout with it. When `true` the widget holds its width and the text scrolls
     /// inside it, following the cursor.
+    ///
+    /// See also [`Self::char_limit`], to limit how many characters can be entered.
     #[inline]
     pub fn clip_text(mut self, clip_text: bool) -> Self {
         self.clip_text = clip_text;
+        self
+    }
+
+    /// The most characters that can be entered when text-editing the value,
+    /// by typing, pasting or any other input.
+    ///
+    /// Default: `usize::MAX`, meaning no limit.
+    ///
+    /// Together with [`Self::clip_text`] and a [`Self::min_size`] wide enough for this many
+    /// characters plus the field's margins, the entered text always fits inside the widget.
+    ///
+    /// The limit counts the characters of the edited text, which is the formatted number without
+    /// the [`Self::prefix`] and [`Self::suffix`]. It only stops characters from being added:
+    /// a value whose formatted text is already longer is shown in full, not truncated.
+    /// Since all of the text is selected when editing starts, typing still replaces it.
+    #[inline]
+    pub fn char_limit(mut self, char_limit: usize) -> Self {
+        self.format = self.format.char_limit(char_limit);
         self
     }
 
@@ -425,6 +445,7 @@ impl Widget for DragValue<'_> {
             custom_formatter,
             custom_parser,
             update_while_editing,
+            char_limit,
         } = format;
 
         let prefix_text = prefix.text().unwrap_or_default().into_owned();
@@ -563,6 +584,7 @@ impl Widget for DragValue<'_> {
                 TextEdit::singleline(&mut value_text)
                     .with_classes(classes)
                     .clip_text(clip_text)
+                    .char_limit(char_limit)
                     .align(ui.layout().align2())
                     .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size))
                     .id(id)

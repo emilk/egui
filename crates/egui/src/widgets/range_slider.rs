@@ -354,6 +354,14 @@ impl<'a> RangeSlider<'a> {
         self.core.drag_value.format = self.core.drag_value.format.update_while_editing(update);
         self
     }
+
+    /// The most characters that can be entered into each number when text-editing it.
+    /// Default: `usize::MAX`, meaning no limit. See [`crate::DragValue::char_limit`].
+    #[inline]
+    pub fn char_limit(mut self, char_limit: usize) -> Self {
+        self.core.drag_value.format = self.core.drag_value.format.char_limit(char_limit);
+        self
+    }
 }
 
 impl RangeSlider<'_> {
