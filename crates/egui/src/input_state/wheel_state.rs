@@ -142,7 +142,13 @@ impl WheelState {
 
                 let mut delta = match unit {
                     MouseWheelUnit::Point => delta,
-                    MouseWheelUnit::Line => options.line_scroll_speed * delta,
+                    MouseWheelUnit::Line => {
+                        // A single wheel event never scrolls more than a page:
+                        // a free-spinning wheel on macOS can report hundreds of lines in one
+                        // event, sometimes against the spin.
+                        let page = viewport_rect.size();
+                        (options.line_scroll_speed * delta).clamp(-page, page)
+                    }
                     MouseWheelUnit::Page => viewport_rect.height() * delta,
                 };
 
@@ -166,9 +172,14 @@ impl WheelState {
                 // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
                 // BUT: if the user is using a nice smooth mac trackpad, we don't add smoothing,
                 // because it adds latency.
+                // Nor for a wheel that reports points: that's a mouse with smooth scrolling in
+                // its driver (e.g. Logitech Options+ on macOS), which already eased the delta.
+                // Easing it again lags and, for big deltas, stutters.
                 let is_smooth = self.status == Status::InTouch
                     || match unit {
-                        MouseWheelUnit::Point => delta.length() < 8.0, // a bit arbitrary here
+                        MouseWheelUnit::Point => {
+                            source == MouseWheelSource::Wheel || delta.length() < 8.0 // a bit arbitrary here
+                        }
                         MouseWheelUnit::Line | MouseWheelUnit::Page => false,
                     };
 
@@ -277,7 +288,7 @@ impl WheelState {
 
 #[cfg(test)]
 mod tests {
-    use emath::{Vec2, vec2};
+    use emath::{Pos2, Rect, Vec2, vec2};
 
     use crate::{
         Context, Event, Modifiers, MouseWheelSource, MouseWheelUnit, RawInput, TouchPhase,
@@ -299,8 +310,19 @@ mod tests {
 
     /// Runs one frame, and returns `(smooth_scroll_delta, zoom_delta, is_scrolling)`.
     fn run_frame(ctx: &Context, time: f64, events: Vec<Event>) -> (Vec2, f32, bool) {
+        run_frame_in(ctx, time, None, events)
+    }
+
+    /// Like [`run_frame`], in a screen of the given size.
+    fn run_frame_in(
+        ctx: &Context,
+        time: f64,
+        screen_rect: Option<Rect>,
+        events: Vec<Event>,
+    ) -> (Vec2, f32, bool) {
         let input = RawInput {
             time: Some(time),
+            screen_rect,
             events,
             ..Default::default()
         };
@@ -442,5 +464,94 @@ mod tests {
         run_frame(&ctx, 2.0, vec![wheel(TouchPhase::Start, Modifiers::NONE)]);
         let (_, _, is_scrolling) = run_frame(&ctx, 2.5, vec![]);
         assert!(!is_scrolling);
+    }
+
+    /// A wheel scroll event without a phase, as mice send them.
+    fn wheel_event(unit: MouseWheelUnit, delta: Vec2, source: MouseWheelSource) -> Event {
+        Event::MouseWheel {
+            unit,
+            delta,
+            phase: TouchPhase::Move,
+            source,
+            modifiers: Modifiers::NONE,
+        }
+    }
+
+    /// A mouse with smooth scrolling in its driver (e.g. Logitech Options+ on macOS) reports
+    /// points, already eased by the driver. Easing them again lags behind the wheel.
+    #[test]
+    fn points_from_a_wheel_are_not_eased_again() {
+        let delta = vec2(0.0, -300.0);
+
+        let ctx = Context::default();
+        let (scroll, _, _) = run_frame(
+            &ctx,
+            0.0,
+            vec![wheel_event(
+                MouseWheelUnit::Point,
+                delta,
+                MouseWheelSource::Wheel,
+            )],
+        );
+        assert_eq!(scroll, delta, "all of it, at once");
+
+        // A big point delta from an unknown source is still eased over a few frames:
+        let ctx = Context::default();
+        let (scroll, _, _) = run_frame(
+            &ctx,
+            0.0,
+            vec![wheel_event(
+                MouseWheelUnit::Point,
+                delta,
+                MouseWheelSource::Unknown,
+            )],
+        );
+        assert!(
+            delta.y < scroll.y && scroll.y < 0.0,
+            "only part of it this frame: {scroll:?}"
+        );
+    }
+
+    /// A free-spinning wheel on macOS can report hundreds of lines in one event.
+    #[test]
+    fn a_line_event_scrolls_at_most_a_page() {
+        let screen = Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0));
+
+        // Scrolls `delta` lines in the first frame, and returns how far it scrolled in total.
+        let scroll_lines = |delta: Vec2| {
+            let ctx = Context::default();
+            let mut total = Vec2::ZERO;
+            for frame in 0..120 {
+                let events = if frame == 0 {
+                    vec![wheel_event(
+                        MouseWheelUnit::Line,
+                        delta,
+                        MouseWheelSource::Wheel,
+                    )]
+                } else {
+                    vec![]
+                };
+                total += run_frame_in(&ctx, f64::from(frame) / 60.0, Some(screen), events).0;
+            }
+            total
+        };
+
+        let total = scroll_lines(vec2(0.0, 1200.0));
+        assert!(
+            (total.y - 600.0).abs() < 1.0,
+            "at most a screen height: {total:?}"
+        );
+
+        let total = scroll_lines(vec2(-1200.0, 0.0));
+        assert!(
+            (total.x + 800.0).abs() < 1.0,
+            "at most a screen width: {total:?}"
+        );
+
+        let total = scroll_lines(vec2(0.0, -3.0));
+        assert!(
+            (total.y + 120.0).abs() < 1.0,
+            "a normal notch is not capped: {total:?}"
+        );
     }
 }
