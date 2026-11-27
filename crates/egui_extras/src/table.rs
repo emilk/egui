@@ -480,6 +480,7 @@ impl<'a> TableBuilder<'a> {
         } = self;
 
         let striped = striped.unwrap_or_else(|| ui.visuals().striped());
+        resolve_resizable(&mut columns, resizable);
 
         let state_id = ui.scope_id().with(id_salt);
 
@@ -553,6 +554,7 @@ impl<'a> TableBuilder<'a> {
         } = self;
 
         let striped = striped.unwrap_or_else(|| ui.visuals().striped());
+        resolve_resizable(&mut columns, resizable);
 
         let state_id = ui.scope_id().with(id_salt);
 
@@ -581,6 +583,13 @@ impl<'a> TableBuilder<'a> {
             sense,
         }
         .body(add_body_contents)
+    }
+}
+
+/// Replace [`Column::resizable`] `None` with the table-wide default.
+fn resolve_resizable(columns: &mut [Column], resizable: bool) {
+    for column in columns {
+        column.resizable = Some(column.resizable.unwrap_or(resizable));
     }
 }
 
@@ -1333,7 +1342,10 @@ impl TableRow<'_, '_> {
             table_cell: Some(TableCellPosition {
                 header: self.is_header,
                 first_row: self.row_index == 0,
-                first_col: col_index == 0,
+                column_line: col_index
+                    .checked_sub(1)
+                    .and_then(|prev| self.columns.get(prev))
+                    .is_some_and(|prev| prev.resizable != Some(true)),
             }),
             sizing_pass: auto_size_this_frame || self.layout.ui.is_sizing_pass(),
         };

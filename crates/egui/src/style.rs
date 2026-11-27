@@ -1218,6 +1218,8 @@ pub struct TableStyle {
     pub row_stroke: Stroke,
 
     /// Lines between the columns.
+    ///
+    /// If the column is resizable, this is ignored and [`Self::resize_stroke`] is used instead.
     pub column_stroke: Stroke,
 
     /// Corner radius of [`Self::outer_stroke`].

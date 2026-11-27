@@ -35,7 +35,11 @@ pub(crate) enum CellDirection {
 pub(crate) struct TableCellPosition {
     pub(crate) header: bool,
     pub(crate) first_row: bool,
-    pub(crate) first_col: bool,
+
+    /// Paint [`egui::style::TableStyle::column_stroke`] on the left edge?
+    ///
+    /// Not for the first column, nor after a resizable column, which has a resize line there.
+    pub(crate) column_line: bool,
 }
 
 /// Flags used by [`StripLayout::add`].
@@ -232,7 +236,7 @@ impl<'l> StripLayout<'l> {
             painter.hline(gapless_rect.x_range(), y, table_style.row_stroke);
         }
 
-        if !cell.first_col {
+        if cell.column_line {
             let x = painter.round_to_pixel_center(gapless_rect.left());
             painter.vline(x, gapless_rect.y_range(), table_style.column_stroke);
         }
