@@ -112,6 +112,10 @@ pub struct StripLayout<'l> {
 
     /// Space inside each cell, around its contents. Only used in tables.
     cell_margin: Margin,
+
+    /// The margins of the edge cells that stick out of the table.
+    /// Nothing is painted there. Only used in tables.
+    outside: Margin,
 }
 
 impl<'l> StripLayout<'l> {
@@ -135,16 +139,25 @@ impl<'l> StripLayout<'l> {
             sense,
             spacing,
             cell_margin: Margin::ZERO,
+            outside: Margin::ZERO,
         }
     }
 
     /// A row of a [`crate::Table`]: the cells touch,
     /// and [`egui::style::TableStyle::cell_margin`] is added around the size of each cell.
-    pub(crate) fn new_table_row(ui: &'l mut Ui, cell_layout: egui::Layout, sense: Sense) -> Self {
+    ///
+    /// `outside` is the part of the margins of the edge cells that sticks out of the table.
+    pub(crate) fn new_table_row(
+        ui: &'l mut Ui,
+        cell_layout: egui::Layout,
+        sense: Sense,
+        outside: Margin,
+    ) -> Self {
         let cell_margin = ui.visuals().table.cell_margin;
         Self {
             spacing: Vec2::ZERO,
             cell_margin,
+            outside,
             ..Self::new(ui, CellDirection::Horizontal, cell_layout, sense)
         }
     }
@@ -203,7 +216,20 @@ impl<'l> StripLayout<'l> {
         let table_style = self.ui.visuals().table;
 
         // Make sure we don't have a gap in the stripe/frame/selection background:
-        let gapless_rect = max_rect.expand2(0.5 * self.spacing).round_ui();
+        let mut gapless_rect = max_rect.expand2(0.5 * self.spacing).round_ui();
+
+        // Don't paint the margins that stick out of the table:
+        if let Some(cell) = flags.table_cell {
+            if cell.first_col {
+                gapless_rect.min.x += f32::from(self.outside.left);
+            }
+            if cell.last_col {
+                gapless_rect.max.x -= f32::from(self.outside.right);
+            }
+            if cell.header {
+                gapless_rect.min.y += f32::from(self.outside.top);
+            }
+        }
 
         if let Some(cell) = flags.table_cell.filter(|cell| cell.header) {
             // Round the top corners of the table, inside the outline:

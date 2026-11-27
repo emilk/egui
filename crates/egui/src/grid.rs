@@ -86,6 +86,12 @@ pub(crate) struct GridLayout {
     /// Space around the contents of each cell.
     cell_margin: Margin,
 
+    /// The margins of the edge cells that stick out of the grid, from [`Grid::edge_margin`].
+    outside: Margin,
+
+    /// The first row, from [`Grid::start_row`].
+    start_row: usize,
+
     min_cell_size: Vec2,
     max_cell_size: Vec2,
     color_picker: Option<ColorPickerFn>,
@@ -126,6 +132,8 @@ impl GridLayout {
 
             num_columns: None,
             cell_margin: ui.visuals().table.cell_margin,
+            outside: Margin::ZERO,
+            start_row: 0,
             min_cell_size: ui.spacing().interact_size,
             max_cell_size: Vec2::INFINITY,
             color_picker: None,
@@ -282,7 +290,14 @@ impl GridLayout {
         // Paint background for coming row:
         let margin = self.cell_margin.sum();
         let size = Vec2::new(self.prev_state.full_width(margin.x), height + margin.y);
-        let rect = Rect::from_min_size(cursor.min, size);
+        let mut rect = Rect::from_min_size(cursor.min, size);
+
+        // Don't paint the margins that stick out of the grid:
+        rect.min.x += f32::from(self.outside.left);
+        rect.max.x -= f32::from(self.outside.right);
+        if self.row == self.start_row {
+            rect.min.y += f32::from(self.outside.top);
+        }
 
         painter.rect_filled(rect, 2.0, row_color);
     }
@@ -537,6 +552,8 @@ impl Grid {
                         min_cell_size: vec2(min_col_width, min_row_height),
                         max_cell_size,
                         cell_margin,
+                        outside,
+                        start_row,
                         row: start_row,
                         ..GridLayout::new(ui, id, prev_state)
                     };

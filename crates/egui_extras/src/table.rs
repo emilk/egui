@@ -510,7 +510,7 @@ impl<'a> TableBuilder<'a> {
             ui_builder = ui_builder.sizing_pass();
         }
         ui.scope_builder(ui_builder, |ui| {
-            let mut layout = StripLayout::new_table_row(ui, cell_layout, sense);
+            let mut layout = StripLayout::new_table_row(ui, cell_layout, sense, outside);
             let mut response: Option<Response> = None;
             add_header_row(TableRow {
                 layout: &mut layout,
@@ -889,7 +889,7 @@ impl Table<'_> {
                 let hovered_row_index =
                     ui.data_mut(|data| data.remove_temp::<usize>(hovered_row_index_id));
 
-                let layout = StripLayout::new_table_row(ui, cell_layout, sense);
+                let layout = StripLayout::new_table_row(ui, cell_layout, sense, outside);
 
                 add_body_contents(TableBody {
                     layout,

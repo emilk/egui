@@ -2469,8 +2469,9 @@ impl Ui {
         let mut child_ui = self.new_child(ui_builder);
         self.next_auto_id_salt = next_auto_id_salt; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
-        let response = child_ui.remember_min_rect();
-        self.advance_cursor_after_rect(child_ui.min_rect() - shrink);
+        let mut response = child_ui.remember_min_rect();
+        response.rect -= shrink;
+        self.advance_cursor_after_rect(response.rect);
         InnerResponse::new(ret, response)
     }
 

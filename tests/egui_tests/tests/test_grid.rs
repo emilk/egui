@@ -64,3 +64,44 @@ fn grid_edge_margin() {
     assert_eq!(size(Some(egui::Vec2b::TRUE)), cells + inner + margin);
     assert_eq!(size(Some(egui::Vec2b::FALSE)), cells + inner);
 }
+
+/// The stripes don't cover the cell margins that stick out of the grid.
+#[test]
+fn grid_stripes_stay_inside_the_grid() {
+    let ctx = egui::Context::default();
+    let mut grid_rect = egui::Rect::NOTHING;
+    let mut shapes = vec![];
+    for _ in 0..2 {
+        let output = ctx.run_ui(Default::default(), |ui| {
+            grid_rect = egui::Grid::new("grid")
+                .striped(true)
+                .show(ui, |ui| {
+                    for _ in 0..3 {
+                        ui.label("a");
+                        ui.label("b");
+                        ui.end_row();
+                    }
+                })
+                .response
+                .rect;
+        });
+        shapes = output.shapes.clone();
+        output.drop_without_applying_deltas();
+    }
+
+    let stripe_fill = ctx.global_style().visuals.table.stripe_fill;
+    let stripes: Vec<egui::Rect> = shapes
+        .iter()
+        .filter_map(|clipped| match &clipped.shape {
+            egui::Shape::Rect(rect) if rect.fill == stripe_fill => Some(rect.rect),
+            _ => None,
+        })
+        .collect();
+    assert!(!stripes.is_empty());
+    for stripe in stripes {
+        assert!(
+            grid_rect.min.x <= stripe.min.x && stripe.max.x <= grid_rect.max.x,
+            "{stripe:?} sticks out of {grid_rect:?}"
+        );
+    }
+}
