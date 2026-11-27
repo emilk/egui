@@ -498,7 +498,12 @@ impl Grid {
         // If somebody wants to wrap more things inside a cell,
         // then we should pick a default layout that matches that alignment,
         // which we do here:
-        let max_rect = ui.cursor().intersect(ui.max_rect());
+        let max_rect = if ui.is_grid() {
+            // In a cell of a parent grid, `cursor` is outside the cell margin:
+            ui.available_rect_before_wrap()
+        } else {
+            ui.cursor().intersect(ui.max_rect())
+        };
 
         let mut ui_builder = UiBuilder::new().max_rect(max_rect);
         if prev_state.is_none() {
