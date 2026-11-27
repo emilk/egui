@@ -4,13 +4,14 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    Align, AsIdSalt, IdSalt, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    Align, AsIdSalt, Id, IdSalt, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    accesskit::Role,
     scroll_area::{DragScroll, ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
 use crate::{
     StripLayout,
-    layout::{CellDirection, CellSize, StripLayoutFlags},
+    layout::{CellAccessibility, CellDirection, CellSize, StripLayoutFlags},
 };
 
 // -----------------------------------------------------------------=----------
@@ -491,11 +492,21 @@ impl<'a> TableBuilder<'a> {
         let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
-        let mut ui_builder = egui::UiBuilder::new().scope_id(state_id.with("__header"));
+        let accesskit_table = accesskit_table_id(state_id);
+        add_accesskit_table(ui, accesskit_table, columns.len());
+
+        // The header's `Ui` is the header row in the accessibility tree.
+        let mut ui_builder = egui::UiBuilder::new()
+            .scope_id(state_id.with("__header"))
+            .accessibility_parent(accesskit_table)
+            .accessibility_role(Role::Row);
         if is_sizing_pass {
             ui_builder = ui_builder.sizing_pass();
         }
         ui.scope_builder(ui_builder, |ui| {
+            let accesskit_row = ui.unique_id();
+            ui.ctx()
+                .accesskit_node_builder(accesskit_row, |node| node.set_row_index(0));
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
             let mut response: Option<Response> = None;
             add_header_row(TableRow {
@@ -510,6 +521,8 @@ impl<'a> TableBuilder<'a> {
                 hovered: false,
                 selected: false,
                 overline: false,
+                accesskit_row,
+                cell_role: Role::ColumnHeader,
                 response: &mut response,
             });
             layout.allocate_rect();
@@ -519,6 +532,7 @@ impl<'a> TableBuilder<'a> {
             ui,
             table_top,
             state_id,
+            header_rows: 1,
             columns,
             available_width,
             state,
@@ -562,10 +576,13 @@ impl<'a> TableBuilder<'a> {
         let max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
+        add_accesskit_table(ui, accesskit_table_id(state_id), columns.len());
+
         Table {
             ui,
             table_top,
             state_id,
+            header_rows: 0,
             columns,
             available_width,
             state,
@@ -582,6 +599,34 @@ impl<'a> TableBuilder<'a> {
 }
 
 // ----------------------------------------------------------------------------
+
+/// The id of the table's node in the accessibility tree.
+fn accesskit_table_id(state_id: Id) -> Id {
+    state_id.with("__accesskit_table")
+}
+
+/// Add the table's node to the accessibility tree, under `ui`.
+///
+/// Rows are not [`Ui`]s of their own, so each row gets a node under this one,
+/// and its cells are placed under the row.
+fn add_accesskit_table(ui: &Ui, table_id: Id, column_count: usize) {
+    ui.ctx().register_accesskit_parent(table_id, ui.unique_id());
+    ui.ctx().accesskit_node_builder(table_id, |node| {
+        node.set_role(Role::Table);
+        node.set_column_count(column_count);
+    });
+}
+
+/// Add a body row's node to the accessibility tree, under the table, and return its id.
+fn add_accesskit_row(ui: &Ui, table_id: Id, row_index: usize) -> Id {
+    let row_id = table_id.with(row_index);
+    ui.ctx().register_accesskit_parent(row_id, table_id);
+    ui.ctx().accesskit_node_builder(row_id, |node| {
+        node.set_role(Role::Row);
+        node.set_row_index(row_index);
+    });
+    row_id
+}
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -685,6 +730,10 @@ pub struct Table<'a> {
     ui: &'a mut Ui,
     table_top: f32,
     state_id: egui::Id,
+
+    /// Rows above the body: 1 with a header, otherwise 0.
+    header_rows: usize,
+
     columns: Vec<Column>,
     available_width: f32,
     state: TableState,
@@ -720,6 +769,7 @@ impl Table<'_> {
             ui,
             table_top,
             state_id,
+            header_rows,
             columns,
             resizable,
             mut available_width,
@@ -786,6 +836,8 @@ impl Table<'_> {
 
                 add_body_contents(TableBody {
                     layout,
+                    accesskit_table: accesskit_table_id(state_id),
+                    header_rows,
                     columns: columns_ref,
                     widths: widths_ref,
                     max_used_widths: max_used_widths_ref,
@@ -927,6 +979,12 @@ impl Table<'_> {
 pub struct TableBody<'a> {
     layout: StripLayout<'a>,
 
+    /// The table's node in the accessibility tree.
+    accesskit_table: Id,
+
+    /// Rows above the body, which body rows are numbered after.
+    header_rows: usize,
+
     columns: &'a [Column],
 
     /// Current column widths.
@@ -987,6 +1045,7 @@ impl<'a> TableBody<'a> {
     pub fn row(&mut self, height: f32, add_row_content: impl FnOnce(TableRow<'a, '_>)) {
         let mut response: Option<Response> = None;
         let top_y = self.layout.cursor.y;
+        let accesskit_row = self.add_accesskit_row(self.row_index);
         add_row_content(TableRow {
             layout: &mut self.layout,
             columns: self.columns,
@@ -999,6 +1058,8 @@ impl<'a> TableBody<'a> {
             hovered: self.hovered_row_index == Some(self.row_index),
             selected: false,
             overline: false,
+            accesskit_row,
+            cell_role: Role::Cell,
             response: &mut response,
         });
         self.capture_hover_state(response.as_ref(), self.row_index);
@@ -1069,6 +1130,7 @@ impl<'a> TableBody<'a> {
 
         for row_index in min_row..max_row {
             let mut response: Option<Response> = None;
+            let accesskit_row = self.add_accesskit_row(self.row_index + row_index);
             add_row_content(TableRow {
                 layout: &mut self.layout,
                 columns: self.columns,
@@ -1081,6 +1143,8 @@ impl<'a> TableBody<'a> {
                 hovered: self.hovered_row_index == Some(row_index),
                 selected: false,
                 overline: false,
+                accesskit_row,
+                cell_role: Role::Cell,
                 response: &mut response,
             });
             self.capture_hover_state(response.as_ref(), row_index);
@@ -1090,6 +1154,9 @@ impl<'a> TableBody<'a> {
             let skip_height = (total_rows - max_row) as f32 * row_height_with_spacing;
             self.add_buffer(skip_height - spacing.y);
         }
+
+        // Count every row, shown or not, for the row count set in `drop`.
+        self.row_index += total_rows;
     }
 
     /// Add rows with varying heights.
@@ -1126,7 +1193,8 @@ impl<'a> TableBody<'a> {
         mut add_row_content: impl FnMut(TableRow<'_, '_>),
     ) {
         let spacing = self.layout.ui.spacing().item_spacing;
-        let mut enumerated_heights = heights.enumerate();
+        let mut num_rows = 0;
+        let mut enumerated_heights = heights.inspect(|_| num_rows += 1).enumerate();
 
         let max_height = self.y_range.span();
         let scroll_offset_y = self.scroll_offset_y() as f64;
@@ -1151,6 +1219,7 @@ impl<'a> TableBody<'a> {
                 // This row is visible:
                 self.add_buffer(old_cursor_y as f32); // skip all the invisible rows
                 let mut response: Option<Response> = None;
+                let accesskit_row = self.add_accesskit_row(self.row_index + row_index);
                 add_row_content(TableRow {
                     layout: &mut self.layout,
                     columns: self.columns,
@@ -1163,6 +1232,8 @@ impl<'a> TableBody<'a> {
                     hovered: self.hovered_row_index == Some(row_index),
                     selected: false,
                     overline: false,
+                    accesskit_row,
+                    cell_role: Role::Cell,
                     response: &mut response,
                 });
                 self.capture_hover_state(response.as_ref(), row_index);
@@ -1174,6 +1245,7 @@ impl<'a> TableBody<'a> {
         for (row_index, row_height) in &mut enumerated_heights {
             let top_y = cursor_y;
             let mut response: Option<Response> = None;
+            let accesskit_row = self.add_accesskit_row(self.row_index + row_index);
             add_row_content(TableRow {
                 layout: &mut self.layout,
                 columns: self.columns,
@@ -1186,6 +1258,8 @@ impl<'a> TableBody<'a> {
                 hovered: self.hovered_row_index == Some(row_index),
                 overline: false,
                 selected: false,
+                accesskit_row,
+                cell_role: Role::Cell,
                 response: &mut response,
             });
             self.capture_hover_state(response.as_ref(), row_index);
@@ -1229,6 +1303,9 @@ impl<'a> TableBody<'a> {
             // accurately calculate the scrollbar position
             self.add_buffer(height_below_visible as f32);
         }
+
+        // Count every row, shown or not, for the row count set in `drop`.
+        self.row_index += num_rows;
     }
 
     // Create a table row buffer of the given height to represent the non-visible portion of the
@@ -1247,11 +1324,27 @@ impl<'a> TableBody<'a> {
                 .data_mut(|data| data.insert_temp(self.hovered_row_index_id, row_index));
         }
     }
+
+    /// Add the node of the body row with this index to the accessibility tree.
+    fn add_accesskit_row(&self, body_row_index: usize) -> Id {
+        add_accesskit_row(
+            self.layout.ui,
+            self.accesskit_table,
+            self.header_rows + body_row_index,
+        )
+    }
 }
 
 impl Drop for TableBody<'_> {
     fn drop(&mut self) {
         self.layout.allocate_rect();
+
+        // All rows, including those `rows` and `heterogeneous_rows` didn't show.
+        let row_count = self.header_rows + self.row_index;
+        self.layout
+            .ui
+            .ctx()
+            .accesskit_node_builder(self.accesskit_table, |node| node.set_row_count(row_count));
     }
 }
 
@@ -1273,6 +1366,12 @@ pub struct TableRow<'a, 'b> {
     hovered: bool,
     selected: bool,
     overline: bool,
+
+    /// The row's node in the accessibility tree.
+    accesskit_row: Id,
+
+    /// [`Role::ColumnHeader`] in the header, [`Role::Cell`] in the body.
+    cell_role: Role,
 
     response: &'b mut Option<Response>,
 }
@@ -1314,13 +1413,27 @@ impl TableRow<'_, '_> {
             sizing_pass: auto_size_this_frame || self.layout.ui.is_sizing_pass(),
         };
 
+        let accessibility = CellAccessibility {
+            row: self.accesskit_row,
+            role: self.cell_role,
+            column_index: col_index,
+        };
+
         let (used_rect, response) = self.layout.add(
             flags,
             width,
             height,
             egui::IdSalt::new((self.row_index, col_index)),
+            Some(accessibility),
             add_cell_contents,
         );
+
+        if self.selected {
+            self.layout
+                .ui
+                .ctx()
+                .accesskit_node_builder(self.accesskit_row, |node| node.set_selected(true));
+        }
 
         if let Some(max_w) = self.max_used_widths.get_mut(col_index) {
             *max_w = max_w.max(used_rect.width());
