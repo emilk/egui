@@ -118,7 +118,8 @@ pub struct GlowConfiguration {
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
     /// On Wayland, eframe always paces frames by the compositor's frame callbacks instead,
-    /// so this has no effect there.
+    /// so this has no effect there. On Windows, eframe swaps without vsync and then waits for
+    /// the desktop compositor's next frame, which paces frames the same way.
     ///
     /// The default is `true`.
     #[cfg(not(target_arch = "wasm32"))]

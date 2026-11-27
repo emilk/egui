@@ -109,6 +109,11 @@ struct GlutinWindowContext {
     egui_ctx: egui::Context,
 
     swap_interval: glutin::surface::SwapInterval,
+
+    /// Wait for the desktop compositor after each swap, instead of swapping with vsync.
+    /// See `GlutinWindowContext::new`.
+    pace_with_compositor: bool,
+
     gl_config: glutin::config::Config,
 
     max_texture_side: Option<usize>,
@@ -851,6 +856,7 @@ impl GlowWinitRunning<'_> {
             current_gl_context,
             not_current_gl_context,
             current_viewport,
+            pace_with_compositor,
             ..
         } = &mut *glutin;
 
@@ -966,6 +972,9 @@ impl GlowWinitRunning<'_> {
                 // egui-wgpu does the same. A no-op on other platforms.
                 window.pre_present_notify();
                 gl_surface.swap_buffers(context)?;
+                if *pace_with_compositor {
+                    wait_for_compositor();
+                }
                 frame_timer.resume();
             }
 
@@ -1212,11 +1221,18 @@ impl GlutinWindowContext {
                 .display_handle()
                 .is_ok_and(|handle| matches!(handle.as_raw(), RawDisplayHandle::Wayland(_)))
         };
-        let swap_interval = if native_options.glow_options.vsync && !is_wayland {
-            glutin::surface::SwapInterval::Wait(NonZeroU32::MIN)
-        } else {
-            glutin::surface::SwapInterval::DontWait
-        };
+        // On Windows, a vsync swap on NVIDIA's default OpenGL present method (a DXGI swapchain
+        // composed by DWM) sometimes puts a frame on screen before anything is drawn on it:
+        // the window flashes its clear color for one frame. Swapping without vsync and then
+        // waiting for DWM's next composition has the same pacing, without the flashes.
+        // See <https://github.com/crmne/zapfast/issues/945>.
+        let pace_with_compositor = native_options.glow_options.vsync && cfg!(windows);
+        let swap_interval =
+            if native_options.glow_options.vsync && !is_wayland && !pace_with_compositor {
+                glutin::surface::SwapInterval::Wait(NonZeroU32::MIN)
+            } else {
+                glutin::surface::SwapInterval::DontWait
+            };
         /*  opengl setup flow goes like this:
             1. we create a configuration for opengl "Display" / "Config" creation
             2. choose between special extensions like glx or egl or wgl and use them to create config/display
@@ -1352,6 +1368,7 @@ impl GlutinWindowContext {
         let mut slf = Self {
             egui_ctx: egui_ctx.clone(),
             swap_interval,
+            pace_with_compositor,
             gl_config,
             current_gl_context: None,
             not_current_gl_context,
@@ -1812,6 +1829,7 @@ fn render_immediate_viewport(
         not_current_gl_context,
         current_viewport,
         viewports,
+        pace_with_compositor,
         ..
     } = &mut *glutin;
 
@@ -1869,6 +1887,9 @@ fn render_immediate_viewport(
         if let Err(err) = gl_surface.swap_buffers(current_gl_context) {
             log::error!("swap_buffers failed: {err}");
         }
+        if *pace_with_compositor {
+            wait_for_compositor();
+        }
     }
 
     egui_winit.handle_platform_output(window, platform_output);
@@ -1877,6 +1898,21 @@ fn render_immediate_viewport(
         glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);
     });
 }
+
+/// Blocks until the desktop compositor has composed its next frame.
+///
+/// This is how frames are paced on Windows when vsync is wanted, see `GlutinWindowContext::new`.
+#[cfg(windows)]
+#[expect(unsafe_code)]
+fn wait_for_compositor() {
+    profiling::function_scope!();
+    // SAFETY: `DwmFlush` takes no arguments. It fails harmlessly (and at once) when DWM
+    // composition is off, which it never is on Windows 8 and later.
+    unsafe { windows_sys::Win32::Graphics::Dwm::DwmFlush() };
+}
+
+#[cfg(not(windows))]
+fn wait_for_compositor() {}
 
 /// The OpenGL contexts to ask for, in order of preference.
 ///
