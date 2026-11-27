@@ -176,6 +176,22 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
     sizing
 }
 
+/// The id of the resize handle to the right of the given column.
+fn column_resize_id(state_id: egui::Id, column_index: usize) -> egui::Id {
+    state_id.with("resize_column").with(column_index)
+}
+
+/// Auto-size the columns whose resize handle was double-clicked.
+fn auto_size_double_clicked_columns(ui: &Ui, state_id: egui::Id, columns: &mut [Column]) {
+    for (i, column) in columns.iter_mut().enumerate() {
+        if let Some(response) = ui.ctx().read_response(column_resize_id(state_id, i))
+            && response.double_clicked()
+        {
+            column.auto_size_this_frame = true;
+        }
+    }
+}
+
 // -----------------------------------------------------------------=----------
 
 struct TableScrollOptions {
@@ -463,18 +479,11 @@ impl<'a> TableBuilder<'a> {
             sense,
         } = self;
 
-        for (i, column) in columns.iter_mut().enumerate() {
-            let column_resize_id = ui.scope_id().with("resize_column").with(i);
-            if let Some(response) = ui.ctx().read_response(column_resize_id)
-                && response.double_clicked()
-            {
-                column.auto_size_this_frame = true;
-            }
-        }
-
         let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
         let state_id = ui.scope_id().with(id_salt);
+
+        auto_size_double_clicked_columns(ui, state_id, &mut columns);
 
         let (is_sizing_pass, state) =
             TableState::load(ui, state_id, resizable, &columns, available_width);
@@ -844,7 +853,7 @@ impl Table<'_> {
             if column.is_auto() && (is_sizing_pass || !column_is_resizable) {
                 *column_width = width_range.clamp(max_used_widths[i]);
             } else if column_is_resizable {
-                let column_resize_id = state_id.with("resize_column").with(i);
+                let resize_id = column_resize_id(state_id, i);
 
                 let mut p0 = egui::pos2(x, table_top);
                 let mut p1 = egui::pos2(x, bottom);
@@ -852,7 +861,7 @@ impl Table<'_> {
                     .expand(ui.style().interaction.resize_grab_radius_side);
 
                 let resize_response =
-                    ui.interact(line_rect, column_resize_id, egui::Sense::click_and_drag());
+                    ui.interact(line_rect, resize_id, egui::Sense::click_and_drag());
 
                 if column.auto_size_this_frame {
                     // Auto-size: resize to what is needed.
