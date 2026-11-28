@@ -617,6 +617,15 @@ impl Window<'_> {
                         }
                     });
                 }
+            } else if let Some(new_pos) = area.new_pos() {
+                // `Area::begin` would apply `current_pos`, but the pivot is restored
+                // to its pre-begin value below, so apply it here instead.
+                // Like drag-anywhere, an ongoing drag takes precedence.
+                ctx.memory_mut(|mem| {
+                    if let Some(state) = mem.areas_mut().get_mut(area.id) {
+                        state.pivot_pos = Some(new_pos);
+                    }
+                });
             }
             area::AreaState::load(ctx, area.id).and_then(|s| s.pivot_pos)
         } else {
@@ -1575,6 +1584,38 @@ mod tests {
         run_frame(ctx, vec![Event::PointerMoved(to)]);
         run_frame(ctx, vec![button(to, false)]);
         run_frame(ctx, vec![]);
+    }
+
+    /// `Window::current_pos` moves the window regardless of the drag mode.
+    #[test]
+    fn current_pos_moves_window_in_every_drag_mode() {
+        use crate::WindowDrag;
+
+        for mode in [
+            WindowDrag::Anywhere,
+            WindowDrag::TitleBar,
+            WindowDrag::OnTouch,
+        ] {
+            let ctx = Context::default();
+            let config = move |window: Window<'static>| {
+                window
+                    .default_pos([100.0, 100.0])
+                    .resizable(false)
+                    .drag_area(mode)
+            };
+            for _ in 0..3 {
+                run_frame_with(&ctx, vec![], config, 1);
+            }
+            let moved = run_frame_with(
+                &ctx,
+                vec![],
+                move |window| config(window).current_pos([300.0, 200.0]),
+                1,
+            );
+            let next = run_frame_with(&ctx, vec![], config, 1);
+            assert_eq!(moved.min, pos2(300.0, 200.0), "{mode:?}");
+            assert_eq!(next.min, pos2(300.0, 200.0), "{mode:?}");
+        }
     }
 
     /// The position of a window that was resized below its default size survives a restart (#8522).
