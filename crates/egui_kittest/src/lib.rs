@@ -386,20 +386,25 @@ impl<'a, State> Harness<'a, State> {
     /// Run a frame for each queued event (or a single frame if there are no events).
     /// This will call the app closure with each queued event and
     /// update the Harness.
+    ///
+    /// A queued event can carry a [`QueuedEvent::dt`], in which case the frame processing it
+    /// advances time by that much instead of [`HarnessBuilder::with_step_dt`].
     pub fn step(&mut self) {
         let events = core::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
-            self.step_impl(false);
+            self.step_impl(false, None);
         }
-        for event in events {
+        for QueuedEvent { event, dt } in events {
             self.input.events.push(event);
-            self.step_impl(false);
+            self.step_impl(false, dt);
         }
     }
 
     /// Run a single step. This will not process any events.
-    fn step_impl(&mut self, sizing_pass: bool) {
-        self.input.predicted_dt = self.step_dt;
+    ///
+    /// `dt` temporarily overrides [`HarnessBuilder::with_step_dt`] for this step, if set.
+    fn step_impl(&mut self, sizing_pass: bool, dt: Option<f32>) {
+        self.input.predicted_dt = dt.unwrap_or(self.step_dt);
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
             self.ui_output = self.app.run(ui, &mut self.state, sizing_pass);
@@ -445,7 +450,7 @@ impl<'a, State> Harness<'a, State> {
     /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
     /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
     pub fn fit_contents(&mut self) {
-        self.step_impl(true);
+        self.step_impl(true, None);
 
         // Calculate size including all content (main UI + popups + tooltips)
         if let Some(rect) = self.compute_total_rect_with_popups() {
@@ -674,7 +679,7 @@ impl<'a, State> Harness<'a, State> {
 
     /// Queue an event to be processed in the next frame.
     pub fn event(&self, event: egui::Event) {
-        self.queued_events.lock().push(event);
+        self.queued_events.lock().push(QueuedEvent::new(event));
     }
 
     /// Queue an event with modifiers.
@@ -682,15 +687,17 @@ impl<'a, State> Harness<'a, State> {
     /// Queues the modifiers to be pressed, then the event, then the modifiers to be released.
     pub fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
         let mut queue = self.queued_events.lock();
-        queue.push(egui::Event::ModifiersChanged(modifiers));
-        queue.push(event);
-        queue.push(egui::Event::ModifiersChanged(Modifiers::default()));
+        queue.push(QueuedEvent::new(egui::Event::ModifiersChanged(modifiers)));
+        queue.push(QueuedEvent::new(event));
+        queue.push(QueuedEvent::new(egui::Event::ModifiersChanged(
+            Modifiers::default(),
+        )));
     }
 
     fn modifiers(&self, modifiers: Modifiers) {
         self.queued_events
             .lock()
-            .push(egui::Event::ModifiersChanged(modifiers));
+            .push(QueuedEvent::new(egui::Event::ModifiersChanged(modifiers)));
     }
 
     pub fn key_down(&self, key: egui::Key) {
