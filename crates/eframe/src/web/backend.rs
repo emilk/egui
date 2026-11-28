@@ -197,32 +197,51 @@ fn parse_query_map(query: &str) -> BTreeMap<String, Vec<String>> {
     map
 }
 
-// TODO(emilk): this test is never acgtually run, because this whole module is wasm32 only 🤦‍♂️
-#[test]
+#[cfg(test)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn test_parse_query() {
-    assert_eq!(parse_query_map(""), BTreeMap::default());
-    assert_eq!(parse_query_map("foo"), BTreeMap::from_iter([("foo", "")]));
+    let expected = |pairs: &[(&str, &str)]| {
+        pairs
+            .iter()
+            .map(|(key, value)| (key.to_string(), vec![value.to_string()]))
+            .collect::<BTreeMap<_, _>>()
+    };
+    assert_eq!(
+        parse_query_map(""),
+        BTreeMap::default(),
+        "an empty query must not create entries"
+    );
+    assert_eq!(
+        parse_query_map("foo"),
+        expected(&[("foo", "")]),
+        "a valueless key must retain an empty value"
+    );
     assert_eq!(
         parse_query_map("foo=bar"),
-        BTreeMap::from_iter([("foo", "bar")])
+        expected(&[("foo", "bar")]),
+        "a key must retain its value"
     );
     assert_eq!(
         parse_query_map("foo=bar&baz=42"),
-        BTreeMap::from_iter([("foo", "bar"), ("baz", "42")])
+        expected(&[("foo", "bar"), ("baz", "42")]),
+        "each key must retain its value"
     );
     assert_eq!(
         parse_query_map("foo&baz=42"),
-        BTreeMap::from_iter([("foo", ""), ("baz", "42")])
+        expected(&[("foo", ""), ("baz", "42")]),
+        "a valueless key must not consume the next pair"
     );
     assert_eq!(
         parse_query_map("foo&baz&&"),
-        BTreeMap::from_iter([("foo", ""), ("baz", "")])
+        expected(&[("foo", ""), ("baz", "")]),
+        "empty pairs must be ignored"
     );
     assert_eq!(
         parse_query_map("badger=data.rrd%3Fparam1%3Dfoo%26param2%3Dbar&mushroom=snake"),
-        BTreeMap::from_iter([
+        expected(&[
             ("badger", "data.rrd?param1=foo&param2=bar"),
             ("mushroom", "snake")
-        ])
+        ]),
+        "encoded separators must stay in the decoded value"
     );
 }
