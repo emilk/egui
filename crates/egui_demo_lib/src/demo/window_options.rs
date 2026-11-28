@@ -9,6 +9,7 @@ pub struct WindowOptions {
     collapsible: bool,
     movable: bool,
     resizable: bool,
+    reset_size: bool,
     constrain: bool,
     scroll2: Vec2b,
     disabled_time: f64,
@@ -29,6 +30,7 @@ impl Default for WindowOptions {
             collapsible: true,
             movable: true,
             resizable: true,
+            reset_size: false,
             constrain: true,
             scroll2: Vec2b::TRUE,
             disabled_time: f64::NEG_INFINITY,
@@ -53,6 +55,7 @@ impl crate::Demo for WindowOptions {
             collapsible,
             movable,
             resizable,
+            reset_size,
             constrain,
             scroll2,
             disabled_time,
@@ -85,6 +88,10 @@ impl crate::Demo for WindowOptions {
         if anchored {
             window = window.anchor(anchor, anchor_offset);
         }
+        if reset_size {
+            window = window.reset_size();
+            self.reset_size = false;
+        }
         window.show(ui, |ui| self.ui(ui));
     }
 }
@@ -105,6 +112,7 @@ impl crate::View for WindowOptions {
             anchor,
             anchor_offset,
             drag_area,
+            ..
         } = self;
         ui.horizontal(|ui| {
             let label = ui.label("title:");
@@ -178,6 +186,15 @@ impl crate::View for WindowOptions {
                 self.disabled_time = ui.input(|i| i.time);
             }
             egui::reset_button(ui, self, "Reset");
+            if ui
+                .button("Reset size")
+                .on_hover_text(
+                    "Forget the size the user resized the window to, going back to the default size",
+                )
+                .clicked()
+            {
+                self.reset_size = true;
+            }
             if ui
                 .button("Close")
                 .on_hover_text("You can collapse / close Windows via Ui::close")

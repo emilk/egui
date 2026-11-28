@@ -92,6 +92,7 @@ pub struct Window<'a> {
     fade_out: bool,
     auto_sized: bool,
     drag_area: WindowDrag,
+    reset_size: bool,
 }
 
 impl<'a> Window<'a> {
@@ -118,6 +119,7 @@ impl<'a> Window<'a> {
             fade_out: true,
             auto_sized: false,
             drag_area: WindowDrag::default(),
+            reset_size: false,
         }
     }
 
@@ -428,6 +430,20 @@ impl<'a> Window<'a> {
         self
     }
 
+    /// Forget the remembered size of the window, so it goes back to its default size.
+    ///
+    /// A window remembers the size the user has resized it to, and restores it the next time it is
+    /// shown (and across app restarts if you persist the egui memory, as `eframe` does).
+    /// Call this to forget that remembered size, for instance when the screen size changes and
+    /// you want your windows to go back to their declared sizes.
+    ///
+    /// The window starts remembering its size again right away.
+    #[inline]
+    pub fn reset_size(mut self) -> Self {
+        self.reset_size = true;
+        self
+    }
+
     /// Sets the window size and prevents it from being resized by dragging its edges.
     ///
     /// The size refers to the *outer* window size, including the frame's `inner_margin`,
@@ -566,6 +582,7 @@ impl Window<'_> {
             fade_out,
             auto_sized,
             drag_area: drag_area_setting,
+            reset_size,
         } = self;
 
         // `Window::movable(false)` (and `Area::movable(false)`) and
@@ -622,6 +639,13 @@ impl Window<'_> {
         } else {
             None
         };
+
+        if reset_size {
+            // Forget the size the user resized this window to, so it goes back to its default size.
+            // Done early so the reset also applies if the window is currently hidden.
+            let resize_id = area.id.with("resize");
+            ctx.data_mut(|data| data.remove::<super::resize::State>(resize_id));
+        }
 
         let style = ctx.global_style();
 
@@ -1577,6 +1601,32 @@ mod tests {
         run_frame(ctx, vec![]);
     }
 
+    /// Same as [`drag`], but for a window with a custom configuration.
+    fn drag_with(
+        ctx: &Context,
+        from: Pos2,
+        to: Pos2,
+        config: impl Fn(Window<'static>) -> Window<'static>,
+    ) {
+        let button = |pos, pressed| Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        };
+        run_frame_with(ctx, vec![Event::PointerMoved(from)], &config, 1);
+        run_frame_with(ctx, vec![button(from, true)], &config, 1);
+        run_frame_with(
+            ctx,
+            vec![Event::PointerMoved(from.lerp(to, 0.5))],
+            &config,
+            1,
+        );
+        run_frame_with(ctx, vec![Event::PointerMoved(to)], &config, 1);
+        run_frame_with(ctx, vec![button(to, false)], &config, 1);
+        run_frame_with(ctx, vec![], &config, 1);
+    }
+
     /// The position of a window that was resized below its default size survives a restart (#8522).
     #[test]
     fn shrunk_window_keeps_its_position_after_restart() {
@@ -1638,5 +1688,70 @@ mod tests {
                 "The {name:?} window moved after a restart"
             );
         }
+    }
+
+    /// `Window::reset_size` makes the window forget the size the user resized it to (#8848).
+    #[test]
+    fn reset_size_makes_the_window_forget_its_remembered_size() {
+        // A scrolling window keeps the size it is given, even if its contents are smaller:
+        let config = |window: Window<'static>| window.default_size([340.0, 420.0]).vscroll(true);
+        let ctx = Context::default();
+
+        // Grow the window by dragging its bottom-right corner:
+        let rect = run_frame_with(&ctx, vec![], config, 1);
+        let bottom_right = pos2(rect.right() - 1.0, rect.bottom() - 1.0);
+        drag_with(
+            &ctx,
+            bottom_right,
+            bottom_right + vec2(120.0, 120.0),
+            config,
+        );
+        let enlarged = run_frame_with(&ctx, vec![], config, 1);
+        assert!(
+            enlarged.width() > 400.0 && enlarged.height() > 450.0,
+            "The window didn't grow: {enlarged:?}"
+        );
+
+        // The remembered size is used on the following frames:
+        assert_eq!(run_frame_with(&ctx, vec![], config, 1), enlarged);
+
+        // `reset_size` makes the window forget the remembered size,
+        // going back to the size of a freshly shown window:
+        let fresh = Context::default();
+        let default_rect = run_frame_with(&fresh, vec![], config, 1);
+        let reset_rect = run_frame_with(&ctx, vec![], |window| config(window).reset_size(), 1);
+        assert_eq!(reset_rect, default_rect);
+
+        // The window remembers the (default) size again afterwards:
+        assert_eq!(run_frame_with(&ctx, vec![], config, 1), reset_rect);
+    }
+
+    /// A size forgotten with `Window::reset_size` stays forgotten across a restart (#8848).
+    #[test]
+    fn reset_size_is_not_undone_by_a_restart() {
+        let config = |window: Window<'static>| window.default_size([340.0, 420.0]).vscroll(true);
+        let ctx = Context::default();
+
+        // Grow the window by dragging its bottom-right corner:
+        let rect = run_frame_with(&ctx, vec![], config, 1);
+        let bottom_right = pos2(rect.right() - 1.0, rect.bottom() - 1.0);
+        drag_with(
+            &ctx,
+            bottom_right,
+            bottom_right + vec2(120.0, 120.0),
+            config,
+        );
+        let enlarged = run_frame_with(&ctx, vec![], config, 1);
+
+        let reset_rect = run_frame_with(&ctx, vec![], |window| config(window).reset_size(), 1);
+
+        // The forgotten size is not restored from the persisted memory:
+        let ctx = restart(&ctx);
+        for _ in 0..3 {
+            run_frame_with(&ctx, vec![], config, 1);
+        }
+        let after_restart = run_frame_with(&ctx, vec![], config, 1);
+        assert_eq!(after_restart, reset_rect);
+        assert_ne!(after_restart, enlarged);
     }
 }
