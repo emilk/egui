@@ -4,7 +4,28 @@ use egui::mutex::Mutex;
 use egui::{Modifiers, PointerButton, Pos2, accesskit};
 use kittest::{AccessKitNode, NodeT, debug_fmt_node};
 
-pub type EventQueue = Mutex<Vec<egui::Event>>;
+/// An event queued on the [`Harness`](crate::Harness), to be processed in a frame of its own.
+pub struct QueuedEvent {
+    /// The event to process.
+    pub event: egui::Event,
+
+    /// If set, the frame processing this event advances time by this much instead of
+    /// [`HarnessBuilder::with_step_dt`](crate::HarnessBuilder::with_step_dt).
+    ///
+    /// [`Node::double_click`] uses this to keep its clicks within egui's double-click window
+    /// ([`egui::InputOptions::max_double_click_delay`], 0.3 s by default).
+    pub dt: Option<f32>,
+}
+
+impl QueuedEvent {
+    /// Queue a plain event, to be processed with the harness
+    /// [`step_dt`](crate::HarnessBuilder::with_step_dt).
+    pub fn new(event: egui::Event) -> Self {
+        Self { event, dt: None }
+    }
+}
+
+pub type EventQueue = Mutex<Vec<QueuedEvent>>;
 
 #[derive(Clone, Copy)]
 pub struct Node<'tree> {
@@ -44,13 +65,13 @@ impl<'tree> Node<'tree> {
     }
 
     fn event(&self, event: egui::Event) {
-        self.queue.lock().push(event);
+        self.queue.lock().push(QueuedEvent::new(event));
     }
 
     fn modifiers(&self, modifiers: Modifiers) {
         self.queue
             .lock()
-            .push(egui::Event::ModifiersChanged(modifiers));
+            .push(QueuedEvent::new(egui::Event::ModifiersChanged(modifiers)));
     }
 
     pub fn hover(&self) {
@@ -94,6 +115,55 @@ impl<'tree> Node<'tree> {
             });
         }
         self.modifiers(Modifiers::default());
+    }
+
+    /// Double-click at the node center with the primary button.
+    ///
+    /// The clicks are queued close together in time, so that they register as a double click
+    /// ([`egui::Response::double_clicked`]) even with the default
+    /// [`step_dt`](crate::HarnessBuilder::with_step_dt): each queued event is processed in a
+    /// frame of its own, so two separate [`Node::click`]s would land 0.75 s apart, which is
+    /// further apart than egui's double-click window.
+    pub fn double_click(&self) {
+        self.click_repeatedly(PointerButton::Primary, 2);
+    }
+
+    /// Triple-click at the node center with the primary button.
+    ///
+    /// See [`Node::double_click`].
+    pub fn triple_click(&self) {
+        self.click_repeatedly(PointerButton::Primary, 3);
+    }
+
+    /// Click the node `clicks` times in quick succession with the given button.
+    ///
+    /// The clicks are queued with a short time step in between, so that they land within
+    /// egui's double-click window ([`egui::InputOptions::max_double_click_delay`]).
+    fn click_repeatedly(&self, button: PointerButton, clicks: usize) {
+        /// Time step used for the frames of [`Node::double_click`] and [`Node::triple_click`].
+        ///
+        /// Small enough that consecutive clicks land well within egui's double-click window,
+        /// even though each queued event is processed in a frame of its own.
+        const CLICK_DT: f32 = 0.05;
+
+        let pos = self.rect().center();
+        self.queue.lock().push(QueuedEvent {
+            event: egui::Event::PointerMoved(pos),
+            dt: Some(CLICK_DT),
+        });
+        for _ in 0..clicks {
+            for pressed in [true, false] {
+                self.queue.lock().push(QueuedEvent {
+                    event: egui::Event::PointerButton {
+                        pos,
+                        button,
+                        pressed,
+                        modifiers: Modifiers::default(),
+                    },
+                    dt: Some(CLICK_DT),
+                });
+            }
+        }
     }
 
     /// Click the node via accesskit.

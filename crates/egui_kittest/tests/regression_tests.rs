@@ -1129,3 +1129,70 @@ pub fn scene_with_zero_rect_and_unbounded_zoom_should_not_produce_nan() {
         "scene_rect: {scene_rect:?}"
     );
 }
+
+/// Regression test for <https://github.com/emilk/egui/issues/8697>.
+///
+/// A double click from queued events never registered, because each event advances
+/// time by a full `step_dt` (0.25 s by default), so two `Node::click`s land 0.75 s
+/// apart, which is further apart than egui's double-click window
+/// (`max_double_click_delay`, 0.3 s).
+#[test]
+pub fn double_click_from_queued_events() {
+    #[derive(Default)]
+    struct State {
+        double_clicks: usize,
+        triple_clicks: usize,
+    }
+
+    let mut harness = Harness::new_ui_state(
+        |ui, state: &mut State| {
+            let response = ui.button("Click me");
+            if response.double_clicked() {
+                state.double_clicks += 1;
+            }
+            if response.triple_clicked() {
+                state.triple_clicks += 1;
+            }
+        },
+        State::default(),
+    );
+
+    harness.get_by_label("Click me").double_click();
+    harness.run();
+
+    let state = harness.state();
+    assert_eq!(state.double_clicks, 1);
+    assert_eq!(state.triple_clicks, 0);
+}
+
+/// Regression test for <https://github.com/emilk/egui/issues/8697>.
+///
+/// Same as `double_click_from_queued_events`, but with three queued clicks.
+#[test]
+pub fn triple_click_from_queued_events() {
+    #[derive(Default)]
+    struct State {
+        double_clicks: usize,
+        triple_clicks: usize,
+    }
+
+    let mut harness = Harness::new_ui_state(
+        |ui, state: &mut State| {
+            let response = ui.button("Click me");
+            if response.double_clicked() {
+                state.double_clicks += 1;
+            }
+            if response.triple_clicked() {
+                state.triple_clicks += 1;
+            }
+        },
+        State::default(),
+    );
+
+    harness.get_by_label("Click me").triple_click();
+    harness.run();
+
+    let state = harness.state();
+    assert_eq!(state.double_clicks, 1);
+    assert_eq!(state.triple_clicks, 1);
+}
